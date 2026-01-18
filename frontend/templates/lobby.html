@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acquire - Board Game</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <main class="lobby-container">
+        <header class="lobby-header">
+            <h1>Acquire</h1>
+            <p class="subtitle">Board Game</p>
+        </header>
+
+        <section class="lobby-forms">
+            <article class="form-card">
+                <h2>Create New Game</h2>
+                <form id="create-game-form" action="/create" method="POST">
+                    <div class="form-group">
+                        <label for="create-player-name">Your Name</label>
+                        <input
+                            type="text"
+                            id="create-player-name"
+                            name="player_name"
+                            placeholder="Enter your name"
+                            required
+                            maxlength="20"
+                            autocomplete="off"
+                        >
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create Game</button>
+                </form>
+            </article>
+
+            <div class="divider">
+                <span>OR</span>
+            </div>
+
+            <article class="form-card">
+                <h2>Join Existing Game</h2>
+                <form id="join-game-form" action="/join" method="POST">
+                    <div class="form-group">
+                        <label for="room-code">Room Code</label>
+                        <input
+                            type="text"
+                            id="room-code"
+                            name="room_code"
+                            placeholder="Enter room code"
+                            required
+                            maxlength="6"
+                            autocomplete="off"
+                            style="text-transform: uppercase;"
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label for="join-player-name">Your Name</label>
+                        <input
+                            type="text"
+                            id="join-player-name"
+                            name="player_name"
+                            placeholder="Enter your name"
+                            required
+                            maxlength="20"
+                            autocomplete="off"
+                        >
+                    </div>
+                    <button type="submit" class="btn btn-secondary">Join Game</button>
+                </form>
+            </article>
+        </section>
+
+        <footer class="lobby-footer">
+            <p>A classic game of hotel chain acquisitions</p>
+        </footer>
+    </main>
+</body>
+</html>
