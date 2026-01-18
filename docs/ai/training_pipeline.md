@@ -33,24 +33,21 @@ Proximal Policy Optimization (PPO) is a policy gradient method that uses a clipp
 ```
 
 #### 2. PPO Objective
-```
-L_CLIP = E[min(r(θ)·A, clip(r(θ), 1-ε, 1+ε)·A)]
+
+$$L_{\text{CLIP}} = \mathbb{E}\left[\min\left(r(\theta) \cdot A, \text{clip}(r(\theta), 1-\epsilon, 1+\epsilon) \cdot A\right)\right]$$
 
 where:
-  r(θ) = π_θ(a|s) / π_θ_old(a|s)  # probability ratio
-  A = advantage estimate (from GAE)
-  ε = 0.2 (clip parameter)
-```
+- $r(\theta) = \frac{\pi_\theta(a|s)}{\pi_{\theta_{\text{old}}}(a|s)}$ — probability ratio
+- $A$ — advantage estimate (from GAE)
+- $\epsilon = 0.2$ — clip parameter
 
 #### 3. Value Loss
-```
-L_V = 0.5 * (V(s) - V_target)²
-```
+
+$$L_V = 0.5 \cdot (V(s) - V_{\text{target}})^2$$
 
 #### 4. Entropy Bonus
-```
-L_H = -0.01 * H(π(·|s))
-```
+
+$$L_H = -0.01 \cdot H(\pi(\cdot|s))$$
 
 ### Training Loop
 
