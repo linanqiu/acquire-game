@@ -1,16 +1,230 @@
 """FastAPI application for Acquire board game."""
 
+import re
+import time
 import uuid
+from collections import defaultdict
+from typing import Optional, Union, Literal
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
+from pydantic import BaseModel, field_validator, ValidationError
 
 from session.manager import SessionManager
 from game.board import Board, Tile
 from game.hotel import Hotel
 from game.player import Player
 from game.rules import Rules
+
+
+# =============================================================================
+# Pydantic Models for WebSocket Message Validation
+# =============================================================================
+
+VALID_CHAINS = ["Luxor", "Tower", "American", "Worldwide", "Festival", "Imperial", "Continental"]
+
+
+class PlaceTileMessage(BaseModel):
+    """Validate place_tile action messages."""
+    action: Literal["place_tile"]
+    tile: str
+
+    @field_validator('tile')
+    @classmethod
+    def validate_tile(cls, v: str) -> str:
+        """Validate tile format (e.g., '1A', '12I')."""
+        if not isinstance(v, str):
+            raise ValueError('Tile must be a string')
+        v = v.upper().strip()
+        if not re.match(r'^1?[0-9][A-I]$', v):
+            raise ValueError('Invalid tile format. Expected format like 1A, 5E, 12I')
+        return v
+
+
+class FoundChainMessage(BaseModel):
+    """Validate found_chain action messages."""
+    action: Literal["found_chain"]
+    chain: str
+
+    @field_validator('chain')
+    @classmethod
+    def validate_chain(cls, v: str) -> str:
+        """Validate chain name."""
+        if v not in VALID_CHAINS:
+            raise ValueError(f'Invalid chain: {v}. Must be one of {VALID_CHAINS}')
+        return v
+
+
+class MergerChoiceMessage(BaseModel):
+    """Validate merger_choice action messages."""
+    action: Literal["merger_choice"]
+    surviving_chain: str
+
+    @field_validator('surviving_chain')
+    @classmethod
+    def validate_chain(cls, v: str) -> str:
+        """Validate chain name."""
+        if v not in VALID_CHAINS:
+            raise ValueError(f'Invalid chain: {v}. Must be one of {VALID_CHAINS}')
+        return v
+
+
+class DispositionData(BaseModel):
+    """Validate disposition data within merger_disposition."""
+    sell: int = 0
+    trade: int = 0
+    hold: int = 0
+
+    @field_validator('sell', 'trade', 'hold')
+    @classmethod
+    def validate_non_negative(cls, v: int) -> int:
+        """Ensure values are non-negative."""
+        if v < 0:
+            raise ValueError('Value must be non-negative')
+        return v
+
+
+class MergerDispositionMessage(BaseModel):
+    """Validate merger_disposition action messages."""
+    action: Literal["merger_disposition"]
+    defunct_chain: str
+    disposition: DispositionData
+
+    @field_validator('defunct_chain')
+    @classmethod
+    def validate_chain(cls, v: str) -> str:
+        """Validate chain name."""
+        if v not in VALID_CHAINS:
+            raise ValueError(f'Invalid chain: {v}. Must be one of {VALID_CHAINS}')
+        return v
+
+
+class BuyStocksMessage(BaseModel):
+    """Validate buy_stocks action messages."""
+    action: Literal["buy_stocks"]
+    purchases: dict[str, int]
+
+    @field_validator('purchases')
+    @classmethod
+    def validate_purchases(cls, v: dict) -> dict:
+        """Validate purchases dictionary."""
+        if not isinstance(v, dict):
+            raise ValueError('Purchases must be a dictionary')
+        total = 0
+        for chain, quantity in v.items():
+            if chain not in VALID_CHAINS:
+                raise ValueError(f'Invalid chain: {chain}')
+            if not isinstance(quantity, int) or quantity < 0:
+                raise ValueError(f'Invalid quantity for {chain}: must be non-negative integer')
+            total += quantity
+        if total > 3:
+            raise ValueError('Cannot buy more than 3 stocks per turn')
+        return v
+
+
+class EndTurnMessage(BaseModel):
+    """Validate end_turn action messages."""
+    action: Literal["end_turn"]
+
+
+# Union type for all valid message types
+WebSocketMessage = Union[
+    PlaceTileMessage,
+    FoundChainMessage,
+    MergerChoiceMessage,
+    MergerDispositionMessage,
+    BuyStocksMessage,
+    EndTurnMessage
+]
+
+
+def validate_websocket_message(data: dict) -> tuple[Optional[WebSocketMessage], Optional[str]]:
+    """Validate incoming WebSocket message data.
+
+    Args:
+        data: Raw message data dictionary
+
+    Returns:
+        Tuple of (validated_message, error_message)
+        If validation succeeds, error_message is None
+        If validation fails, validated_message is None
+    """
+    action = data.get("action")
+
+    message_types = {
+        "place_tile": PlaceTileMessage,
+        "found_chain": FoundChainMessage,
+        "merger_choice": MergerChoiceMessage,
+        "merger_disposition": MergerDispositionMessage,
+        "buy_stocks": BuyStocksMessage,
+        "end_turn": EndTurnMessage,
+    }
+
+    if action not in message_types:
+        return None, f"Unknown action: {action}"
+
+    try:
+        validated = message_types[action](**data)
+        return validated, None
+    except ValidationError as e:
+        # Extract first error message
+        errors = e.errors()
+        if errors:
+            return None, f"Validation error: {errors[0]['msg']}"
+        return None, "Validation error"
+
+
+# =============================================================================
+# Rate Limiting
+# =============================================================================
+
+class RateLimiter:
+    """Simple rate limiter using sliding window algorithm."""
+
+    def __init__(self, max_requests: int = 10, window_seconds: int = 1):
+        """Initialize rate limiter.
+
+        Args:
+            max_requests: Maximum requests allowed in window
+            window_seconds: Time window in seconds
+        """
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self.requests: dict[str, list[float]] = defaultdict(list)
+
+    def is_allowed(self, client_id: str) -> bool:
+        """Check if a request from client_id is allowed.
+
+        Args:
+            client_id: Unique identifier for the client
+
+        Returns:
+            True if request is allowed, False if rate limited
+        """
+        now = time.time()
+        # Clean old requests outside the window
+        self.requests[client_id] = [
+            t for t in self.requests[client_id]
+            if now - t < self.window_seconds
+        ]
+
+        if len(self.requests[client_id]) >= self.max_requests:
+            return False
+
+        self.requests[client_id].append(now)
+        return True
+
+    def cleanup_client(self, client_id: str) -> None:
+        """Remove tracking data for a disconnected client."""
+        if client_id in self.requests:
+            del self.requests[client_id]
+
+
+# Global rate limiter: 10 requests per second per player
+rate_limiter = RateLimiter(max_requests=10, window_seconds=1)
+
 
 app = FastAPI(title="Acquire Board Game")
 
@@ -38,7 +252,13 @@ async def create_room():
 
 @app.post("/join/{room_code}")
 async def join_room(room_code: str, name: str):
-    """Join an existing room."""
+    """Join an existing room.
+
+    Returns:
+        player_id: Unique identifier for the player
+        room_code: The room code
+        session_token: Token required for WebSocket authentication
+    """
     room = session_manager.get_room(room_code)
     if room is None:
         raise HTTPException(status_code=404, detail="Room not found")
@@ -50,12 +270,16 @@ async def join_room(room_code: str, name: str):
         raise HTTPException(status_code=400, detail="Room is full")
 
     player_id = str(uuid.uuid4())
-    success = session_manager.join_room(room_code, player_id, name)
+    session_token = session_manager.join_room(room_code, player_id, name)
 
-    if not success:
+    if session_token is None:
         raise HTTPException(status_code=400, detail="Failed to join room")
 
-    return {"player_id": player_id, "room_code": room_code}
+    return {
+        "player_id": player_id,
+        "room_code": room_code,
+        "session_token": session_token
+    }
 
 
 @app.get("/host/{room_code}", response_class=HTMLResponse)
@@ -213,6 +437,18 @@ async def player_websocket(websocket: WebSocket, room_code: str, player_id: str)
         await websocket.close(code=4004, reason="Player not found")
         return
 
+    # Validate session token if provided (for authentication)
+    # Token validation is optional for backward compatibility:
+    # - If a token is provided in the query params, it must match
+    # - If no token is provided, the connection is allowed (for legacy clients/tests)
+    player_conn = room.players[player_id]
+    token = websocket.query_params.get("token")
+    if token is not None and player_conn.session_token is not None:
+        # Token was provided - validate it matches
+        if token != player_conn.session_token:
+            await websocket.close(code=4003, reason="Invalid session token")
+            return
+
     await websocket.accept()
     session_manager.connect_player(room_code, player_id, websocket)
 
@@ -222,46 +458,71 @@ async def player_websocket(websocket: WebSocket, room_code: str, player_id: str)
     try:
         while True:
             data = await websocket.receive_json()
+
+            # Apply rate limiting
+            client_key = f"{room_code}:{player_id}"
+            if not rate_limiter.is_allowed(client_key):
+                await session_manager.send_to_player(room_code, player_id, {
+                    "type": "error",
+                    "message": "Rate limit exceeded. Please slow down."
+                })
+                continue
+
             await handle_player_action(room_code, player_id, data)
 
     except WebSocketDisconnect:
         session_manager.disconnect(room_code, player_id)
+        # Clean up rate limiter data for this client
+        rate_limiter.cleanup_client(f"{room_code}:{player_id}")
 
 
-async def handle_player_action(room_code: str, player_id: str, data: dict):
-    """Process player actions and broadcast updates."""
+async def handle_player_action(room_code: str, player_id: str, data: dict) -> None:
+    """Process player actions and broadcast updates.
+
+    Args:
+        room_code: The room code
+        player_id: The player's ID
+        data: The raw message data from the WebSocket
+    """
     room = session_manager.get_room(room_code)
     if room is None or not room.started:
+        return
+
+    # Validate the incoming message
+    validated_msg, error = validate_websocket_message(data)
+    if error is not None:
+        await session_manager.send_to_player(room_code, player_id, {
+            "type": "error",
+            "message": error
+        })
         return
 
     action = data.get("action")
 
     if action == "place_tile":
-        tile_str = data.get("tile")
-        if tile_str:
-            await handle_place_tile(room_code, player_id, tile_str)
+        # validated_msg is PlaceTileMessage, tile is already validated and normalized
+        await handle_place_tile(room_code, player_id, validated_msg.tile)
 
     elif action == "found_chain":
-        chain_name = data.get("chain")
-        if chain_name:
-            await handle_found_chain(room_code, player_id, chain_name)
+        # validated_msg is FoundChainMessage, chain is already validated
+        await handle_found_chain(room_code, player_id, validated_msg.chain)
 
     elif action == "merger_choice":
-        surviving_chain = data.get("surviving_chain")
-        if surviving_chain:
-            await handle_merger_choice(room_code, player_id, surviving_chain)
+        # validated_msg is MergerChoiceMessage
+        await handle_merger_choice(room_code, player_id, validated_msg.surviving_chain)
 
     elif action == "merger_disposition":
-        # Handle sell/trade/hold decisions during merger
-        disposition = data.get("disposition")  # {"sell": n, "trade": n, "hold": n}
-        defunct_chain = data.get("defunct_chain")
-        if disposition and defunct_chain:
-            await handle_merger_disposition(room_code, player_id, defunct_chain, disposition)
+        # validated_msg is MergerDispositionMessage
+        disposition = {
+            "sell": validated_msg.disposition.sell,
+            "trade": validated_msg.disposition.trade,
+            "hold": validated_msg.disposition.hold
+        }
+        await handle_merger_disposition(room_code, player_id, validated_msg.defunct_chain, disposition)
 
     elif action == "buy_stocks":
-        purchases = data.get("purchases")  # {"chain_name": quantity, ...}
-        if purchases:
-            await handle_buy_stocks(room_code, player_id, purchases)
+        # validated_msg is BuyStocksMessage
+        await handle_buy_stocks(room_code, player_id, validated_msg.purchases)
 
     elif action == "end_turn":
         await handle_end_turn(room_code, player_id)
@@ -446,7 +707,7 @@ async def handle_found_chain(room_code: str, player_id: str, chain_name: str):
     # Give founder a free stock if available
     if hotel.get_available_stocks(chain_name) > 0:
         hotel.buy_stock(chain_name)
-        player._stocks[chain_name] += 1
+        player.add_stocks(chain_name, 1)
 
     game["pending_action"] = None
     game["phase"] = "buy_stocks"

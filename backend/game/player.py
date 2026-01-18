@@ -163,6 +163,69 @@ class Player:
         self._stocks[surviving_chain] += surviving_quantity
         return True
 
+    def add_stocks(self, chain_name: str, quantity: int) -> bool:
+        """Add stocks with validation (respects 25 max limit).
+
+        Args:
+            chain_name: Name of the hotel chain
+            quantity: Number of shares to add (must be positive)
+
+        Returns:
+            True if successful, False if invalid chain, negative quantity,
+            or would exceed max stocks per chain
+        """
+        if chain_name not in self._stocks:
+            return False
+        if quantity < 0:
+            return False
+        if quantity == 0:
+            return True
+        if self._stocks[chain_name] + quantity > self.MAX_STOCKS_PER_CHAIN:
+            return False
+        self._stocks[chain_name] += quantity
+        return True
+
+    def remove_stocks(self, chain_name: str, quantity: int) -> bool:
+        """Remove stocks with validation.
+
+        Args:
+            chain_name: Name of the hotel chain
+            quantity: Number of shares to remove (must be positive)
+
+        Returns:
+            True if successful, False if invalid chain, negative quantity,
+            or insufficient stocks
+        """
+        if chain_name not in self._stocks:
+            return False
+        if quantity < 0:
+            return False
+        if quantity == 0:
+            return True
+        if self._stocks[chain_name] < quantity:
+            return False
+        self._stocks[chain_name] -= quantity
+        return True
+
+    def set_stocks(self, chain_name: str, quantity: int) -> bool:
+        """Set stocks to specific value with validation.
+
+        Args:
+            chain_name: Name of the hotel chain
+            quantity: Number of shares to set (must be non-negative and <= 25)
+
+        Returns:
+            True if successful, False if invalid chain or quantity out of range
+        """
+        if chain_name not in self._stocks:
+            return False
+        if quantity < 0:
+            return False
+        if quantity > self.MAX_STOCKS_PER_CHAIN:
+            return False
+        self._stocks[chain_name] = quantity
+        return True
+
     def add_money(self, amount: int) -> bool:
         """Add money to the player's balance.
 

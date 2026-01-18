@@ -385,7 +385,7 @@ class Game:
         # Give founder a free stock if available
         if self.hotel.get_available_stocks(chain_name) > 0:
             self.hotel.buy_stock(chain_name)
-            player._stocks[chain_name] += 1
+            player.add_stocks(chain_name, 1)
 
         self.phase = GamePhase.BUYING_STOCKS
         self.pending_action = None
@@ -555,8 +555,8 @@ class Game:
 
         # Execute trade
         if trade > 0:
-            player._stocks[defunct] -= trade
-            player._stocks[survivor] += trade_for
+            player.remove_stocks(defunct, trade)
+            player.add_stocks(survivor, trade_for)
             self.hotel.return_stock(defunct, trade)
             self.hotel.buy_stock(survivor, trade_for)
 
@@ -737,7 +737,7 @@ class Game:
                         price = self.hotel.get_stock_price(chain_name, size)
                     else:
                         price = 0
-                    player._stocks[chain_name] = 0
+                    player.set_stocks(chain_name, 0)
                     player.add_money(count * price)
 
         # Calculate final standings

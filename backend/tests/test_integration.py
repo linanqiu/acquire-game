@@ -546,8 +546,8 @@ class TestBroadcast:
 
         room.host_websocket = host_ws
         player_ids = list(room.players.keys())
-        room.players[player_ids[0]].websocket = player_ws_1
-        room.players[player_ids[1]].websocket = player_ws_2
+        room.players[player_ids[0]].websockets.append(player_ws_1)
+        room.players[player_ids[1]].websockets.append(player_ws_2)
 
         await broadcast_game_state(game_room)
 
@@ -583,8 +583,8 @@ class TestBroadcast:
         player_ws_1 = mock_websockets[0]
         player_ws_2 = mock_websockets[1]
 
-        room.players[player_ids[0]].websocket = player_ws_1
-        room.players[player_ids[1]].websocket = player_ws_2
+        room.players[player_ids[0]].websockets.append(player_ws_1)
+        room.players[player_ids[1]].websockets.append(player_ws_2)
 
         await broadcast_game_state(game_room)
 
@@ -672,3 +672,137 @@ class TestPlayerAction:
                 room_with_players, "player_1", {"action": "place_tile", "tile": "1A"}
             )
             mock.assert_not_called()
+
+
+class TestMultipleWebsocketsPerPlayer:
+    """Tests for players connecting from multiple devices."""
+
+    @pytest.mark.asyncio
+    async def test_player_can_have_multiple_websockets(self, room_code, clean_session_manager, mock_websockets):
+        """A player should be able to connect from multiple devices."""
+        clean_session_manager.join_room(room_code, "player_1", "Alice")
+
+        ws1 = mock_websockets[0]
+        ws2 = mock_websockets[1]
+
+        clean_session_manager.connect_player(room_code, "player_1", ws1)
+        clean_session_manager.connect_player(room_code, "player_1", ws2)
+
+        room = clean_session_manager.get_room(room_code)
+        player = room.players["player_1"]
+
+        assert len(player.websockets) == 2
+        assert ws1 in player.websockets
+        assert ws2 in player.websockets
+
+    @pytest.mark.asyncio
+    async def test_broadcast_sends_to_all_player_websockets(self, room_code, clean_session_manager, mock_websockets):
+        """Broadcast should send to all websockets for each player."""
+        clean_session_manager.join_room(room_code, "player_1", "Alice")
+
+        ws1 = mock_websockets[0]
+        ws2 = mock_websockets[1]
+
+        clean_session_manager.connect_player(room_code, "player_1", ws1)
+        clean_session_manager.connect_player(room_code, "player_1", ws2)
+
+        await clean_session_manager.broadcast_to_room(room_code, {"type": "test", "data": "hello"})
+
+        # Both websockets should receive the message
+        assert len(ws1.sent_messages) == 1
+        assert len(ws2.sent_messages) == 1
+        assert ws1.sent_messages[0] == {"type": "test", "data": "hello"}
+        assert ws2.sent_messages[0] == {"type": "test", "data": "hello"}
+
+    @pytest.mark.asyncio
+    async def test_send_to_player_sends_to_all_websockets(self, room_code, clean_session_manager, mock_websockets):
+        """send_to_player should send to all websockets for that player."""
+        clean_session_manager.join_room(room_code, "player_1", "Alice")
+
+        ws1 = mock_websockets[0]
+        ws2 = mock_websockets[1]
+
+        clean_session_manager.connect_player(room_code, "player_1", ws1)
+        clean_session_manager.connect_player(room_code, "player_1", ws2)
+
+        await clean_session_manager.send_to_player(room_code, "player_1", {"type": "private", "data": "secret"})
+
+        # Both websockets should receive the message
+        assert len(ws1.sent_messages) == 1
+        assert len(ws2.sent_messages) == 1
+        assert ws1.sent_messages[0] == {"type": "private", "data": "secret"}
+
+    @pytest.mark.asyncio
+    async def test_disconnect_removes_only_specific_websocket(self, room_code, clean_session_manager, mock_websockets):
+        """Disconnecting one websocket should not affect other websockets for same player."""
+        clean_session_manager.join_room(room_code, "player_1", "Alice")
+
+        ws1 = mock_websockets[0]
+        ws2 = mock_websockets[1]
+
+        clean_session_manager.connect_player(room_code, "player_1", ws1)
+        clean_session_manager.connect_player(room_code, "player_1", ws2)
+
+        # Disconnect first websocket
+        clean_session_manager.disconnect(room_code, "player_1", ws1)
+
+        room = clean_session_manager.get_room(room_code)
+        player = room.players["player_1"]
+
+        # Only ws2 should remain
+        assert len(player.websockets) == 1
+        assert ws1 not in player.websockets
+        assert ws2 in player.websockets
+
+    @pytest.mark.asyncio
+    async def test_broadcast_still_works_after_one_disconnect(self, room_code, clean_session_manager, mock_websockets):
+        """After one device disconnects, broadcasts should still reach remaining devices."""
+        clean_session_manager.join_room(room_code, "player_1", "Alice")
+
+        ws1 = mock_websockets[0]
+        ws2 = mock_websockets[1]
+
+        clean_session_manager.connect_player(room_code, "player_1", ws1)
+        clean_session_manager.connect_player(room_code, "player_1", ws2)
+
+        # Disconnect first websocket
+        clean_session_manager.disconnect(room_code, "player_1", ws1)
+
+        # Broadcast message
+        await clean_session_manager.broadcast_to_room(room_code, {"type": "test", "data": "after_disconnect"})
+
+        # ws1 should not receive (disconnected before broadcast)
+        assert len(ws1.sent_messages) == 0
+        # ws2 should receive
+        assert len(ws2.sent_messages) == 1
+        assert ws2.sent_messages[0] == {"type": "test", "data": "after_disconnect"}
+
+    @pytest.mark.asyncio
+    async def test_dead_websocket_removed_on_broadcast(self, room_code, clean_session_manager, mock_websockets):
+        """A websocket that fails to send should be removed from the list."""
+        clean_session_manager.join_room(room_code, "player_1", "Alice")
+
+        ws1 = mock_websockets[0]
+        ws2 = mock_websockets[1]
+
+        # Make ws1 raise an exception on send
+        async def failing_send(data):
+            raise Exception("Connection lost")
+        ws1.send_json = failing_send
+
+        clean_session_manager.connect_player(room_code, "player_1", ws1)
+        clean_session_manager.connect_player(room_code, "player_1", ws2)
+
+        # Broadcast - ws1 will fail
+        await clean_session_manager.broadcast_to_room(room_code, {"type": "test"})
+
+        room = clean_session_manager.get_room(room_code)
+        player = room.players["player_1"]
+
+        # ws1 should be removed due to failure
+        assert len(player.websockets) == 1
+        assert ws1 not in player.websockets
+        assert ws2 in player.websockets
+
+        # ws2 should have received the message
+        assert len(ws2.sent_messages) == 1

@@ -1137,3 +1137,872 @@ body {
         display: none;
     }
 }
+
+/* =============================================================================
+   ERROR TOAST NOTIFICATION
+   ============================================================================= */
+.error-toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background-color: var(--error);
+    color: white;
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    z-index: 2000;
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    max-width: 90%;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.error-toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+/* =============================================================================
+   GAME OVER PANEL
+   ============================================================================= */
+.game-over-panel {
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    text-align: center;
+}
+
+.game-over-panel h2 {
+    color: var(--accent);
+    font-size: 1.5rem;
+    margin-bottom: var(--spacing-md);
+}
+
+.final-standings {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.standing-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background-color: var(--bg-card);
+    border-radius: var(--radius-md);
+}
+
+.standing-row.is-me {
+    border: 2px solid var(--accent);
+}
+
+.standing-row.is-winner {
+    background-color: rgba(76, 175, 80, 0.2);
+    border: 2px solid var(--success);
+}
+
+.standing-row .rank {
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-right: var(--spacing-sm);
+}
+
+.standing-row .name {
+    flex: 1;
+    text-align: left;
+}
+
+.standing-row .score {
+    font-weight: 700;
+    color: var(--success);
+    font-family: monospace;
+}
+
+/* =============================================================================
+   HOST VIEW SPECIFIC STYLES
+   ============================================================================= */
+.host-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.host-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.host-header h1 {
+    font-size: 1.5rem;
+    color: var(--accent);
+    margin: 0;
+}
+
+.room-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.room-label {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+.room-code {
+    font-family: monospace;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 2px;
+}
+
+.turn-indicator {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.turn-label {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+.current-player {
+    font-weight: 700;
+    color: var(--success);
+}
+
+.current-player.winner {
+    color: var(--accent);
+    animation: pulse 1s infinite;
+}
+
+.host-main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+}
+
+@media (min-width: 1024px) {
+    .host-main {
+        grid-template-columns: 2fr 1fr;
+    }
+
+    .board-section {
+        grid-row: 1 / 3;
+    }
+
+    .sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-md);
+    }
+}
+
+.board-section {
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+}
+
+.game-board {
+    display: grid;
+    grid-template-columns: auto repeat(12, 1fr);
+    gap: 2px;
+    max-width: 100%;
+}
+
+.board-corner {
+    background-color: transparent;
+}
+
+.column-header,
+.row-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    padding: var(--spacing-xs);
+}
+
+/* =============================================================================
+   CHAIN LEGEND (HOST VIEW)
+   ============================================================================= */
+.chain-legend {
+    background-color: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+}
+
+.chain-legend h2 {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: var(--spacing-sm);
+}
+
+.chain-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.chain-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    transition: var(--transition-fast);
+}
+
+.chain-item.inactive {
+    opacity: 0.4;
+}
+
+.chain-item.active {
+    opacity: 1;
+}
+
+.chain-item.safe::after {
+    content: 'SAFE';
+    font-size: 0.625rem;
+    font-weight: 700;
+    color: var(--success);
+    margin-left: auto;
+}
+
+.chain-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.chain-color.chain-luxor { background-color: var(--chain-luxor); }
+.chain-color.chain-tower { background-color: var(--chain-tower); }
+.chain-color.chain-american { background-color: var(--chain-american); }
+.chain-color.chain-festival { background-color: var(--chain-festival); }
+.chain-color.chain-worldwide { background-color: var(--chain-worldwide); }
+.chain-color.chain-continental { background-color: var(--chain-continental); }
+.chain-color.chain-imperial { background-color: var(--chain-imperial); }
+
+.chain-size {
+    margin-left: auto;
+    font-weight: 700;
+    font-family: monospace;
+    min-width: 2ch;
+    text-align: right;
+}
+
+/* =============================================================================
+   PLAYER SCORES TABLE (HOST VIEW)
+   ============================================================================= */
+.player-scores {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+.player-scores th,
+.player-scores td {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.player-scores th {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.player-scores th:first-child,
+.player-scores td:first-child {
+    text-align: left;
+}
+
+.player-scores .stock-col {
+    min-width: 35px;
+}
+
+.player-scores tr.current-turn {
+    background-color: rgba(233, 69, 96, 0.15);
+}
+
+.player-scores tr.current-turn td:first-child {
+    color: var(--accent);
+}
+
+/* =============================================================================
+   GAME LOG STYLES (HOST VIEW)
+   ============================================================================= */
+.game-log {
+    background-color: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.game-log h2 {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: var(--spacing-sm);
+    position: sticky;
+    top: 0;
+    background-color: var(--bg-card);
+    padding-bottom: var(--spacing-xs);
+}
+
+.log-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.log-entry {
+    font-size: 0.8rem;
+    padding: var(--spacing-xs) 0;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.log-entry .log-time {
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    margin-right: var(--spacing-sm);
+}
+
+.log-entry.log-turn {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.log-entry.log-error {
+    color: var(--error);
+    font-weight: 600;
+}
+
+.log-entry.log-important {
+    color: var(--warning);
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.log-entry.log-winner {
+    color: var(--success);
+    font-weight: 700;
+}
+
+/* =============================================================================
+   PLAYER VIEW SPECIFIC STYLES
+   ============================================================================= */
+.player-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-sm);
+}
+
+.player-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-md);
+}
+
+.player-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.player-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.room-badge {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.player-money {
+    text-align: right;
+}
+
+.money-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    display: block;
+}
+
+.money-amount {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--success);
+    font-family: monospace;
+}
+
+.player-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+/* Tile Rack Section */
+.tile-rack-section {
+    background-color: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+}
+
+.tile-rack-section h2 {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: var(--spacing-sm);
+}
+
+/* Portfolio Section */
+.portfolio-section {
+    background-color: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+}
+
+.portfolio-section h2 {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: var(--spacing-sm);
+}
+
+.portfolio-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.portfolio-table th,
+.portfolio-table td {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.portfolio-table th {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.portfolio-table td:first-child {
+    text-align: left;
+}
+
+.portfolio-row .shares {
+    font-weight: 700;
+    font-family: monospace;
+}
+
+.portfolio-row .value {
+    color: var(--success);
+}
+
+.chain-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: var(--spacing-xs);
+    vertical-align: middle;
+}
+
+.chain-dot.chain-luxor { background-color: var(--chain-luxor); }
+.chain-dot.chain-tower { background-color: var(--chain-tower); }
+.chain-dot.chain-american { background-color: var(--chain-american); }
+.chain-dot.chain-festival { background-color: var(--chain-festival); }
+.chain-dot.chain-worldwide { background-color: var(--chain-worldwide); }
+.chain-dot.chain-continental { background-color: var(--chain-continental); }
+.chain-dot.chain-imperial { background-color: var(--chain-imperial); }
+
+/* Action Section */
+.action-section {
+    background-color: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+}
+
+.action-section h2 {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: var(--spacing-sm);
+}
+
+.waiting-message {
+    text-align: center;
+    color: var(--text-muted);
+    padding: var(--spacing-md);
+    font-size: 0.9rem;
+}
+
+.waiting-message.your-turn {
+    color: var(--accent);
+    font-weight: 700;
+    animation: pulse 2s infinite;
+}
+
+.confirm-tile {
+    text-align: center;
+    padding: var(--spacing-sm);
+}
+
+.confirm-tile p {
+    margin-bottom: var(--spacing-md);
+}
+
+.button-row {
+    display: flex;
+    gap: var(--spacing-sm);
+    justify-content: center;
+}
+
+/* Buy Stocks Section */
+.buy-stocks-section {
+    background-color: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+}
+
+.buy-stocks-section h2 {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: var(--spacing-sm);
+}
+
+.buy-instruction {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-md);
+}
+
+.buy-options {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.buy-option {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-md);
+}
+
+.buy-option.inactive {
+    opacity: 0.4;
+}
+
+.buy-option .chain-name {
+    flex: 1;
+    font-weight: 600;
+}
+
+.buy-option .stock-price {
+    font-size: 0.8rem;
+    color: var(--success);
+    min-width: 50px;
+}
+
+.buy-option .stock-available {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    min-width: 50px;
+}
+
+.quantity-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.qty-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.qty-btn:hover {
+    background-color: var(--accent);
+    border-color: var(--accent);
+}
+
+.qty-value {
+    min-width: 24px;
+    text-align: center;
+    font-weight: 700;
+    font-family: monospace;
+}
+
+.buy-summary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    margin-top: var(--spacing-md);
+}
+
+.total-label {
+    color: var(--text-muted);
+}
+
+.total-amount {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--success);
+    font-family: monospace;
+}
+
+.stocks-selected {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.buy-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    justify-content: center;
+    margin-top: var(--spacing-md);
+}
+
+/* Merger Section */
+.merger-section {
+    background-color: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+}
+
+.merger-section h2 {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: var(--spacing-sm);
+}
+
+.merger-info {
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.merger-description {
+    text-align: center;
+    margin-bottom: var(--spacing-sm);
+}
+
+.defunct-chain,
+.surviving-chain {
+    font-weight: 700;
+}
+
+.your-shares {
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.merger-options {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.merger-option {
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+}
+
+.merger-option h3 {
+    font-size: 1rem;
+    margin-bottom: var(--spacing-xs);
+}
+
+.option-description {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: var(--spacing-xs);
+}
+
+.option-value {
+    font-size: 0.85rem;
+    color: var(--success);
+    margin-bottom: var(--spacing-sm);
+}
+
+.keep-display {
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-family: monospace;
+}
+
+.merger-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: var(--spacing-md);
+}
+
+/* Choose Chain Section */
+.choose-chain-section {
+    background-color: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+}
+
+.choose-chain-section h2 {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: var(--spacing-sm);
+}
+
+.choose-instruction {
+    text-align: center;
+    margin-bottom: var(--spacing-md);
+    color: var(--text-secondary);
+}
+
+.chain-choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    justify-content: center;
+}
+
+.chain-choice-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 2px solid transparent;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: white;
+}
+
+.chain-choice-btn:hover {
+    transform: scale(1.05);
+    border-color: white;
+}
+
+/* End Game Option */
+.end-game-option {
+    text-align: center;
+    padding: var(--spacing-md);
+}
+
+.end-game-option p {
+    margin-bottom: var(--spacing-md);
+    color: var(--text-secondary);
+}
+
+/* Player Footer */
+.player-footer {
+    padding: var(--spacing-sm) var(--spacing-md);
+    margin-top: auto;
+}
+
+.game-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    font-size: 0.8rem;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--text-muted);
+}
+
+.status-indicator.connected {
+    background-color: var(--success);
+}
+
+.status-indicator.disconnected {
+    background-color: var(--error);
+}
+
+.status-indicator.connecting {
+    background-color: var(--warning);
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+.status-text {
+    color: var(--text-muted);
+}

@@ -18,6 +18,7 @@ class PlayerConnection:
     websocket: Optional[WebSocket] = None
     is_bot: bool = False
     is_host: bool = False
+    session_token: Optional[str] = None  # For authentication
 
 
 @dataclass
@@ -56,25 +57,38 @@ class SessionManager:
         """Get room by code."""
         return self._rooms.get(room_code)
 
-    def join_room(self, room_code: str, player_id: str, name: str) -> bool:
-        """Add player to room. Returns True if successful."""
+    def join_room(self, room_code: str, player_id: str, name: str) -> Optional[str]:
+        """Add player to room.
+
+        Args:
+            room_code: The room code to join
+            player_id: Unique identifier for the player
+            name: Display name for the player
+
+        Returns:
+            Session token if successful, None if failed
+        """
         room = self.get_room(room_code)
         if room is None:
-            return False
+            return None
         if room.started:
-            return False
+            return None
         if len(room.players) >= room.max_players:
-            return False
+            return None
         if player_id in room.players:
-            return False
+            return None
+
+        # Generate a session token for authentication
+        session_token = str(uuid.uuid4())
 
         is_host = len(room.players) == 0
         room.players[player_id] = PlayerConnection(
             player_id=player_id,
             name=name,
             is_host=is_host,
+            session_token=session_token,
         )
-        return True
+        return session_token
 
     def leave_room(self, room_code: str, player_id: str):
         """Remove player from room."""
@@ -202,3 +216,41 @@ class SessionManager:
         """Delete a room."""
         if room_code in self._rooms:
             del self._rooms[room_code]
+
+    def validate_session_token(self, room_code: str, player_id: str, token: str) -> bool:
+        """Validate a session token for a player.
+
+        Args:
+            room_code: The room code
+            player_id: The player's ID
+            token: The session token to validate
+
+        Returns:
+            True if token is valid, False otherwise
+        """
+        room = self.get_room(room_code)
+        if room is None:
+            return False
+        if player_id not in room.players:
+            return False
+
+        player = room.players[player_id]
+        return player.session_token == token
+
+    def get_session_token(self, room_code: str, player_id: str) -> Optional[str]:
+        """Get the session token for a player.
+
+        Args:
+            room_code: The room code
+            player_id: The player's ID
+
+        Returns:
+            The session token if found, None otherwise
+        """
+        room = self.get_room(room_code)
+        if room is None:
+            return None
+        if player_id not in room.players:
+            return None
+
+        return room.players[player_id].session_token
