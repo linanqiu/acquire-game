@@ -159,3 +159,32 @@ tensorboard>=2.14.0
 numpy>=1.24.0
 tqdm>=4.65.0
 ```
+
+## Player-to-Player Trading
+
+**Current approach**: Bots do not participate in player-to-player trading. They decline all trade offers and never initiate trades. Human players can trade freely with each other.
+
+```python
+class RLBot:
+    def handle_trade_offer(self, offer: TradeOffer) -> bool:
+        return False  # Always decline
+
+    def should_propose_trade(self) -> bool:
+        return False  # Never initiate
+```
+
+This keeps the RL action space manageable while allowing the trading feature for human players.
+
+## Roadmap
+
+### Near-term
+- [ ] Complete state encoder implementation
+- [ ] Gymnasium environment wrapper
+- [ ] PPO training loop
+- [ ] NeuralBot integration
+
+### Future Enhancements
+- [ ] **LLM-backed trading for bots** - Use an LLM to evaluate and propose trades, enabling bots to participate in player-to-player trading with natural negotiation behavior. The RL policy handles core gameplay (tiles, stocks, mergers) while the LLM handles negotiation.
+- [ ] Self-play training after curriculum completion
+- [ ] Tournament mode for model comparison
+- [ ] Explainability tools (why did the bot make this move?)
