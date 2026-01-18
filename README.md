@@ -34,8 +34,10 @@ A web-based implementation of the classic 1999 Acquire board game with a "couch 
 - [x] Hotel chains (7 chains, 3 pricing tiers)
 - [x] Player state (money, stocks, tiles)
 - [x] Game rules engine (placement, founding, mergers)
-- [x] Bot AI (tile selection, stock purchases)
+- [x] Bot AI (tile selection, stock purchases, merger decisions)
 - [x] Game orchestration (turn flow, state management)
+- [x] Unified action representation (`action.py`)
+- [x] Game cloning for AI simulation
 - [x] Unit tests for all game modules
 
 ### Phase 2: Server & Real-time ✅
@@ -43,38 +45,50 @@ A web-based implementation of the classic 1999 Acquire board game with a "couch 
 - [x] FastAPI application with HTTP routes
 - [x] WebSocket endpoints (host + player)
 - [x] Game state broadcasting
+- [x] Bot player support in rooms
 - [x] Integration tests
 
 ### Phase 3: Frontend 🔄
 - [x] HTML templates (lobby, host, player views)
-- [x] CSS styling
-- [x] JavaScript WebSocket clients
-- [ ] Mobile-responsive player view
-- [ ] Host display board rendering
-- [ ] Action UI (tile selection, stock buying)
+- [x] CSS styling with responsive design
+- [x] JavaScript WebSocket clients (host.js, player.js)
+- [x] Host display board grid rendering
+- [x] Player tile rack UI
+- [x] Stock portfolio display
+- [x] Chain info display with colors
+- [x] Connection status indicators
+- [x] Mobile-responsive layout (CSS media queries)
+- [ ] **Full action UI integration** (tile placement → backend → render cycle)
+- [ ] **Stock buying modal completion** (wire up to backend)
+- [ ] **Merger decision UI completion** (wire up sell/trade/keep)
+- [ ] **Chain founding UI** (wire up chain selection)
 
 ### Phase 4: Advanced Features 🔄
-- [x] Player-to-player trading (stocks & money)
-- [ ] Trade negotiation UI
+- [x] Player-to-player trading (backend logic complete)
+- [x] Trade validation rules
+- [ ] Trade negotiation UI (frontend)
 - [ ] Trade history log
 - [ ] House rules configuration
 
-### Phase 5: AI Training ✅
+### Phase 5: AI Training Infrastructure 🔄
 - [x] Unified action representation (`action.py`)
 - [x] Deterministic game seeding and cloning
-- [x] Legal action enumeration for RL
-- [x] State encoder (game → tensor)
+- [x] Legal action enumeration for RL (`Rules.get_all_legal_actions`)
+- [x] State encoder (game → 214-dim tensor)
 - [x] Training config with curriculum learning
+- [x] Preset configurations (debug, standard, large-scale)
 - [ ] Gymnasium environment wrapper
 - [ ] PPO policy network
 - [ ] Training pipeline with self-play
 - [ ] Neural bot integration
 
-### Phase 6: Deployment
-- [x] Docker containerization
-- [x] GitHub Actions CI pipeline
+### Phase 6: Deployment 🔄
+- [x] Docker containerization (Dockerfile + docker-compose)
+- [x] GitHub Actions CI pipeline (test + lint + build)
+- [x] Railway configuration (railway.toml)
 - [ ] Cloud deployment (Railway/Fly.io)
 - [ ] Production monitoring
+- [ ] HTTPS/WSS configuration
 
 ### Phase 7: Enhancements (Future)
 - [ ] Persistent game state (Redis/SQLite)
@@ -82,6 +96,8 @@ A web-based implementation of the classic 1999 Acquire board game with a "couch 
 - [ ] Game replays
 - [ ] ELO ratings for trained bots
 - [ ] Tournament mode
+- [ ] Sound effects / animations
+- [ ] Game statistics dashboard
 
 ---
 
@@ -94,8 +110,10 @@ A web-based implementation of the classic 1999 Acquire board game with a "couch 
 | Real-time | WebSockets | ✅ |
 | Session | In-memory | ✅ |
 | Testing | pytest + pytest-asyncio | ✅ |
-| CI/CD | GitHub Actions | 🔄 |
-| Deployment | Docker + Railway | 📋 |
+| CI/CD | GitHub Actions | ✅ |
+| Container | Docker | ✅ |
+| AI Training | NumPy + Config System | 🔄 |
+| Deployment | Railway | 📋 |
 
 ---
 
