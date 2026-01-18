@@ -1003,7 +1003,6 @@ class Game:
             return [{"success": False, "error": "Player is not a bot"}]
 
         bot = self.bots[player_id]
-        player = bot.player
         actions = []
 
         # Play tile phase

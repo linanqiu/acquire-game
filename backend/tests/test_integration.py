@@ -1,11 +1,9 @@
 """Integration tests for Acquire board game API and WebSocket endpoints."""
 
 import pytest
-from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 
 from main import (
-    app,
     session_manager,
     initialize_game,
     handle_player_action,
@@ -15,10 +13,8 @@ from main import (
     handle_end_turn,
     broadcast_game_state,
 )
-from session.manager import SessionManager
 from game.board import Board, Tile
 from game.hotel import Hotel
-from game.player import Player
 
 
 class TestRoomCreation:

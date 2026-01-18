@@ -1,6 +1,5 @@
 """Tests for Player class."""
 
-import pytest
 from game.board import Tile
 from game.player import Player
 from game.hotel import Hotel

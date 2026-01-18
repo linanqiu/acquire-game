@@ -1,6 +1,5 @@
 """Player state and actions for Acquire."""
 
-from typing import Optional
 from game.board import Tile
 from game.hotel import Hotel
 

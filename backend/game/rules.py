@@ -2,11 +2,11 @@
 
 from typing import Union, List, Tuple, TYPE_CHECKING
 from game.board import Board, Tile, TileState
-from game.hotel import Hotel, HotelChain
-from game.action import Action, ActionType, TradeOffer
+from game.hotel import Hotel
+from game.action import Action, TradeOffer
 
 if TYPE_CHECKING:
-    from game.game import Game, GamePhase
+    from game.game import Game
 
 
 class PlacementResult:

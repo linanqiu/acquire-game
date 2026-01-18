@@ -7,7 +7,7 @@ import os
 # Add the backend directory to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from game.board import Board, Tile, TileState
+from game.board import Board, Tile
 from game.hotel import Hotel
 from game.player import Player
 from game.rules import Rules, PlacementResult

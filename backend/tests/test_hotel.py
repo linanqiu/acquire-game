@@ -1,6 +1,5 @@
 """Tests for hotel.py - Hotel chain logic."""
 
-import pytest
 from game.hotel import Hotel, HotelChain, HotelTier
 
 

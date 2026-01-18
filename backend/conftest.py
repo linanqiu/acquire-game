@@ -4,11 +4,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from main import app, session_manager
-from session.manager import SessionManager, GameRoom, PlayerConnection
+from session.manager import SessionManager
 from game.board import Board, Tile
 from game.hotel import Hotel
 from game.player import Player
-from game.rules import Rules
 
 
 @pytest.fixture

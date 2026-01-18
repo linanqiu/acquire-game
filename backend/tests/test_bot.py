@@ -1,10 +1,9 @@
 """Tests for the Bot AI player."""
 
 import pytest
-from unittest.mock import MagicMock, patch
 
-from game.board import Board, Tile, TileState
-from game.hotel import Hotel, HotelTier
+from game.board import Board, Tile
+from game.hotel import Hotel
 from game.player import Player
 from game.bot import Bot
 

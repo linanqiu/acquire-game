@@ -3,7 +3,7 @@
 import random
 from typing import Optional
 
-from game.board import Board, Tile, TileState
+from game.board import Board, Tile
 from game.hotel import Hotel, HotelTier
 from game.player import Player
 
