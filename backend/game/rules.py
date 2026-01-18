@@ -1,11 +1,11 @@
 """Game rules and validation logic for Acquire."""
 
-from typing import Union, List, TYPE_CHECKING
+from typing import Union, List, Tuple, TYPE_CHECKING
 from game.board import Board, Tile, TileState
 from game.hotel import Hotel, HotelChain
+from game.action import Action, ActionType
 
 if TYPE_CHECKING:
-    from game.action import Action
     from game.game import Game, GamePhase
 
 
@@ -381,11 +381,31 @@ class Rules:
         return [tile for tile in tiles if not cls.can_place_tile(board, tile, hotel)]
 
     @classmethod
-    def get_all_legal_actions(cls, game: "Game", player_id: str) -> List["Action"]:
-        """Return all legal actions for the current game state.
+    def get_all_legal_actions(cls, game: "Game", player_id: str) -> List[Action]:
+        """
+        Return all legal actions for the given player in the current game state.
 
-        This method enumerates every valid action the player can take,
-        which is essential for RL training with action masking.
+        This is essential for RL action masking - the agent should only consider
+        legal actions.
+
+        Returns a list of Action objects based on the current game phase:
+
+        - PLAYING/place_tile phase:
+          - Action.play_tile(tile) for each playable tile in hand
+          - Action.end_game() if end game conditions are met
+
+        - FOUNDING_CHAIN phase:
+          - Action.found_chain(chain) for each inactive chain
+
+        - MERGING phase (if tie):
+          - Action.choose_merger_survivor(chain) for each tied chain
+
+        - MERGING phase (stock disposition):
+          - Generate all valid sell/trade/keep combinations for the defunct stock
+
+        - BUYING_STOCKS phase:
+          - All combinations of 0-3 stock purchases from active chains
+          - Include Action.end_turn() to skip buying
 
         Args:
             game: The current game instance
@@ -394,7 +414,6 @@ class Rules:
         Returns:
             List of Action objects representing all legal actions
         """
-        from game.action import Action
         from game.game import GamePhase
 
         actions = []
@@ -405,9 +424,13 @@ class Rules:
 
         if game.phase == GamePhase.PLAYING:
             # Player can play any playable tile from their hand
-            playable = cls.get_playable_tiles(game.board, player.hand, game.hotel)
+            playable = cls.get_legal_tile_plays(game, player_id)
             for tile in playable:
                 actions.append(Action.play_tile(str(tile)))
+
+            # Player can end the game if conditions are met
+            if cls.check_end_game(game.board, game.hotel):
+                actions.append(Action.end_game())
 
         elif game.phase == GamePhase.FOUNDING_CHAIN:
             # Player chooses which chain to found
@@ -434,39 +457,116 @@ class Rules:
                         available_trade = game.pending_action.get("available_to_trade", 0)
 
                         # Generate all valid sell/trade/keep combinations
-                        for sell in range(count + 1):
-                            remaining = count - sell
-                            # Trade must be even (2:1 ratio)
-                            max_trade = min(remaining, available_trade * 2)
-                            for trade in range(0, max_trade + 1, 2):
-                                keep = remaining - trade
-                                if keep >= 0:
-                                    actions.append(Action.stock_disposition(sell, trade, keep))
+                        combos = cls.get_valid_disposition_combinations(count, available_trade)
+                        for sell, trade, keep in combos:
+                            actions.append(Action.stock_disposition(sell, trade, keep))
 
         elif game.phase == GamePhase.BUYING_STOCKS:
             # Player can buy 0-3 stocks from active chains
             # Generate all valid purchase combinations
-            active_chains = game.hotel.get_active_chains()
-            affordable = []
+            purchase_actions = cls.get_valid_stock_purchase_combinations(
+                game, player_id, game.MAX_STOCKS_PER_TURN
+            )
+            actions.extend(purchase_actions)
 
-            for chain_name in active_chains:
-                if game.hotel.get_available_stocks(chain_name) > 0:
-                    size = game.board.get_chain_size(chain_name)
-                    price = game.hotel.get_stock_price(chain_name, size)
-                    if price <= player.money:
-                        affordable.append((chain_name, price))
-
-            # Generate all combinations of 0-3 stock purchases
-            actions.extend(cls._generate_stock_purchase_actions(
-                affordable, player.money, game.MAX_STOCKS_PER_TURN, game.hotel, game.board
-            ))
+            # Player can also end turn (equivalent to buying nothing)
+            # Note: buy_stocks([]) is already included in purchase_actions
+            # but we add explicit end_turn action for clarity
+            actions.append(Action.end_turn())
 
         return actions
 
     @classmethod
+    def get_legal_tile_plays(cls, game: "Game", player_id: str) -> List[Tile]:
+        """Get all tiles the player can legally play.
+
+        This is a convenience method that retrieves the player's hand and
+        filters it to only playable tiles.
+
+        Args:
+            game: The current game instance
+            player_id: ID of the player
+
+        Returns:
+            List of Tile objects that can be legally played
+        """
+        player = game.get_player(player_id)
+        if not player:
+            return []
+        return cls.get_playable_tiles(game.board, player.hand, game.hotel)
+
+    @classmethod
+    def get_valid_stock_purchase_combinations(
+        cls, game: "Game", player_id: str, max_purchases: int = 3
+    ) -> List[Action]:
+        """Generate all valid stock buying options for the player.
+
+        Enumerates all combinations of 0 to max_purchases stocks from
+        active chains that the player can afford.
+
+        Args:
+            game: The current game instance
+            player_id: ID of the player
+            max_purchases: Maximum number of stocks that can be purchased (default 3)
+
+        Returns:
+            List of BUY_STOCKS Action objects representing all valid purchase combinations
+        """
+        player = game.get_player(player_id)
+        if not player:
+            return [Action.buy_stocks([])]
+
+        active_chains = game.hotel.get_active_chains()
+        affordable = []
+
+        for chain_name in active_chains:
+            if game.hotel.get_available_stocks(chain_name) > 0:
+                size = game.board.get_chain_size(chain_name)
+                price = game.hotel.get_stock_price(chain_name, size)
+                if price <= player.money:
+                    affordable.append((chain_name, price))
+
+        return cls._generate_stock_purchase_actions(
+            affordable, player.money, max_purchases, game.hotel, game.board
+        )
+
+    @classmethod
+    def get_valid_disposition_combinations(
+        cls, defunct_count: int, available_to_trade: int = 25
+    ) -> List[Tuple[int, int, int]]:
+        """Generate all valid sell/trade/keep splits for defunct stock.
+
+        In Acquire, when a chain is acquired in a merger, stockholders must
+        decide what to do with their shares:
+        - Sell: Sell shares back to the bank at current price
+        - Trade: Exchange 2 defunct shares for 1 survivor share
+        - Keep: Hold shares hoping the chain will reform
+
+        Args:
+            defunct_count: Number of defunct stocks the player owns
+            available_to_trade: Maximum survivor stocks available for trade (default 25)
+
+        Returns:
+            List of (sell, trade, keep) tuples representing all valid combinations.
+            Trade values are always even (2:1 exchange ratio).
+        """
+        combinations = []
+
+        for sell in range(defunct_count + 1):
+            remaining = defunct_count - sell
+            # Trade must be even (2:1 ratio) and limited by available survivor stock
+            max_trade = min(remaining, available_to_trade * 2)
+            for trade in range(0, max_trade + 1, 2):
+                keep = remaining - trade
+                if keep >= 0:
+                    combinations.append((sell, trade, keep))
+
+        return combinations
+
+    @classmethod
     def _generate_stock_purchase_actions(
         cls, affordable: list, money: int, max_stocks: int, hotel: Hotel, board: Board
-    ) -> List["Action"]:
+    ) -> List[Action]:
         """Generate all valid stock purchase action combinations.
 
         Args:
@@ -479,8 +579,6 @@ class Rules:
         Returns:
             List of BUY_STOCKS actions
         """
-        from game.action import Action
-
         actions = []
         # Empty purchase is always valid
         actions.append(Action.buy_stocks([]))

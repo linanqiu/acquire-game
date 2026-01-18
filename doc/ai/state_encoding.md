@@ -63,6 +63,79 @@ def encode_players(game, player_id):
 
 This ensures the agent always sees itself as "player 0", making the observation space consistent regardless of turn order.
 
+## Variable Player Count Support
+
+Acquire supports 2-6 players, but neural networks require fixed-size inputs. We solve this with **fixed-size encoding with masking**.
+
+### Strategy: Always Encode 6 Player Slots
+
+```
+Players observation (6 × 9 = 54 features):
+┌────────────────────────────────────────────────────────┐
+│ Player 0 (self): active=1, money, 7 stocks            │
+│ Player 1:        active=1, money, 7 stocks            │
+│ Player 2:        active=1, money, 7 stocks            │
+│ Player 3:        active=0, money=0, stocks=0 (unused) │
+│ Player 4:        active=0, money=0, stocks=0 (unused) │
+│ Player 5:        active=0, money=0, stocks=0 (unused) │
+└────────────────────────────────────────────────────────┘
+```
+
+### Player Features (9 per player)
+
+| Feature | Range | Description |
+|---------|-------|-------------|
+| active | 0/1 | Is this player slot in use |
+| money | 0-∞ | Cash normalized by 10000 |
+| stock_0-6 | 0-25 | Shares per chain (normalized) |
+
+### Why This Works
+
+1. **Simple implementation**: No architecture changes needed
+2. **Network learns masking**: All-zero slots with `active=0` are ignored
+3. **Consistent tensor shape**: Same observation size for 2, 3, 4, 5, or 6 players
+4. **Canonical ordering preserved**: Self always at index 0
+
+### Encoding Implementation
+
+```python
+def encode_players(game: Game, player_id: str) -> np.ndarray:
+    """Encode all players with rotation and padding."""
+    # Rotate so current player is index 0
+    current_idx = get_player_index(game, player_id)
+    rotated = game.players[current_idx:] + game.players[:current_idx]
+
+    # Pad to max 6 players
+    features = []
+    for i in range(6):
+        if i < len(rotated):
+            player = rotated[i]
+            features.append([
+                1.0,  # active flag
+                player.money / 10000,  # normalized money
+                *[player.stocks.get(chain, 0) / 25 for chain in CHAIN_NAMES]
+            ])
+        else:
+            # Inactive player slot
+            features.append([0.0] * 9)  # active=0, money=0, stocks=0
+
+    return np.array(features).flatten()
+```
+
+### Meta Information Update
+
+Include normalized player count in meta features:
+
+```python
+def encode_meta(game: Game, player_id: str) -> np.ndarray:
+    return np.array([
+        len(game.players) / 6,  # Normalized player count (0.33-1.0)
+        float(game.can_player_act(player_id)),
+        float(Rules.check_end_game(game.board, game.hotel)),
+        # ... phase encoding, pending action, etc.
+    ])
+```
+
 ## Normalization Strategy
 
 | Feature | Method |

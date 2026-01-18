@@ -1,25 +1,21 @@
 """Hyperparameters and configuration for training."""
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import json
+
+
+@dataclass
+class CurriculumStage:
+    """Configuration for a curriculum learning stage."""
+    opponents: List[str]
+    win_threshold: float
+    min_games: int = 1000
 
 
 @dataclass
 class TrainingConfig:
     """Configuration for PPO training."""
-
-    # Environment settings
-    num_players: int = 4
-    opponent_types: List[str] = field(default_factory=lambda: ["easy", "easy", "easy"])
-    max_steps_per_episode: int = 500
-    seed: Optional[int] = None
-
-    # Network architecture
-    hidden_size: int = 256
-    num_layers: int = 3
-    activation: str = "relu"
-    use_layer_norm: bool = True
 
     # PPO hyperparameters
     learning_rate: float = 3e-4
@@ -30,35 +26,45 @@ class TrainingConfig:
     entropy_coef: float = 0.01
     max_grad_norm: float = 0.5
 
+    # Network architecture
+    hidden_sizes: List[int] = field(default_factory=lambda: [256, 256, 256])
+    activation: str = "relu"
+    use_layer_norm: bool = True
+
     # Training settings
-    num_envs: int = 8  # Parallel environments
-    rollout_steps: int = 128  # Steps per rollout
-    num_epochs: int = 4  # PPO epochs per update
     batch_size: int = 64
+    num_epochs: int = 10  # PPO epochs per update
+    rollout_steps: int = 2048  # Steps per rollout
+    num_envs: int = 8  # Parallel environments
     total_timesteps: int = 1_000_000
 
-    # Reward shaping
-    win_reward: float = 1.0
-    loss_reward: float = -0.5
-    use_dense_rewards: bool = True
-    net_worth_reward_scale: float = 0.0001  # Scale for net worth changes
+    # Environment settings
+    num_players: int = 4
+    opponent_types: List[str] = field(default_factory=lambda: ["easy", "easy", "easy"])
+    max_steps_per_episode: int = 500
+    seed: Optional[int] = None
 
-    # Curriculum learning
+    # Curriculum learning stages with opponent configs and win thresholds
     curriculum_enabled: bool = True
-    curriculum_stages: List[dict] = field(default_factory=lambda: [
-        {"opponents": ["easy"] * 3, "win_threshold": 0.6, "games": 10000},
-        {"opponents": ["easy", "easy", "medium"], "win_threshold": 0.55, "games": 20000},
-        {"opponents": ["easy", "medium", "medium"], "win_threshold": 0.5, "games": 30000},
-        {"opponents": ["medium", "medium", "medium"], "win_threshold": 0.5, "games": 50000},
-        {"opponents": ["medium", "medium", "hard"], "win_threshold": 0.45, "games": 70000},
-        {"opponents": ["medium", "hard", "hard"], "win_threshold": 0.4, "games": 100000},
-        {"opponents": ["hard", "hard", "hard"], "win_threshold": 0.35, "games": 150000},
+    curriculum_stages: List[Dict[str, Any]] = field(default_factory=lambda: [
+        {"opponents": ["easy", "easy", "easy"], "win_threshold": 0.6, "min_games": 1000},
+        {"opponents": ["easy", "easy", "medium"], "win_threshold": 0.55, "min_games": 2000},
+        {"opponents": ["easy", "medium", "medium"], "win_threshold": 0.5, "min_games": 3000},
+        {"opponents": ["medium", "medium", "medium"], "win_threshold": 0.5, "min_games": 5000},
+        {"opponents": ["medium", "medium", "hard"], "win_threshold": 0.45, "min_games": 7000},
+        {"opponents": ["medium", "hard", "hard"], "win_threshold": 0.4, "min_games": 10000},
+        {"opponents": ["hard", "hard", "hard"], "win_threshold": 0.35, "min_games": 15000},
     ])
 
     # Self-play settings
     self_play_enabled: bool = False
-    self_play_start_timestep: int = 500_000
-    self_play_ratio: float = 0.5  # Ratio of self-play vs curriculum
+    self_play_history_size: int = 10  # Number of historical models to keep
+    self_play_update_interval: int = 1000  # Steps between model pool updates
+
+    # Reward settings
+    win_reward: float = 1.0
+    loss_reward: float = -0.5
+    dense_reward_scale: float = 0.0001  # Scale for net worth changes
 
     # Checkpointing and logging
     checkpoint_dir: str = "checkpoints"
@@ -98,19 +104,16 @@ class TrainingConfig:
         Observation space breakdown:
         - Board: 108 (12x9 grid, values 0-8 for empty/chains)
         - Chain info: 7 chains x 5 features = 35
-        - Player info: 6 players x (1 money + 7 stocks) = 48
-        - Hand: 6 tiles x 108 positions (sparse one-hot) = 648 (or 6 tile indices)
+        - Player info: 6 players x 8 features = 48
+        - Hand: 6 tile indices
         - Phase: 7 (one-hot)
-        - Current player: 6 (one-hot)
-        - Can end game: 1
-        - Pending action type: 5 (one-hot)
+        - Meta: ~10 features
 
-        Total: ~750+ dimensions
+        Total: ~750 dimensions
         """
-        # Simplified observation space
         board_dim = self.board_size  # 108
         chain_dim = self.num_chains * 5  # 35 (size, price, available, active, safe)
-        player_dim = self.max_players * (1 + self.num_chains)  # 48 (money + stocks)
+        player_dim = self.max_players * 8  # 48 (money + 7 stocks)
         hand_dim = self.max_hand_size  # 6 tile indices (0-107)
         phase_dim = self.num_phases  # 7
         meta_dim = 10  # Current player, can_end_game, pending action type, etc.
@@ -118,12 +121,7 @@ class TrainingConfig:
         return board_dim + chain_dim + player_dim + hand_dim + phase_dim + meta_dim
 
     def get_action_dim(self) -> int:
-        """Calculate total flattened action dimension.
-
-        For simplicity, we use a hierarchical action space with:
-        - Action type selection (5 types)
-        - Sub-action parameters based on type
-        """
+        """Calculate total flattened action dimension."""
         return max(
             self.max_tile_actions,
             self.max_chain_actions,
@@ -135,7 +133,7 @@ class TrainingConfig:
 # Preset configurations
 FAST_DEBUG_CONFIG = TrainingConfig(
     num_envs=2,
-    rollout_steps=32,
+    rollout_steps=128,
     total_timesteps=10000,
     eval_episodes=10,
     log_interval=100,
@@ -147,9 +145,8 @@ STANDARD_CONFIG = TrainingConfig()
 
 LARGE_SCALE_CONFIG = TrainingConfig(
     num_envs=32,
-    rollout_steps=256,
+    rollout_steps=4096,
     total_timesteps=10_000_000,
-    hidden_size=512,
-    num_layers=4,
+    hidden_sizes=[512, 512, 512, 512],
     batch_size=256,
 )

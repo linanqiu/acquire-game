@@ -143,6 +143,19 @@ class Game:
         """
         return self.players[self.current_player_index]
 
+    def get_current_player_id(self) -> Optional[str]:
+        """Get the ID of the player whose turn it is.
+
+        This is a convenience method for AI training to easily identify
+        which player should act next.
+
+        Returns:
+            Player ID string, or None if no players exist
+        """
+        if not self.players:
+            return None
+        return self.players[self.current_player_index].player_id
+
     def get_player(self, player_id: str) -> Optional[Player]:
         """Get a player by ID.
 
