@@ -118,6 +118,52 @@ def started_room(clean_session_manager):
 
 
 @pytest.fixture
+def game_room(clean_session_manager):
+    """Create a room with players and fully initialized game state."""
+    import random
+
+    code = clean_session_manager.create_room()
+    clean_session_manager.join_room(code, "player_1", "Alice")
+    clean_session_manager.join_room(code, "player_2", "Bob")
+    clean_session_manager.join_room(code, "player_3", "Charlie")
+    clean_session_manager.start_game(code)
+
+    room = clean_session_manager.get_room(code)
+
+    # Initialize game state (same as main.initialize_game)
+    board = Board()
+    hotel = Hotel()
+
+    tile_pool = Board.all_tiles()
+    random.shuffle(tile_pool)
+
+    players = {}
+    for player_id, connection in room.players.items():
+        players[player_id] = Player(player_id, connection.name)
+
+    for player in players.values():
+        for _ in range(6):
+            if tile_pool:
+                player.add_tile(tile_pool.pop())
+
+    turn_order = list(players.keys())
+    random.shuffle(turn_order)
+
+    room.game = {
+        "board": board,
+        "hotel": hotel,
+        "players": players,
+        "tile_pool": tile_pool,
+        "turn_order": turn_order,
+        "current_turn_index": 0,
+        "phase": "place_tile",
+        "pending_action": None,
+    }
+
+    return code
+
+
+@pytest.fixture
 def board_with_chain(board, hotel):
     """Create a board with an active chain."""
     # Place tiles to form a chain
