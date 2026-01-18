@@ -63,14 +63,14 @@ class TestChooseTileToPlay:
         hotel = Hotel()
 
         # Add tiles to hand
-        founding_tile = Tile(1, 'B')  # Adjacent to played tile
-        non_founding_tile = Tile(5, 'E')  # Isolated
+        founding_tile = Tile(1, "B")  # Adjacent to played tile
+        non_founding_tile = Tile(5, "E")  # Isolated
 
         player.add_tile(founding_tile)
         player.add_tile(non_founding_tile)
 
         # Place a tile on board that founding_tile would connect to
-        board.place_tile(Tile(1, 'A'))
+        board.place_tile(Tile(1, "A"))
 
         result = bot.choose_tile_to_play(board, hotel)
         assert result == founding_tile
@@ -83,18 +83,18 @@ class TestChooseTileToPlay:
         hotel = Hotel()
 
         # Set up a chain on the board
-        board.place_tile(Tile(1, 'A'))
-        board.place_tile(Tile(1, 'B'))
-        board.set_chain(Tile(1, 'A'), "Luxor")
-        board.set_chain(Tile(1, 'B'), "Luxor")
+        board.place_tile(Tile(1, "A"))
+        board.place_tile(Tile(1, "B"))
+        board.set_chain(Tile(1, "A"), "Luxor")
+        board.set_chain(Tile(1, "B"), "Luxor")
         hotel.activate_chain("Luxor")
 
         # Give player stock in Luxor
         player._stocks["Luxor"] = 5
 
         # Add tiles to hand
-        expand_tile = Tile(1, 'C')  # Would expand Luxor
-        isolated_tile = Tile(10, 'I')  # Isolated
+        expand_tile = Tile(1, "C")  # Would expand Luxor
+        isolated_tile = Tile(10, "I")  # Isolated
 
         player.add_tile(expand_tile)
         player.add_tile(isolated_tile)
@@ -112,21 +112,21 @@ class TestChooseTileToPlay:
         # Create two safe chains (11+ tiles each)
         # Chain 1: Luxor (columns 1-11, row A)
         for col in range(1, 12):
-            tile = Tile(col, 'A')
+            tile = Tile(col, "A")
             board.place_tile(tile)
             board.set_chain(tile, "Luxor")
         hotel.activate_chain("Luxor")
 
         # Chain 2: Tower (columns 1-11, row C)
         for col in range(1, 12):
-            tile = Tile(col, 'C')
+            tile = Tile(col, "C")
             board.place_tile(tile)
             board.set_chain(tile, "Tower")
         hotel.activate_chain("Tower")
 
         # Add tiles to hand
-        illegal_tile = Tile(1, 'B')  # Would merge two safe chains
-        legal_tile = Tile(12, 'I')  # Safe isolated tile
+        illegal_tile = Tile(1, "B")  # Would merge two safe chains
+        legal_tile = Tile(12, "I")  # Safe isolated tile
 
         player.add_tile(illegal_tile)
         player.add_tile(legal_tile)
@@ -142,7 +142,7 @@ class TestChooseTileToPlay:
         hotel = Hotel()
 
         # Add multiple tiles
-        tiles = [Tile(1, 'A'), Tile(5, 'E'), Tile(10, 'I')]
+        tiles = [Tile(1, "A"), Tile(5, "E"), Tile(10, "I")]
         for tile in tiles:
             player.add_tile(tile)
 
@@ -295,9 +295,7 @@ class TestChooseStockDisposition:
         board = Board()
         hotel = Hotel()
 
-        result = bot.choose_stock_disposition(
-            "Luxor", "Tower", 0, board, hotel
-        )
+        result = bot.choose_stock_disposition("Luxor", "Tower", 0, board, hotel)
 
         assert result == {"sell": 0, "trade": 0, "keep": 0}
 
@@ -310,14 +308,14 @@ class TestChooseStockDisposition:
 
         # Set up surviving chain on board
         for col in range(1, 6):
-            tile = Tile(col, 'A')
+            tile = Tile(col, "A")
             board.place_tile(tile)
             board.set_chain(tile, "Tower")
         hotel.activate_chain("Tower")
 
         # Set up defunct chain
         for col in range(1, 4):
-            tile = Tile(col, 'C')
+            tile = Tile(col, "C")
             board.place_tile(tile)
             board.set_chain(tile, "Luxor")
         hotel.activate_chain("Luxor")
@@ -339,13 +337,13 @@ class TestChooseStockDisposition:
 
         # Set up chains on board
         for col in range(1, 6):
-            tile = Tile(col, 'A')
+            tile = Tile(col, "A")
             board.place_tile(tile)
             board.set_chain(tile, "Tower")
         hotel.activate_chain("Tower")
 
         for col in range(1, 4):
-            tile = Tile(col, 'C')
+            tile = Tile(col, "C")
             board.place_tile(tile)
             board.set_chain(tile, "Luxor")
         hotel.activate_chain("Luxor")
@@ -366,13 +364,13 @@ class TestChooseStockDisposition:
 
         # Set up chains
         for col in range(1, 6):
-            tile = Tile(col, 'A')
+            tile = Tile(col, "A")
             board.place_tile(tile)
             board.set_chain(tile, "Tower")
         hotel.activate_chain("Tower")
 
         for col in range(1, 4):
-            tile = Tile(col, 'C')
+            tile = Tile(col, "C")
             board.place_tile(tile)
             board.set_chain(tile, "Luxor")
         hotel.activate_chain("Luxor")
@@ -408,7 +406,7 @@ class TestChooseStocksToBuy:
 
         # Set up an active chain
         for col in range(1, 6):
-            tile = Tile(col, 'A')
+            tile = Tile(col, "A")
             board.place_tile(tile)
             board.set_chain(tile, "Luxor")
         hotel.activate_chain("Luxor")
@@ -428,13 +426,13 @@ class TestChooseStocksToBuy:
 
         # Set up two active chains
         for col in range(1, 4):
-            tile = Tile(col, 'A')
+            tile = Tile(col, "A")
             board.place_tile(tile)
             board.set_chain(tile, "Luxor")
         hotel.activate_chain("Luxor")
 
         for col in range(1, 4):
-            tile = Tile(col, 'C')
+            tile = Tile(col, "C")
             board.place_tile(tile)
             board.set_chain(tile, "Tower")
         hotel.activate_chain("Tower")
@@ -459,13 +457,13 @@ class TestChooseStocksToBuy:
 
         # Set up two chains with same size
         for col in range(1, 4):
-            tile = Tile(col, 'A')
+            tile = Tile(col, "A")
             board.place_tile(tile)
             board.set_chain(tile, "Luxor")
         hotel.activate_chain("Luxor")
 
         for col in range(1, 4):
-            tile = Tile(col, 'C')
+            tile = Tile(col, "C")
             board.place_tile(tile)
             board.set_chain(tile, "Tower")
         hotel.activate_chain("Tower")
@@ -492,7 +490,7 @@ class TestChooseStocksToBuy:
 
         # Set up a chain
         for col in range(1, 4):
-            tile = Tile(col, 'A')
+            tile = Tile(col, "A")
             board.place_tile(tile)
             board.set_chain(tile, "Luxor")
         hotel.activate_chain("Luxor")
@@ -510,7 +508,7 @@ class TestChooseStocksToBuy:
 
         # Set up a chain
         for col in range(1, 4):
-            tile = Tile(col, 'A')
+            tile = Tile(col, "A")
             board.place_tile(tile)
             board.set_chain(tile, "Luxor")
         hotel.activate_chain("Luxor")
@@ -530,13 +528,13 @@ class TestChooseStocksToBuy:
 
         # Set up two chains
         for col in range(1, 4):
-            tile = Tile(col, 'A')
+            tile = Tile(col, "A")
             board.place_tile(tile)
             board.set_chain(tile, "Luxor")
         hotel.activate_chain("Luxor")
 
         for col in range(1, 4):
-            tile = Tile(col, 'C')
+            tile = Tile(col, "C")
             board.place_tile(tile)
             board.set_chain(tile, "Tower")
         hotel.activate_chain("Tower")
@@ -564,15 +562,15 @@ class TestIntegration:
         hotel = Hotel()
 
         # Give player tiles
-        player.add_tile(Tile(1, 'A'))
-        player.add_tile(Tile(2, 'A'))
-        player.add_tile(Tile(5, 'E'))
+        player.add_tile(Tile(1, "A"))
+        player.add_tile(Tile(2, "A"))
+        player.add_tile(Tile(5, "E"))
 
         # Set up a chain
-        board.place_tile(Tile(3, 'A'))
-        board.place_tile(Tile(4, 'A'))
-        board.set_chain(Tile(3, 'A'), "Luxor")
-        board.set_chain(Tile(4, 'A'), "Luxor")
+        board.place_tile(Tile(3, "A"))
+        board.place_tile(Tile(4, "A"))
+        board.set_chain(Tile(3, "A"), "Luxor")
+        board.set_chain(Tile(4, "A"), "Luxor")
         hotel.activate_chain("Luxor")
 
         # Bot chooses tile
@@ -605,13 +603,13 @@ class TestIntegration:
 
         # Set up two chains that could merge
         for col in range(1, 5):
-            tile = Tile(col, 'A')
+            tile = Tile(col, "A")
             board.place_tile(tile)
             board.set_chain(tile, "Luxor")
         hotel.activate_chain("Luxor")
 
         for col in range(1, 5):
-            tile = Tile(col, 'C')
+            tile = Tile(col, "C")
             board.place_tile(tile)
             board.set_chain(tile, "Tower")
         hotel.activate_chain("Tower")

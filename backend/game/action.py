@@ -8,6 +8,7 @@ import uuid
 
 class ActionType(Enum):
     """Types of actions that can be taken in the game."""
+
     PLAY_TILE = "play_tile"
     FOUND_CHAIN = "found_chain"
     CHOOSE_MERGER_SURVIVOR = "choose_merger_survivor"
@@ -38,6 +39,7 @@ class TradeOffer:
         requesting_money: Amount of money being requested
         trade_id: Unique identifier for tracking this trade offer
     """
+
     from_player_id: str
     to_player_id: str
     offering_stocks: Dict[str, int] = field(default_factory=dict)
@@ -60,7 +62,7 @@ class TradeOffer:
             "offering_stocks": dict(self.offering_stocks),
             "offering_money": self.offering_money,
             "requesting_stocks": dict(self.requesting_stocks),
-            "requesting_money": self.requesting_money
+            "requesting_money": self.requesting_money,
         }
 
     @classmethod
@@ -73,7 +75,7 @@ class TradeOffer:
             offering_money=data.get("offering_money", 0),
             requesting_stocks=dict(data.get("requesting_stocks", {})),
             requesting_money=data.get("requesting_money", 0),
-            trade_id=data.get("trade_id")
+            trade_id=data.get("trade_id"),
         )
 
 
@@ -84,11 +86,14 @@ class Action:
     This unified representation simplifies the RL action space by providing
     a single class that can represent any game action.
     """
+
     action_type: ActionType
     tile: Optional[str] = None  # For PLAY_TILE: tile string like "1A"
     chain: Optional[str] = None  # For FOUND_CHAIN, CHOOSE_MERGER_SURVIVOR
     stocks: Optional[List[str]] = None  # For BUY_STOCKS: list of chain names
-    disposition: Optional[Dict[str, int]] = None  # For STOCK_DISPOSITION: {"sell": n, "trade": n, "keep": n}
+    disposition: Optional[Dict[str, int]] = (
+        None  # For STOCK_DISPOSITION: {"sell": n, "trade": n, "keep": n}
+    )
     trade: Optional[TradeOffer] = None  # For PROPOSE_TRADE
     trade_id: Optional[str] = None  # For ACCEPT_TRADE, REJECT_TRADE, CANCEL_TRADE
 
@@ -121,7 +126,7 @@ class Action:
             stocks=data.get("stocks"),
             disposition=data.get("disposition"),
             trade=trade,
-            trade_id=data.get("trade_id")
+            trade_id=data.get("trade_id"),
         )
 
     @classmethod
@@ -144,7 +149,7 @@ class Action:
         """Create a stock disposition action."""
         return cls(
             action_type=ActionType.STOCK_DISPOSITION,
-            disposition={"sell": sell, "trade": trade, "keep": keep}
+            disposition={"sell": sell, "trade": trade, "keep": keep},
         )
 
     @classmethod

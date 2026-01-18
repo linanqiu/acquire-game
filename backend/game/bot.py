@@ -11,8 +11,12 @@ from game.player import Player
 class Bot:
     """AI player for Acquire."""
 
-    def __init__(self, player: Player, difficulty: str = "medium",
-                 rng: Optional[random.Random] = None):
+    def __init__(
+        self,
+        player: Player,
+        difficulty: str = "medium",
+        rng: Optional[random.Random] = None,
+    ):
         """Initialize the bot.
 
         Args:
@@ -80,7 +84,8 @@ class Bot:
             adjacent_chains = board.get_adjacent_chains(tile)
             if len(adjacent_chains) >= 2:
                 safe_chains = [
-                    c for c in adjacent_chains
+                    c
+                    for c in adjacent_chains
                     if hotel.is_chain_safe(c, board.get_chain_size(c))
                 ]
                 if len(safe_chains) >= 2:
@@ -209,7 +214,11 @@ class Bot:
             stock_count = self.player.get_stock_count(chain_name)
             chain = Hotel.get_chain(chain_name)
             # Prefer chains we own stock in; tiebreak by tier value
-            tier_bonus = {HotelTier.EXPENSIVE: 2, HotelTier.MEDIUM: 1, HotelTier.CHEAP: 0}
+            tier_bonus = {
+                HotelTier.EXPENSIVE: 2,
+                HotelTier.MEDIUM: 1,
+                HotelTier.CHEAP: 0,
+            }
             score = stock_count * 10 + tier_bonus[chain.tier]
             scored_chains.append((score, chain_name))
 
@@ -339,8 +348,7 @@ class Bot:
                 price = hotel.get_stock_price(chain_name, size)
 
                 if price <= self.player.money - sum(
-                    hotel.get_stock_price(c, board.get_chain_size(c))
-                    for c in purchases
+                    hotel.get_stock_price(c, board.get_chain_size(c)) for c in purchases
                 ):
                     affordable.append((chain_name, price, size))
 

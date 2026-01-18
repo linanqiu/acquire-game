@@ -5,7 +5,7 @@ import sys
 import os
 
 # Add the backend directory to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from game.board import Board, Tile
 from game.hotel import Hotel
@@ -20,7 +20,7 @@ class TestCanPlaceTile:
         """Should allow placing tile on empty cell."""
         board = Board()
         hotel = Hotel()
-        tile = Tile(1, 'A')
+        tile = Tile(1, "A")
 
         assert Rules.can_place_tile(board, tile, hotel) is True
 
@@ -28,7 +28,7 @@ class TestCanPlaceTile:
         """Should not allow placing tile on already occupied cell."""
         board = Board()
         hotel = Hotel()
-        tile = Tile(1, 'A')
+        tile = Tile(1, "A")
 
         board.place_tile(tile)
 
@@ -38,7 +38,7 @@ class TestCanPlaceTile:
         """Should not allow placing tile on cell that's part of a chain."""
         board = Board()
         hotel = Hotel()
-        tile = Tile(1, 'A')
+        tile = Tile(1, "A")
 
         board.place_tile(tile)
         board.set_chain(tile, "Luxor")
@@ -50,8 +50,8 @@ class TestCanPlaceTile:
         board = Board()
         hotel = Hotel()
 
-        board.place_tile(Tile(1, 'A'))
-        tile = Tile(2, 'A')
+        board.place_tile(Tile(1, "A"))
+        tile = Tile(2, "A")
 
         assert Rules.can_place_tile(board, tile, hotel) is True
 
@@ -67,7 +67,7 @@ class TestCanPlaceTile:
             board.place_tile(t)
             board.set_chain(t, "Luxor")
         for col in [2, 3]:
-            t = Tile(col, 'A')
+            t = Tile(col, "A")
             board.place_tile(t)
             board.set_chain(t, "Luxor")
         hotel.activate_chain("Luxor")
@@ -78,13 +78,13 @@ class TestCanPlaceTile:
             board.place_tile(t)
             board.set_chain(t, "Tower")
         for col in [6, 7]:
-            t = Tile(col, 'A')
+            t = Tile(col, "A")
             board.place_tile(t)
             board.set_chain(t, "Tower")
         hotel.activate_chain("Tower")
 
         # Try to place tile that would merge them (4A connects 3A-Luxor and 5A-Tower)
-        merge_tile = Tile(4, 'A')
+        merge_tile = Tile(4, "A")
 
         assert Rules.can_place_tile(board, merge_tile, hotel) is False
 
@@ -99,14 +99,14 @@ class TestCanPlaceTile:
             board.place_tile(t)
             board.set_chain(t, "Luxor")
         for col in [2, 3]:
-            t = Tile(col, 'A')
+            t = Tile(col, "A")
             board.place_tile(t)
             board.set_chain(t, "Luxor")
         hotel.activate_chain("Luxor")
 
         # Create one unsafe chain (2 tiles)
-        t1 = Tile(5, 'A')
-        t2 = Tile(6, 'A')
+        t1 = Tile(5, "A")
+        t2 = Tile(6, "A")
         board.place_tile(t1)
         board.place_tile(t2)
         board.set_chain(t1, "Tower")
@@ -114,7 +114,7 @@ class TestCanPlaceTile:
         hotel.activate_chain("Tower")
 
         # Place tile to merge (4A connects 3A-Luxor and 5A-Tower)
-        merge_tile = Tile(4, 'A')
+        merge_tile = Tile(4, "A")
 
         assert Rules.can_place_tile(board, merge_tile, hotel) is True
 
@@ -124,11 +124,19 @@ class TestCanPlaceTile:
         hotel = Hotel()
 
         # Activate all 7 chains with minimal tiles
-        chains = ["Luxor", "Tower", "American", "Worldwide", "Festival", "Imperial", "Continental"]
+        chains = [
+            "Luxor",
+            "Tower",
+            "American",
+            "Worldwide",
+            "Festival",
+            "Imperial",
+            "Continental",
+        ]
         for i, chain_name in enumerate(chains):
             col = i + 1
-            t1 = Tile(col, 'A')
-            t2 = Tile(col, 'B')
+            t1 = Tile(col, "A")
+            t2 = Tile(col, "B")
             board.place_tile(t1)
             board.place_tile(t2)
             board.set_chain(t1, chain_name)
@@ -136,11 +144,11 @@ class TestCanPlaceTile:
             hotel.activate_chain(chain_name)
 
         # Place an isolated tile
-        isolated = Tile(10, 'E')
+        isolated = Tile(10, "E")
         board.place_tile(isolated)
 
         # Try to place adjacent tile that would create new chain
-        new_chain_tile = Tile(11, 'E')
+        new_chain_tile = Tile(11, "E")
 
         assert Rules.can_place_tile(board, new_chain_tile, hotel) is False
 
@@ -150,11 +158,19 @@ class TestCanPlaceTile:
         hotel = Hotel()
 
         # Activate all 7 chains
-        chains = ["Luxor", "Tower", "American", "Worldwide", "Festival", "Imperial", "Continental"]
+        chains = [
+            "Luxor",
+            "Tower",
+            "American",
+            "Worldwide",
+            "Festival",
+            "Imperial",
+            "Continental",
+        ]
         for i, chain_name in enumerate(chains):
             col = i + 1
-            t1 = Tile(col, 'A')
-            t2 = Tile(col, 'B')
+            t1 = Tile(col, "A")
+            t2 = Tile(col, "B")
             board.place_tile(t1)
             board.place_tile(t2)
             board.set_chain(t1, chain_name)
@@ -162,7 +178,7 @@ class TestCanPlaceTile:
             hotel.activate_chain(chain_name)
 
         # Place completely isolated tile (no adjacent played tiles)
-        isolated_tile = Tile(12, 'I')
+        isolated_tile = Tile(12, "I")
 
         assert Rules.can_place_tile(board, isolated_tile, hotel) is True
 
@@ -172,11 +188,19 @@ class TestCanPlaceTile:
         hotel = Hotel()
 
         # Activate all 7 chains
-        chains = ["Luxor", "Tower", "American", "Worldwide", "Festival", "Imperial", "Continental"]
+        chains = [
+            "Luxor",
+            "Tower",
+            "American",
+            "Worldwide",
+            "Festival",
+            "Imperial",
+            "Continental",
+        ]
         for i, chain_name in enumerate(chains):
             col = i + 1
-            t1 = Tile(col, 'A')
-            t2 = Tile(col, 'B')
+            t1 = Tile(col, "A")
+            t2 = Tile(col, "B")
             board.place_tile(t1)
             board.place_tile(t2)
             board.set_chain(t1, chain_name)
@@ -184,7 +208,7 @@ class TestCanPlaceTile:
             hotel.activate_chain(chain_name)
 
         # Expand Luxor chain
-        expand_tile = Tile(1, 'C')
+        expand_tile = Tile(1, "C")
 
         assert Rules.can_place_tile(board, expand_tile, hotel) is True
 
@@ -195,7 +219,7 @@ class TestGetPlacementResult:
     def test_nothing_isolated_tile(self):
         """Isolated tile returns 'nothing'."""
         board = Board()
-        tile = Tile(5, 'E')
+        tile = Tile(5, "E")
 
         result = Rules.get_placement_result(board, tile)
 
@@ -206,9 +230,9 @@ class TestGetPlacementResult:
     def test_found_new_chain(self):
         """Tile adjacent to played tile (no chain) returns 'found'."""
         board = Board()
-        board.place_tile(Tile(5, 'E'))
+        board.place_tile(Tile(5, "E"))
 
-        tile = Tile(5, 'F')
+        tile = Tile(5, "F")
         result = Rules.get_placement_result(board, tile)
 
         assert result.result_type == PlacementResult.FOUND
@@ -216,10 +240,10 @@ class TestGetPlacementResult:
     def test_found_multiple_adjacent_played_tiles(self):
         """Tile adjacent to multiple played tiles (no chains) returns 'found'."""
         board = Board()
-        board.place_tile(Tile(5, 'D'))
-        board.place_tile(Tile(4, 'E'))
+        board.place_tile(Tile(5, "D"))
+        board.place_tile(Tile(4, "E"))
 
-        tile = Tile(5, 'E')
+        tile = Tile(5, "E")
         result = Rules.get_placement_result(board, tile)
 
         assert result.result_type == PlacementResult.FOUND
@@ -227,14 +251,14 @@ class TestGetPlacementResult:
     def test_expand_existing_chain(self):
         """Tile adjacent to single chain returns 'expand'."""
         board = Board()
-        t1 = Tile(5, 'E')
-        t2 = Tile(5, 'F')
+        t1 = Tile(5, "E")
+        t2 = Tile(5, "F")
         board.place_tile(t1)
         board.place_tile(t2)
         board.set_chain(t1, "Luxor")
         board.set_chain(t2, "Luxor")
 
-        tile = Tile(5, 'G')
+        tile = Tile(5, "G")
         result = Rules.get_placement_result(board, tile)
 
         assert result.result_type == PlacementResult.EXPAND
@@ -244,18 +268,18 @@ class TestGetPlacementResult:
         """Tile adjacent to chain and played tile expands the chain."""
         board = Board()
         # Create chain
-        t1 = Tile(5, 'E')
-        t2 = Tile(5, 'F')
+        t1 = Tile(5, "E")
+        t2 = Tile(5, "F")
         board.place_tile(t1)
         board.place_tile(t2)
         board.set_chain(t1, "Luxor")
         board.set_chain(t2, "Luxor")
 
         # Place isolated tile
-        board.place_tile(Tile(5, 'H'))
+        board.place_tile(Tile(5, "H"))
 
         # Tile between chain and played tile
-        tile = Tile(5, 'G')
+        tile = Tile(5, "G")
         result = Rules.get_placement_result(board, tile)
 
         assert result.result_type == PlacementResult.EXPAND
@@ -266,23 +290,23 @@ class TestGetPlacementResult:
         board = Board()
 
         # Chain 1
-        t1 = Tile(3, 'E')
-        t2 = Tile(4, 'E')
+        t1 = Tile(3, "E")
+        t2 = Tile(4, "E")
         board.place_tile(t1)
         board.place_tile(t2)
         board.set_chain(t1, "Luxor")
         board.set_chain(t2, "Luxor")
 
         # Chain 2
-        t3 = Tile(6, 'E')
-        t4 = Tile(7, 'E')
+        t3 = Tile(6, "E")
+        t4 = Tile(7, "E")
         board.place_tile(t3)
         board.place_tile(t4)
         board.set_chain(t3, "Tower")
         board.set_chain(t4, "Tower")
 
         # Merge tile
-        tile = Tile(5, 'E')
+        tile = Tile(5, "E")
         result = Rules.get_placement_result(board, tile)
 
         assert result.result_type == PlacementResult.MERGE
@@ -293,22 +317,22 @@ class TestGetPlacementResult:
         board = Board()
 
         # Chain 1 (left)
-        t1 = Tile(4, 'E')
+        t1 = Tile(4, "E")
         board.place_tile(t1)
         board.set_chain(t1, "Luxor")
 
         # Chain 2 (right)
-        t2 = Tile(6, 'E')
+        t2 = Tile(6, "E")
         board.place_tile(t2)
         board.set_chain(t2, "Tower")
 
         # Chain 3 (above)
-        t3 = Tile(5, 'D')
+        t3 = Tile(5, "D")
         board.place_tile(t3)
         board.set_chain(t3, "American")
 
         # Merge tile (5E)
-        tile = Tile(5, 'E')
+        tile = Tile(5, "E")
         result = Rules.get_placement_result(board, tile)
 
         assert result.result_type == PlacementResult.MERGE
@@ -464,7 +488,9 @@ class TestCalculateBonuses:
         player2._stocks["Luxor"] = 5
         player3._stocks["Luxor"] = 5
 
-        bonuses = Rules.calculate_bonuses([player1, player2, player3], "Luxor", 5, hotel)
+        bonuses = Rules.calculate_bonuses(
+            [player1, player2, player3], "Luxor", 5, hotel
+        )
 
         # Total = 7500 / 3 = 2500 (exact)
         assert bonuses["p1"]["majority"] == 2500
@@ -481,7 +507,9 @@ class TestCalculateBonuses:
         player2._stocks["Luxor"] = 3
         player3._stocks["Luxor"] = 3
 
-        bonuses = Rules.calculate_bonuses([player1, player2, player3], "Luxor", 5, hotel)
+        bonuses = Rules.calculate_bonuses(
+            [player1, player2, player3], "Luxor", 5, hotel
+        )
 
         # Majority: 5000 to p1
         # Minority: 2500 / 2 = 1250, rounded up = 1300
@@ -643,7 +671,7 @@ class TestIsTilePermanentlyUnplayable:
         """Isolated tile is not permanently unplayable."""
         board = Board()
         hotel = Hotel()
-        tile = Tile(5, 'E')
+        tile = Tile(5, "E")
 
         assert Rules.is_tile_permanently_unplayable(board, tile, hotel) is False
 
@@ -658,7 +686,7 @@ class TestIsTilePermanentlyUnplayable:
             board.place_tile(t)
             board.set_chain(t, "Luxor")
         for col in [2, 3]:
-            t = Tile(col, 'A')
+            t = Tile(col, "A")
             board.place_tile(t)
             board.set_chain(t, "Luxor")
         hotel.activate_chain("Luxor")
@@ -668,13 +696,13 @@ class TestIsTilePermanentlyUnplayable:
             board.place_tile(t)
             board.set_chain(t, "Tower")
         for col in [6, 7]:
-            t = Tile(col, 'A')
+            t = Tile(col, "A")
             board.place_tile(t)
             board.set_chain(t, "Tower")
         hotel.activate_chain("Tower")
 
         # Tile between safe chains
-        tile = Tile(4, 'A')
+        tile = Tile(4, "A")
 
         assert Rules.is_tile_permanently_unplayable(board, tile, hotel) is True
 
@@ -689,20 +717,20 @@ class TestIsTilePermanentlyUnplayable:
             board.place_tile(t)
             board.set_chain(t, "Luxor")
         for col in [2, 3]:
-            t = Tile(col, 'A')
+            t = Tile(col, "A")
             board.place_tile(t)
             board.set_chain(t, "Luxor")
         hotel.activate_chain("Luxor")
 
         # Unsafe chain (3 tiles)
         for col in [5, 6, 7]:
-            t = Tile(col, 'A')
+            t = Tile(col, "A")
             board.place_tile(t)
             board.set_chain(t, "Tower")
         hotel.activate_chain("Tower")
 
         # Tile between them
-        tile = Tile(4, 'A')
+        tile = Tile(4, "A")
 
         assert Rules.is_tile_permanently_unplayable(board, tile, hotel) is False
 
@@ -710,7 +738,7 @@ class TestIsTilePermanentlyUnplayable:
         """Already played tile is not 'unplayable'."""
         board = Board()
         hotel = Hotel()
-        tile = Tile(5, 'E')
+        tile = Tile(5, "E")
         board.place_tile(tile)
 
         assert Rules.is_tile_permanently_unplayable(board, tile, hotel) is False
@@ -726,13 +754,13 @@ class TestIsTilePermanentlyUnplayable:
             board.place_tile(t)
             board.set_chain(t, "Luxor")
         for col in [2, 3]:
-            t = Tile(col, 'A')
+            t = Tile(col, "A")
             board.place_tile(t)
             board.set_chain(t, "Luxor")
         hotel.activate_chain("Luxor")
 
         # Adjacent tile
-        tile = Tile(4, 'A')
+        tile = Tile(4, "A")
 
         assert Rules.is_tile_permanently_unplayable(board, tile, hotel) is False
 
@@ -744,7 +772,7 @@ class TestGetPlayableTiles:
         """All tiles are playable on empty board."""
         board = Board()
         hotel = Hotel()
-        tiles = [Tile(1, 'A'), Tile(5, 'E'), Tile(12, 'I')]
+        tiles = [Tile(1, "A"), Tile(5, "E"), Tile(12, "I")]
 
         playable = Rules.get_playable_tiles(board, tiles, hotel)
 
@@ -761,7 +789,7 @@ class TestGetPlayableTiles:
             board.place_tile(t)
             board.set_chain(t, "Luxor")
         for col in [2, 3]:
-            t = Tile(col, 'A')
+            t = Tile(col, "A")
             board.place_tile(t)
             board.set_chain(t, "Luxor")
         hotel.activate_chain("Luxor")
@@ -771,18 +799,18 @@ class TestGetPlayableTiles:
             board.place_tile(t)
             board.set_chain(t, "Tower")
         for col in [6, 7]:
-            t = Tile(col, 'A')
+            t = Tile(col, "A")
             board.place_tile(t)
             board.set_chain(t, "Tower")
         hotel.activate_chain("Tower")
 
         # Tiles: one unplayable (4A), one playable (10E)
-        tiles = [Tile(4, 'A'), Tile(10, 'E')]
+        tiles = [Tile(4, "A"), Tile(10, "E")]
 
         playable = Rules.get_playable_tiles(board, tiles, hotel)
 
         assert len(playable) == 1
-        assert playable[0].coords == (10, 'E')
+        assert playable[0].coords == (10, "E")
 
 
 class TestGetUnplayableTiles:
@@ -792,7 +820,7 @@ class TestGetUnplayableTiles:
         """No tiles are unplayable on empty board."""
         board = Board()
         hotel = Hotel()
-        tiles = [Tile(1, 'A'), Tile(5, 'E'), Tile(12, 'I')]
+        tiles = [Tile(1, "A"), Tile(5, "E"), Tile(12, "I")]
 
         unplayable = Rules.get_unplayable_tiles(board, tiles, hotel)
 
@@ -809,7 +837,7 @@ class TestGetUnplayableTiles:
             board.place_tile(t)
             board.set_chain(t, "Luxor")
         for col in [2, 3]:
-            t = Tile(col, 'A')
+            t = Tile(col, "A")
             board.place_tile(t)
             board.set_chain(t, "Luxor")
         hotel.activate_chain("Luxor")
@@ -819,18 +847,18 @@ class TestGetUnplayableTiles:
             board.place_tile(t)
             board.set_chain(t, "Tower")
         for col in [6, 7]:
-            t = Tile(col, 'A')
+            t = Tile(col, "A")
             board.place_tile(t)
             board.set_chain(t, "Tower")
         hotel.activate_chain("Tower")
 
         # Tiles: one unplayable (4A), one playable (10E)
-        tiles = [Tile(4, 'A'), Tile(10, 'E')]
+        tiles = [Tile(4, "A"), Tile(10, "E")]
 
         unplayable = Rules.get_unplayable_tiles(board, tiles, hotel)
 
         assert len(unplayable) == 1
-        assert unplayable[0].coords == (4, 'A')
+        assert unplayable[0].coords == (4, "A")
 
 
 class TestPlacementResult:

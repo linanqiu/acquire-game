@@ -264,6 +264,7 @@ def merger_board(board, hotel):
 def game_state(board, hotel, players):
     """Create a complete game state dict."""
     import random
+
     tile_pool = Board.all_tiles()
     random.shuffle(tile_pool)
 
@@ -288,6 +289,7 @@ def game_state(board, hotel, players):
 @pytest.fixture
 def mock_websocket():
     """Create a mock WebSocket for testing."""
+
     class MockWebSocket:
         def __init__(self):
             self.sent_messages = []
@@ -317,6 +319,7 @@ def mock_websocket():
 @pytest.fixture
 def mock_websockets():
     """Create multiple mock WebSockets."""
+
     class MockWebSocket:
         def __init__(self):
             self.sent_messages = []

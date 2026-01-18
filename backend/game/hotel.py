@@ -7,6 +7,7 @@ from typing import ClassVar
 
 class HotelTier(Enum):
     """Hotel chain pricing tiers."""
+
     CHEAP = "cheap"
     MEDIUM = "medium"
     EXPENSIVE = "expensive"
@@ -15,6 +16,7 @@ class HotelTier(Enum):
 @dataclass
 class HotelChain:
     """Represents a hotel chain."""
+
     name: str
     tier: HotelTier
     color: str
@@ -23,17 +25,38 @@ class HotelChain:
     # Based on classic Acquire rules
     PRICE_TABLE: ClassVar[dict[HotelTier, dict[int, int]]] = {
         HotelTier.CHEAP: {
-            2: 200, 3: 300, 4: 400, 5: 500,
-            6: 600, 11: 700, 21: 800, 31: 900, 41: 1000
+            2: 200,
+            3: 300,
+            4: 400,
+            5: 500,
+            6: 600,
+            11: 700,
+            21: 800,
+            31: 900,
+            41: 1000,
         },
         HotelTier.MEDIUM: {
-            2: 300, 3: 400, 4: 500, 5: 600,
-            6: 700, 11: 800, 21: 900, 31: 1000, 41: 1100
+            2: 300,
+            3: 400,
+            4: 500,
+            5: 600,
+            6: 700,
+            11: 800,
+            21: 900,
+            31: 1000,
+            41: 1100,
         },
         HotelTier.EXPENSIVE: {
-            2: 400, 3: 500, 4: 600, 5: 700,
-            6: 800, 11: 900, 21: 1000, 31: 1100, 41: 1200
-        }
+            2: 400,
+            3: 500,
+            4: 600,
+            5: 700,
+            6: 800,
+            11: 900,
+            21: 1000,
+            31: 1100,
+            41: 1200,
+        },
     }
 
     SAFE_SIZE: ClassVar[int] = 11
@@ -71,13 +94,15 @@ class Hotel:
 
     # Define the 7 chains
     CHAINS: ClassVar[dict[str, HotelChain]] = {
-        "Luxor": HotelChain("Luxor", HotelTier.CHEAP, "#FFD700"),      # Gold
-        "Tower": HotelChain("Tower", HotelTier.CHEAP, "#8B4513"),      # Brown
+        "Luxor": HotelChain("Luxor", HotelTier.CHEAP, "#FFD700"),  # Gold
+        "Tower": HotelChain("Tower", HotelTier.CHEAP, "#8B4513"),  # Brown
         "American": HotelChain("American", HotelTier.MEDIUM, "#0000FF"),  # Blue
-        "Worldwide": HotelChain("Worldwide", HotelTier.MEDIUM, "#800080"), # Purple
+        "Worldwide": HotelChain("Worldwide", HotelTier.MEDIUM, "#800080"),  # Purple
         "Festival": HotelChain("Festival", HotelTier.MEDIUM, "#008000"),  # Green
-        "Imperial": HotelChain("Imperial", HotelTier.EXPENSIVE, "#FF0000"), # Red
-        "Continental": HotelChain("Continental", HotelTier.EXPENSIVE, "#00FFFF"), # Cyan
+        "Imperial": HotelChain("Imperial", HotelTier.EXPENSIVE, "#FF0000"),  # Red
+        "Continental": HotelChain(
+            "Continental", HotelTier.EXPENSIVE, "#00FFFF"
+        ),  # Cyan
     }
 
     TOTAL_STOCKS_PER_CHAIN: ClassVar[int] = 25
@@ -134,8 +159,7 @@ class Hotel:
     def return_stock(self, chain_name: str, quantity: int = 1):
         """Return stocks to the available pool."""
         self._available_stocks[chain_name] = min(
-            self.TOTAL_STOCKS_PER_CHAIN,
-            self._available_stocks[chain_name] + quantity
+            self.TOTAL_STOCKS_PER_CHAIN, self._available_stocks[chain_name] + quantity
         )
 
     def get_stock_price(self, chain_name: str, size: int) -> int:
@@ -158,7 +182,7 @@ class Hotel:
         """Get serializable state."""
         return {
             "available_stocks": dict(self._available_stocks),
-            "active_chains": list(self._active_chains)
+            "active_chains": list(self._active_chains),
         }
 
     def load_state(self, state: dict):

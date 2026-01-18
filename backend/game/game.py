@@ -17,6 +17,7 @@ from game.bot import Bot
 
 class GamePhase(Enum):
     """Game phases that control what actions are valid."""
+
     LOBBY = "lobby"
     PLAYING = "playing"
     TILE_PLAYED = "tile_played"
@@ -57,14 +58,21 @@ class Game:
         self._merger_survivor: Optional[str] = None  # Surviving chain
         self._merger_defunct_queue: list[str] = []  # Defunct chains to process
         self._merger_current_defunct: Optional[str] = None  # Currently processing
-        self._merger_stock_players: list[str] = []  # Players to handle stock disposition
+        self._merger_stock_players: list[
+            str
+        ] = []  # Players to handle stock disposition
         self._merger_stock_index: int = 0  # Current player handling disposition
 
         # Player-to-player trading state
         self.pending_trades: Dict[str, TradeOffer] = {}  # trade_id -> TradeOffer
 
-    def add_player(self, player_id: str, name: str, is_bot: bool = False,
-                   bot_difficulty: str = "medium") -> Player:
+    def add_player(
+        self,
+        player_id: str,
+        name: str,
+        is_bot: bool = False,
+        bot_difficulty: str = "medium",
+    ) -> Player:
         """Add a player to the game.
 
         Args:
@@ -211,13 +219,20 @@ class Game:
         current = self.get_current_player()
 
         # In most phases, only current player can act
-        if self.phase in (GamePhase.PLAYING, GamePhase.TILE_PLAYED,
-                          GamePhase.FOUNDING_CHAIN, GamePhase.BUYING_STOCKS):
+        if self.phase in (
+            GamePhase.PLAYING,
+            GamePhase.TILE_PLAYED,
+            GamePhase.FOUNDING_CHAIN,
+            GamePhase.BUYING_STOCKS,
+        ):
             return player_id == current.player_id
 
         # During merging, specific player may need to handle disposition
         if self.phase == GamePhase.MERGING:
-            if self.pending_action and self.pending_action.get("type") == "stock_disposition":
+            if (
+                self.pending_action
+                and self.pending_action.get("type") == "stock_disposition"
+            ):
                 return player_id == self.pending_action.get("player_id")
             # Otherwise, current player chooses survivor
             return player_id == current.player_id
@@ -265,7 +280,7 @@ class Game:
                 "success": True,
                 "result": "nothing",
                 "tile": str(tile),
-                "next_action": "buy_stocks"
+                "next_action": "buy_stocks",
             }
 
         elif result.result_type == PlacementResult.EXPAND:
@@ -278,7 +293,7 @@ class Game:
                 "result": "expand",
                 "tile": str(tile),
                 "chain": chain_name,
-                "next_action": "buy_stocks"
+                "next_action": "buy_stocks",
             }
 
         elif result.result_type == PlacementResult.FOUND:
@@ -288,14 +303,14 @@ class Game:
             self.pending_action = {
                 "type": "found_chain",
                 "tile": tile,
-                "available_chains": available
+                "available_chains": available,
             }
             return {
                 "success": True,
                 "result": "found",
                 "tile": str(tile),
                 "available_chains": available,
-                "next_action": "found_chain"
+                "next_action": "found_chain",
             }
 
         elif result.result_type == PlacementResult.MERGE:
@@ -316,7 +331,9 @@ class Game:
                     "tile": str(tile),
                     "survivor": survivor,
                     "defunct": defunct,
-                    "next_action": self.pending_action.get("type") if self.pending_action else "buy_stocks"
+                    "next_action": self.pending_action.get("type")
+                    if self.pending_action
+                    else "buy_stocks",
                 }
             else:
                 # Tie - player must choose
@@ -324,14 +341,14 @@ class Game:
                 self.pending_action = {
                     "type": "choose_survivor",
                     "tile": tile,
-                    "tied_chains": survivor
+                    "tied_chains": survivor,
                 }
                 return {
                     "success": True,
                     "result": "merge_tie",
                     "tile": str(tile),
                     "tied_chains": survivor,
-                    "next_action": "choose_merger_survivor"
+                    "next_action": "choose_merger_survivor",
                 }
 
         return {"success": False, "error": "Unknown placement result"}
@@ -394,17 +411,17 @@ class Game:
             "success": True,
             "chain": chain_name,
             "founder_bonus": True,
-            "next_action": "buy_stocks"
+            "next_action": "buy_stocks",
         }
 
-    def _start_merger_process(self, tile: Tile, survivor: str, defunct_chains: list[str]):
+    def _start_merger_process(
+        self, tile: Tile, survivor: str, defunct_chains: list[str]
+    ):
         """Start processing a merger."""
         self.phase = GamePhase.MERGING
         self._merger_survivor = survivor
         self._merger_defunct_queue = sorted(
-            defunct_chains,
-            key=lambda c: self.board.get_chain_size(c),
-            reverse=True
+            defunct_chains, key=lambda c: self.board.get_chain_size(c), reverse=True
         )
 
         self._process_next_defunct_chain(tile)
@@ -421,9 +438,7 @@ class Game:
 
         # Pay bonuses
         chain_size = self.board.get_chain_size(defunct)
-        bonuses = Rules.calculate_bonuses(
-            self.players, defunct, chain_size, self.hotel
-        )
+        bonuses = Rules.calculate_bonuses(self.players, defunct, chain_size, self.hotel)
 
         for player_id, bonus in bonuses.items():
             player = self.get_player(player_id)
@@ -466,7 +481,9 @@ class Game:
             "defunct_chain": defunct,
             "surviving_chain": self._merger_survivor,
             "stock_count": count,
-            "available_to_trade": self.hotel.get_available_stocks(self._merger_survivor)
+            "available_to_trade": self.hotel.get_available_stocks(
+                self._merger_survivor
+            ),
         }
 
     def choose_merger_survivor(self, player_id: str, chain_name: str) -> dict:
@@ -482,7 +499,10 @@ class Game:
         if self.phase != GamePhase.MERGING:
             return {"success": False, "error": "Not in merging phase"}
 
-        if not self.pending_action or self.pending_action.get("type") != "choose_survivor":
+        if (
+            not self.pending_action
+            or self.pending_action.get("type") != "choose_survivor"
+        ):
             return {"success": False, "error": "No pending survivor choice"}
 
         player = self.get_player(player_id)
@@ -505,10 +525,14 @@ class Game:
             "success": True,
             "survivor": chain_name,
             "defunct": defunct,
-            "next_action": self.pending_action.get("type") if self.pending_action else "buy_stocks"
+            "next_action": self.pending_action.get("type")
+            if self.pending_action
+            else "buy_stocks",
         }
 
-    def handle_stock_disposition(self, player_id: str, sell: int, trade: int, keep: int) -> dict:
+    def handle_stock_disposition(
+        self, player_id: str, sell: int, trade: int, keep: int
+    ) -> dict:
         """Handle a player's decision on defunct stock.
 
         Args:
@@ -523,7 +547,10 @@ class Game:
         if self.phase != GamePhase.MERGING:
             return {"success": False, "error": "Not in merging phase"}
 
-        if not self.pending_action or self.pending_action.get("type") != "stock_disposition":
+        if (
+            not self.pending_action
+            or self.pending_action.get("type") != "stock_disposition"
+        ):
             return {"success": False, "error": "No pending stock disposition"}
 
         if player_id != self.pending_action.get("player_id"):
@@ -544,7 +571,10 @@ class Game:
         trade_for = trade // 2
         available = self.hotel.get_available_stocks(survivor)
         if trade_for > available:
-            return {"success": False, "error": "Not enough survivor stock available to trade"}
+            return {
+                "success": False,
+                "error": "Not enough survivor stock available to trade",
+            }
 
         # Execute sell
         if sell > 0:
@@ -571,7 +601,9 @@ class Game:
             "sold": sell,
             "traded": trade,
             "kept": keep,
-            "next_action": self.pending_action.get("type") if self.pending_action else "buy_stocks"
+            "next_action": self.pending_action.get("type")
+            if self.pending_action
+            else "buy_stocks",
         }
 
     def _finalize_merger(self, tile: Tile = None):
@@ -621,7 +653,10 @@ class Game:
             return {"success": False, "error": "Not your turn"}
 
         if len(purchases) > self.MAX_STOCKS_PER_TURN:
-            return {"success": False, "error": f"Can only buy up to {self.MAX_STOCKS_PER_TURN} stocks"}
+            return {
+                "success": False,
+                "error": f"Can only buy up to {self.MAX_STOCKS_PER_TURN} stocks",
+            }
 
         # Validate all purchases first
         total_cost = 0
@@ -640,7 +675,10 @@ class Game:
 
         for chain_name, count in chain_counts.items():
             if self.hotel.get_available_stocks(chain_name) < count:
-                return {"success": False, "error": f"Not enough {chain_name} stock available"}
+                return {
+                    "success": False,
+                    "error": f"Not enough {chain_name} stock available",
+                }
 
         # Execute purchases
         bought = []
@@ -655,7 +693,7 @@ class Game:
             "success": True,
             "purchased": bought,
             "total_cost": total_cost,
-            "next_action": "end_turn"
+            "next_action": "end_turn",
         }
 
     def end_turn(self, player_id: str) -> dict:
@@ -680,8 +718,11 @@ class Game:
         # Replace any permanently unplayable tiles
         replaced = []
         while True:
-            unplayable = [t for t in player.hand
-                         if Rules.is_tile_permanently_unplayable(self.board, t, self.hotel)]
+            unplayable = [
+                t
+                for t in player.hand
+                if Rules.is_tile_permanently_unplayable(self.board, t, self.hotel)
+            ]
             if not unplayable or not self.tile_bag:
                 break
             for tile in unplayable:
@@ -700,7 +741,7 @@ class Game:
             "drew_tile": str(drawn_tile) if drawn_tile else None,
             "replaced_tiles": replaced,
             "can_end_game": can_end,
-            "next_player": self.get_current_player().player_id
+            "next_player": self.get_current_player().player_id,
         }
 
     def end_game(self) -> dict:
@@ -743,12 +784,14 @@ class Game:
         # Calculate final standings
         standings = []
         for player in self.players:
-            standings.append({
-                "player_id": player.player_id,
-                "name": player.name,
-                "money": player.money,
-                "is_bot": player.player_id in self.bots
-            })
+            standings.append(
+                {
+                    "player_id": player.player_id,
+                    "name": player.name,
+                    "money": player.money,
+                    "is_bot": player.player_id in self.bots,
+                }
+            )
 
         standings.sort(key=lambda x: x["money"], reverse=True)
 
@@ -761,7 +804,7 @@ class Game:
         return {
             "success": True,
             "standings": standings,
-            "winner": standings[0] if standings else None
+            "winner": standings[0] if standings else None,
         }
 
     # =========================================================================
@@ -807,7 +850,7 @@ class Game:
         if current_count >= self.MAX_PENDING_TRADES_PER_PLAYER:
             return {
                 "success": False,
-                "error": f"Maximum of {self.MAX_PENDING_TRADES_PER_PLAYER} pending trades per player"
+                "error": f"Maximum of {self.MAX_PENDING_TRADES_PER_PLAYER} pending trades per player",
             }
 
         # Validate the trade
@@ -822,7 +865,7 @@ class Game:
             "success": True,
             "trade_id": trade.trade_id,
             "from_player": trade.from_player_id,
-            "to_player": trade.to_player_id
+            "to_player": trade.to_player_id,
         }
 
     def accept_trade(self, player_id: str, trade_id: str) -> dict:
@@ -867,7 +910,9 @@ class Game:
 
         # Then, add resources to both players
         to_player.execute_trade_receive(trade.offering_stocks, trade.offering_money)
-        from_player.execute_trade_receive(trade.requesting_stocks, trade.requesting_money)
+        from_player.execute_trade_receive(
+            trade.requesting_stocks, trade.requesting_money
+        )
 
         # Remove the trade from pending
         del self.pending_trades[trade_id]
@@ -880,7 +925,7 @@ class Game:
             "offered_stocks": trade.offering_stocks,
             "offered_money": trade.offering_money,
             "requested_stocks": trade.requesting_stocks,
-            "requested_money": trade.requesting_money
+            "requested_money": trade.requesting_money,
         }
 
     def reject_trade(self, player_id: str, trade_id: str) -> dict:
@@ -908,11 +953,7 @@ class Game:
         # Remove the trade
         del self.pending_trades[trade_id]
 
-        return {
-            "success": True,
-            "trade_id": trade_id,
-            "rejected_by": player_id
-        }
+        return {"success": True, "trade_id": trade_id, "rejected_by": player_id}
 
     def cancel_trade(self, player_id: str, trade_id: str) -> dict:
         """Cancel a pending trade offer.
@@ -939,11 +980,7 @@ class Game:
         # Remove the trade
         del self.pending_trades[trade_id]
 
-        return {
-            "success": True,
-            "trade_id": trade_id,
-            "canceled_by": player_id
-        }
+        return {"success": True, "trade_id": trade_id, "canceled_by": player_id}
 
     def get_pending_trades_for_player(self, player_id: str) -> List[TradeOffer]:
         """Get all pending trades involving a player.
@@ -972,7 +1009,8 @@ class Game:
             List of TradeOffer objects where this player is the recipient
         """
         return [
-            trade for trade in self.pending_trades.values()
+            trade
+            for trade in self.pending_trades.values()
             if trade.to_player_id == player_id
         ]
 
@@ -986,7 +1024,8 @@ class Game:
             List of TradeOffer objects where this player is the proposer
         """
         return [
-            trade for trade in self.pending_trades.values()
+            trade
+            for trade in self.pending_trades.values()
             if trade.from_player_id == player_id
         ]
 
@@ -1050,9 +1089,15 @@ class Game:
                             disposition_player_id,
                             decision["sell"],
                             decision["trade"],
-                            decision["keep"]
+                            decision["keep"],
                         )
-                        actions.append({"action": "stock_disposition", "player": disposition_player_id, **result})
+                        actions.append(
+                            {
+                                "action": "stock_disposition",
+                                "player": disposition_player_id,
+                                **result,
+                            }
+                        )
                     else:
                         # Human player needs to decide
                         break
@@ -1093,31 +1138,39 @@ class Game:
                 "stock_price": price,
                 "available_stocks": self.hotel.get_available_stocks(chain_name),
                 "safe": safe,
-                "color": Hotel.CHAINS[chain_name].color
+                "color": Hotel.CHAINS[chain_name].color,
             }
 
         # Player public info
         player_info = []
         for player in self.players:
-            player_info.append({
-                "player_id": player.player_id,
-                "name": player.name,
-                "money": player.money,
-                "tile_count": player.hand_size,
-                "stocks": player.stocks,
-                "is_bot": player.player_id in self.bots
-            })
+            player_info.append(
+                {
+                    "player_id": player.player_id,
+                    "name": player.name,
+                    "money": player.money,
+                    "tile_count": player.hand_size,
+                    "stocks": player.stocks,
+                    "is_bot": player.player_id in self.bots,
+                }
+            )
 
         return {
             "phase": self.phase.value,
-            "current_player": self.get_current_player().player_id if self.players else None,
+            "current_player": self.get_current_player().player_id
+            if self.players
+            else None,
             "board": self.board.get_state(),
             "chains": chain_info,
             "players": player_info,
             "tiles_remaining": len(self.tile_bag),
             "pending_action": self.pending_action,
-            "can_end_game": Rules.check_end_game(self.board, self.hotel) if self.phase != GamePhase.LOBBY else False,
-            "pending_trades": [trade.to_dict() for trade in self.pending_trades.values()]
+            "can_end_game": Rules.check_end_game(self.board, self.hotel)
+            if self.phase != GamePhase.LOBBY
+            else False,
+            "pending_trades": [
+                trade.to_dict() for trade in self.pending_trades.values()
+            ],
         }
 
     def get_player_state(self, player_id: str) -> dict:
@@ -1136,13 +1189,15 @@ class Game:
         public = self.get_public_state()
 
         # Add private info
-        playable_tiles = Rules.get_playable_tiles(
-            self.board, player.hand, self.hotel
-        )
+        playable_tiles = Rules.get_playable_tiles(self.board, player.hand, self.hotel)
 
         # Get player-specific trade information
-        incoming_trades = [t.to_dict() for t in self.get_incoming_trades_for_player(player_id)]
-        outgoing_trades = [t.to_dict() for t in self.get_outgoing_trades_for_player(player_id)]
+        incoming_trades = [
+            t.to_dict() for t in self.get_incoming_trades_for_player(player_id)
+        ]
+        outgoing_trades = [
+            t.to_dict() for t in self.get_outgoing_trades_for_player(player_id)
+        ]
 
         return {
             **public,
@@ -1150,7 +1205,7 @@ class Game:
             "playable_tiles": [str(t) for t in playable_tiles],
             "can_act": self.can_player_act(player_id),
             "incoming_trades": incoming_trades,
-            "outgoing_trades": outgoing_trades
+            "outgoing_trades": outgoing_trades,
         }
 
     def apply_action(self, player_id: str, action: "Action") -> dict:
@@ -1198,7 +1253,10 @@ class Game:
                 return {"success": False, "error": "Trade offer is required"}
             # Ensure the proposing player matches the action player
             if action.trade.from_player_id != player_id:
-                return {"success": False, "error": "Trade proposer must match action player"}
+                return {
+                    "success": False,
+                    "error": "Trade proposer must match action player",
+                }
             return self.propose_trade(action.trade)
 
         elif action.action_type == ActionType.ACCEPT_TRADE:
@@ -1254,7 +1312,9 @@ class Game:
         new_game.tile_bag = list(self.tile_bag)
         new_game.current_player_index = self.current_player_index
         new_game.phase = self.phase
-        new_game.pending_action = dict(self.pending_action) if self.pending_action else None
+        new_game.pending_action = (
+            dict(self.pending_action) if self.pending_action else None
+        )
 
         # Copy merger state
         new_game._merger_chains = list(self._merger_chains)
@@ -1274,7 +1334,7 @@ class Game:
                 offering_money=trade.offering_money,
                 requesting_stocks=dict(trade.requesting_stocks),
                 requesting_money=trade.requesting_money,
-                trade_id=trade.trade_id
+                trade_id=trade.trade_id,
             )
 
         return new_game
@@ -1290,7 +1350,9 @@ class Game:
             "board": self.board.get_state(),
             "hotel": self.hotel.get_state(),
             "players": [p.get_state() for p in self.players],
-            "bots": {pid: {"difficulty": bot.difficulty} for pid, bot in self.bots.items()},
+            "bots": {
+                pid: {"difficulty": bot.difficulty} for pid, bot in self.bots.items()
+            },
             "tile_bag": [str(t) for t in self.tile_bag],
             "current_player_index": self.current_player_index,
             "phase": self.phase.value,
@@ -1304,7 +1366,7 @@ class Game:
             "pending_trades": {
                 trade_id: trade.to_dict()
                 for trade_id, trade in self.pending_trades.items()
-            }
+            },
         }
 
     @classmethod

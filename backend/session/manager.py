@@ -225,7 +225,9 @@ class SessionManager:
         if room_code in self._rooms:
             del self._rooms[room_code]
 
-    def validate_session_token(self, room_code: str, player_id: str, token: str) -> bool:
+    def validate_session_token(
+        self, room_code: str, player_id: str, token: str
+    ) -> bool:
         """Validate a session token for a player.
 
         Args:

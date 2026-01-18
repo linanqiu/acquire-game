@@ -163,7 +163,9 @@ class TestStartGame:
         assert response.status_code == 400
         assert "player" in response.json()["detail"].lower()
 
-    def test_start_game_already_started(self, client, room_with_players, clean_session_manager):
+    def test_start_game_already_started(
+        self, client, room_with_players, clean_session_manager
+    ):
         """Cannot start a game that's already started."""
         clean_session_manager.start_game(room_with_players)
 
@@ -280,7 +282,9 @@ class TestGameInitialization:
     """Tests for game initialization."""
 
     @pytest.mark.asyncio
-    async def test_initialize_game_creates_state(self, room_with_players, clean_session_manager):
+    async def test_initialize_game_creates_state(
+        self, room_with_players, clean_session_manager
+    ):
         """initialize_game should set up game state."""
         await initialize_game(room_with_players)
 
@@ -295,7 +299,9 @@ class TestGameInitialization:
         assert game["phase"] == "place_tile"
 
     @pytest.mark.asyncio
-    async def test_initialize_game_deals_tiles(self, room_with_players, clean_session_manager):
+    async def test_initialize_game_deals_tiles(
+        self, room_with_players, clean_session_manager
+    ):
         """Each player should receive 6 tiles."""
         await initialize_game(room_with_players)
 
@@ -306,7 +312,9 @@ class TestGameInitialization:
             assert player.hand_size == 6
 
     @pytest.mark.asyncio
-    async def test_initialize_game_tile_pool(self, room_with_players, clean_session_manager):
+    async def test_initialize_game_tile_pool(
+        self, room_with_players, clean_session_manager
+    ):
         """Tile pool should have correct remaining tiles."""
         await initialize_game(room_with_players)
 
@@ -333,7 +341,9 @@ class TestGameFlow:
         # Mock send_to_player to avoid actual websocket operations
         with patch.object(session_manager, "send_to_player", new_callable=AsyncMock):
             with patch.object(session_manager, "send_to_host", new_callable=AsyncMock):
-                with patch.object(session_manager, "broadcast_to_room", new_callable=AsyncMock):
+                with patch.object(
+                    session_manager, "broadcast_to_room", new_callable=AsyncMock
+                ):
                     await handle_place_tile(game_room, current_player_id, str(tile))
 
         # Tile should be removed from hand
@@ -352,7 +362,9 @@ class TestGameFlow:
         player = game["players"][wrong_player_id]
         tile = player.hand[0]
 
-        with patch.object(session_manager, "send_to_player", new_callable=AsyncMock) as mock_send:
+        with patch.object(
+            session_manager, "send_to_player", new_callable=AsyncMock
+        ) as mock_send:
             await handle_place_tile(game_room, wrong_player_id, str(tile))
 
             # Should send error message
@@ -369,7 +381,9 @@ class TestGameFlow:
         current_player_id = game["turn_order"][0]
 
         # Use a tile not in the player's hand
-        with patch.object(session_manager, "send_to_player", new_callable=AsyncMock) as mock_send:
+        with patch.object(
+            session_manager, "send_to_player", new_callable=AsyncMock
+        ) as mock_send:
             await handle_place_tile(game_room, current_player_id, "12I")
 
             mock_send.assert_called()
@@ -397,14 +411,16 @@ class TestGameFlow:
 
         game["pending_action"] = {
             "tile": tile1,
-            "connected_tiles": board.get_connected_tiles(tile1)
+            "connected_tiles": board.get_connected_tiles(tile1),
         }
 
         initial_stocks = player._stocks["Luxor"]
 
         with patch.object(session_manager, "send_to_player", new_callable=AsyncMock):
             with patch.object(session_manager, "send_to_host", new_callable=AsyncMock):
-                with patch.object(session_manager, "broadcast_to_room", new_callable=AsyncMock):
+                with patch.object(
+                    session_manager, "broadcast_to_room", new_callable=AsyncMock
+                ):
                     await handle_found_chain(game_room, current_player_id, "Luxor")
 
         # Chain should be active
@@ -440,7 +456,9 @@ class TestGameFlow:
 
         with patch.object(session_manager, "send_to_player", new_callable=AsyncMock):
             with patch.object(session_manager, "send_to_host", new_callable=AsyncMock):
-                with patch.object(session_manager, "broadcast_to_room", new_callable=AsyncMock):
+                with patch.object(
+                    session_manager, "broadcast_to_room", new_callable=AsyncMock
+                ):
                     await handle_buy_stocks(game_room, current_player_id, {"Luxor": 2})
 
         # Player should have more stocks
@@ -467,7 +485,9 @@ class TestGameFlow:
         game["phase"] = "buy_stocks"
         current_player_id = game["turn_order"][0]
 
-        with patch.object(session_manager, "send_to_player", new_callable=AsyncMock) as mock_send:
+        with patch.object(
+            session_manager, "send_to_player", new_callable=AsyncMock
+        ) as mock_send:
             with patch.object(session_manager, "send_to_host", new_callable=AsyncMock):
                 await handle_buy_stocks(game_room, current_player_id, {"Luxor": 5})
 
@@ -487,7 +507,9 @@ class TestGameFlow:
 
         with patch.object(session_manager, "send_to_player", new_callable=AsyncMock):
             with patch.object(session_manager, "send_to_host", new_callable=AsyncMock):
-                with patch.object(session_manager, "broadcast_to_room", new_callable=AsyncMock):
+                with patch.object(
+                    session_manager, "broadcast_to_room", new_callable=AsyncMock
+                ):
                     await handle_end_turn(game_room, current_player_id)
 
         # Turn should advance
@@ -510,7 +532,9 @@ class TestGameFlow:
 
         with patch.object(session_manager, "send_to_player", new_callable=AsyncMock):
             with patch.object(session_manager, "send_to_host", new_callable=AsyncMock):
-                with patch.object(session_manager, "broadcast_to_room", new_callable=AsyncMock):
+                with patch.object(
+                    session_manager, "broadcast_to_room", new_callable=AsyncMock
+                ):
                     await handle_end_turn(game_room, current_player_id)
 
         # Hand should have one more tile
@@ -524,7 +548,9 @@ class TestBroadcast:
     """Tests for broadcast functionality."""
 
     @pytest.mark.asyncio
-    async def test_broadcast_game_state(self, game_room, clean_session_manager, mock_websockets):
+    async def test_broadcast_game_state(
+        self, game_room, clean_session_manager, mock_websockets
+    ):
         """broadcast_game_state should send to all connected clients."""
         room = clean_session_manager.get_room(game_room)
 
@@ -550,7 +576,9 @@ class TestBroadcast:
         assert player_ws_1.sent_messages[0]["type"] == "game_state"
 
     @pytest.mark.asyncio
-    async def test_broadcast_includes_board_state(self, game_room, clean_session_manager, mock_websocket):
+    async def test_broadcast_includes_board_state(
+        self, game_room, clean_session_manager, mock_websocket
+    ):
         """Broadcast should include board state."""
         room = clean_session_manager.get_room(game_room)
         room.host_websocket = mock_websocket
@@ -605,7 +633,9 @@ class TestPlayerAction:
 
         with patch("main.handle_place_tile", new_callable=AsyncMock) as mock:
             await handle_player_action(
-                game_room, current_player_id, {"action": "place_tile", "tile": str(tile)}
+                game_room,
+                current_player_id,
+                {"action": "place_tile", "tile": str(tile)},
             )
             mock.assert_called_once_with(game_room, current_player_id, str(tile))
 
@@ -619,7 +649,9 @@ class TestPlayerAction:
 
         with patch("main.handle_found_chain", new_callable=AsyncMock) as mock:
             await handle_player_action(
-                game_room, current_player_id, {"action": "found_chain", "chain": "Luxor"}
+                game_room,
+                current_player_id,
+                {"action": "found_chain", "chain": "Luxor"},
             )
             mock.assert_called_once_with(game_room, current_player_id, "Luxor")
 
@@ -634,7 +666,9 @@ class TestPlayerAction:
 
         with patch("main.handle_buy_stocks", new_callable=AsyncMock) as mock:
             await handle_player_action(
-                game_room, current_player_id, {"action": "buy_stocks", "purchases": purchases}
+                game_room,
+                current_player_id,
+                {"action": "buy_stocks", "purchases": purchases},
             )
             mock.assert_called_once_with(game_room, current_player_id, purchases)
 
@@ -653,7 +687,9 @@ class TestPlayerAction:
             mock.assert_called_once_with(game_room, current_player_id)
 
     @pytest.mark.asyncio
-    async def test_action_on_unstarted_game(self, room_with_players, clean_session_manager):
+    async def test_action_on_unstarted_game(
+        self, room_with_players, clean_session_manager
+    ):
         """Actions on unstarted game should be ignored."""
         # Game not started
         with patch("main.handle_place_tile", new_callable=AsyncMock) as mock:
@@ -667,7 +703,9 @@ class TestMultipleWebsocketsPerPlayer:
     """Tests for players connecting from multiple devices."""
 
     @pytest.mark.asyncio
-    async def test_player_can_have_multiple_websockets(self, room_code, clean_session_manager, mock_websockets):
+    async def test_player_can_have_multiple_websockets(
+        self, room_code, clean_session_manager, mock_websockets
+    ):
         """A player should be able to connect from multiple devices."""
         clean_session_manager.join_room(room_code, "player_1", "Alice")
 
@@ -685,7 +723,9 @@ class TestMultipleWebsocketsPerPlayer:
         assert ws2 in player.websockets
 
     @pytest.mark.asyncio
-    async def test_broadcast_sends_to_all_player_websockets(self, room_code, clean_session_manager, mock_websockets):
+    async def test_broadcast_sends_to_all_player_websockets(
+        self, room_code, clean_session_manager, mock_websockets
+    ):
         """Broadcast should send to all websockets for each player."""
         clean_session_manager.join_room(room_code, "player_1", "Alice")
 
@@ -695,7 +735,9 @@ class TestMultipleWebsocketsPerPlayer:
         clean_session_manager.connect_player(room_code, "player_1", ws1)
         clean_session_manager.connect_player(room_code, "player_1", ws2)
 
-        await clean_session_manager.broadcast_to_room(room_code, {"type": "test", "data": "hello"})
+        await clean_session_manager.broadcast_to_room(
+            room_code, {"type": "test", "data": "hello"}
+        )
 
         # Both websockets should receive the message
         assert len(ws1.sent_messages) == 1
@@ -704,7 +746,9 @@ class TestMultipleWebsocketsPerPlayer:
         assert ws2.sent_messages[0] == {"type": "test", "data": "hello"}
 
     @pytest.mark.asyncio
-    async def test_send_to_player_sends_to_all_websockets(self, room_code, clean_session_manager, mock_websockets):
+    async def test_send_to_player_sends_to_all_websockets(
+        self, room_code, clean_session_manager, mock_websockets
+    ):
         """send_to_player should send to all websockets for that player."""
         clean_session_manager.join_room(room_code, "player_1", "Alice")
 
@@ -714,7 +758,9 @@ class TestMultipleWebsocketsPerPlayer:
         clean_session_manager.connect_player(room_code, "player_1", ws1)
         clean_session_manager.connect_player(room_code, "player_1", ws2)
 
-        await clean_session_manager.send_to_player(room_code, "player_1", {"type": "private", "data": "secret"})
+        await clean_session_manager.send_to_player(
+            room_code, "player_1", {"type": "private", "data": "secret"}
+        )
 
         # Both websockets should receive the message
         assert len(ws1.sent_messages) == 1
@@ -722,7 +768,9 @@ class TestMultipleWebsocketsPerPlayer:
         assert ws1.sent_messages[0] == {"type": "private", "data": "secret"}
 
     @pytest.mark.asyncio
-    async def test_disconnect_removes_only_specific_websocket(self, room_code, clean_session_manager, mock_websockets):
+    async def test_disconnect_removes_only_specific_websocket(
+        self, room_code, clean_session_manager, mock_websockets
+    ):
         """Disconnecting one websocket should not affect other websockets for same player."""
         clean_session_manager.join_room(room_code, "player_1", "Alice")
 
@@ -744,7 +792,9 @@ class TestMultipleWebsocketsPerPlayer:
         assert ws2 in player.websockets
 
     @pytest.mark.asyncio
-    async def test_broadcast_still_works_after_one_disconnect(self, room_code, clean_session_manager, mock_websockets):
+    async def test_broadcast_still_works_after_one_disconnect(
+        self, room_code, clean_session_manager, mock_websockets
+    ):
         """After one device disconnects, broadcasts should still reach remaining devices."""
         clean_session_manager.join_room(room_code, "player_1", "Alice")
 
@@ -758,7 +808,9 @@ class TestMultipleWebsocketsPerPlayer:
         clean_session_manager.disconnect(room_code, "player_1", ws1)
 
         # Broadcast message
-        await clean_session_manager.broadcast_to_room(room_code, {"type": "test", "data": "after_disconnect"})
+        await clean_session_manager.broadcast_to_room(
+            room_code, {"type": "test", "data": "after_disconnect"}
+        )
 
         # ws1 should not receive (disconnected before broadcast)
         assert len(ws1.sent_messages) == 0
@@ -767,7 +819,9 @@ class TestMultipleWebsocketsPerPlayer:
         assert ws2.sent_messages[0] == {"type": "test", "data": "after_disconnect"}
 
     @pytest.mark.asyncio
-    async def test_dead_websocket_removed_on_broadcast(self, room_code, clean_session_manager, mock_websockets):
+    async def test_dead_websocket_removed_on_broadcast(
+        self, room_code, clean_session_manager, mock_websockets
+    ):
         """A websocket that fails to send should be removed from the list."""
         clean_session_manager.join_room(room_code, "player_1", "Alice")
 
@@ -777,6 +831,7 @@ class TestMultipleWebsocketsPerPlayer:
         # Make ws1 raise an exception on send
         async def failing_send(data):
             raise Exception("Connection lost")
+
         ws1.send_json = failing_send
 
         clean_session_manager.connect_player(room_code, "player_1", ws1)

@@ -8,6 +8,7 @@ import json
 @dataclass
 class CurriculumStage:
     """Configuration for a curriculum learning stage."""
+
     opponents: List[str]
     win_threshold: float
     min_games: int = 1000
@@ -46,15 +47,45 @@ class TrainingConfig:
 
     # Curriculum learning stages with opponent configs and win thresholds
     curriculum_enabled: bool = True
-    curriculum_stages: List[Dict[str, Any]] = field(default_factory=lambda: [
-        {"opponents": ["easy", "easy", "easy"], "win_threshold": 0.6, "min_games": 1000},
-        {"opponents": ["easy", "easy", "medium"], "win_threshold": 0.55, "min_games": 2000},
-        {"opponents": ["easy", "medium", "medium"], "win_threshold": 0.5, "min_games": 3000},
-        {"opponents": ["medium", "medium", "medium"], "win_threshold": 0.5, "min_games": 5000},
-        {"opponents": ["medium", "medium", "hard"], "win_threshold": 0.45, "min_games": 7000},
-        {"opponents": ["medium", "hard", "hard"], "win_threshold": 0.4, "min_games": 10000},
-        {"opponents": ["hard", "hard", "hard"], "win_threshold": 0.35, "min_games": 15000},
-    ])
+    curriculum_stages: List[Dict[str, Any]] = field(
+        default_factory=lambda: [
+            {
+                "opponents": ["easy", "easy", "easy"],
+                "win_threshold": 0.6,
+                "min_games": 1000,
+            },
+            {
+                "opponents": ["easy", "easy", "medium"],
+                "win_threshold": 0.55,
+                "min_games": 2000,
+            },
+            {
+                "opponents": ["easy", "medium", "medium"],
+                "win_threshold": 0.5,
+                "min_games": 3000,
+            },
+            {
+                "opponents": ["medium", "medium", "medium"],
+                "win_threshold": 0.5,
+                "min_games": 5000,
+            },
+            {
+                "opponents": ["medium", "medium", "hard"],
+                "win_threshold": 0.45,
+                "min_games": 7000,
+            },
+            {
+                "opponents": ["medium", "hard", "hard"],
+                "win_threshold": 0.4,
+                "min_games": 10000,
+            },
+            {
+                "opponents": ["hard", "hard", "hard"],
+                "win_threshold": 0.35,
+                "min_games": 15000,
+            },
+        ]
+    )
 
     # Self-play settings
     self_play_enabled: bool = False
@@ -126,7 +157,7 @@ class TrainingConfig:
             self.max_tile_actions,
             self.max_chain_actions,
             self.max_stock_actions,
-            self.max_disposition_actions
+            self.max_disposition_actions,
         )
 
 

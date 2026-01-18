@@ -178,10 +178,16 @@ class TestHotel:
     def test_load_state(self):
         hotel = Hotel()
         state = {
-            "available_stocks": {"Luxor": 20, "Tower": 25, "American": 25,
-                                 "Worldwide": 25, "Festival": 25,
-                                 "Imperial": 25, "Continental": 25},
-            "active_chains": ["Luxor", "Tower"]
+            "available_stocks": {
+                "Luxor": 20,
+                "Tower": 25,
+                "American": 25,
+                "Worldwide": 25,
+                "Festival": 25,
+                "Imperial": 25,
+                "Continental": 25,
+            },
+            "active_chains": ["Luxor", "Tower"],
         }
         hotel.load_state(state)
         assert hotel.get_available_stocks("Luxor") == 20

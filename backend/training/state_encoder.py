@@ -23,7 +23,15 @@ class StateEncoder:
     """
 
     # The 7 hotel chains in canonical order
-    CHAIN_NAMES = ["Luxor", "Tower", "American", "Worldwide", "Festival", "Imperial", "Continental"]
+    CHAIN_NAMES = [
+        "Luxor",
+        "Tower",
+        "American",
+        "Worldwide",
+        "Festival",
+        "Imperial",
+        "Continental",
+    ]
 
     # Board dimensions
     BOARD_SIZE = 108  # 12 columns x 9 rows
@@ -47,7 +55,7 @@ class StateEncoder:
         "FOUND_CHAIN",
         "BUY_STOCK",
         "HANDLE_DEFUNCT_STOCK",
-        "GAME_OVER"
+        "GAME_OVER",
     ]
 
     def __init__(self):
@@ -204,7 +212,9 @@ class StateEncoder:
             # Encode stock holdings for each chain
             for chain_idx, chain_name in enumerate(self.CHAIN_NAMES):
                 stock_count = player.get_stock_count(chain_name)
-                players[offset + 1 + chain_idx] = stock_count / self.MAX_STOCKS_PER_CHAIN
+                players[offset + 1 + chain_idx] = (
+                    stock_count / self.MAX_STOCKS_PER_CHAIN
+                )
 
         return players
 
@@ -249,10 +259,15 @@ class StateEncoder:
         phase = np.zeros(self.NUM_PHASES, dtype=np.float32)
 
         # Get current phase from game
-        current_phase = game.phase.value if hasattr(game.phase, 'value') else str(game.phase)
+        current_phase = (
+            game.phase.value if hasattr(game.phase, "value") else str(game.phase)
+        )
 
         for i, phase_name in enumerate(self.PHASES):
-            if phase_name == current_phase or phase_name.lower() == current_phase.lower():
+            if (
+                phase_name == current_phase
+                or phase_name.lower() == current_phase.lower()
+            ):
                 phase[i] = 1.0
                 break
 
@@ -289,7 +304,9 @@ class StateEncoder:
                 break
 
         # Find current turn player's index
-        current_player_id = game.current_player.player_id if game.current_player else None
+        current_player_id = (
+            game.current_player.player_id if game.current_player else None
+        )
         current_idx = 0
         for i, p in enumerate(player_list):
             if p.player_id == current_player_id:
@@ -305,11 +322,11 @@ class StateEncoder:
         meta[6] = 1.0 if game.can_end_game() else 0.0
 
         # Turn number (normalize by expected max ~200 turns)
-        turn_number = getattr(game, 'turn_number', 0)
+        turn_number = getattr(game, "turn_number", 0)
         meta[7] = min(turn_number / 200.0, 1.0)
 
         # Tiles remaining (normalize by 108)
-        tiles_remaining = len(game.tile_bag) if hasattr(game, 'tile_bag') else 0
+        tiles_remaining = len(game.tile_bag) if hasattr(game, "tile_bag") else 0
         meta[8] = tiles_remaining / self.BOARD_SIZE
 
         # Number of active players (normalize by 6)
@@ -329,7 +346,7 @@ class StateEncoder:
             An integer index from 0 to 107
         """
         col = tile.column  # 1-12
-        row = tile.row     # A-I
+        row = tile.row  # A-I
         row_idx = self.BOARD_ROWS.index(row)  # 0-8
         return (col - 1) * 9 + row_idx
 
@@ -367,7 +384,7 @@ class StateEncoder:
             A string like "1A" or "12I"
         """
         col = (idx // 9) + 1  # 1-12
-        row_idx = idx % 9     # 0-8
+        row_idx = idx % 9  # 0-8
         row = self.BOARD_ROWS[row_idx]
         return f"{col}{row}"
 
@@ -385,12 +402,12 @@ class StateEncoder:
         # Meta: 10
         # Total: 214 (base features)
         total_dim = (
-            self.BOARD_SIZE +           # 108
-            self.NUM_CHAINS * 5 +       # 35
-            self.MAX_PLAYERS * 8 +      # 48
-            self.MAX_HAND_SIZE +        # 6
-            self.NUM_PHASES +           # 7
-            10                          # meta
+            self.BOARD_SIZE  # 108
+            + self.NUM_CHAINS * 5  # 35
+            + self.MAX_PLAYERS * 8  # 48
+            + self.MAX_HAND_SIZE  # 6
+            + self.NUM_PHASES  # 7
+            + 10  # meta
         )
         return (total_dim,)
 

@@ -126,7 +126,9 @@ class Rules:
             return PlacementResult(PlacementResult.MERGE, chains=list(adjacent_chains))
 
     @classmethod
-    def get_merger_survivor(cls, board: Board, chains: list[str]) -> Union[str, list[str]]:
+    def get_merger_survivor(
+        cls, board: Board, chains: list[str]
+    ) -> Union[str, list[str]]:
         """Determine which chain survives a merger.
 
         The largest chain survives. If there's a tie, returns a list
@@ -152,7 +154,9 @@ class Rules:
         max_size = max(chain_sizes.values())
 
         # Find all chains with the maximum size
-        largest_chains = [name for name, size in chain_sizes.items() if size == max_size]
+        largest_chains = [
+            name for name, size in chain_sizes.items() if size == max_size
+        ]
 
         if len(largest_chains) == 1:
             return largest_chains[0]
@@ -160,8 +164,9 @@ class Rules:
             return largest_chains
 
     @classmethod
-    def calculate_bonuses(cls, players: list, chain_name: str, chain_size: int,
-                          hotel: Hotel) -> dict[str, dict[str, int]]:
+    def calculate_bonuses(
+        cls, players: list, chain_name: str, chain_size: int, hotel: Hotel
+    ) -> dict[str, dict[str, int]]:
         """Calculate majority and minority stockholder bonuses.
 
         Rules:
@@ -203,8 +208,8 @@ class Rules:
             # Single stockholder gets both bonuses
             player_id = stockholders[0][0]
             bonuses[player_id] = {
-                'majority': majority_bonus,
-                'minority': minority_bonus
+                "majority": majority_bonus,
+                "minority": minority_bonus,
             }
             return bonuses
 
@@ -218,39 +223,36 @@ class Rules:
             split_bonus = cls._round_up_to_hundred(total_bonus / len(majority_holders))
 
             for player_id in majority_holders:
-                bonuses[player_id] = {
-                    'majority': split_bonus,
-                    'minority': 0
-                }
+                bonuses[player_id] = {"majority": split_bonus, "minority": 0}
             return bonuses
 
         # Single majority holder
         majority_holder = majority_holders[0]
-        bonuses[majority_holder] = {
-            'majority': majority_bonus,
-            'minority': 0
-        }
+        bonuses[majority_holder] = {"majority": majority_bonus, "minority": 0}
 
         # Find minority holders (second highest share count)
-        remaining = [(pid, shares) for pid, shares in stockholders if pid != majority_holder]
+        remaining = [
+            (pid, shares) for pid, shares in stockholders if pid != majority_holder
+        ]
 
         if remaining:
             second_max = remaining[0][1]
-            minority_holders = [pid for pid, shares in remaining if shares == second_max]
+            minority_holders = [
+                pid for pid, shares in remaining if shares == second_max
+            ]
 
             if len(minority_holders) > 1:
                 # Tie for minority - split minority bonus
-                split_bonus = cls._round_up_to_hundred(minority_bonus / len(minority_holders))
+                split_bonus = cls._round_up_to_hundred(
+                    minority_bonus / len(minority_holders)
+                )
                 for player_id in minority_holders:
-                    bonuses[player_id] = {
-                        'majority': 0,
-                        'minority': split_bonus
-                    }
+                    bonuses[player_id] = {"majority": 0, "minority": split_bonus}
             else:
                 # Single minority holder
                 bonuses[minority_holders[0]] = {
-                    'majority': 0,
-                    'minority': minority_bonus
+                    "majority": 0,
+                    "minority": minority_bonus,
                 }
 
         return bonuses
@@ -266,6 +268,7 @@ class Rules:
             Amount rounded up to nearest 100
         """
         import math
+
         return int(math.ceil(amount / 100) * 100)
 
     @classmethod
@@ -319,7 +322,9 @@ class Rules:
         return False
 
     @classmethod
-    def is_tile_permanently_unplayable(cls, board: Board, tile: Tile, hotel: Hotel) -> bool:
+    def is_tile_permanently_unplayable(
+        cls, board: Board, tile: Tile, hotel: Hotel
+    ) -> bool:
         """Check if a tile can never be legally played.
 
         A tile is permanently unplayable if it would merge two safe chains.
@@ -353,7 +358,9 @@ class Rules:
         return safe_count >= 2
 
     @classmethod
-    def get_playable_tiles(cls, board: Board, tiles: list[Tile], hotel: Hotel) -> list[Tile]:
+    def get_playable_tiles(
+        cls, board: Board, tiles: list[Tile], hotel: Hotel
+    ) -> list[Tile]:
         """Get list of tiles that can legally be played.
 
         Args:
@@ -367,7 +374,9 @@ class Rules:
         return [tile for tile in tiles if cls.can_place_tile(board, tile, hotel)]
 
     @classmethod
-    def get_unplayable_tiles(cls, board: Board, tiles: list[Tile], hotel: Hotel) -> list[Tile]:
+    def get_unplayable_tiles(
+        cls, board: Board, tiles: list[Tile], hotel: Hotel
+    ) -> list[Tile]:
         """Get list of tiles that cannot be legally played.
 
         Args:
@@ -454,10 +463,14 @@ class Rules:
                     # Only if it's this player's turn to handle disposition
                     if game.pending_action.get("player_id") == player_id:
                         count = game.pending_action.get("stock_count", 0)
-                        available_trade = game.pending_action.get("available_to_trade", 0)
+                        available_trade = game.pending_action.get(
+                            "available_to_trade", 0
+                        )
 
                         # Generate all valid sell/trade/keep combinations
-                        combos = cls.get_valid_disposition_combinations(count, available_trade)
+                        combos = cls.get_valid_disposition_combinations(
+                            count, available_trade
+                        )
                         for sell, trade, keep in combos:
                             actions.append(Action.stock_disposition(sell, trade, keep))
 
@@ -586,7 +599,9 @@ class Rules:
         if not affordable:
             return actions
 
-        def generate_combinations(current: list, remaining_money: int, remaining_stocks: int):
+        def generate_combinations(
+            current: list, remaining_money: int, remaining_stocks: int
+        ):
             """Recursively generate valid purchase combinations."""
             if remaining_stocks <= 0:
                 return
@@ -606,9 +621,7 @@ class Rules:
 
                 # Recurse for additional purchases
                 generate_combinations(
-                    new_combo,
-                    remaining_money - price,
-                    remaining_stocks - 1
+                    new_combo, remaining_money - price, remaining_stocks - 1
                 )
 
         generate_combinations([], money, max_stocks)
@@ -670,46 +683,61 @@ class Rules:
 
         for chain_name, quantity in trade.offering_stocks.items():
             if quantity < 0:
-                return False, f"Offering stock quantity for {chain_name} cannot be negative"
+                return (
+                    False,
+                    f"Offering stock quantity for {chain_name} cannot be negative",
+                )
 
         for chain_name, quantity in trade.requesting_stocks.items():
             if quantity < 0:
-                return False, f"Requesting stock quantity for {chain_name} cannot be negative"
+                return (
+                    False,
+                    f"Requesting stock quantity for {chain_name} cannot be negative",
+                )
 
         # Check that the trade is not empty
-        has_offering = (
-            trade.offering_money > 0 or
-            any(qty > 0 for qty in trade.offering_stocks.values())
+        has_offering = trade.offering_money > 0 or any(
+            qty > 0 for qty in trade.offering_stocks.values()
         )
-        has_requesting = (
-            trade.requesting_money > 0 or
-            any(qty > 0 for qty in trade.requesting_stocks.values())
+        has_requesting = trade.requesting_money > 0 or any(
+            qty > 0 for qty in trade.requesting_stocks.values()
         )
 
         if not has_offering and not has_requesting:
             return False, "Trade must include at least one item to exchange"
 
         # Check that offering player has the resources they're offering
-        if not from_player.can_afford_trade(trade.offering_stocks, trade.offering_money):
+        if not from_player.can_afford_trade(
+            trade.offering_stocks, trade.offering_money
+        ):
             return False, "Offering player does not have the required stocks or money"
 
         # Check that receiving player has the resources being requested
-        if not to_player.can_afford_trade(trade.requesting_stocks, trade.requesting_money):
+        if not to_player.can_afford_trade(
+            trade.requesting_stocks, trade.requesting_money
+        ):
             return False, "Receiving player does not have the requested stocks or money"
 
         # Check that receiving stocks won't exceed max for the receiver
         from game.player import Player
+
         for chain_name, quantity in trade.offering_stocks.items():
             if quantity > 0:
                 current = to_player.get_stock_count(chain_name)
                 if current + quantity > Player.MAX_STOCKS_PER_CHAIN:
-                    return False, f"Trade would exceed max stocks for {chain_name} for receiving player"
+                    return (
+                        False,
+                        f"Trade would exceed max stocks for {chain_name} for receiving player",
+                    )
 
         # Check that receiving stocks won't exceed max for the offerer
         for chain_name, quantity in trade.requesting_stocks.items():
             if quantity > 0:
                 current = from_player.get_stock_count(chain_name)
                 if current + quantity > Player.MAX_STOCKS_PER_CHAIN:
-                    return False, f"Trade would exceed max stocks for {chain_name} for offering player"
+                    return (
+                        False,
+                        f"Trade would exceed max stocks for {chain_name} for offering player",
+                    )
 
         return True, ""

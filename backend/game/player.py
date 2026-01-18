@@ -22,7 +22,9 @@ class Player:
         self.name = name
         self._money = self.STARTING_MONEY
         self._hand: list[Tile] = []
-        self._stocks: dict[str, int] = {chain: 0 for chain in Hotel.get_all_chain_names()}
+        self._stocks: dict[str, int] = {
+            chain: 0 for chain in Hotel.get_all_chain_names()
+        }
 
     @property
     def money(self) -> int:
@@ -128,8 +130,9 @@ class Player:
         self._money += quantity * price_per_share
         return True
 
-    def trade_stock(self, defunct_chain: str, surviving_chain: str,
-                    defunct_quantity: int) -> bool:
+    def trade_stock(
+        self, defunct_chain: str, surviving_chain: str, defunct_quantity: int
+    ) -> bool:
         """Trade defunct chain stock for surviving chain stock at 2:1 ratio.
 
         Args:
@@ -155,7 +158,10 @@ class Player:
         surviving_quantity = defunct_quantity // 2
 
         # Check if receiving stock would exceed max
-        if self._stocks[surviving_chain] + surviving_quantity > self.MAX_STOCKS_PER_CHAIN:
+        if (
+            self._stocks[surviving_chain] + surviving_quantity
+            > self.MAX_STOCKS_PER_CHAIN
+        ):
             return False
 
         self._stocks[defunct_chain] -= defunct_quantity
@@ -285,7 +291,9 @@ class Player:
         """
         return self._money + self.get_stock_value(chain_prices)
 
-    def can_afford_trade(self, offering_stocks: dict[str, int], offering_money: int) -> bool:
+    def can_afford_trade(
+        self, offering_stocks: dict[str, int], offering_money: int
+    ) -> bool:
         """Check if player has the resources to fulfill a trade offer.
 
         Args:
@@ -385,7 +393,7 @@ class Player:
             "name": self.name,
             "money": self._money,
             "hand": [str(tile) for tile in self._hand],
-            "stocks": dict(self._stocks)
+            "stocks": dict(self._stocks),
         }
 
     @classmethod

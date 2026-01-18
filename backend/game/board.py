@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 class TileState(Enum):
     """State of a tile on the board."""
+
     EMPTY = "empty"
     PLAYED = "played"  # Played but not part of a chain
     IN_CHAIN = "in_chain"
@@ -15,8 +16,9 @@ class TileState(Enum):
 @dataclass
 class Tile:
     """Represents a single tile."""
+
     column: int  # 1-12
-    row: str     # A-I
+    row: str  # A-I
 
     def __post_init__(self):
         if not (1 <= self.column <= 12):
@@ -54,6 +56,7 @@ class Tile:
 @dataclass
 class BoardCell:
     """Represents a cell on the board."""
+
     state: TileState = TileState.EMPTY
     chain: Optional[str] = None  # Name of hotel chain if IN_CHAIN
 
@@ -155,7 +158,10 @@ class Board:
             visited.add(current)
 
             for adj in self.get_adjacent_tiles(current):
-                if adj not in visited and self._grid[adj.coords].state != TileState.EMPTY:
+                if (
+                    adj not in visited
+                    and self._grid[adj.coords].state != TileState.EMPTY
+                ):
                     to_visit.append(adj)
 
         return visited
@@ -183,10 +189,7 @@ class Board:
         cells = {}
         for (col, row), cell in self._grid.items():
             if cell.state != TileState.EMPTY:
-                cells[f"{col}{row}"] = {
-                    "state": cell.state.value,
-                    "chain": cell.chain
-                }
+                cells[f"{col}{row}"] = {"state": cell.state.value, "chain": cell.chain}
         return {"cells": cells}
 
     @classmethod

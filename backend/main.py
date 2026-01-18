@@ -23,109 +23,126 @@ from game.rules import Rules
 # Pydantic Models for WebSocket Message Validation
 # =============================================================================
 
-VALID_CHAINS = ["Luxor", "Tower", "American", "Worldwide", "Festival", "Imperial", "Continental"]
+VALID_CHAINS = [
+    "Luxor",
+    "Tower",
+    "American",
+    "Worldwide",
+    "Festival",
+    "Imperial",
+    "Continental",
+]
 
 
 class PlaceTileMessage(BaseModel):
     """Validate place_tile action messages."""
+
     action: Literal["place_tile"]
     tile: str
 
-    @field_validator('tile')
+    @field_validator("tile")
     @classmethod
     def validate_tile(cls, v: str) -> str:
         """Validate tile format (e.g., '1A', '12I')."""
         if not isinstance(v, str):
-            raise ValueError('Tile must be a string')
+            raise ValueError("Tile must be a string")
         v = v.upper().strip()
-        if not re.match(r'^1?[0-9][A-I]$', v):
-            raise ValueError('Invalid tile format. Expected format like 1A, 5E, 12I')
+        if not re.match(r"^1?[0-9][A-I]$", v):
+            raise ValueError("Invalid tile format. Expected format like 1A, 5E, 12I")
         return v
 
 
 class FoundChainMessage(BaseModel):
     """Validate found_chain action messages."""
+
     action: Literal["found_chain"]
     chain: str
 
-    @field_validator('chain')
+    @field_validator("chain")
     @classmethod
     def validate_chain(cls, v: str) -> str:
         """Validate chain name."""
         if v not in VALID_CHAINS:
-            raise ValueError(f'Invalid chain: {v}. Must be one of {VALID_CHAINS}')
+            raise ValueError(f"Invalid chain: {v}. Must be one of {VALID_CHAINS}")
         return v
 
 
 class MergerChoiceMessage(BaseModel):
     """Validate merger_choice action messages."""
+
     action: Literal["merger_choice"]
     surviving_chain: str
 
-    @field_validator('surviving_chain')
+    @field_validator("surviving_chain")
     @classmethod
     def validate_chain(cls, v: str) -> str:
         """Validate chain name."""
         if v not in VALID_CHAINS:
-            raise ValueError(f'Invalid chain: {v}. Must be one of {VALID_CHAINS}')
+            raise ValueError(f"Invalid chain: {v}. Must be one of {VALID_CHAINS}")
         return v
 
 
 class DispositionData(BaseModel):
     """Validate disposition data within merger_disposition."""
+
     sell: int = 0
     trade: int = 0
     hold: int = 0
 
-    @field_validator('sell', 'trade', 'hold')
+    @field_validator("sell", "trade", "hold")
     @classmethod
     def validate_non_negative(cls, v: int) -> int:
         """Ensure values are non-negative."""
         if v < 0:
-            raise ValueError('Value must be non-negative')
+            raise ValueError("Value must be non-negative")
         return v
 
 
 class MergerDispositionMessage(BaseModel):
     """Validate merger_disposition action messages."""
+
     action: Literal["merger_disposition"]
     defunct_chain: str
     disposition: DispositionData
 
-    @field_validator('defunct_chain')
+    @field_validator("defunct_chain")
     @classmethod
     def validate_chain(cls, v: str) -> str:
         """Validate chain name."""
         if v not in VALID_CHAINS:
-            raise ValueError(f'Invalid chain: {v}. Must be one of {VALID_CHAINS}')
+            raise ValueError(f"Invalid chain: {v}. Must be one of {VALID_CHAINS}")
         return v
 
 
 class BuyStocksMessage(BaseModel):
     """Validate buy_stocks action messages."""
+
     action: Literal["buy_stocks"]
     purchases: dict[str, int]
 
-    @field_validator('purchases')
+    @field_validator("purchases")
     @classmethod
     def validate_purchases(cls, v: dict) -> dict:
         """Validate purchases dictionary."""
         if not isinstance(v, dict):
-            raise ValueError('Purchases must be a dictionary')
+            raise ValueError("Purchases must be a dictionary")
         total = 0
         for chain, quantity in v.items():
             if chain not in VALID_CHAINS:
-                raise ValueError(f'Invalid chain: {chain}')
+                raise ValueError(f"Invalid chain: {chain}")
             if not isinstance(quantity, int) or quantity < 0:
-                raise ValueError(f'Invalid quantity for {chain}: must be non-negative integer')
+                raise ValueError(
+                    f"Invalid quantity for {chain}: must be non-negative integer"
+                )
             total += quantity
         if total > 3:
-            raise ValueError('Cannot buy more than 3 stocks per turn')
+            raise ValueError("Cannot buy more than 3 stocks per turn")
         return v
 
 
 class EndTurnMessage(BaseModel):
     """Validate end_turn action messages."""
+
     action: Literal["end_turn"]
 
 
@@ -136,11 +153,13 @@ WebSocketMessage = Union[
     MergerChoiceMessage,
     MergerDispositionMessage,
     BuyStocksMessage,
-    EndTurnMessage
+    EndTurnMessage,
 ]
 
 
-def validate_websocket_message(data: dict) -> tuple[Optional[WebSocketMessage], Optional[str]]:
+def validate_websocket_message(
+    data: dict,
+) -> tuple[Optional[WebSocketMessage], Optional[str]]:
     """Validate incoming WebSocket message data.
 
     Args:
@@ -180,6 +199,7 @@ def validate_websocket_message(data: dict) -> tuple[Optional[WebSocketMessage], 
 # Rate Limiting
 # =============================================================================
 
+
 class RateLimiter:
     """Simple rate limiter using sliding window algorithm."""
 
@@ -206,8 +226,7 @@ class RateLimiter:
         now = time.time()
         # Clean old requests outside the window
         self.requests[client_id] = [
-            t for t in self.requests[client_id]
-            if now - t < self.window_seconds
+            t for t in self.requests[client_id] if now - t < self.window_seconds
         ]
 
         if len(self.requests[client_id]) >= self.max_requests:
@@ -278,7 +297,7 @@ async def join_room(room_code: str, name: str):
     return {
         "player_id": player_id,
         "room_code": room_code,
-        "session_token": session_token
+        "session_token": session_token,
     }
 
 
@@ -289,7 +308,9 @@ async def host_view(request: Request, room_code: str):
     if room is None:
         raise HTTPException(status_code=404, detail="Room not found")
 
-    return templates.TemplateResponse("host.html", {"request": request, "room_code": room_code})
+    return templates.TemplateResponse(
+        "host.html", {"request": request, "room_code": room_code}
+    )
 
 
 @app.get("/play/{room_code}", response_class=HTMLResponse)
@@ -310,7 +331,7 @@ async def player_view(request: Request, room_code: str, player_id: str):
             "room_code": room_code,
             "player_id": player_id,
             "player_name": player.name,
-        }
+        },
     )
 
 
@@ -326,7 +347,9 @@ async def add_bot(room_code: str):
 
     bot_id = session_manager.add_bot(room_code)
     if bot_id is None:
-        raise HTTPException(status_code=400, detail="Cannot add bot (room full or game started)")
+        raise HTTPException(
+            status_code=400, detail="Cannot add bot (room full or game started)"
+        )
 
     # Notify connected clients about new bot
     await broadcast_lobby_update(room_code)
@@ -346,8 +369,7 @@ async def start_game(room_code: str):
 
     if len(room.players) < room.min_players:
         raise HTTPException(
-            status_code=400,
-            detail=f"Need at least {room.min_players} players to start"
+            status_code=400, detail=f"Need at least {room.min_players} players to start"
         )
 
     success = session_manager.start_game(room_code)
@@ -462,10 +484,14 @@ async def player_websocket(websocket: WebSocket, room_code: str, player_id: str)
             # Apply rate limiting
             client_key = f"{room_code}:{player_id}"
             if not rate_limiter.is_allowed(client_key):
-                await session_manager.send_to_player(room_code, player_id, {
-                    "type": "error",
-                    "message": "Rate limit exceeded. Please slow down."
-                })
+                await session_manager.send_to_player(
+                    room_code,
+                    player_id,
+                    {
+                        "type": "error",
+                        "message": "Rate limit exceeded. Please slow down.",
+                    },
+                )
                 continue
 
             await handle_player_action(room_code, player_id, data)
@@ -491,10 +517,9 @@ async def handle_player_action(room_code: str, player_id: str, data: dict) -> No
     # Validate the incoming message
     validated_msg, error = validate_websocket_message(data)
     if error is not None:
-        await session_manager.send_to_player(room_code, player_id, {
-            "type": "error",
-            "message": error
-        })
+        await session_manager.send_to_player(
+            room_code, player_id, {"type": "error", "message": error}
+        )
         return
 
     action = data.get("action")
@@ -516,9 +541,11 @@ async def handle_player_action(room_code: str, player_id: str, data: dict) -> No
         disposition = {
             "sell": validated_msg.disposition.sell,
             "trade": validated_msg.disposition.trade,
-            "hold": validated_msg.disposition.hold
+            "hold": validated_msg.disposition.hold,
         }
-        await handle_merger_disposition(room_code, player_id, validated_msg.defunct_chain, disposition)
+        await handle_merger_disposition(
+            room_code, player_id, validated_msg.defunct_chain, disposition
+        )
 
     elif action == "buy_stocks":
         # validated_msg is BuyStocksMessage
@@ -540,6 +567,7 @@ async def initialize_game(room_code: str):
 
     # Create tile pool and shuffle
     import random
+
     tile_pool = Board.all_tiles()
     random.shuffle(tile_pool)
 
@@ -582,20 +610,18 @@ async def handle_place_tile(room_code: str, player_id: str, tile_str: str):
     # Verify it's this player's turn
     current_player_id = game["turn_order"][game["current_turn_index"]]
     if player_id != current_player_id:
-        await session_manager.send_to_player(room_code, player_id, {
-            "type": "error",
-            "message": "Not your turn"
-        })
+        await session_manager.send_to_player(
+            room_code, player_id, {"type": "error", "message": "Not your turn"}
+        )
         return
 
     # Parse tile
     try:
         tile = Tile.from_string(tile_str)
     except (ValueError, IndexError):
-        await session_manager.send_to_player(room_code, player_id, {
-            "type": "error",
-            "message": "Invalid tile"
-        })
+        await session_manager.send_to_player(
+            room_code, player_id, {"type": "error", "message": "Invalid tile"}
+        )
         return
 
     player = game["players"][player_id]
@@ -604,18 +630,18 @@ async def handle_place_tile(room_code: str, player_id: str, tile_str: str):
 
     # Verify player has this tile
     if not player.has_tile(tile):
-        await session_manager.send_to_player(room_code, player_id, {
-            "type": "error",
-            "message": "You don't have this tile"
-        })
+        await session_manager.send_to_player(
+            room_code,
+            player_id,
+            {"type": "error", "message": "You don't have this tile"},
+        )
         return
 
     # Check if tile can be placed
     if not Rules.can_place_tile(board, tile, hotel):
-        await session_manager.send_to_player(room_code, player_id, {
-            "type": "error",
-            "message": "Cannot place this tile"
-        })
+        await session_manager.send_to_player(
+            room_code, player_id, {"type": "error", "message": "Cannot place this tile"}
+        )
         return
 
     # Place the tile
@@ -639,11 +665,15 @@ async def handle_place_tile(room_code: str, player_id: str, tile_str: str):
     elif result.result_type == "found":
         # Need player to choose which chain to found
         game["phase"] = "found_chain"
-        game["pending_action"] = {"tile": tile, "connected_tiles": board.get_connected_tiles(tile)}
-        await session_manager.send_to_player(room_code, player_id, {
-            "type": "choose_chain",
-            "available_chains": hotel.get_inactive_chains()
-        })
+        game["pending_action"] = {
+            "tile": tile,
+            "connected_tiles": board.get_connected_tiles(tile),
+        }
+        await session_manager.send_to_player(
+            room_code,
+            player_id,
+            {"type": "choose_chain", "available_chains": hotel.get_inactive_chains()},
+        )
 
     elif result.result_type == "merge":
         # Handle merger
@@ -656,19 +686,20 @@ async def handle_place_tile(room_code: str, player_id: str, tile_str: str):
                 "type": "choose_survivor",
                 "chains": result.chains,
                 "tied_chains": survivor,
-                "tile": tile
+                "tile": tile,
             }
-            await session_manager.send_to_player(room_code, player_id, {
-                "type": "choose_merger_survivor",
-                "tied_chains": survivor
-            })
+            await session_manager.send_to_player(
+                room_code,
+                player_id,
+                {"type": "choose_merger_survivor", "tied_chains": survivor},
+            )
         else:
             # Clear winner - process merger
             game["pending_action"] = {
                 "type": "process_merger",
                 "surviving_chain": survivor,
                 "defunct_chains": [c for c in result.chains if c != survivor],
-                "tile": tile
+                "tile": tile,
             }
             await process_merger(room_code)
 
@@ -692,10 +723,9 @@ async def handle_found_chain(room_code: str, player_id: str, chain_name: str):
 
     # Verify chain is available
     if chain_name not in hotel.get_inactive_chains():
-        await session_manager.send_to_player(room_code, player_id, {
-            "type": "error",
-            "message": "Chain not available"
-        })
+        await session_manager.send_to_player(
+            room_code, player_id, {"type": "error", "message": "Chain not available"}
+        )
         return
 
     # Found the chain
@@ -735,7 +765,7 @@ async def handle_merger_choice(room_code: str, player_id: str, surviving_chain: 
         "type": "process_merger",
         "surviving_chain": surviving_chain,
         "defunct_chains": [c for c in pending["chains"] if c != surviving_chain],
-        "tile": pending["tile"]
+        "tile": pending["tile"],
     }
 
     await process_merger(room_code)
@@ -759,9 +789,7 @@ async def process_merger(room_code: str):
 
     # Process each defunct chain (largest first)
     defunct_chains_sorted = sorted(
-        defunct_chains,
-        key=lambda c: board.get_chain_size(c),
-        reverse=True
+        defunct_chains, key=lambda c: board.get_chain_size(c), reverse=True
     )
 
     for defunct_chain in defunct_chains_sorted:
@@ -769,10 +797,7 @@ async def process_merger(room_code: str):
 
         # Calculate and pay bonuses
         bonuses = Rules.calculate_bonuses(
-            list(players.values()),
-            defunct_chain,
-            chain_size,
-            hotel
+            list(players.values()), defunct_chain, chain_size, hotel
         )
 
         for pid, bonus_info in bonuses.items():
@@ -795,10 +820,7 @@ async def process_merger(room_code: str):
 
 
 async def handle_merger_disposition(
-    room_code: str,
-    player_id: str,
-    defunct_chain: str,
-    disposition: dict
+    room_code: str, player_id: str, defunct_chain: str, disposition: dict
 ):
     """Handle player's sell/trade/hold decision during merger."""
     room = session_manager.get_room(room_code)
@@ -860,10 +882,11 @@ async def handle_buy_stocks(room_code: str, player_id: str, purchases: dict):
     # Maximum 3 stocks per turn
     total_stocks = sum(purchases.values())
     if total_stocks > 3:
-        await session_manager.send_to_player(room_code, player_id, {
-            "type": "error",
-            "message": "Cannot buy more than 3 stocks per turn"
-        })
+        await session_manager.send_to_player(
+            room_code,
+            player_id,
+            {"type": "error", "message": "Cannot buy more than 3 stocks per turn"},
+        )
         return
 
     # Process each purchase
@@ -916,13 +939,16 @@ async def handle_end_turn(room_code: str, player_id: str):
     # Check for game end
     if Rules.check_end_game(board, hotel):
         # A player can choose to end the game
-        await session_manager.send_to_player(room_code, player_id, {
-            "type": "can_end_game",
-            "message": "You may choose to end the game"
-        })
+        await session_manager.send_to_player(
+            room_code,
+            player_id,
+            {"type": "can_end_game", "message": "You may choose to end the game"},
+        )
 
     # Advance to next player
-    game["current_turn_index"] = (game["current_turn_index"] + 1) % len(game["turn_order"])
+    game["current_turn_index"] = (game["current_turn_index"] + 1) % len(
+        game["turn_order"]
+    )
     game["phase"] = "place_tile"
 
     await broadcast_game_state(room_code)
@@ -943,10 +969,7 @@ async def end_game(room_code: str):
     for chain_name in hotel.get_active_chains():
         chain_size = board.get_chain_size(chain_name)
         bonuses = Rules.calculate_bonuses(
-            list(players.values()),
-            chain_name,
-            chain_size,
-            hotel
+            list(players.values()), chain_name, chain_size, hotel
         )
 
         for pid, bonus_info in bonuses.items():
@@ -963,26 +986,19 @@ async def end_game(room_code: str):
     # Calculate final scores
     final_scores = {}
     for player in players.values():
-        final_scores[player.player_id] = {
-            "name": player.name,
-            "money": player.money
-        }
+        final_scores[player.player_id] = {"name": player.name, "money": player.money}
 
     # Determine winner
     winner_id = max(final_scores.keys(), key=lambda pid: final_scores[pid]["money"])
 
     # Broadcast final results
-    await session_manager.broadcast_to_room(room_code, {
-        "type": "game_over",
-        "scores": final_scores,
-        "winner": winner_id
-    })
+    await session_manager.broadcast_to_room(
+        room_code, {"type": "game_over", "scores": final_scores, "winner": winner_id}
+    )
 
-    await session_manager.send_to_host(room_code, {
-        "type": "game_over",
-        "scores": final_scores,
-        "winner": winner_id
-    })
+    await session_manager.send_to_host(
+        room_code, {"type": "game_over", "scores": final_scores, "winner": winner_id}
+    )
 
 
 async def broadcast_game_state(room_code: str):
@@ -1015,11 +1031,11 @@ async def broadcast_game_state(room_code: str):
                 "name": p.name,
                 "money": p.money,
                 "stocks": p.stocks,
-                "hand_size": p.hand_size
+                "hand_size": p.hand_size,
             }
             for pid, p in players.items()
         },
-        "tiles_remaining": len(game["tile_pool"])
+        "tiles_remaining": len(game["tile_pool"]),
     }
 
     # Send to host
@@ -1029,7 +1045,7 @@ async def broadcast_game_state(room_code: str):
     for player_id, player in players.items():
         player_state = {
             **public_state,
-            "your_hand": [str(tile) for tile in player.hand]
+            "your_hand": [str(tile) for tile in player.hand],
         }
         await session_manager.send_to_player(room_code, player_id, player_state)
 
@@ -1048,7 +1064,7 @@ async def broadcast_lobby_update(room_code: str):
     message = {
         "type": "lobby_update",
         "players": players,
-        "can_start": len(players) >= room.min_players
+        "can_start": len(players) >= room.min_players,
     }
 
     await session_manager.send_to_host(room_code, message)
