@@ -324,13 +324,6 @@ class TestGameInitialization:
 class TestGameFlow:
     """Tests for game flow via actions."""
 
-    @pytest.fixture
-    async def game_room(self, room_with_players, clean_session_manager):
-        """Create and initialize a game room."""
-        clean_session_manager.start_game(room_with_players)
-        await initialize_game(room_with_players)
-        return room_with_players
-
     @pytest.mark.asyncio
     async def test_place_tile_valid(self, game_room, clean_session_manager):
         """Placing a valid tile should work."""

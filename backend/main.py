@@ -471,7 +471,7 @@ async def player_websocket(websocket: WebSocket, room_code: str, player_id: str)
             await handle_player_action(room_code, player_id, data)
 
     except WebSocketDisconnect:
-        session_manager.disconnect(room_code, player_id)
+        session_manager.disconnect(room_code, player_id, websocket)
         # Clean up rate limiter data for this client
         rate_limiter.cleanup_client(f"{room_code}:{player_id}")
 

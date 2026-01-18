@@ -15,7 +15,7 @@ class PlayerConnection:
 
     player_id: str
     name: str
-    websocket: Optional[WebSocket] = None
+    websockets: list[WebSocket] = field(default_factory=list)
     is_bot: bool = False
     is_host: bool = False
     session_token: Optional[str] = None  # For authentication
@@ -132,13 +132,13 @@ class SessionManager:
         return bot_id
 
     def connect_player(self, room_code: str, player_id: str, websocket: WebSocket):
-        """Associate websocket with player."""
+        """Associate websocket with player (supports multiple connections)."""
         room = self.get_room(room_code)
         if room is None:
             return
         if player_id not in room.players:
             return
-        room.players[player_id].websocket = websocket
+        room.players[player_id].websockets.append(websocket)
 
     def connect_host(self, room_code: str, websocket: WebSocket):
         """Connect host display."""
@@ -147,14 +147,16 @@ class SessionManager:
             return
         room.host_websocket = websocket
 
-    def disconnect(self, room_code: str, player_id: str):
-        """Handle disconnect."""
+    def disconnect(self, room_code: str, player_id: str, websocket: WebSocket):
+        """Handle disconnect for a specific websocket."""
         room = self.get_room(room_code)
         if room is None:
             return
         if player_id not in room.players:
             return
-        room.players[player_id].websocket = None
+        player = room.players[player_id]
+        if websocket in player.websockets:
+            player.websockets.remove(websocket)
 
     async def broadcast_to_room(self, room_code: str, message: dict):
         """Send message to all connected players in room."""
@@ -163,15 +165,19 @@ class SessionManager:
             return
 
         for player in room.players.values():
-            if player.websocket is not None and not player.is_bot:
+            if player.is_bot:
+                continue
+            dead_websockets = []
+            for ws in player.websockets:
                 try:
-                    await player.websocket.send_json(message)
+                    await ws.send_json(message)
                 except Exception:
-                    # Handle disconnected websocket
-                    player.websocket = None
+                    dead_websockets.append(ws)
+            for ws in dead_websockets:
+                player.websockets.remove(ws)
 
     async def send_to_player(self, room_code: str, player_id: str, message: dict):
-        """Send private message to specific player."""
+        """Send private message to specific player (all their connections)."""
         room = self.get_room(room_code)
         if room is None:
             return
@@ -179,12 +185,14 @@ class SessionManager:
             return
 
         player = room.players[player_id]
-        if player.websocket is not None:
+        dead_websockets = []
+        for ws in player.websockets:
             try:
-                await player.websocket.send_json(message)
+                await ws.send_json(message)
             except Exception:
-                # Handle disconnected websocket
-                player.websocket = None
+                dead_websockets.append(ws)
+        for ws in dead_websockets:
+            player.websockets.remove(ws)
 
     async def send_to_host(self, room_code: str, message: dict):
         """Send message to host display."""
