@@ -59,7 +59,7 @@ Reinforcement Learning (RL) is learning through trial and error. An **agent** in
 
 ### The Goal
 
-Learn a **policy** π(a|s) — a function that maps states to actions — that maximizes expected cumulative reward (i.e., wins as many games as possible).
+Learn a **policy** $\pi(a|s)$ — a function that maps states to actions — that maximizes expected cumulative reward (i.e., wins as many games as possible).
 
 ---
 
@@ -77,9 +77,8 @@ In supervised learning, we need labeled examples: "In this position, the correct
 Instead of learning the "correct" action, we learn to make good actions more likely and bad actions less likely.
 
 **Policy Gradient Theorem:**
-```
-∇J(θ) = E[∇log π(a|s) · R]
-```
+
+$$\nabla J(\theta) = \mathbb{E}\left[\nabla \log \pi(a|s) \cdot R\right]$$
 
 In plain English:
 - If an action led to a **high reward** → increase its probability
@@ -137,23 +136,19 @@ PPO's key innovation: **limit how much the policy can change in one update**.
 
 For each action, compute how much more/less likely it is under the new policy vs. the old:
 
-```
-r(θ) = π_new(a|s) / π_old(a|s)
-```
+$$r(\theta) = \frac{\pi_{\text{new}}(a|s)}{\pi_{\text{old}}(a|s)}$$
 
 | Ratio | Meaning |
 |-------|---------|
-| r = 1.0 | Same probability as before |
-| r = 2.0 | Action is now 2x more likely |
-| r = 0.5 | Action is now half as likely |
+| $r = 1.0$ | Same probability as before |
+| $r = 2.0$ | Action is now 2x more likely |
+| $r = 0.5$ | Action is now half as likely |
 
 ### The Clipping Mechanism
 
-PPO clips this ratio to stay within [1-ε, 1+ε], typically ε=0.2:
+PPO clips this ratio to stay within $[1-\epsilon, 1+\epsilon]$, typically $\epsilon=0.2$:
 
-```
-L_CLIP = min(r(θ) · A, clip(r(θ), 1-ε, 1+ε) · A)
-```
+$$L_{\text{CLIP}} = \min\left(r(\theta) \cdot A, \text{clip}(r(\theta), 1-\epsilon, 1+\epsilon) \cdot A\right)$$
 
 ```
                     Clipped Region
@@ -225,8 +220,7 @@ Input: Board state, player info, hand tiles
     └─────────────┘
          │
          ▼
-Output: V(s) = 0.73
-        (estimated probability of winning from here)
+Output: V(s) = 0.73  (estimated probability of winning from here)
 ```
 
 ### Why Both?
@@ -235,18 +229,16 @@ The critic helps reduce variance in policy updates. Instead of asking "did I win
 
 **Advantage = Actual Outcome - Expected Outcome**
 
-```
-A(s,a) = R - V(s)
-```
+$$A(s,a) = R - V(s)$$
 
 ### Acquire Example
 
-Position: You have majority in Tower (safe, 15 tiles). Critic estimates V(s) = 0.8 (80% win chance).
+Position: You have majority in Tower (safe, 15 tiles). Critic estimates $V(s) = 0.8$ (80% win chance).
 
 | Outcome | Advantage | Update Direction |
 |---------|-----------|------------------|
-| Win (+1) | +1 - 0.8 = +0.2 | Slightly reinforce actions |
-| Lose (-0.5) | -0.5 - 0.8 = -1.3 | Strongly discourage actions |
+| Win (+1) | $+1 - 0.8 = +0.2$ | Slightly reinforce actions |
+| Lose (-0.5) | $-0.5 - 0.8 = -1.3$ | Strongly discourage actions |
 
 The loss is surprising (we expected to win), so we learn more from it.
 
@@ -259,31 +251,31 @@ The loss is surprising (we expected to win), so we learn more from it.
 Computing advantage is tricky:
 
 **Monte Carlo (low bias, high variance):**
-```
-A = (total game reward) - V(s)
-```
+
+$$A = R_{\text{total}} - V(s)$$
+
 Problem: One unlucky tile draw affects all earlier decisions.
 
 **TD(0) (low variance, high bias):**
-```
-A = r + γV(s') - V(s)
-```
+
+$$A = r + \gamma V(s') - V(s)$$
+
 Problem: Relies heavily on critic accuracy, which is imperfect early in training.
 
 ### GAE: The Best of Both Worlds
 
 Generalized Advantage Estimation blends multiple horizons:
 
-```
-A_GAE = δ_t + (γλ)δ_{t+1} + (γλ)²δ_{t+2} + ...
+$$A_{\text{GAE}} = \delta_t + (\gamma\lambda)\delta_{t+1} + (\gamma\lambda)^2\delta_{t+2} + \cdots$$
 
-where δ_t = r_t + γV(s_{t+1}) - V(s_t)
-```
+where:
 
-**λ parameter:**
-- λ = 0: Pure TD(0), low variance, high bias
-- λ = 1: Pure Monte Carlo, high variance, low bias
-- λ = 0.95: Good balance (typical default)
+$$\delta_t = r_t + \gamma V(s_{t+1}) - V(s_t)$$
+
+**$\lambda$ parameter:**
+- $\lambda = 0$: Pure TD(0), low variance, high bias
+- $\lambda = 1$: Pure Monte Carlo, high variance, low bias
+- $\lambda = 0.95$: Good balance (typical default)
 
 ### Acquire Example
 
@@ -380,7 +372,7 @@ Acquire only gives reward at game end (win/loss). This creates a **credit assign
 
 **Solutions:**
 1. **Dense reward shaping:** Small rewards for net worth increases
-2. **GAE with high λ:** Propagate end-game reward backward
+2. **GAE with high $\lambda$:** Propagate end-game reward backward
 3. **Curriculum learning:** Start with easier games
 
 ### Multi-Agent Environment
