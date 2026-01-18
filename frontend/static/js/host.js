@@ -120,6 +120,12 @@
         elements.playerScoresBody = document.getElementById('player-scores-body');
         elements.gameLog = document.getElementById('game-log');
 
+        // Lobby control elements
+        elements.lobbyControls = document.getElementById('lobby-controls');
+        elements.startGameBtn = document.getElementById('start-game-btn');
+        elements.addBotBtn = document.getElementById('add-bot-btn');
+        elements.playerCount = document.getElementById('player-count');
+
         // Chain size elements
         const chains = ['luxor', 'tower', 'american', 'festival', 'worldwide', 'continental', 'imperial'];
         elements.chainSizes = {};
@@ -337,6 +343,11 @@
         gameState.tilesRemaining = data.tiles_remaining || 0;
         gameState.turnOrder = data.turn_order || [];
 
+        // Hide lobby controls when game has started
+        if (elements.lobbyControls) {
+            elements.lobbyControls.style.display = 'none';
+        }
+
         // Update all UI components
         updateBoard(data.board);
         updateChainInfo(data.hotel);
@@ -371,6 +382,25 @@
                 `;
                 elements.playerScoresBody.appendChild(row);
             });
+        }
+
+        // Update lobby controls
+        if (elements.playerCount) {
+            elements.playerCount.textContent = players.length;
+        }
+
+        if (elements.startGameBtn) {
+            elements.startGameBtn.disabled = !data.can_start;
+        }
+
+        if (elements.addBotBtn) {
+            // Disable add bot button if room is full (6 players)
+            elements.addBotBtn.disabled = players.length >= 6;
+        }
+
+        // Show lobby controls
+        if (elements.lobbyControls) {
+            elements.lobbyControls.style.display = 'block';
         }
 
         if (elements.currentPlayer) {

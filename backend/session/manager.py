@@ -78,6 +78,11 @@ class SessionManager:
         if player_id in room.players:
             return None
 
+        # Check for duplicate name (case-insensitive)
+        for existing_player in room.players.values():
+            if existing_player.name.lower() == name.lower():
+                return None
+
         # Generate a session token for authentication
         session_token = str(uuid.uuid4())
 

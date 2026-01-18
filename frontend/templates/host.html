@@ -21,6 +21,19 @@
         </header>
 
         <main class="host-main">
+            <section class="lobby-controls" id="lobby-controls">
+                <h2>Game Controls</h2>
+                <div class="control-buttons">
+                    <button class="btn btn-primary" id="start-game-btn" onclick="AcquireHost.startGame()" disabled>
+                        Start Game
+                    </button>
+                    <button class="btn btn-secondary" id="add-bot-btn" onclick="AcquireHost.addBot()">
+                        Add Bot
+                    </button>
+                </div>
+                <p class="player-count">Players: <span id="player-count">0</span>/6 (min 2 to start)</p>
+            </section>
+
             <section class="board-section">
                 <div class="game-board" id="game-board">
                     <!-- Column headers -->
@@ -249,6 +262,14 @@
         </main>
     </div>
 
+    <script>
+        // Pass Jinja2 variables to JavaScript
+        window.HOST_DATA = {
+            roomCode: "{{ room_code }}",
+            playerId: "{{ player_id }}",
+            sessionToken: "{{ session_token }}"
+        };
+    </script>
     <script src="/static/js/host.js"></script>
 </body>
 </html>

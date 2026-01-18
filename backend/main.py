@@ -6,10 +6,10 @@ import uuid
 from collections import defaultdict
 from typing import Optional, Union, Literal
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel, field_validator, ValidationError
 
 from session.manager import SessionManager
@@ -263,22 +263,26 @@ async def lobby(request: Request):
 
 
 @app.post("/create")
-async def create_room():
-    """Create a new game room."""
+async def create_room(player_name: str = Form(...)):
+    """Create a new game room and add the creator as host."""
     room_code = session_manager.create_room()
-    return {"room_code": room_code}
+
+    # Add creator as first player (host)
+    player_id = str(uuid.uuid4())
+    session_token = session_manager.join_room(room_code, player_id, player_name)
+
+    if session_token is None:
+        raise HTTPException(status_code=500, detail="Failed to create room")
+
+    # Redirect to host view with credentials
+    redirect_url = f"/host/{room_code}?player_id={player_id}&session_token={session_token}"
+    return RedirectResponse(url=redirect_url, status_code=303)
 
 
 @app.post("/join/{room_code}")
-async def join_room(room_code: str, name: str):
-    """Join an existing room.
-
-    Returns:
-        player_id: Unique identifier for the player
-        room_code: The room code
-        session_token: Token required for WebSocket authentication
-    """
-    room = session_manager.get_room(room_code)
+async def join_room(room_code: str, player_name: str = Form(...)):
+    """Join an existing room and redirect to player view."""
+    room = session_manager.get_room(room_code.upper())
     if room is None:
         raise HTTPException(status_code=404, detail="Room not found")
 
@@ -289,32 +293,50 @@ async def join_room(room_code: str, name: str):
         raise HTTPException(status_code=400, detail="Room is full")
 
     player_id = str(uuid.uuid4())
-    session_token = session_manager.join_room(room_code, player_id, name)
+    session_token = session_manager.join_room(room_code.upper(), player_id, player_name)
 
     if session_token is None:
+        # Check if it was a duplicate name
+        room = session_manager.get_room(room_code.upper())
+        if room and any(p.name.lower() == player_name.lower() for p in room.players.values()):
+            raise HTTPException(status_code=400, detail="Player name already taken")
         raise HTTPException(status_code=400, detail="Failed to join room")
 
-    return {
-        "player_id": player_id,
-        "room_code": room_code,
-        "session_token": session_token,
-    }
+    # Redirect to player view with credentials
+    redirect_url = f"/play/{room_code.upper()}?player_id={player_id}&session_token={session_token}"
+    return RedirectResponse(url=redirect_url, status_code=303)
 
 
 @app.get("/host/{room_code}", response_class=HTMLResponse)
-async def host_view(request: Request, room_code: str):
+async def host_view(
+    request: Request,
+    room_code: str,
+    player_id: Optional[str] = None,
+    session_token: Optional[str] = None,
+):
     """Render host display."""
     room = session_manager.get_room(room_code)
     if room is None:
         raise HTTPException(status_code=404, detail="Room not found")
 
     return templates.TemplateResponse(
-        "host.html", {"request": request, "room_code": room_code}
+        "host.html",
+        {
+            "request": request,
+            "room_code": room_code,
+            "player_id": player_id or "",
+            "session_token": session_token or "",
+        },
     )
 
 
 @app.get("/play/{room_code}", response_class=HTMLResponse)
-async def player_view(request: Request, room_code: str, player_id: str):
+async def player_view(
+    request: Request,
+    room_code: str,
+    player_id: str,
+    session_token: Optional[str] = None,
+):
     """Render player view."""
     room = session_manager.get_room(room_code)
     if room is None:
@@ -331,6 +353,7 @@ async def player_view(request: Request, room_code: str, player_id: str):
             "room_code": room_code,
             "player_id": player_id,
             "player_name": player.name,
+            "session_token": session_token or "",
         },
     )
 
