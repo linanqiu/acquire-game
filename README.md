@@ -29,15 +29,18 @@ A web-based implementation of the classic 1999 Acquire board game with a "couch 
 
 ## Development Roadmap
 
+### 🎯 MVP Scope
+> **Goal:** Fully playable game with rule-based bots, no critical security issues, deployed to cloud.
+
+---
+
 ### Phase 1: Core Game Logic ✅
 - [x] Board implementation (12x9 grid, 108 tiles)
 - [x] Hotel chains (7 chains, 3 pricing tiers)
 - [x] Player state (money, stocks, tiles)
 - [x] Game rules engine (placement, founding, mergers)
-- [x] Bot AI (tile selection, stock purchases, merger decisions)
+- [x] Rule-based bot AI (easy/medium/hard difficulty)
 - [x] Game orchestration (turn flow, state management)
-- [x] Unified action representation (`action.py`)
-- [x] Game cloning for AI simulation
 - [x] Unit tests for all game modules
 
 ### Phase 2: Server & Real-time ✅
@@ -48,56 +51,52 @@ A web-based implementation of the classic 1999 Acquire board game with a "couch 
 - [x] Bot player support in rooms
 - [x] Integration tests
 
-### Phase 3: Frontend 🔄
+### Phase 3: Security Hardening 🎯 MVP
+- [ ] Input validation on all WebSocket messages
+- [ ] Rate limiting on WebSocket actions
+- [ ] Player authentication tokens
+- [ ] Proper stock mutation through Player methods
+
+### Phase 4: Frontend Integration 🎯 MVP
 - [x] HTML templates (lobby, host, player views)
 - [x] CSS styling with responsive design
-- [x] JavaScript WebSocket clients (host.js, player.js)
+- [x] JavaScript WebSocket clients
 - [x] Host display board grid rendering
-- [x] Player tile rack UI
-- [x] Stock portfolio display
-- [x] Chain info display with colors
-- [x] Connection status indicators
-- [x] Mobile-responsive layout (CSS media queries)
-- [ ] **Full action UI integration** (tile placement → backend → render cycle)
-- [ ] **Stock buying modal completion** (wire up to backend)
-- [ ] **Merger decision UI completion** (wire up sell/trade/keep)
-- [ ] **Chain founding UI** (wire up chain selection)
+- [x] Player tile rack and portfolio UI
+- [ ] Wire up tile placement action
+- [ ] Wire up chain founding selection
+- [ ] Wire up stock buying modal
+- [ ] Wire up merger decisions (sell/trade/keep)
+- [ ] Wire up end turn / game over
 
-### Phase 4: Advanced Features 🔄
-- [x] Player-to-player trading (backend logic complete)
-- [x] Trade validation rules
-- [ ] Trade negotiation UI (frontend)
-- [ ] Trade history log
-- [ ] House rules configuration
+### Phase 5: Deployment 🎯 MVP
+- [x] Docker containerization
+- [x] GitHub Actions CI pipeline
+- [x] Railway configuration
+- [ ] Deploy to Railway
+- [ ] Verify WebSocket connectivity
+- [ ] Basic health monitoring
 
-### Phase 5: AI Training Infrastructure 🔄
+---
+
+### Post-MVP: AI Training Infrastructure
 - [x] Unified action representation (`action.py`)
 - [x] Deterministic game seeding and cloning
-- [x] Legal action enumeration for RL (`Rules.get_all_legal_actions`)
-- [x] State encoder (game → 214-dim tensor)
-- [x] Training config with curriculum learning
-- [x] Preset configurations (debug, standard, large-scale)
+- [x] Legal action enumeration for RL
+- [x] State encoder (game → tensor)
+- [x] Training config with curriculum
 - [ ] Gymnasium environment wrapper
 - [ ] PPO policy network
 - [ ] Training pipeline with self-play
 - [ ] Neural bot integration
 
-### Phase 6: Deployment 🔄
-- [x] Docker containerization (Dockerfile + docker-compose)
-- [x] GitHub Actions CI pipeline (test + lint + build)
-- [x] Railway configuration (railway.toml)
-- [ ] Cloud deployment (Railway/Fly.io)
-- [ ] Production monitoring
-- [ ] HTTPS/WSS configuration
-
-### Phase 7: Enhancements (Future)
-- [ ] Persistent game state (Redis/SQLite)
+### Post-MVP: Advanced Features
+- [x] Player-to-player trading (backend)
+- [ ] Trade negotiation UI
+- [ ] House rules configuration
+- [ ] Persistent game state
 - [ ] Spectator mode
 - [ ] Game replays
-- [ ] ELO ratings for trained bots
-- [ ] Tournament mode
-- [ ] Sound effects / animations
-- [ ] Game statistics dashboard
 
 ---
 
