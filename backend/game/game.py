@@ -1,13 +1,14 @@
 """Main game orchestration for Acquire board game."""
 
 from enum import Enum
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, Dict, List, TYPE_CHECKING
 import random
 
 from game.board import Board, Tile, TileState
 
 if TYPE_CHECKING:
     from game.action import Action
+from game.action import TradeOffer
 from game.hotel import Hotel
 from game.player import Player
 from game.rules import Rules, PlacementResult
@@ -32,6 +33,7 @@ class Game:
     MAX_PLAYERS = 6
     STARTING_TILES = 6
     MAX_STOCKS_PER_TURN = 3
+    MAX_PENDING_TRADES_PER_PLAYER = 5  # Limit to prevent spam
 
     def __init__(self, seed: Optional[int] = None):
         """Initialize a new game in lobby state.
@@ -57,6 +59,9 @@ class Game:
         self._merger_current_defunct: Optional[str] = None  # Currently processing
         self._merger_stock_players: list[str] = []  # Players to handle stock disposition
         self._merger_stock_index: int = 0  # Current player handling disposition
+
+        # Player-to-player trading state
+        self.pending_trades: Dict[str, TradeOffer] = {}  # trade_id -> TradeOffer
 
     def add_player(self, player_id: str, name: str, is_bot: bool = False,
                    bot_difficulty: str = "medium") -> Player:
@@ -759,6 +764,232 @@ class Game:
             "winner": standings[0] if standings else None
         }
 
+    # =========================================================================
+    # Player-to-Player Trading Methods
+    # =========================================================================
+
+    def _count_pending_trades_for_player(self, player_id: str) -> int:
+        """Count the number of pending trades initiated by a player.
+
+        Args:
+            player_id: ID of the player to count trades for
+
+        Returns:
+            Number of pending trades where this player is the proposer
+        """
+        count = 0
+        for trade in self.pending_trades.values():
+            if trade.from_player_id == player_id:
+                count += 1
+        return count
+
+    def propose_trade(self, trade: TradeOffer) -> dict:
+        """Propose a trade to another player.
+
+        Players can propose trades at any time during the game (not just their turn).
+        The trade will be validated and added to pending trades if valid.
+
+        Args:
+            trade: The TradeOffer containing the trade details
+
+        Returns:
+            Dict with result: {"success": bool, "trade_id": str, "error": str}
+        """
+        # Check game is in progress
+        if self.phase == GamePhase.LOBBY:
+            return {"success": False, "error": "Game has not started yet"}
+
+        if self.phase == GamePhase.GAME_OVER:
+            return {"success": False, "error": "Game is already over"}
+
+        # Check pending trade limit for the proposer
+        current_count = self._count_pending_trades_for_player(trade.from_player_id)
+        if current_count >= self.MAX_PENDING_TRADES_PER_PLAYER:
+            return {
+                "success": False,
+                "error": f"Maximum of {self.MAX_PENDING_TRADES_PER_PLAYER} pending trades per player"
+            }
+
+        # Validate the trade
+        is_valid, error_msg = Rules.validate_trade(self, trade)
+        if not is_valid:
+            return {"success": False, "error": error_msg}
+
+        # Add to pending trades
+        self.pending_trades[trade.trade_id] = trade
+
+        return {
+            "success": True,
+            "trade_id": trade.trade_id,
+            "from_player": trade.from_player_id,
+            "to_player": trade.to_player_id
+        }
+
+    def accept_trade(self, player_id: str, trade_id: str) -> dict:
+        """Accept a pending trade offer.
+
+        Only the recipient of the trade can accept it. The trade will be
+        re-validated before execution to ensure both players still have
+        the required resources.
+
+        Args:
+            player_id: ID of the player accepting the trade
+            trade_id: Unique ID of the trade to accept
+
+        Returns:
+            Dict with result: {"success": bool, "error": str}
+        """
+        # Check that the trade exists
+        if trade_id not in self.pending_trades:
+            return {"success": False, "error": "Trade not found"}
+
+        trade = self.pending_trades[trade_id]
+
+        # Check that the accepting player is the recipient
+        if trade.to_player_id != player_id:
+            return {"success": False, "error": "Only the trade recipient can accept"}
+
+        # Re-validate the trade (resources may have changed)
+        is_valid, error_msg = Rules.validate_trade(self, trade)
+        if not is_valid:
+            # Trade is no longer valid, remove it
+            del self.pending_trades[trade_id]
+            return {"success": False, "error": f"Trade is no longer valid: {error_msg}"}
+
+        # Get the players
+        from_player = self.get_player(trade.from_player_id)
+        to_player = self.get_player(trade.to_player_id)
+
+        # Execute the trade atomically
+        # First, remove resources from both players
+        from_player.execute_trade_give(trade.offering_stocks, trade.offering_money)
+        to_player.execute_trade_give(trade.requesting_stocks, trade.requesting_money)
+
+        # Then, add resources to both players
+        to_player.execute_trade_receive(trade.offering_stocks, trade.offering_money)
+        from_player.execute_trade_receive(trade.requesting_stocks, trade.requesting_money)
+
+        # Remove the trade from pending
+        del self.pending_trades[trade_id]
+
+        return {
+            "success": True,
+            "trade_id": trade_id,
+            "from_player": trade.from_player_id,
+            "to_player": trade.to_player_id,
+            "offered_stocks": trade.offering_stocks,
+            "offered_money": trade.offering_money,
+            "requested_stocks": trade.requesting_stocks,
+            "requested_money": trade.requesting_money
+        }
+
+    def reject_trade(self, player_id: str, trade_id: str) -> dict:
+        """Reject a pending trade offer.
+
+        Only the recipient of the trade can reject it.
+
+        Args:
+            player_id: ID of the player rejecting the trade
+            trade_id: Unique ID of the trade to reject
+
+        Returns:
+            Dict with result: {"success": bool, "error": str}
+        """
+        # Check that the trade exists
+        if trade_id not in self.pending_trades:
+            return {"success": False, "error": "Trade not found"}
+
+        trade = self.pending_trades[trade_id]
+
+        # Check that the rejecting player is the recipient
+        if trade.to_player_id != player_id:
+            return {"success": False, "error": "Only the trade recipient can reject"}
+
+        # Remove the trade
+        del self.pending_trades[trade_id]
+
+        return {
+            "success": True,
+            "trade_id": trade_id,
+            "rejected_by": player_id
+        }
+
+    def cancel_trade(self, player_id: str, trade_id: str) -> dict:
+        """Cancel a pending trade offer.
+
+        Only the proposer of the trade can cancel it.
+
+        Args:
+            player_id: ID of the player canceling the trade
+            trade_id: Unique ID of the trade to cancel
+
+        Returns:
+            Dict with result: {"success": bool, "error": str}
+        """
+        # Check that the trade exists
+        if trade_id not in self.pending_trades:
+            return {"success": False, "error": "Trade not found"}
+
+        trade = self.pending_trades[trade_id]
+
+        # Check that the canceling player is the proposer
+        if trade.from_player_id != player_id:
+            return {"success": False, "error": "Only the trade proposer can cancel"}
+
+        # Remove the trade
+        del self.pending_trades[trade_id]
+
+        return {
+            "success": True,
+            "trade_id": trade_id,
+            "canceled_by": player_id
+        }
+
+    def get_pending_trades_for_player(self, player_id: str) -> List[TradeOffer]:
+        """Get all pending trades involving a player.
+
+        Returns trades where the player is either the proposer or recipient.
+
+        Args:
+            player_id: ID of the player to get trades for
+
+        Returns:
+            List of TradeOffer objects involving this player
+        """
+        trades = []
+        for trade in self.pending_trades.values():
+            if trade.from_player_id == player_id or trade.to_player_id == player_id:
+                trades.append(trade)
+        return trades
+
+    def get_incoming_trades_for_player(self, player_id: str) -> List[TradeOffer]:
+        """Get pending trades where the player is the recipient.
+
+        Args:
+            player_id: ID of the player to get incoming trades for
+
+        Returns:
+            List of TradeOffer objects where this player is the recipient
+        """
+        return [
+            trade for trade in self.pending_trades.values()
+            if trade.to_player_id == player_id
+        ]
+
+    def get_outgoing_trades_for_player(self, player_id: str) -> List[TradeOffer]:
+        """Get pending trades where the player is the proposer.
+
+        Args:
+            player_id: ID of the player to get outgoing trades for
+
+        Returns:
+            List of TradeOffer objects where this player is the proposer
+        """
+        return [
+            trade for trade in self.pending_trades.values()
+            if trade.from_player_id == player_id
+        ]
+
     def execute_bot_turn(self, player_id: str) -> list[dict]:
         """Execute a full turn for a bot player.
 
@@ -886,7 +1117,8 @@ class Game:
             "players": player_info,
             "tiles_remaining": len(self.tile_bag),
             "pending_action": self.pending_action,
-            "can_end_game": Rules.check_end_game(self.board, self.hotel) if self.phase != GamePhase.LOBBY else False
+            "can_end_game": Rules.check_end_game(self.board, self.hotel) if self.phase != GamePhase.LOBBY else False,
+            "pending_trades": [trade.to_dict() for trade in self.pending_trades.values()]
         }
 
     def get_player_state(self, player_id: str) -> dict:
@@ -909,11 +1141,17 @@ class Game:
             self.board, player.hand, self.hotel
         )
 
+        # Get player-specific trade information
+        incoming_trades = [t.to_dict() for t in self.get_incoming_trades_for_player(player_id)]
+        outgoing_trades = [t.to_dict() for t in self.get_outgoing_trades_for_player(player_id)]
+
         return {
             **public,
             "hand": [str(t) for t in player.hand],
             "playable_tiles": [str(t) for t in playable_tiles],
-            "can_act": self.can_player_act(player_id)
+            "can_act": self.can_player_act(player_id),
+            "incoming_trades": incoming_trades,
+            "outgoing_trades": outgoing_trades
         }
 
     def apply_action(self, player_id: str, action: "Action") -> dict:
@@ -955,6 +1193,29 @@ class Game:
 
         elif action.action_type == ActionType.END_GAME:
             return self.end_game()
+
+        elif action.action_type == ActionType.PROPOSE_TRADE:
+            if action.trade is None:
+                return {"success": False, "error": "Trade offer is required"}
+            # Ensure the proposing player matches the action player
+            if action.trade.from_player_id != player_id:
+                return {"success": False, "error": "Trade proposer must match action player"}
+            return self.propose_trade(action.trade)
+
+        elif action.action_type == ActionType.ACCEPT_TRADE:
+            if action.trade_id is None:
+                return {"success": False, "error": "Trade ID is required"}
+            return self.accept_trade(player_id, action.trade_id)
+
+        elif action.action_type == ActionType.REJECT_TRADE:
+            if action.trade_id is None:
+                return {"success": False, "error": "Trade ID is required"}
+            return self.reject_trade(player_id, action.trade_id)
+
+        elif action.action_type == ActionType.CANCEL_TRADE:
+            if action.trade_id is None:
+                return {"success": False, "error": "Trade ID is required"}
+            return self.cancel_trade(player_id, action.trade_id)
 
         return {"success": False, "error": f"Unknown action type: {action.action_type}"}
 
@@ -1004,6 +1265,19 @@ class Game:
         new_game._merger_stock_players = list(self._merger_stock_players)
         new_game._merger_stock_index = self._merger_stock_index
 
+        # Copy pending trades (deep copy each trade)
+        new_game.pending_trades = {}
+        for trade_id, trade in self.pending_trades.items():
+            new_game.pending_trades[trade_id] = TradeOffer(
+                from_player_id=trade.from_player_id,
+                to_player_id=trade.to_player_id,
+                offering_stocks=dict(trade.offering_stocks),
+                offering_money=trade.offering_money,
+                requesting_stocks=dict(trade.requesting_stocks),
+                requesting_money=trade.requesting_money,
+                trade_id=trade.trade_id
+            )
+
         return new_game
 
     def get_full_state(self) -> dict:
@@ -1027,7 +1301,11 @@ class Game:
             "merger_defunct_queue": self._merger_defunct_queue,
             "merger_current_defunct": self._merger_current_defunct,
             "merger_stock_players": self._merger_stock_players,
-            "merger_stock_index": self._merger_stock_index
+            "merger_stock_index": self._merger_stock_index,
+            "pending_trades": {
+                trade_id: trade.to_dict()
+                for trade_id, trade in self.pending_trades.items()
+            }
         }
 
     @classmethod
@@ -1075,5 +1353,10 @@ class Game:
         game._merger_current_defunct = state.get("merger_current_defunct")
         game._merger_stock_players = state.get("merger_stock_players", [])
         game._merger_stock_index = state.get("merger_stock_index", 0)
+
+        # Load pending trades
+        game.pending_trades = {}
+        for trade_id, trade_data in state.get("pending_trades", {}).items():
+            game.pending_trades[trade_id] = TradeOffer.from_dict(trade_data)
 
         return game

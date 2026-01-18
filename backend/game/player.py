@@ -223,6 +223,95 @@ class Player:
         """
         return self._money + self.get_stock_value(chain_prices)
 
+    def can_afford_trade(self, offering_stocks: dict[str, int], offering_money: int) -> bool:
+        """Check if player has the resources to fulfill a trade offer.
+
+        Args:
+            offering_stocks: Dict mapping chain names to quantities being offered
+            offering_money: Amount of money being offered
+
+        Returns:
+            True if player has all required resources, False otherwise
+        """
+        # Check if player has enough money
+        if offering_money > self._money:
+            return False
+
+        # Check if player has enough of each stock
+        for chain_name, quantity in offering_stocks.items():
+            if quantity < 0:
+                return False
+            if chain_name not in self._stocks:
+                if quantity > 0:
+                    return False
+            elif self._stocks[chain_name] < quantity:
+                return False
+
+        return True
+
+    def execute_trade_give(self, stocks: dict[str, int], money: int) -> bool:
+        """Remove resources from player as part of a trade.
+
+        This method should be called atomically with execute_trade_receive
+        on the other player to complete a trade.
+
+        Args:
+            stocks: Dict mapping chain names to quantities to give away
+            money: Amount of money to give away
+
+        Returns:
+            True if resources were successfully removed, False otherwise
+        """
+        # First verify we can afford this
+        if not self.can_afford_trade(stocks, money):
+            return False
+
+        # Remove money
+        self._money -= money
+
+        # Remove stocks
+        for chain_name, quantity in stocks.items():
+            if quantity > 0:
+                self._stocks[chain_name] -= quantity
+
+        return True
+
+    def execute_trade_receive(self, stocks: dict[str, int], money: int) -> bool:
+        """Add resources to player as part of a trade.
+
+        This method should be called atomically with execute_trade_give
+        on the other player to complete a trade.
+
+        Args:
+            stocks: Dict mapping chain names to quantities to receive
+            money: Amount of money to receive
+
+        Returns:
+            True if resources were successfully added, False otherwise
+        """
+        # Validate inputs
+        if money < 0:
+            return False
+
+        for chain_name, quantity in stocks.items():
+            if quantity < 0:
+                return False
+            if chain_name not in self._stocks:
+                return False
+            # Check if receiving would exceed max stocks per chain
+            if self._stocks[chain_name] + quantity > self.MAX_STOCKS_PER_CHAIN:
+                return False
+
+        # Add money
+        self._money += money
+
+        # Add stocks
+        for chain_name, quantity in stocks.items():
+            if quantity > 0:
+                self._stocks[chain_name] += quantity
+
+        return True
+
     def get_state(self) -> dict:
         """Get serializable player state.
 

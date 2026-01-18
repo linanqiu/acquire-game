@@ -53,23 +53,35 @@ A web-based implementation of the classic 1999 Acquire board game with a "couch 
 - [ ] Host display board rendering
 - [ ] Action UI (tile selection, stock buying)
 
-### Phase 4: Polish & Testing
-- [ ] End-to-end gameplay testing
-- [ ] Error handling and reconnection
-- [ ] Game log/history display
-- [ ] Sound effects (optional)
+### Phase 4: Advanced Features 🔄
+- [x] Player-to-player trading (stocks & money)
+- [ ] Trade negotiation UI
+- [ ] Trade history log
+- [ ] House rules configuration
 
-### Phase 5: Deployment
-- [ ] Docker containerization
+### Phase 5: AI Training ✅
+- [x] Unified action representation (`action.py`)
+- [x] Deterministic game seeding and cloning
+- [x] Legal action enumeration for RL
+- [x] State encoder (game → tensor)
+- [x] Training config with curriculum learning
+- [ ] Gymnasium environment wrapper
+- [ ] PPO policy network
+- [ ] Training pipeline with self-play
+- [ ] Neural bot integration
+
+### Phase 6: Deployment
+- [x] Docker containerization
+- [x] GitHub Actions CI pipeline
 - [ ] Cloud deployment (Railway/Fly.io)
-- [ ] CI/CD pipeline with GitHub Actions
 - [ ] Production monitoring
 
-### Phase 6: Enhancements (Future)
+### Phase 7: Enhancements (Future)
 - [ ] Persistent game state (Redis/SQLite)
 - [ ] Spectator mode
 - [ ] Game replays
-- [ ] ELO ratings for bots
+- [ ] ELO ratings for trained bots
+- [ ] Tournament mode
 
 ---
 

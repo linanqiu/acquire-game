@@ -3,7 +3,7 @@
 from typing import Union, List, Tuple, TYPE_CHECKING
 from game.board import Board, Tile, TileState
 from game.hotel import Hotel, HotelChain
-from game.action import Action, ActionType
+from game.action import Action, ActionType, TradeOffer
 
 if TYPE_CHECKING:
     from game.game import Game, GamePhase
@@ -628,3 +628,88 @@ class Rules:
             "stock_disposition": None,  # Variable (depends on stock count)
             "buy_stocks": None,  # Variable (depends on available chains/money)
         }
+
+    @classmethod
+    def validate_trade(cls, game: "Game", trade: TradeOffer) -> Tuple[bool, str]:
+        """Validate a trade offer between two players.
+
+        Checks that:
+        - Both players exist in the game
+        - The offering player has the stocks and money they're offering
+        - The receiving player has the stocks and money being requested
+        - The trade is not empty (at least one thing being exchanged)
+        - Players are not trading with themselves
+        - Stock quantities are non-negative
+        - Money amounts are non-negative
+
+        Args:
+            game: The current game instance
+            trade: The TradeOffer to validate
+
+        Returns:
+            Tuple of (is_valid, error_message). If valid, error_message is empty string.
+        """
+        # Check that players are not trading with themselves
+        if trade.from_player_id == trade.to_player_id:
+            return False, "Cannot trade with yourself"
+
+        # Check that both players exist
+        from_player = game.get_player(trade.from_player_id)
+        if from_player is None:
+            return False, f"Offering player '{trade.from_player_id}' not found"
+
+        to_player = game.get_player(trade.to_player_id)
+        if to_player is None:
+            return False, f"Receiving player '{trade.to_player_id}' not found"
+
+        # Validate non-negative amounts
+        if trade.offering_money < 0:
+            return False, "Offering money cannot be negative"
+        if trade.requesting_money < 0:
+            return False, "Requesting money cannot be negative"
+
+        for chain_name, quantity in trade.offering_stocks.items():
+            if quantity < 0:
+                return False, f"Offering stock quantity for {chain_name} cannot be negative"
+
+        for chain_name, quantity in trade.requesting_stocks.items():
+            if quantity < 0:
+                return False, f"Requesting stock quantity for {chain_name} cannot be negative"
+
+        # Check that the trade is not empty
+        has_offering = (
+            trade.offering_money > 0 or
+            any(qty > 0 for qty in trade.offering_stocks.values())
+        )
+        has_requesting = (
+            trade.requesting_money > 0 or
+            any(qty > 0 for qty in trade.requesting_stocks.values())
+        )
+
+        if not has_offering and not has_requesting:
+            return False, "Trade must include at least one item to exchange"
+
+        # Check that offering player has the resources they're offering
+        if not from_player.can_afford_trade(trade.offering_stocks, trade.offering_money):
+            return False, "Offering player does not have the required stocks or money"
+
+        # Check that receiving player has the resources being requested
+        if not to_player.can_afford_trade(trade.requesting_stocks, trade.requesting_money):
+            return False, "Receiving player does not have the requested stocks or money"
+
+        # Check that receiving stocks won't exceed max for the receiver
+        from game.player import Player
+        for chain_name, quantity in trade.offering_stocks.items():
+            if quantity > 0:
+                current = to_player.get_stock_count(chain_name)
+                if current + quantity > Player.MAX_STOCKS_PER_CHAIN:
+                    return False, f"Trade would exceed max stocks for {chain_name} for receiving player"
+
+        # Check that receiving stocks won't exceed max for the offerer
+        for chain_name, quantity in trade.requesting_stocks.items():
+            if quantity > 0:
+                current = from_player.get_stock_count(chain_name)
+                if current + quantity > Player.MAX_STOCKS_PER_CHAIN:
+                    return False, f"Trade would exceed max stocks for {chain_name} for offering player"
+
+        return True, ""
