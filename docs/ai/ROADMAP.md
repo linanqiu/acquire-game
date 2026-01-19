@@ -40,12 +40,25 @@ Build a progression of AI agents that:
 
 ## Roadmap Phases
 
+### Recommended Path (LLM-RL Focus)
+
 ```
 Phase 0          Phase 1          Phase 2          Phase 3          Phase 4
 ─────────────────────────────────────────────────────────────────────────────►
-Rule-Based   →   MCTS Bot     →   Neural Bot   →   Advanced     →   Hybrid
-(DONE)           (Search)         (Learning)       (Exceed)         Intelligence
+Rule-Based   →   LLM Bot      →   DPO          →   GRPO         →   Reasoning
+(DONE)           (Best-of-N)      Fine-tuning      Self-Play        Enhancement
 ```
+
+### Alternative Path (Traditional ML)
+
+```
+Phase 0          Phase 1          Phase 2          Phase 3          Phase 4
+─────────────────────────────────────────────────────────────────────────────►
+Rule-Based   →   MCTS Bot     →   Imitation    →   Decision     →   Hybrid
+(DONE)           (Search)         Learning         Transformer      Intelligence
+```
+
+**Recommendation**: Start with the LLM-RL path. Recent advances (DPO, GRPO, reasoning models) make this simpler and more effective than traditional RL for a strategy game like Acquire. See `docs/ai/alternatives/llm-rl-advances.md` for details.
 
 ---
 
@@ -491,6 +504,8 @@ backend/
 │   ├── offline_rl.py       # 📋 IQL/CQL wrapper
 │   └── evaluator.py        # 📋 Benchmarking
 ├── llm/
+│   ├── game_player.py      # 📋 LLM game-playing agent
+│   ├── dpo_trainer.py      # 📋 DPO fine-tuning
 │   ├── trading_agent.py    # 📋 LLM for trading
 │   └── explainer.py        # 📋 Move explanations
 docs/ai/
@@ -499,8 +514,9 @@ docs/ai/
 ├── ppo_explained.md        # ✅ PPO deep dive
 ├── state_encoding.md       # ✅ Observation design
 ├── training_pipeline.md    # ✅ Training details
-└── alternatives/           # ✅ Approach comparison
-    └── README.md
+└── alternatives/
+    ├── README.md           # ✅ Traditional RL alternatives
+    └── llm-rl-advances.md  # ✅ LLM-RL approaches (DPO, GRPO, etc.)
 ```
 
 Legend: ✅ Complete | 📋 Planned
@@ -508,6 +524,18 @@ Legend: ✅ Complete | 📋 Planned
 ---
 
 ## Summary
+
+### LLM-RL Path (Recommended)
+
+| Phase | Approach | Complexity | Strength | Timeline |
+|-------|----------|------------|----------|----------|
+| 0 | Rule-based | Low | Medium | ✅ Done |
+| 1 | **Best-of-N LLM** | Very Low | Medium-High | Hours |
+| 2 | **DPO Fine-tuning** | Low-Medium | High | 1-3 days |
+| 3 | **GRPO Self-Play** | Medium | Very High | 1 week |
+| 4 | Reasoning Enhancement | Medium-High | Highest | 2 weeks |
+
+### Traditional ML Path (Alternative)
 
 | Phase | Approach | Complexity | Strength | Timeline |
 |-------|----------|------------|----------|----------|
@@ -517,4 +545,12 @@ Legend: ✅ Complete | 📋 Planned
 | 3 | DT/IQL | Medium | Very High | 1-2 weeks |
 | 4 | Hybrid+LLM | Medium-High | Highest | 2-4 weeks |
 
-**Recommended next step**: Implement MCTS bot (Phase 1) - provides immediate strong play with minimal complexity.
+### Why LLM-RL is Recommended
+
+1. **Faster to start**: Best-of-N requires zero training, just API calls
+2. **Simpler training**: DPO is one loss function, no reward model or value network
+3. **Natural trading**: LLMs handle negotiation natively (Acquire's unique feature)
+4. **Explainability built-in**: LLMs can articulate reasoning
+5. **Better sample efficiency**: Pretrained knowledge bootstraps game understanding
+
+**Recommended next step**: Try Best-of-N with Claude API (Phase 1 of LLM path) - test LLM viability in hours with zero training infrastructure.
