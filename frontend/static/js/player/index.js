@@ -16,6 +16,7 @@ import {
     showMergerDispositionUI, adjustMergerQuantity, updateMergerDisplay,
     validateMergerDisposition, getMergerDisposition, hideAllActionPanels
 } from './modals.js';
+import { updateBoard } from '../host/board.js';
 
 // Create state stores
 const store = createPlayerState();
@@ -25,6 +26,7 @@ const mergerStore = createMergerState();
 let roomCode = null;
 let playerId = null;
 let playerName = null;
+let isHost = false;
 
 // DOM element references
 let elements = {};
@@ -36,6 +38,7 @@ let socket = null;
 let selectedTile = null;
 let currentPhase = null;
 let isMyTurn = false;
+let gameStarted = false;
 
 /**
  * Initialize the player view
@@ -46,6 +49,7 @@ function init() {
     roomCode = credentials.roomCode;
     playerId = credentials.playerId;
     playerName = credentials.playerName;
+    isHost = credentials.isHost;
 
     if (!roomCode || !playerId) {
         console.error('Missing room code or player ID');
@@ -58,6 +62,11 @@ function init() {
 
     // Set up event listeners
     setupEventListeners();
+
+    // Set up host controls if this is the host
+    if (isHost) {
+        setupHostControls();
+    }
 
     // Set up WebSocket connection
     setupWebSocket();
@@ -83,7 +92,8 @@ function getCredentials() {
         return {
             roomCode: window.PLAYER_DATA.roomCode,
             playerId: window.PLAYER_DATA.playerId,
-            playerName: window.PLAYER_DATA.playerName
+            playerName: window.PLAYER_DATA.playerName,
+            isHost: window.PLAYER_DATA.isHost || false
         };
     }
 
@@ -93,7 +103,8 @@ function getCredentials() {
         return {
             roomCode: container.dataset.roomCode,
             playerId: container.dataset.playerId,
-            playerName: container.dataset.playerName
+            playerName: container.dataset.playerName,
+            isHost: container.dataset.isHost === 'true'
         };
     }
 
@@ -104,14 +115,16 @@ function getCredentials() {
         return {
             roomCode: pathMatch[1].toUpperCase(),
             playerId: urlParams.get('player_id'),
-            playerName: urlParams.get('name')
+            playerName: urlParams.get('name'),
+            isHost: urlParams.get('is_host') === '1'
         };
     }
 
     return {
         roomCode: urlParams.get('room'),
         playerId: urlParams.get('player_id'),
-        playerName: urlParams.get('name')
+        playerName: urlParams.get('name'),
+        isHost: urlParams.get('is_host') === '1'
     };
 }
 
@@ -130,7 +143,17 @@ function cacheElements() {
         buyStocksSection: document.getElementById('buy-stocks-section'),
         mergerSection: document.getElementById('merger-section'),
         chooseChainSection: document.getElementById('choose-chain-section'),
-        gameStatus: document.getElementById('game-status')
+        gameStatus: document.getElementById('game-status'),
+        // Board elements
+        gameBoard: document.getElementById('game-board'),
+        boardSection: document.getElementById('board-section'),
+        turnIndicator: document.getElementById('turn-indicator'),
+        // Host control elements
+        lobbyControls: document.getElementById('lobby-controls'),
+        startGameBtn: document.getElementById('start-game-btn'),
+        addBotBtn: document.getElementById('add-bot-btn'),
+        playerCount: document.getElementById('player-count'),
+        playerList: document.getElementById('player-list')
     };
 }
 
@@ -202,6 +225,54 @@ function setupMergerListeners() {
         mergerStore.setState(mergerStore.getState());
     });
     if (confirmMerger) confirmMerger.addEventListener('click', handleConfirmMerger);
+}
+
+/**
+ * Set up host controls (add bot, start game)
+ */
+function setupHostControls() {
+    if (elements.addBotBtn) {
+        elements.addBotBtn.addEventListener('click', addBot);
+    }
+    if (elements.startGameBtn) {
+        elements.startGameBtn.addEventListener('click', startGame);
+    }
+}
+
+/**
+ * Add bot to the game (host only)
+ */
+function addBot() {
+    fetch(`/room/${roomCode}/add-bot`, { method: 'POST' })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.detail || 'Failed to add bot');
+                });
+            }
+            return response.json();
+        })
+        .catch(error => {
+            showError(error.message);
+        });
+}
+
+/**
+ * Start the game (host only)
+ */
+function startGame() {
+    fetch(`/room/${roomCode}/start`, { method: 'POST' })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.detail || 'Failed to start game');
+                });
+            }
+            return response.json();
+        })
+        .catch(error => {
+            showError(error.message);
+        });
 }
 
 /**
@@ -278,6 +349,12 @@ function handleGameState(data) {
         playerId: playerId
     });
 
+    // Game has started - hide lobby controls
+    gameStarted = true;
+    if (elements.lobbyControls) {
+        elements.lobbyControls.style.display = 'none';
+    }
+
     // Update local game state
     store.setState({
         board: data.board,
@@ -288,6 +365,19 @@ function handleGameState(data) {
     });
 
     const state = store.getState();
+
+    // Update the game board
+    if (data.board) {
+        updateBoard(data.board);
+    }
+
+    // Update turn indicator with current player name
+    if (elements.turnIndicator && data.players) {
+        const currentPlayerName = data.players[data.current_player]?.name || 'Unknown';
+        const isMe = data.current_player === playerId;
+        elements.turnIndicator.textContent = isMe ? "(Your turn)" : `(${currentPlayerName}'s turn)`;
+        elements.turnIndicator.className = isMe ? 'your-turn' : '';
+    }
 
     // Update player's hand from your_hand
     if (data.your_hand) {
@@ -327,7 +417,37 @@ function handleGameState(data) {
  * Handle lobby update
  */
 function handleLobbyUpdate(data) {
-    showLobbyWaiting(elements.waitingMessage, data.players.length);
+    const players = data.players || [];
+
+    showLobbyWaiting(elements.waitingMessage, players.length);
+
+    // Update host controls if this is the host
+    if (isHost && elements.lobbyControls) {
+        // Update player count
+        if (elements.playerCount) {
+            elements.playerCount.textContent = players.length;
+        }
+
+        // Enable/disable start button
+        if (elements.startGameBtn) {
+            elements.startGameBtn.disabled = !data.can_start;
+        }
+
+        // Disable add bot if room is full
+        if (elements.addBotBtn) {
+            elements.addBotBtn.disabled = players.length >= 6;
+        }
+
+        // Update player list
+        if (elements.playerList) {
+            elements.playerList.innerHTML = players.map(p => `
+                <div class="player-item ${p.is_bot ? 'is-bot' : ''}">
+                    <span class="player-name">${p.name}</span>
+                    ${p.is_bot ? '<span class="bot-badge">BOT</span>' : ''}
+                </div>
+            `).join('');
+        }
+    }
 }
 
 /**

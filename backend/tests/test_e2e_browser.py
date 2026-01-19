@@ -96,10 +96,10 @@ class TestLobbyE2E:
         page.click("button:has-text('Create Game')")
 
         # Wait for navigation
-        page.wait_for_url("**/host/**")
+        page.wait_for_url("**/play/**")
 
         # Should redirect to host view
-        expect(page).to_have_url(re.compile(r".*/host/[A-Z]{4}\?.*"))
+        expect(page).to_have_url(re.compile(r".*/play/[A-Z]{4}\?.*"))
 
         # Room code should be visible
         expect(page.locator("#room-code")).to_be_visible()
@@ -110,11 +110,11 @@ class TestLobbyE2E:
         page.goto(f"{server}/")
         page.fill("#create-player-name", "Alice")
         page.click("button:has-text('Create Game')")
-        page.wait_for_url("**/host/**")
+        page.wait_for_url("**/play/**")
 
         # Extract room code from URL
         url = page.url
-        room_code = url.split("/host/")[1].split("?")[0]
+        room_code = url.split("/play/")[1].split("?")[0]
 
         # Join in second page
         page2 = browser.new_page()
@@ -135,11 +135,11 @@ class TestLobbyE2E:
         page.goto(f"{server}/")
         page.fill("#create-player-name", "Alice")
         page.click("button:has-text('Create Game')")
-        page.wait_for_url("**/host/**")
+        page.wait_for_url("**/play/**")
 
         # Extract room code
         url = page.url
-        room_code = url.split("/host/")[1].split("?")[0]
+        room_code = url.split("/play/")[1].split("?")[0]
 
         # Join with lowercase room code
         page2 = browser.new_page()
@@ -176,7 +176,7 @@ class TestHostViewE2E:
         page.goto(f"{server}/")
         page.fill("#create-player-name", "Alice")
         page.click("button:has-text('Create Game')")
-        page.wait_for_url("**/host/**")
+        page.wait_for_url("**/play/**")
 
         # Room code should be visible
         room_code_element = page.locator("#room-code")
@@ -198,11 +198,11 @@ class TestPlayerViewE2E:
         page.goto(f"{server}/")
         page.fill("#create-player-name", "Alice")
         page.click("button:has-text('Create Game')")
-        page.wait_for_url("**/host/**")
+        page.wait_for_url("**/play/**")
 
         # Extract room code
         url = page.url
-        room_code = url.split("/host/")[1].split("?")[0]
+        room_code = url.split("/play/")[1].split("?")[0]
 
         # Join as Bob
         page2 = browser.new_page()
@@ -227,11 +227,11 @@ class TestFullGameE2E:
         page.goto(f"{server}/")
         page.fill("#create-player-name", "Alice")
         page.click("button:has-text('Create Game')")
-        page.wait_for_url("**/host/**")
+        page.wait_for_url("**/play/**")
 
         # Extract room code
         url = page.url
-        room_code = url.split("/host/")[1].split("?")[0]
+        room_code = url.split("/play/")[1].split("?")[0]
 
         # Join as Bob
         page2 = browser.new_page()
@@ -305,10 +305,10 @@ class TestGameFlowWithDebugging:
         page.goto(f"{server}/")
         page.fill("#create-player-name", "TestHost")
         page.click("button:has-text('Create Game')")
-        page.wait_for_url("**/host/**")
+        page.wait_for_url("**/play/**")
 
         # Extract room code
-        room_code = page.url.split("/host/")[1].split("?")[0]
+        room_code = page.url.split("/play/")[1].split("?")[0]
         print(f"\n=== Created game with room code: {room_code} ===")
 
         # Add 2 bots
@@ -374,9 +374,9 @@ class TestGameFlowWithDebugging:
         page.goto(f"{server}/")
         page.fill("#create-player-name", "WSTestHost")
         page.click("button:has-text('Create Game')")
-        page.wait_for_url("**/host/**")
+        page.wait_for_url("**/play/**")
 
-        room_code = page.url.split("/host/")[1].split("?")[0]
+        room_code = page.url.split("/play/")[1].split("?")[0]
         print(f"\n=== Created game: {room_code} ===")
 
         # Add a bot
@@ -410,9 +410,9 @@ class TestGameFlowWithDebugging:
         page.goto(f"{server}/")
         page.fill("#create-player-name", "Host")
         page.click("button:has-text('Create Game')")
-        page.wait_for_url("**/host/**")
+        page.wait_for_url("**/play/**")
 
-        room_code = page.url.split("/host/")[1].split("?")[0]
+        room_code = page.url.split("/play/")[1].split("?")[0]
         print(f"\n=== Room code: {room_code} ===")
 
         # Open player view in new page
@@ -493,8 +493,8 @@ class TestCompleteTurnCycle:
         page.goto(f"{server}/")
         page.fill("#create-player-name", "Host")
         page.click("button:has-text('Create Game')")
-        page.wait_for_url("**/host/**")
-        room_code = page.url.split("/host/")[1].split("?")[0]
+        page.wait_for_url("**/play/**")
+        room_code = page.url.split("/play/")[1].split("?")[0]
         print(f"\n=== Room: {room_code} ===")
 
         # Join as player in new page
@@ -576,7 +576,7 @@ class TestChainFoundingAndMerger:
         page.goto(f"{server}/")
         page.fill("#create-player-name", "Host")
         page.click("button:has-text('Create Game')")
-        page.wait_for_url("**/host/**")
+        page.wait_for_url("**/play/**")
 
         print("\n=== Game created ===")
 
@@ -650,7 +650,7 @@ class TestChainFoundingAndMerger:
         page.goto(f"{server}/")
         page.fill("#create-player-name", "Host")
         page.click("button:has-text('Create Game')")
-        page.wait_for_url("**/host/**")
+        page.wait_for_url("**/play/**")
 
         # Add bots
         add_bot_btn = page.locator("#add-bot-btn")
@@ -707,10 +707,10 @@ def setup_game_with_host_playing(page, server, browser, num_bots=3):
     page.goto(f"{server}/")
     page.fill("#create-player-name", "Host")
     page.click("button:has-text('Create Game')")
-    page.wait_for_url("**/host/**")
+    page.wait_for_url("**/play/**")
 
     # Extract host credentials
-    room_code = page.url.split("/host/")[1].split("?")[0]
+    room_code = page.url.split("/play/")[1].split("?")[0]
     host_player_id = page.url.split("player_id=")[1].split("&")[0]
     host_session_token = (
         page.url.split("session_token=")[1] if "session_token=" in page.url else ""
@@ -1083,10 +1083,10 @@ class TestHumanPlayerGameplay:
         page.goto(f"{server}/")
         page.fill("#create-player-name", "Host")
         page.click("button:has-text('Create Game')")
-        page.wait_for_url("**/host/**")
+        page.wait_for_url("**/play/**")
 
         # Extract room code and host player ID
-        room_code = page.url.split("/host/")[1].split("?")[0]
+        room_code = page.url.split("/play/")[1].split("?")[0]
         host_player_id = page.url.split("player_id=")[1].split("&")[0]
         host_session_token = (
             page.url.split("session_token=")[1] if "session_token=" in page.url else ""
@@ -1245,9 +1245,9 @@ class TestHumanPlayerGameplay:
         page.goto(f"{server}/")
         page.fill("#create-player-name", "Host")
         page.click("button:has-text('Create Game')")
-        page.wait_for_url("**/host/**")
+        page.wait_for_url("**/play/**")
 
-        room_code = page.url.split("/host/")[1].split("?")[0]
+        room_code = page.url.split("/play/")[1].split("?")[0]
         host_player_id = page.url.split("player_id=")[1].split("&")[0]
         print(f"\n=== Room: {room_code} ===")
         print(f"Host player ID: {host_player_id[:8]}...")

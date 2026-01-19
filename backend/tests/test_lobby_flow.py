@@ -4,15 +4,16 @@
 class TestCreateGameFlow:
     """Tests for the create game flow."""
 
-    def test_create_redirects_to_host(self, client, clean_session_manager):
-        """POST /create should redirect to host view."""
+    def test_create_redirects_to_player(self, client, clean_session_manager):
+        """POST /create should redirect to player view with is_host flag."""
         response = client.post(
             "/create",
             data={"player_name": "Alice"},
             follow_redirects=False,
         )
         assert response.status_code == 303
-        assert "/host/" in response.headers["location"]
+        assert "/play/" in response.headers["location"]
+        assert "is_host=1" in response.headers["location"]
 
     def test_create_includes_credentials_in_redirect(
         self, client, clean_session_manager
@@ -37,8 +38,8 @@ class TestCreateGameFlow:
 
         # Extract room code from redirect URL
         location = response.headers["location"]
-        # URL format: /host/XXXX?player_id=...&session_token=...
-        room_code = location.split("/host/")[1].split("?")[0]
+        # URL format: /play/XXXX?player_id=...&session_token=...&is_host=1
+        room_code = location.split("/play/")[1].split("?")[0]
 
         room = clean_session_manager.get_room(room_code)
         assert room is not None
@@ -154,7 +155,7 @@ class TestFullCycle:
             follow_redirects=False,
         )
         location = create_response.headers["location"]
-        room_code = location.split("/host/")[1].split("?")[0]
+        room_code = location.split("/play/")[1].split("?")[0]
 
         # Join room
         join_response = client.post(
@@ -181,7 +182,7 @@ class TestFullCycle:
             follow_redirects=False,
         )
         location = create_response.headers["location"]
-        room_code = location.split("/host/")[1].split("?")[0]
+        room_code = location.split("/play/")[1].split("?")[0]
 
         # Join second player
         client.post(
@@ -208,7 +209,7 @@ class TestFullCycle:
             follow_redirects=False,
         )
         location = create_response.headers["location"]
-        room_code = location.split("/host/")[1].split("?")[0]
+        room_code = location.split("/play/")[1].split("?")[0]
 
         # Join second player
         client.post(
@@ -238,7 +239,7 @@ class TestFullCycle:
             follow_redirects=False,
         )
         location = create_response.headers["location"]
-        room_code = location.split("/host/")[1].split("?")[0]
+        room_code = location.split("/play/")[1].split("?")[0]
 
         # Join 5 more players (total 6)
         for i in range(1, 6):
@@ -274,7 +275,7 @@ class TestDuplicateNames:
             follow_redirects=False,
         )
         location = create_response.headers["location"]
-        room_code = location.split("/host/")[1].split("?")[0]
+        room_code = location.split("/play/")[1].split("?")[0]
 
         # Try to join with same name
         join_response = client.post(
@@ -294,7 +295,7 @@ class TestDuplicateNames:
             follow_redirects=False,
         )
         location = create_response.headers["location"]
-        room_code = location.split("/host/")[1].split("?")[0]
+        room_code = location.split("/play/")[1].split("?")[0]
 
         # Try to join with same name but different case
         join_response = client.post(
@@ -323,7 +324,7 @@ class TestDuplicateNames:
             follow_redirects=False,
         )
         location = create_response.headers["location"]
-        room_code = location.split("/host/")[1].split("?")[0]
+        room_code = location.split("/play/")[1].split("?")[0]
 
         # Join with a different name
         join_response = client.post(

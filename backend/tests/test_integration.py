@@ -29,8 +29,8 @@ class TestRoomCreation:
         )
         assert response.status_code == 303
         location = response.headers["location"]
-        # Extract room code from URL: /host/XXXX?player_id=...
-        room_code = location.split("/host/")[1].split("?")[0]
+        # Extract room code from URL: /play/XXXX?player_id=...
+        room_code = location.split("/play/")[1].split("?")[0]
         assert len(room_code) == 4
         assert room_code.isalpha()
         assert room_code.isupper()
@@ -45,7 +45,7 @@ class TestRoomCreation:
                 follow_redirects=False,
             )
             location = response.headers["location"]
-            code = location.split("/host/")[1].split("?")[0]
+            code = location.split("/play/")[1].split("?")[0]
             assert code not in codes
             codes.add(code)
 
@@ -57,7 +57,7 @@ class TestRoomCreation:
             follow_redirects=False,
         )
         location = response.headers["location"]
-        code = location.split("/host/")[1].split("?")[0]
+        code = location.split("/play/")[1].split("?")[0]
         room = clean_session_manager.get_room(code)
         assert room is not None
         assert room.room_code == code

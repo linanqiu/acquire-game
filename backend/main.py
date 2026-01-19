@@ -271,20 +271,18 @@ async def lobby(request: Request):
 
 @app.post("/create")
 async def create_room(player_name: str = Form(...)):
-    """Create a new game room and add the creator as host."""
+    """Create a new game room and add the creator as first player."""
     room_code = session_manager.create_room()
 
-    # Add creator as first player (host)
+    # Add creator as first player
     player_id = str(uuid.uuid4())
     session_token = session_manager.join_room(room_code, player_id, player_name)
 
     if session_token is None:
         raise HTTPException(status_code=500, detail="Failed to create room")
 
-    # Redirect to host view with credentials
-    redirect_url = (
-        f"/host/{room_code}?player_id={player_id}&session_token={session_token}"
-    )
+    # Redirect to player view with credentials (and is_host flag for controls)
+    redirect_url = f"/play/{room_code}?player_id={player_id}&session_token={session_token}&is_host=1"
     return RedirectResponse(url=redirect_url, status_code=303)
 
 
@@ -349,6 +347,7 @@ async def player_view(
     room_code: str,
     player_id: str,
     session_token: Optional[str] = None,
+    is_host: Optional[str] = None,
 ):
     """Render player view."""
     room = session_manager.get_room(room_code)
@@ -359,6 +358,10 @@ async def player_view(
         raise HTTPException(status_code=404, detail="Player not found in room")
 
     player = room.players[player_id]
+    # Check if this player is the host (first player in the room)
+    player_list = list(room.players.keys())
+    is_host_bool = is_host == "1" or (player_list and player_list[0] == player_id)
+
     return templates.TemplateResponse(
         "player.html",
         {
@@ -367,6 +370,7 @@ async def player_view(
             "player_id": player_id,
             "player_name": player.name,
             "session_token": session_token or "",
+            "is_host": is_host_bool,
         },
     )
 

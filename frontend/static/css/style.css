@@ -2006,3 +2006,116 @@ body {
 .status-text {
     color: var(--text-muted);
 }
+
+/* =============================================================================
+   PLAYER VIEW - COMPACT BOARD
+   ============================================================================= */
+.player-main .board-section {
+    background-color: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-sm);
+}
+
+.player-main .board-section h2 {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: var(--spacing-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.player-main #turn-indicator {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.player-main #turn-indicator.your-turn {
+    color: var(--accent);
+    animation: pulse 2s infinite;
+}
+
+/* Compact board grid */
+.game-board-compact {
+    gap: 1px;
+}
+
+.game-board-compact .column-header,
+.game-board-compact .row-header {
+    font-size: 0.5rem;
+    padding: 1px;
+}
+
+.game-board-compact .board-cell {
+    min-width: 18px;
+    min-height: 18px;
+}
+
+/* =============================================================================
+   PLAYER VIEW - LOBBY CONTROLS (HOST)
+   ============================================================================= */
+.player-main .lobby-controls {
+    background-color: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+}
+
+.player-main .lobby-controls h2 {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: var(--spacing-sm);
+}
+
+.control-buttons {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.control-buttons .btn {
+    flex: 1;
+}
+
+.player-count {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.player-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.player-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+}
+
+.player-item.is-bot {
+    opacity: 0.7;
+}
+
+.bot-badge {
+    font-size: 0.625rem;
+    font-weight: 700;
+    background-color: var(--warning);
+    color: var(--bg-primary);
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+}

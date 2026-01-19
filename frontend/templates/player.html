@@ -20,6 +20,45 @@
         </header>
 
         <main class="player-main">
+            <!-- Lobby controls (shown only for host before game starts) -->
+            {% if is_host %}
+            <section class="lobby-controls" id="lobby-controls">
+                <h2>Game Setup</h2>
+                <div class="control-buttons">
+                    <button class="btn btn-primary" id="start-game-btn" disabled>
+                        Start Game
+                    </button>
+                    <button class="btn btn-secondary" id="add-bot-btn">
+                        Add Bot
+                    </button>
+                </div>
+                <p class="player-count">Players: <span id="player-count">1</span>/6 (min 2 to start)</p>
+                <div class="player-list" id="player-list">
+                    <!-- Player list will be populated dynamically -->
+                </div>
+            </section>
+            {% endif %}
+
+            <!-- Game board section -->
+            <section class="board-section" id="board-section">
+                <h2>Game Board <span id="turn-indicator"></span></h2>
+                <div class="game-board game-board-compact" id="game-board">
+                    <!-- Column headers -->
+                    <div class="board-corner"></div>
+                    {% for col in range(1, 13) %}
+                    <div class="column-header">{{ col }}</div>
+                    {% endfor %}
+
+                    {% for row in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] %}
+                    <!-- Row {{ row }} -->
+                    <div class="row-header">{{ row }}</div>
+                    {% for col in range(1, 13) %}
+                    <div class="board-cell" id="cell-{{ col }}-{{ row }}" data-col="{{ col }}" data-row="{{ row }}"></div>
+                    {% endfor %}
+                    {% endfor %}
+                </div>
+            </section>
+
             <section class="tile-rack-section">
                 <h2>Your Tiles</h2>
                 <div class="tile-rack" id="tile-rack">
@@ -249,7 +288,8 @@
             roomCode: "{{ room_code }}",
             playerId: "{{ player_id }}",
             playerName: "{{ player_name }}",
-            sessionToken: "{{ session_token }}"
+            sessionToken: "{{ session_token }}",
+            isHost: {{ is_host | tojson }}
         };
     </script>
     <script type="module" src="/static/js/player/index.js"></script>
