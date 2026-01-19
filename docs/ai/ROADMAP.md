@@ -1,14 +1,31 @@
 # Acquire AI Roadmap
 
-A holistic roadmap for building intelligent game-playing agents for Acquire, from simple heuristics to superhuman play.
+A linear progression from heuristics to intelligent game-playing agents.
 
 ## Vision
 
-Build a progression of AI agents that:
+Build AI agents that:
 1. Provide engaging opponents at multiple skill levels
-2. Are explainable (players can understand why moves were made)
-3. Can participate in trading negotiations naturally
-4. Serve as training partners for human players
+2. Can participate in trading negotiations naturally
+3. Are explainable (players understand why moves were made)
+
+---
+
+## Roadmap Overview
+
+```
+Phase 0              Phase 1              Phase 2              Phase 3
+────────────────────────────────────────────────────────────────────────►
+Rule-Based       →   MCTS            →   RL               →   RL + LLM
+(DONE)               (Search)            (DPO/PPO)            Negotiation
+```
+
+| Phase | Approach | What It Adds | Status |
+|-------|----------|--------------|--------|
+| 0 | Rule-based bots | Playable opponents | ✅ Done |
+| 1 | MCTS | Stronger play via search | 📋 Next |
+| 2 | RL (DPO or PPO) | Learning, faster inference | 📋 Planned |
+| 3 | RL + LLM | Natural trading negotiation | 📋 Planned |
 
 ---
 
@@ -25,49 +42,15 @@ Build a progression of AI agents that:
 | Legal action enumeration | ✅ Complete | `backend/game/rules.py` |
 | State encoder design | ✅ Documented | `docs/ai/state_encoding.md` |
 | Training config | ✅ Complete | `backend/training/config.py` |
-| PPO documentation | ✅ Complete | `docs/ai/ppo_explained.md` |
-| Alternatives analysis | ✅ Complete | `docs/ai/alternatives/` |
-
-### What's Missing
-
-- Neural network implementation
-- Training pipeline
-- MCTS implementation
-- LLM integration for trading
-- Evaluation framework
 
 ---
 
-## Roadmap Phases
-
-### Recommended Path (LLM-RL Focus)
-
-```
-Phase 0          Phase 1          Phase 2          Phase 3          Phase 4
-─────────────────────────────────────────────────────────────────────────────►
-Rule-Based   →   LLM Bot      →   DPO          →   GRPO         →   Reasoning
-(DONE)           (Best-of-N)      Fine-tuning      Self-Play        Enhancement
-```
-
-### Alternative Path (Traditional ML)
-
-```
-Phase 0          Phase 1          Phase 2          Phase 3          Phase 4
-─────────────────────────────────────────────────────────────────────────────►
-Rule-Based   →   MCTS Bot     →   Imitation    →   Decision     →   Hybrid
-(DONE)           (Search)         Learning         Transformer      Intelligence
-```
-
-**Recommendation**: Start with the LLM-RL path. Recent advances (DPO, GRPO, reasoning models) make this simpler and more effective than traditional RL for a strategy game like Acquire. See `docs/ai/alternatives/llm-rl-advances.md` for details.
-
----
-
-## Phase 0: Rule-Based Foundation ✅ COMPLETE
+## Phase 0: Rule-Based ✅ COMPLETE
 
 **Goal**: Playable bots at multiple difficulty levels
 
 **Delivered**:
-- Heuristic scoring for all 5 decision types
+- Heuristic scoring for all 5 decision types (tile, founding, merger, disposition, buying)
 - Three difficulty levels (easy/medium/hard)
 - Deterministic mode for reproducibility
 
@@ -75,13 +58,13 @@ Rule-Based   →   MCTS Bot     →   Imitation    →   Decision     →   Hybr
 
 ---
 
-## Phase 1: MCTS Bot (Search-Based)
+## Phase 1: MCTS (Search-Based)
 
-**Goal**: Strong bot without machine learning
+**Goal**: Stronger bot through search, no machine learning required
 
-**Timeline**: 1-2 days implementation
+### Approach
 
-### 1.1 Basic MCTS
+Monte Carlo Tree Search explores possible futures by simulation:
 
 ```python
 class MCTSBot:
@@ -89,334 +72,215 @@ class MCTSBot:
         self.simulations = simulations
 
     def choose_action(self, game, player_id) -> Action:
-        # For each legal action:
-        # 1. Clone game
-        # 2. Apply action
-        # 3. Random rollout to completion
-        # 4. Track win rate
-        # Return action with highest win rate
+        legal_actions = Rules.get_all_legal_actions(game, player_id)
+        wins = {a: 0 for a in legal_actions}
+        plays = {a: 0 for a in legal_actions}
+
+        for _ in range(self.simulations):
+            action = self.select_action(wins, plays)  # UCB1
+            game_copy = game.clone()
+            game_copy.apply_action(action)
+            winner = self.rollout(game_copy)  # Random playout
+            plays[action] += 1
+            if winner == player_id:
+                wins[action] += 1
+
+        return max(legal_actions, key=lambda a: wins[a] / max(plays[a], 1))
 ```
 
-**Key Implementation Details**:
-- Use existing `Game.clone()` for simulation
-- Use `Rules.get_all_legal_actions()` for legal moves
-- Random rollout using random bot for speed
-- Configurable simulation count for difficulty scaling
+### Key Features
 
-### 1.2 Enhanced MCTS
-
-After basic MCTS works:
-
-| Enhancement | Description | Benefit |
-|-------------|-------------|---------|
-| UCB1 selection | Balance exploration/exploitation | Better action selection |
-| Progressive widening | Focus on promising branches | Faster convergence |
-| Heuristic rollouts | Use easy bot instead of random | Better value estimates |
-| Transposition table | Cache evaluated positions | Speed improvement |
-
-### 1.3 Information Set MCTS
-
-Handle hidden information (opponent tiles):
-
-```python
-def ismcts_action(game, player_id, sims=1000):
-    """MCTS with opponent tile sampling."""
-    for _ in range(sims):
-        # Sample possible opponent tiles consistent with observations
-        determinized_game = sample_hidden_state(game, player_id)
-        # Run standard MCTS on determinized game
-        ...
-```
+| Feature | Description |
+|---------|-------------|
+| UCB1 selection | Balance exploration vs exploitation |
+| Random rollouts | Simulate games to completion |
+| Configurable strength | More simulations = stronger play |
+| Information Set MCTS | Handle hidden opponent tiles |
 
 ### Deliverables
-- [ ] `backend/game/mcts_bot.py` - MCTS implementation
+
+- [ ] `backend/game/mcts_bot.py` - Core MCTS implementation
 - [ ] Configurable difficulty via simulation count
-- [ ] Benchmark vs rule-based bots
+- [ ] Benchmark against rule-based bots
 
 ### Success Criteria
-- MCTS(1000 sims) beats hard bot >60% of games
-- <5 second move time with 1000 simulations
+
+- MCTS(1000) beats hard bot >60% of games
+- Move time <5 seconds with 1000 simulations
 
 ---
 
-## Phase 2: Neural Bot (Learning-Based)
+## Phase 2: Reinforcement Learning (DPO or PPO)
 
-**Goal**: Learn from data, faster inference than MCTS
+**Goal**: Learn strong play from data, fast inference
 
-### 2.1 Imitation Learning (Clone the Teacher)
+### Option A: DPO (Direct Preference Optimization)
 
-**Approach**: Supervised learning to mimic hard bot
+Simpler than PPO - no reward model, no value network.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Generate Data                                               │
-│  - Run 100k games: hard bot vs hard bot                     │
-│  - Record (state, action) pairs                             │
-│  - ~500k training examples                                  │
+│  Step 1: Generate Preference Data                           │
+│  - Play MCTS vs weaker bots                                 │
+│  - MCTS move = "chosen", weaker move = "rejected"           │
 └─────────────────────────────────────────────────────────────┘
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  Train Network                                               │
-│  - Input: StateEncoder output (~750 dims)                   │
-│  - Output: Action probabilities                              │
-│  - Loss: CrossEntropy                                        │
-│  - 10-20 epochs, ~1 hour training                           │
-└─────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Result                                                      │
-│  - Neural bot matches hard bot performance                   │
-│  - Inference: <1ms per move (vs 5s for MCTS)                │
-│  - Foundation for further improvement                        │
+│  Step 2: Train with DPO Loss                                │
+│  - Increase probability of chosen moves                     │
+│  - Decrease probability of rejected moves                   │
+│  - Single loss function, stable training                    │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+**DPO Loss**:
+$$\mathcal{L}_{\text{DPO}} = -\log \sigma\left(\beta \log \frac{\pi_\theta(a_w|s)}{\pi_{\text{ref}}(a_w|s)} - \beta \log \frac{\pi_\theta(a_l|s)}{\pi_{\text{ref}}(a_l|s)}\right)$$
+
+### Option B: PPO (Proximal Policy Optimization)
+
+More complex but well-understood. See `docs/ai/ppo_explained.md` for details.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Components                                                  │
+│  - Policy network π(a|s)                                    │
+│  - Value network V(s)                                        │
+│  - GAE for advantage estimation                              │
+│  - Clipped objective for stability                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Comparison
+
+| Aspect | DPO | PPO |
+|--------|-----|-----|
+| Complexity | Lower | Higher |
+| Training stability | Very stable | Requires tuning |
+| Data requirement | Preference pairs | Online interaction |
+| Reward model | Not needed | Not needed |
+| Value network | Not needed | Required |
+
+**Recommendation**: Start with DPO. Simpler to implement, stable training, can leverage MCTS as the "expert" for generating preference data.
 
 ### Deliverables
-- [ ] `backend/training/data_generator.py` - Generate training data
-- [ ] `backend/training/state_encoder.py` - Implement state encoding
+
+- [ ] `backend/training/state_encoder.py` - State → tensor
 - [ ] `backend/training/policy_network.py` - Neural network
-- [ ] `backend/training/imitation_trainer.py` - Training loop
+- [ ] `backend/training/dpo_trainer.py` - DPO training loop
 - [ ] `backend/game/neural_bot.py` - Bot using trained network
+- [ ] `backend/training/evaluator.py` - Benchmarking
 
 ### Success Criteria
-- Neural bot performs within 5% of hard bot win rate
-- Inference <10ms per move
-- Training completes in <2 hours
 
-### 2.2 Imitation from MCTS
-
-Once MCTS works, use it as a stronger teacher:
-
-```python
-def generate_mcts_data(num_games, sims_per_move=2000):
-    """Generate training data from MCTS decisions."""
-    data = []
-    for _ in range(num_games):
-        game = Game(...)
-        while not game.game_over:
-            state = encode(game)
-            # MCTS provides action AND visit counts (soft targets)
-            action, visit_probs = mcts_search(game, sims_per_move)
-            data.append((state, visit_probs))  # Soft targets
-            game.apply_action(action)
-    return data
-```
-
-**Benefit**: Neural net learns from stronger-than-hard-bot play
-
----
-
-## Phase 3: Advanced Learning (Exceed Human Design)
-
-**Goal**: Surpass heuristic bots through self-improvement
-
-### 3.1 Option A: Decision Transformer
-
-Treat game-playing as sequence modeling:
-
-```
-Training: Learn to predict actions that lead to wins
-Inference: Condition on "I want to win" → get winning moves
-
-Trajectory: [R=1, s₀, a₀, s₁, a₁, ..., sₜ, ?] → aₜ
-            "Win"  states  actions       "What now?"
-```
-
-**Why Decision Transformer**:
-- No value function needed (simpler than PPO)
-- Standard supervised learning (stable training)
-- Can condition on desired outcome
-- Leverages transformer scaling
-
-**Implementation**:
-- [ ] Collect trajectories with outcomes from bot games
-- [ ] GPT-2 style architecture (4 layers, 256 dim)
-- [ ] Train to predict actions given (return, state, action) sequences
-- [ ] At test time, condition on R=1.0 (winning)
-
-### 3.2 Option B: Offline RL (IQL)
-
-Learn from logged games without environment interaction:
-
-```python
-# Using d3rlpy library
-import d3rlpy
-
-# Load dataset of (s, a, r, s', done) from bot games
-dataset = d3rlpy.dataset.MDPDataset(
-    observations=states,
-    actions=actions,
-    rewards=rewards,
-    terminals=dones
-)
-
-# Train IQL
-iql = d3rlpy.algos.IQL()
-iql.fit(dataset, n_epochs=100)
-
-# Extract policy
-policy = iql.as_stateful_wrapper()
-```
-
-**Why Offline RL**:
-- Can exceed data quality (unlike pure imitation)
-- No environment interaction during training
-- Stable training (no policy gradient variance)
-- Existing libraries (d3rlpy) handle complexity
-
-### 3.3 Option C: AlphaZero-Style (MCTS + Neural Network)
-
-Combine neural network with search:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Neural Network                                              │
-│  Input: Game state                                           │
-│  Output: Policy p(a|s), Value v(s)                          │
-└─────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│  MCTS with Neural Guidance                                   │
-│  - Use p(a|s) to guide tree expansion                       │
-│  - Use v(s) to evaluate leaf nodes (no random rollout)      │
-│  - Much more efficient than pure MCTS                        │
-└─────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Self-Play Training                                          │
-│  - Play games using MCTS                                     │
-│  - Train network on (state, mcts_policy, outcome)           │
-│  - Repeat: network improves → MCTS improves → ...           │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Why AlphaZero-Style**:
-- State-of-the-art for board games
-- Self-play enables continuous improvement
-- No need for human expertise in training data
-
-**Complexity**: Higher than Decision Transformer/IQL, but potentially stronger
-
-### Recommended Path
-
-```
-Decision Transformer (simpler) ─────┐
-                                    ├──► Evaluate both ──► Choose winner
-Offline RL / IQL (proven) ──────────┘
-```
-
-### Success Criteria
 - Beat hard bot >70% of games
 - Beat MCTS(1000) >55% of games
+- Inference <10ms per move
 
 ---
 
-## Phase 4: Hybrid Intelligence
+## Phase 3: RL + LLM Negotiation
 
-**Goal**: Combine neural speed with LLM reasoning and explainability
+**Goal**: Add natural language trading to the RL bot
 
-### 4.1 LLM for Trading
+### Architecture
 
-Already planned - use LLM for player-to-player trading:
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Hybrid Bot                              │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  RL Policy (from Phase 2)                             │  │
+│  │  - Tile placement                                      │  │
+│  │  - Stock purchases                                     │  │
+│  │  - Merger decisions                                    │  │
+│  │  - Fast inference (<10ms)                              │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                            +                                 │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  LLM Trading Agent                                     │  │
+│  │  - Evaluate trade offers                               │  │
+│  │  - Propose trades                                      │  │
+│  │  - Natural language negotiation                        │  │
+│  │  - Explainable decisions                               │  │
+│  └───────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### LLM Trading Agent
 
 ```python
-class TradingLLM:
+class LLMTradingAgent:
     def evaluate_offer(self, game, offer) -> tuple[bool, str]:
-        """Evaluate trade offer, return (accept, reasoning)."""
-        prompt = f"""
-        Game state: {describe_game(game)}
-        Trade offer: {describe_offer(offer)}
+        """Evaluate incoming trade offer."""
+        prompt = f"""You are playing Acquire. Evaluate this trade offer.
 
-        Should I accept? Consider:
-        - Current stock holdings
-        - Chain sizes and growth potential
-        - Game stage (early/mid/late)
+Game state:
+- Your money: ${game.current_player.money}
+- Your stocks: {game.current_player.stocks}
+- Active chains: {describe_chains(game)}
 
-        Respond with: ACCEPT or REJECT, then explain why.
-        """
+Trade offer: {describe_offer(offer)}
+
+Consider:
+1. Relative stock values based on chain sizes
+2. Your majority/minority positions
+3. Game stage (early/mid/late)
+
+Respond: ACCEPT or REJECT, then explain briefly."""
+
         response = llm.complete(prompt)
         return parse_response(response)
 
     def propose_trade(self, game, player_id) -> Optional[TradeOffer]:
-        """Generate trade proposal if beneficial."""
-        ...
+        """Generate a trade proposal if beneficial."""
+        prompt = f"""You are playing Acquire. Consider proposing a trade.
+
+Your position: {describe_position(game, player_id)}
+Other players: {describe_opponents(game, player_id)}
+
+If a mutually beneficial trade exists, propose it.
+If not, respond "NO_TRADE".
+
+Format: TRADE [your stocks] FOR [their stocks] WITH [player]"""
+
+        response = llm.complete(prompt)
+        return parse_trade_proposal(response)
 ```
 
-### 4.2 LLM for Critical Decisions
-
-Use neural net for fast tactical moves, LLM for strategic decisions:
+### Integration
 
 ```python
 class HybridBot:
     def __init__(self):
-        self.neural = NeuralBot()
-        self.llm = LLMBot()
+        self.rl_policy = load_trained_policy()
+        self.llm_trader = LLMTradingAgent()
 
     def choose_action(self, game, player_id):
-        if self.is_critical_moment(game):
-            # Merger decisions, endgame, etc.
-            return self.llm.choose_with_reasoning(game, player_id)
-        else:
-            # Routine tile plays, stock purchases
-            return self.neural.choose_action(game, player_id)
+        # RL handles core gameplay
+        return self.rl_policy.choose_action(game, player_id)
 
-    def is_critical_moment(self, game):
-        return (
-            game.phase == GamePhase.MERGING or
-            game.can_end_game() or
-            self.is_close_game(game)
-        )
+    def handle_trade_offer(self, game, offer):
+        # LLM handles trading
+        accept, reasoning = self.llm_trader.evaluate_offer(game, offer)
+        return accept
+
+    def maybe_propose_trade(self, game, player_id):
+        # LLM proposes trades when beneficial
+        return self.llm_trader.propose_trade(game, player_id)
 ```
 
-### 4.3 Explainability
+### Deliverables
 
-Allow players to ask "Why did you make that move?":
+- [ ] `backend/llm/trading_agent.py` - LLM trading logic
+- [ ] `backend/llm/prompts.py` - Prompt templates
+- [ ] `backend/game/hybrid_bot.py` - Combined RL + LLM bot
+- [ ] Integration with game WebSocket API
 
-```python
-def explain_move(game, action, bot_type="neural"):
-    if bot_type == "neural":
-        # Show action probabilities
-        probs = neural_bot.get_action_probs(game)
-        top_actions = sorted(probs.items(), key=lambda x: -x[1])[:3]
-        return f"Top choices: {top_actions}"
+### Success Criteria
 
-    elif bot_type == "mcts":
-        # Show visit counts
-        visits = mcts_bot.get_visit_counts(game)
-        return f"Simulations: {visits}"
-
-    elif bot_type == "llm":
-        # Natural language explanation
-        return llm_bot.last_reasoning
-```
-
-### 4.4 Difficulty Adaptation
-
-Adjust bot strength based on player skill:
-
-```python
-class AdaptiveBot:
-    def __init__(self):
-        self.player_skill = 0.5  # Estimated skill level
-
-    def choose_action(self, game, player_id):
-        if random.random() < self.mistake_rate():
-            # Intentionally suboptimal play
-            return self.second_best_action(game, player_id)
-        return self.best_action(game, player_id)
-
-    def mistake_rate(self):
-        # Higher skill player → fewer bot mistakes
-        return max(0, 0.3 - self.player_skill * 0.3)
-
-    def update_skill_estimate(self, game_result):
-        # Bayesian update based on game outcomes
-        ...
-```
+- Bot participates in trading (previously declined all trades)
+- Trade decisions are reasonable (evaluated by human review)
+- Trading adds strategic depth without slowing gameplay
 
 ---
 
@@ -427,62 +291,33 @@ class AdaptiveBot:
 ```python
 def run_benchmarks():
     bots = {
-        "random": RandomBot(),
         "easy": RuleBot("easy"),
         "medium": RuleBot("medium"),
         "hard": RuleBot("hard"),
         "mcts_100": MCTSBot(100),
         "mcts_1000": MCTSBot(1000),
-        "neural_v1": NeuralBot("v1"),
-        "neural_v2": NeuralBot("v2"),
+        "rl_v1": RLBot("v1"),
+        "hybrid": HybridBot(),
     }
 
+    # Round-robin tournament
     results = {}
     for bot_a, bot_b in combinations(bots, 2):
-        wins_a, wins_b, draws = play_matches(bot_a, bot_b, n=1000)
-        results[(bot_a, bot_b)] = (wins_a, wins_b, draws)
+        wins_a, wins_b = play_matches(bot_a, bot_b, n=1000)
+        results[(bot_a, bot_b)] = (wins_a, wins_b)
 
-    return create_elo_ratings(results)
+    return compute_elo_ratings(results)
 ```
 
-### Metrics
+### Metrics by Phase
 
-| Metric | Description | Target |
-|--------|-------------|--------|
-| Win rate vs hard | % wins against hard bot | >70% for Phase 3 |
-| Elo rating | Relative strength | Track over time |
-| Move time | Inference latency | <100ms for neural |
-| Training time | Time to reach target | <1 week Phase 3 |
-| Explainability | Can explain decisions | Yes for Phase 4 |
-
-### Human Evaluation
-
-- Play against real players
-- Collect feedback on difficulty/engagement
-- A/B test different bot versions
-
----
-
-## Implementation Priority
-
-### High Priority (Do First)
-
-1. **MCTS Bot** - No ML required, immediate strong play
-2. **State Encoder** - Foundation for all neural approaches
-3. **Imitation Learning** - Simplest ML approach
-4. **Evaluation Framework** - Need to measure progress
-
-### Medium Priority
-
-5. **Decision Transformer or IQL** - Exceed hard bot
-6. **Neural-guided MCTS** - Combine learning + search
-7. **LLM Trading** - Enable bot trading
-
-### Lower Priority (Nice to Have)
-
-8. **Self-play Training** - Continuous improvement
-9. **Difficulty Adaptation** - Better player experience
-10. **Full Explainability** - Why did bot do X?
+| Phase | Key Metric | Target |
+|-------|------------|--------|
+| 1 (MCTS) | Win rate vs hard bot | >60% |
+| 2 (RL) | Win rate vs MCTS(1000) | >55% |
+| 2 (RL) | Inference time | <10ms |
+| 3 (Hybrid) | Trades accepted/proposed | >0 per game |
+| 3 (Hybrid) | Human evaluation of trades | "Reasonable" |
 
 ---
 
@@ -492,22 +327,19 @@ def run_benchmarks():
 backend/
 ├── game/
 │   ├── bot.py              # ✅ Rule-based bots
-│   ├── mcts_bot.py         # 📋 MCTS implementation
-│   └── neural_bot.py       # 📋 Neural network bot
+│   ├── mcts_bot.py         # 📋 Phase 1: MCTS
+│   ├── neural_bot.py       # 📋 Phase 2: RL bot
+│   └── hybrid_bot.py       # 📋 Phase 3: RL + LLM
 ├── training/
 │   ├── config.py           # ✅ Hyperparameters
 │   ├── state_encoder.py    # 📋 State → tensor
-│   ├── data_generator.py   # 📋 Generate training data
 │   ├── policy_network.py   # 📋 Neural network
-│   ├── imitation.py        # 📋 Imitation learning
-│   ├── decision_transformer.py  # 📋 DT implementation
-│   ├── offline_rl.py       # 📋 IQL/CQL wrapper
+│   ├── dpo_trainer.py      # 📋 DPO training
+│   ├── ppo_trainer.py      # 📋 PPO training (optional)
 │   └── evaluator.py        # 📋 Benchmarking
 ├── llm/
-│   ├── game_player.py      # 📋 LLM game-playing agent
-│   ├── dpo_trainer.py      # 📋 DPO fine-tuning
-│   ├── trading_agent.py    # 📋 LLM for trading
-│   └── explainer.py        # 📋 Move explanations
+│   ├── trading_agent.py    # 📋 Phase 3: LLM trading
+│   └── prompts.py          # 📋 Prompt templates
 docs/ai/
 ├── README.md               # ✅ Overview
 ├── ROADMAP.md              # ✅ This document
@@ -515,8 +347,8 @@ docs/ai/
 ├── state_encoding.md       # ✅ Observation design
 ├── training_pipeline.md    # ✅ Training details
 └── alternatives/
-    ├── README.md           # ✅ Traditional RL alternatives
-    └── llm-rl-advances.md  # ✅ LLM-RL approaches (DPO, GRPO, etc.)
+    ├── README.md           # ✅ RL alternatives analysis
+    └── llm-rl-advances.md  # ✅ LLM-RL techniques (DPO, GRPO)
 ```
 
 Legend: ✅ Complete | 📋 Planned
@@ -525,32 +357,11 @@ Legend: ✅ Complete | 📋 Planned
 
 ## Summary
 
-### LLM-RL Path (Recommended)
+| Phase | What | Why | Effort |
+|-------|------|-----|--------|
+| **0** | Rule-based | Baseline opponents | ✅ Done |
+| **1** | MCTS | Strong play via search, no ML | 1-2 days |
+| **2** | RL (DPO/PPO) | Learn from data, fast inference | 1-2 weeks |
+| **3** | RL + LLM | Natural trading negotiation | 1 week |
 
-| Phase | Approach | Complexity | Strength | Timeline |
-|-------|----------|------------|----------|----------|
-| 0 | Rule-based | Low | Medium | ✅ Done |
-| 1 | **Best-of-N LLM** | Very Low | Medium-High | Hours |
-| 2 | **DPO Fine-tuning** | Low-Medium | High | 1-3 days |
-| 3 | **GRPO Self-Play** | Medium | Very High | 1 week |
-| 4 | Reasoning Enhancement | Medium-High | Highest | 2 weeks |
-
-### Traditional ML Path (Alternative)
-
-| Phase | Approach | Complexity | Strength | Timeline |
-|-------|----------|------------|----------|----------|
-| 0 | Rule-based | Low | Medium | ✅ Done |
-| 1 | MCTS | Low | High | 1-2 days |
-| 2 | Imitation | Low-Medium | Medium | 3-5 days |
-| 3 | DT/IQL | Medium | Very High | 1-2 weeks |
-| 4 | Hybrid+LLM | Medium-High | Highest | 2-4 weeks |
-
-### Why LLM-RL is Recommended
-
-1. **Faster to start**: Best-of-N requires zero training, just API calls
-2. **Simpler training**: DPO is one loss function, no reward model or value network
-3. **Natural trading**: LLMs handle negotiation natively (Acquire's unique feature)
-4. **Explainability built-in**: LLMs can articulate reasoning
-5. **Better sample efficiency**: Pretrained knowledge bootstraps game understanding
-
-**Recommended next step**: Try Best-of-N with Claude API (Phase 1 of LLM path) - test LLM viability in hours with zero training infrastructure.
+**Next step**: Implement MCTS (Phase 1) - provides immediate strength improvement with no ML infrastructure required.
