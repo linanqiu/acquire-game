@@ -12,10 +12,17 @@ import { PHASES } from '../shared/constants.js';
  * @param {string} currentPhase - Current game phase
  */
 export function updateTileRack(tileRack, tiles, isMyTurn, currentPhase) {
-    if (!tileRack) return;
+    if (!tileRack) {
+        console.warn('updateTileRack: tileRack element is null');
+        return;
+    }
+
+    console.log('updateTileRack called:', { tiles, isMyTurn, currentPhase });
 
     const tileButtons = tileRack.querySelectorAll('.tile');
     const canPlace = isMyTurn && currentPhase === PHASES.PLACE_TILE;
+
+    console.log(`Found ${tileButtons.length} tile buttons, canPlace=${canPlace}`);
 
     tileButtons.forEach((btn, index) => {
         if (index < tiles.length) {

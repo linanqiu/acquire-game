@@ -1069,104 +1069,94 @@ async def process_bot_turns(room_code: str):
         current_player_id = game["turn_order"][game["current_turn_index"]]
         player_conn = room.players.get(current_player_id)
 
-        # Check if current player is a connected human or AFK
-        is_afk_human = (
-            player_conn is not None
-            and not player_conn.is_bot
-            and len(player_conn.websockets) == 0
-        )
-
-        if player_conn is not None and not player_conn.is_bot and not is_afk_human:
-            # Human player is connected - stop and wait for their input
+        # Check if current player is a bot
+        if player_conn is None or not player_conn.is_bot:
+            # Human player's turn - stop and wait for their input
             break
 
-        # This is a bot's turn or an AFK human's turn - process it
+        # This is a bot's turn - process it
         player = players[current_player_id]
         phase = game["phase"]
 
         if phase == "place_tile":
-            if is_afk_human:
-                # AFK human - skip tile placement, go straight to buy phase
-                game["phase"] = "buy_stocks"
-            else:
-                # Bot chooses and places a tile
-                playable_tiles = [
-                    t for t in player.hand if Rules.can_place_tile(board, t, hotel)
-                ]
+            # Bot chooses and places a tile
+            playable_tiles = [
+                t for t in player.hand if Rules.can_place_tile(board, t, hotel)
+            ]
 
-                if playable_tiles:
-                    # Simple strategy: pick a random playable tile
-                    import random
+            if playable_tiles:
+                # Simple strategy: pick a random playable tile
+                import random
 
-                    tile = random.choice(playable_tiles)
-                    player.remove_tile(tile)
-                    board.place_tile(tile)
+                tile = random.choice(playable_tiles)
+                player.remove_tile(tile)
+                board.place_tile(tile)
 
-                    # Determine what happens
-                    result = Rules.get_placement_result(board, tile)
+                # Determine what happens
+                result = Rules.get_placement_result(board, tile)
 
-                    if result.result_type == "nothing":
-                        game["phase"] = "buy_stocks"
-
-                    elif result.result_type == "expand":
-                        connected = board.get_connected_tiles(tile)
-                        for t in connected:
-                            board.set_chain(t, result.chain)
-                        game["phase"] = "buy_stocks"
-
-                    elif result.result_type == "found":
-                        # Bot picks first available chain
-                        available_chains = hotel.get_inactive_chains()
-                        if available_chains:
-                            chain_name = available_chains[0]
-                            hotel.activate_chain(chain_name)
-                            connected_tiles = board.get_connected_tiles(tile)
-                            for t in connected_tiles:
-                                board.set_chain(t, chain_name)
-                            # Give founder a free stock
-                            if hotel.get_available_stocks(chain_name) > 0:
-                                hotel.buy_stock(chain_name)
-                                player.add_stocks(chain_name, 1)
-                        game["phase"] = "buy_stocks"
-
-                    elif result.result_type == "merge":
-                        # Handle merger - pick survivor (largest chain)
-                        survivor = Rules.get_merger_survivor(board, result.chains)
-
-                        if isinstance(survivor, list):
-                            # Tie - pick first one
-                            survivor = survivor[0]
-
-                        defunct_chains = [c for c in result.chains if c != survivor]
-
-                        # Pay bonuses and process merger
-                        for defunct_chain in defunct_chains:
-                            chain_size = board.get_chain_size(defunct_chain)
-                            bonuses = Rules.calculate_bonuses(
-                                list(players.values()), defunct_chain, chain_size, hotel
-                            )
-                            for pid, bonus_info in bonuses.items():
-                                total_bonus = (
-                                    bonus_info["majority"] + bonus_info["minority"]
-                                )
-                                players[pid].add_money(total_bonus)
-
-                            # Merge on board
-                            board.merge_chains(survivor, defunct_chain)
-                            hotel.deactivate_chain(defunct_chain)
-
-                        # Include placed tile in surviving chain
-                        connected = board.get_connected_tiles(tile)
-                        for t in connected:
-                            board.set_chain(t, survivor)
-
-                        game["phase"] = "buy_stocks"
-
-                    # Broadcast the tile placement
-                    await broadcast_game_state(room_code)
-                else:
-                    # No playable tiles - skip to buy phase
+                if result.result_type == "nothing":
                     game["phase"] = "buy_stocks"
+
+                elif result.result_type == "expand":
+                    connected = board.get_connected_tiles(tile)
+                    for t in connected:
+                        board.set_chain(t, result.chain)
+                    game["phase"] = "buy_stocks"
+
+                elif result.result_type == "found":
+                    # Bot picks first available chain
+                    available_chains = hotel.get_inactive_chains()
+                    if available_chains:
+                        chain_name = available_chains[0]
+                        hotel.activate_chain(chain_name)
+                        connected_tiles = board.get_connected_tiles(tile)
+                        for t in connected_tiles:
+                            board.set_chain(t, chain_name)
+                        # Give founder a free stock
+                        if hotel.get_available_stocks(chain_name) > 0:
+                            hotel.buy_stock(chain_name)
+                            player.add_stocks(chain_name, 1)
+                    game["phase"] = "buy_stocks"
+
+                elif result.result_type == "merge":
+                    # Handle merger - pick survivor (largest chain)
+                    survivor = Rules.get_merger_survivor(board, result.chains)
+
+                    if isinstance(survivor, list):
+                        # Tie - pick first one
+                        survivor = survivor[0]
+
+                    defunct_chains = [c for c in result.chains if c != survivor]
+
+                    # Pay bonuses and process merger
+                    for defunct_chain in defunct_chains:
+                        chain_size = board.get_chain_size(defunct_chain)
+                        bonuses = Rules.calculate_bonuses(
+                            list(players.values()), defunct_chain, chain_size, hotel
+                        )
+                        for pid, bonus_info in bonuses.items():
+                            total_bonus = (
+                                bonus_info["majority"] + bonus_info["minority"]
+                            )
+                            players[pid].add_money(total_bonus)
+
+                        # Merge on board
+                        board.merge_chains(survivor, defunct_chain)
+                        hotel.deactivate_chain(defunct_chain)
+
+                    # Include placed tile in surviving chain
+                    connected = board.get_connected_tiles(tile)
+                    for t in connected:
+                        board.set_chain(t, survivor)
+
+                    game["phase"] = "buy_stocks"
+
+                # Broadcast the tile placement
+                await broadcast_game_state(room_code)
+            else:
+                # No playable tiles - skip to buy phase
+                game["phase"] = "buy_stocks"
 
         if phase == "buy_stocks" or game["phase"] == "buy_stocks":
             # Bot buys stocks (simple: buy nothing for now, just end turn)

@@ -270,6 +270,14 @@ function setupWebSocket() {
  * Handle game state message
  */
 function handleGameState(data) {
+    console.log('handleGameState called with:', {
+        type: data.type,
+        current_player: data.current_player,
+        phase: data.phase,
+        your_hand: data.your_hand,
+        playerId: playerId
+    });
+
     // Update local game state
     store.setState({
         board: data.board,
@@ -283,8 +291,11 @@ function handleGameState(data) {
 
     // Update player's hand from your_hand
     if (data.your_hand) {
+        console.log('Updating tiles with your_hand:', data.your_hand);
         store.setState({ tiles: data.your_hand });
         updateTileRack(elements.tileRack, data.your_hand, isMyTurn, currentPhase);
+    } else {
+        console.warn('No your_hand in game state message!');
     }
 
     // Update money from players data

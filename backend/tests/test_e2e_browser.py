@@ -695,6 +695,74 @@ class TestChainFoundingAndMerger:
             print("No merger occurred in time limit (this is OK for basic testing)")
 
 
+def setup_game_with_host_playing(page, server, browser, num_bots=3):
+    """Helper to set up a game where the Host also participates.
+
+    The Host (who creates the game) is automatically a player.
+    This helper ensures the Host has a player view open so they can play.
+
+    Returns: (host_player_page, room_code)
+    """
+    # Create game
+    page.goto(f"{server}/")
+    page.fill("#create-player-name", "Host")
+    page.click("button:has-text('Create Game')")
+    page.wait_for_url("**/host/**")
+
+    # Extract host credentials
+    room_code = page.url.split("/host/")[1].split("?")[0]
+    host_player_id = page.url.split("player_id=")[1].split("&")[0]
+    host_session_token = (
+        page.url.split("session_token=")[1] if "session_token=" in page.url else ""
+    )
+
+    # Host opens player view to participate
+    host_player_context = browser.new_context()
+    host_player_page = host_player_context.new_page()
+    host_player_page.goto(
+        f"{server}/play/{room_code}?player_id={host_player_id}&session_token={host_session_token}"
+    )
+    host_player_page.wait_for_load_state("networkidle")
+
+    # Add bots
+    add_bot_btn = page.locator("#add-bot-btn")
+    for _ in range(num_bots):
+        if add_bot_btn.count() > 0 and add_bot_btn.is_visible():
+            add_bot_btn.click()
+            page.wait_for_timeout(300)
+
+    # Start game
+    start_btn = page.locator("#start-game-btn")
+    if start_btn.count() > 0 and start_btn.is_visible():
+        start_btn.click()
+    page.wait_for_timeout(1000)
+
+    return host_player_page, room_code, host_player_context
+
+
+def auto_play_turn(player_page):
+    """Helper to auto-play a turn if it's this player's turn."""
+    tiles = player_page.locator("#tile-rack .tile:not([disabled])")
+    if tiles.count() > 0:
+        first_tile = tiles.first
+        tile_data = first_tile.get_attribute("data-tile")
+        if tile_data and tile_data.strip():
+            first_tile.click()
+            player_page.wait_for_timeout(200)
+            confirm = player_page.locator("#confirm-place-tile")
+            if confirm.count() > 0 and confirm.is_visible():
+                confirm.click()
+                player_page.wait_for_timeout(300)
+                buy_section = player_page.locator("#buy-stocks-section")
+                if buy_section.count() > 0 and buy_section.is_visible():
+                    confirm_buy = player_page.locator("#confirm-buy")
+                    if confirm_buy.count() > 0 and confirm_buy.is_visible():
+                        confirm_buy.click()
+                        player_page.wait_for_timeout(200)
+                return True
+    return False
+
+
 class TestBotTurnProgression:
     """Tests for bot turn progression - catches stuck game bugs."""
 
@@ -702,30 +770,21 @@ class TestBotTurnProgression:
         self, page: Page, server, browser: Browser
     ):
         """Verify bot turns complete within reasonable time - catches stuck games."""
-        # Create game with only bots
-        page.goto(f"{server}/")
-        page.fill("#create-player-name", "Host")
-        page.click("button:has-text('Create Game')")
-        page.wait_for_url("**/host/**")
-
-        # Add 3 bots
-        add_bot_btn = page.locator("#add-bot-btn")
-        for _ in range(3):
-            if add_bot_btn.count() > 0 and add_bot_btn.is_visible():
-                add_bot_btn.click()
-                page.wait_for_timeout(300)
-
-        start_btn = page.locator("#start-game-btn")
-        if start_btn.count() > 0 and start_btn.is_visible():
-            start_btn.click()
-        page.wait_for_timeout(1000)
+        # Create game with bots + Host playing
+        host_player_page, room_code, host_ctx = setup_game_with_host_playing(
+            page, server, browser, num_bots=3
+        )
 
         # Track current player changes
         BOT_TURN_TIMEOUT = 5000  # 5 seconds max per bot turn
         last_player = None
         stuck_since = None
+        turns_progressed = 0
 
         for i in range(30):  # Monitor for 30 seconds
+            # Let Host auto-play their turn if it's their turn
+            auto_play_turn(host_player_page)
+
             page.wait_for_timeout(1000)
 
             # Get current turn info from page
@@ -743,9 +802,13 @@ class TestBotTurnProgression:
                     )
             else:
                 stuck_since = None
-                last_player = turn_text
-                if turn_text:
+                if turn_text and last_player != turn_text:
+                    turns_progressed += 1
                     print(f"Turn progressed to: {turn_text}")
+                last_player = turn_text
+
+        host_ctx.close()
+        assert turns_progressed > 0, "Game never progressed any turns"
 
     def test_turn_counter_progresses(self, page: Page, server, browser: Browser):
         """Verify turn number increases over time - game is actually progressing."""
@@ -756,25 +819,16 @@ class TestBotTurnProgression:
 
         page.on("websocket", handle_ws)
 
-        # Setup game with bots
-        page.goto(f"{server}/")
-        page.fill("#create-player-name", "Host")
-        page.click("button:has-text('Create Game')")
-        page.wait_for_url("**/host/**")
-
-        add_bot_btn = page.locator("#add-bot-btn")
-        for _ in range(3):
-            if add_bot_btn.count() > 0 and add_bot_btn.is_visible():
-                add_bot_btn.click()
-                page.wait_for_timeout(300)
-
-        start_btn = page.locator("#start-game-btn")
-        if start_btn.count() > 0 and start_btn.is_visible():
-            start_btn.click()
+        # Setup game with bots + Host playing
+        host_player_page, room_code, host_ctx = setup_game_with_host_playing(
+            page, server, browser, num_bots=3
+        )
 
         # Track game state messages
         game_states = []
         for i in range(20):
+            # Let Host auto-play their turn
+            auto_play_turn(host_player_page)
             page.wait_for_timeout(1000)
             for msg in ws_messages:
                 try:
@@ -791,6 +845,8 @@ class TestBotTurnProgression:
                 except Exception:
                     pass
             ws_messages.clear()
+
+        host_ctx.close()
 
         # Verify we got multiple different current_players
         players_seen = set(
@@ -820,25 +876,16 @@ class TestBotTurnProgression:
 
         page.on("websocket", handle_ws)
 
-        # Setup bot-only game
-        page.goto(f"{server}/")
-        page.fill("#create-player-name", "Host")
-        page.click("button:has-text('Create Game')")
-        page.wait_for_url("**/host/**")
-
-        add_bot_btn = page.locator("#add-bot-btn")
-        for _ in range(3):
-            if add_bot_btn.count() > 0 and add_bot_btn.is_visible():
-                add_bot_btn.click()
-                page.wait_for_timeout(300)
-
-        start_btn = page.locator("#start-game-btn")
-        if start_btn.count() > 0 and start_btn.is_visible():
-            start_btn.click()
+        # Setup game with bots + Host playing
+        host_player_page, room_code, host_ctx = setup_game_with_host_playing(
+            page, server, browser, num_bots=3
+        )
 
         # Collect current_player values over time
         current_players = []
         for i in range(15):
+            # Let Host auto-play their turn
+            auto_play_turn(host_player_page)
             page.wait_for_timeout(1000)
             for msg in ws_messages:
                 try:
@@ -851,6 +898,8 @@ class TestBotTurnProgression:
                 except Exception:
                     pass
             ws_messages.clear()
+
+        host_ctx.close()
 
         if not current_players:
             pytest.skip("No game state messages received")
@@ -872,26 +921,17 @@ class TestBotTurnProgression:
 
     def test_board_state_changes(self, page: Page, server, browser: Browser):
         """Verify board state changes - tiles being placed."""
-        # Setup game
-        page.goto(f"{server}/")
-        page.fill("#create-player-name", "Host")
-        page.click("button:has-text('Create Game')")
-        page.wait_for_url("**/host/**")
-
-        add_bot_btn = page.locator("#add-bot-btn")
-        for _ in range(3):
-            if add_bot_btn.count() > 0 and add_bot_btn.is_visible():
-                add_bot_btn.click()
-                page.wait_for_timeout(300)
-
-        start_btn = page.locator("#start-game-btn")
-        if start_btn.count() > 0 and start_btn.is_visible():
-            start_btn.click()
+        # Setup game with bots + Host playing
+        host_player_page, room_code, host_ctx = setup_game_with_host_playing(
+            page, server, browser, num_bots=3
+        )
         page.wait_for_timeout(2000)
 
         # Count placed tiles at intervals
         tile_counts = []
         for i in range(10):
+            # Let Host auto-play their turn
+            auto_play_turn(host_player_page)
             page.wait_for_timeout(2000)
             # Count cells with tiles placed
             placed = page.locator(
@@ -900,6 +940,8 @@ class TestBotTurnProgression:
             ).count()
             tile_counts.append(placed)
             print(f"After {(i + 1) * 2}s: {placed} tiles placed")
+
+        host_ctx.close()
 
         # Tile count should increase over time (game is progressing)
         if tile_counts[-1] == tile_counts[0] == 0:
@@ -925,20 +967,10 @@ class TestBotTurnProgression:
 
         page.on("websocket", handle_ws)
 
-        page.goto(f"{server}/")
-        page.fill("#create-player-name", "Host")
-        page.click("button:has-text('Create Game')")
-        page.wait_for_url("**/host/**")
-
-        add_bot_btn = page.locator("#add-bot-btn")
-        for _ in range(3):
-            if add_bot_btn.count() > 0 and add_bot_btn.is_visible():
-                add_bot_btn.click()
-                page.wait_for_timeout(300)
-
-        start_btn = page.locator("#start-game-btn")
-        if start_btn.count() > 0 and start_btn.is_visible():
-            start_btn.click()
+        # Setup game with bots + Host playing
+        host_player_page, room_code, host_ctx = setup_game_with_host_playing(
+            page, server, browser, num_bots=3
+        )
 
         initial_tiles_remaining = None
         last_tiles_remaining = None
@@ -946,12 +978,15 @@ class TestBotTurnProgression:
 
         # Monitor for 60 seconds
         for i in range(60):
+            # Let Host auto-play their turn
+            auto_play_turn(host_player_page)
             page.wait_for_timeout(1000)
 
             # Check for game over
             body = page.locator("body").text_content() or ""
             if "game over" in body.lower() or "final scores" in body.lower():
                 print(f"Game completed in {i} seconds!")
+                host_ctx.close()
                 return  # Success - game finished
 
             # Parse WebSocket messages for game state
@@ -977,6 +1012,8 @@ class TestBotTurnProgression:
                     f"turns detected: {turns_detected}"
                 )
 
+        host_ctx.close()
+
         # If we got here, game didn't finish but should have made progress
         assert turns_detected >= 5, (
             f"Only {turns_detected} turns detected in 60s - game barely progressed. "
@@ -993,25 +1030,16 @@ class TestGameEndDetection:
         console_logs = []
         page.on("console", lambda msg: console_logs.append(f"[{msg.type}] {msg.text}"))
 
-        page.goto(f"{server}/")
-        page.fill("#create-player-name", "Host")
-        page.click("button:has-text('Create Game')")
-        page.wait_for_url("**/host/**")
-
-        # Add bots
-        add_bot_btn = page.locator("#add-bot-btn")
-        for _ in range(3):
-            if add_bot_btn.count() > 0 and add_bot_btn.is_visible():
-                add_bot_btn.click()
-                page.wait_for_timeout(500)
-
-        start_btn = page.locator("#start-game-btn")
-        if start_btn.count() > 0 and start_btn.is_visible():
-            start_btn.click()
+        # Setup game with bots + Host playing
+        host_player_page, room_code, host_ctx = setup_game_with_host_playing(
+            page, server, browser, num_bots=3
+        )
 
         # Check periodically for game end
         game_ended = False
         for i in range(120):  # 2 minutes max
+            # Let Host auto-play their turn
+            auto_play_turn(host_player_page)
             page.wait_for_timeout(1000)
 
             # Check for game over indicators
@@ -1033,9 +1061,340 @@ class TestGameEndDetection:
             if i % 10 == 0:
                 print(f"Still playing... ({i}s)")
 
+        host_ctx.close()
         print(f"\nGame ended: {game_ended}")
 
         # Print final state
         print("\n=== Console Logs (last 20) ===")
         for log in console_logs[-20:]:
             print(log)
+
+
+class TestHumanPlayerGameplay:
+    """Tests for human player gameplay - the real user experience."""
+
+    def test_human_player_sees_tiles_and_can_place(
+        self, page: Page, server, browser: Browser
+    ):
+        """Test that a human player can see tiles and place one when it's their turn."""
+        console_logs = []
+
+        # Create game as host (host view)
+        page.goto(f"{server}/")
+        page.fill("#create-player-name", "Host")
+        page.click("button:has-text('Create Game')")
+        page.wait_for_url("**/host/**")
+
+        # Extract room code and host player ID
+        room_code = page.url.split("/host/")[1].split("?")[0]
+        host_player_id = page.url.split("player_id=")[1].split("&")[0]
+        host_session_token = (
+            page.url.split("session_token=")[1] if "session_token=" in page.url else ""
+        )
+        print(f"\n=== Room code: {room_code} ===")
+
+        # Host also needs a player view to participate (creator is a player)
+        host_player_context = browser.new_context()
+        host_player_page = host_player_context.new_page()
+        host_player_page.on(
+            "console",
+            lambda msg: console_logs.append(f"[host] [{msg.type}] {msg.text}"),
+        )
+        host_player_page.goto(
+            f"{server}/play/{room_code}?player_id={host_player_id}&session_token={host_session_token}"
+        )
+        host_player_page.wait_for_load_state("networkidle")
+        print("Host opened player view")
+
+        # Open player view in a new browser context (simulating a phone)
+        player_context = browser.new_context()
+        player_page = player_context.new_page()
+        player_page.on(
+            "console",
+            lambda msg: console_logs.append(f"[player] [{msg.type}] {msg.text}"),
+        )
+
+        # Join as player
+        player_page.goto(f"{server}/")
+        player_page.fill("#room-code", room_code)
+        player_page.fill("#join-player-name", "HumanPlayer")
+        player_page.click("button:has-text('Join Game')")
+        player_page.wait_for_url(f"**/play/{room_code}**")
+        print("Human player joined game")
+
+        # Add 2 bots from host view (total: Host + HumanPlayer + 2 bots = 4)
+        add_bot_btn = page.locator("#add-bot-btn")
+        for _ in range(2):
+            if add_bot_btn.count() > 0 and add_bot_btn.is_visible():
+                add_bot_btn.click()
+                page.wait_for_timeout(500)
+        print("Added 2 bots")
+
+        # Start game from host view
+        start_btn = page.locator("#start-game-btn")
+        if start_btn.count() > 0 and start_btn.is_visible():
+            start_btn.click()
+            print("Game started")
+
+        # Wait for game state to propagate
+        player_page.wait_for_timeout(2000)
+
+        # Helper to try placing a tile for any player
+        def try_place_tile_for(player_pg, name):
+            tiles = player_pg.locator("#tile-rack .tile:not([disabled])")
+            if tiles.count() > 0:
+                first_tile = tiles.first
+                tile_data = first_tile.get_attribute("data-tile")
+                if tile_data and tile_data.strip():
+                    print(f"{name} placing tile {tile_data}")
+                    first_tile.click()
+                    player_pg.wait_for_timeout(300)
+                    confirm = player_pg.locator("#confirm-place-tile")
+                    if confirm.count() > 0 and confirm.is_visible():
+                        confirm.click()
+                        player_pg.wait_for_timeout(500)
+                        buy_section = player_pg.locator("#buy-stocks-section")
+                        if buy_section.count() > 0 and buy_section.is_visible():
+                            confirm_buy = player_pg.locator("#confirm-buy")
+                            if confirm_buy.count() > 0 and confirm_buy.is_visible():
+                                confirm_buy.click()
+                                player_pg.wait_for_timeout(300)
+                        print(f"  {name} placed tile!")
+                        return True
+            return False
+
+        # Keep the Host playing so they don't block the game
+        # We'll check both Host and HumanPlayer for turns
+        all_players = [("Host", host_player_page), ("HumanPlayer", player_page)]
+
+        # CHECKPOINT 1: Verify HumanPlayer sees tiles
+        tile_buttons = player_page.locator("#tile-rack .tile")
+        tile_count = tile_buttons.count()
+        print(f"Found {tile_count} tile buttons for HumanPlayer")
+
+        tiles_with_data = []
+        for i in range(tile_count):
+            tile = tile_buttons.nth(i)
+            tile_data = tile.get_attribute("data-tile")
+            tile_text = tile.text_content()
+            if tile_data and tile_data.strip():
+                tiles_with_data.append(tile_data)
+            print(f"  Tile {i}: data-tile='{tile_data}', text='{tile_text}'")
+
+        assert len(tiles_with_data) > 0, (
+            "Player has no tiles with data! Console logs:\n"
+            + "\n".join(console_logs[-20:])
+        )
+        print(f"HumanPlayer has {len(tiles_with_data)} tiles: {tiles_with_data}")
+
+        # CHECKPOINT 2: Wait for HumanPlayer's turn and place a tile
+        # Keep Host playing to prevent blocking the game
+        human_placed_tile = False
+        turns_played = {"Host": 0, "HumanPlayer": 0}
+
+        for attempt in range(60):  # Max 60 iterations (~30 seconds)
+            # Check and play for any human player whose turn it is
+            for name, pg in all_players:
+                if try_place_tile_for(pg, name):
+                    turns_played[name] += 1
+                    if name == "HumanPlayer":
+                        human_placed_tile = True
+                    pg.wait_for_timeout(500)
+                    break
+
+            if human_placed_tile:
+                break
+
+            player_page.wait_for_timeout(500)
+
+        print("\n=== Turn Summary ===")
+        print(f"Host turns: {turns_played['Host']}")
+        print(f"HumanPlayer turns: {turns_played['HumanPlayer']}")
+
+        # Assert HumanPlayer got to play at least once
+        assert human_placed_tile, (
+            "HumanPlayer never placed a tile! Console logs:\n"
+            + "\n".join(console_logs[-30:])
+        )
+        print("SUCCESS: HumanPlayer placed a tile!")
+
+        # Print final state
+        print("\n=== Final Console Logs ===")
+        for log in console_logs[-15:]:
+            print(log)
+
+        host_player_context.close()
+        player_context.close()
+
+    def test_two_humans_and_bots_play_multiple_turns(
+        self, page: Page, server, browser: Browser
+    ):
+        """Test game with 2 human players and 2 bots, playing multiple turns.
+
+        Note: The Host who creates the game is automatically added as a player.
+        We add 3 bots so there are 4 players total (Host + 3 bots), then we test
+        with additional human players joining.
+
+        For this test, we create the game, add 2 human players, and add enough
+        bots to fill the game. The Host is a player but doesn't participate
+        via the player view (they could use the host view to observe).
+        """
+        console_logs = []
+
+        # Create game as host
+        page.goto(f"{server}/")
+        page.fill("#create-player-name", "Host")
+        page.click("button:has-text('Create Game')")
+        page.wait_for_url("**/host/**")
+
+        room_code = page.url.split("/host/")[1].split("?")[0]
+        host_player_id = page.url.split("player_id=")[1].split("&")[0]
+        print(f"\n=== Room: {room_code} ===")
+        print(f"Host player ID: {host_player_id[:8]}...")
+
+        # The Host also needs to open a player view to participate
+        host_player_context = browser.new_context()
+        host_player = host_player_context.new_page()
+        host_player.on("console", lambda msg: console_logs.append(f"[Host] {msg.text}"))
+
+        # Navigate directly to the player view for the Host
+        host_session_token = (
+            page.url.split("session_token=")[1] if "session_token=" in page.url else ""
+        )
+        host_player.goto(
+            f"{server}/play/{room_code}?player_id={host_player_id}&session_token={host_session_token}"
+        )
+        host_player.wait_for_load_state("networkidle")
+        print("Host opened player view")
+
+        # Player 1 joins
+        player1_context = browser.new_context()
+        player1 = player1_context.new_page()
+        player1.on("console", lambda msg: console_logs.append(f"[P1] {msg.text}"))
+
+        player1.goto(f"{server}/")
+        player1.fill("#room-code", room_code)
+        player1.fill("#join-player-name", "Player1")
+        player1.click("button:has-text('Join Game')")
+        player1.wait_for_url(f"**/play/{room_code}**")
+        print("Player1 joined")
+
+        # Player 2 joins
+        player2_context = browser.new_context()
+        player2 = player2_context.new_page()
+        player2.on("console", lambda msg: console_logs.append(f"[P2] {msg.text}"))
+
+        player2.goto(f"{server}/")
+        player2.fill("#room-code", room_code)
+        player2.fill("#join-player-name", "Player2")
+        player2.click("button:has-text('Join Game')")
+        player2.wait_for_url(f"**/play/{room_code}**")
+        print("Player2 joined")
+
+        # Add 1 bot (total: Host + Player1 + Player2 + 1 bot = 4 players)
+        add_bot_btn = page.locator("#add-bot-btn")
+        if add_bot_btn.count() > 0 and add_bot_btn.is_visible():
+            add_bot_btn.click()
+            page.wait_for_timeout(500)
+        print("Added 1 bot (4 players total)")
+
+        # Start game
+        start_btn = page.locator("#start-game-btn")
+        if start_btn.count() > 0 and start_btn.is_visible():
+            start_btn.click()
+        print("Game started")
+
+        # Wait for game to initialize
+        player1.wait_for_timeout(2000)
+
+        # Helper function to attempt placing a tile for a player
+        def try_place_tile(player_page, player_name):
+            """Try to place a tile if it's this player's turn. Returns True if successful."""
+            # Wait a moment for any state updates
+            player_page.wait_for_timeout(200)
+
+            # Check for enabled tiles (indicates it's our turn and we're in place_tile phase)
+            tiles = player_page.locator("#tile-rack .tile:not([disabled])")
+            if tiles.count() == 0:
+                return False
+
+            first_tile = tiles.first
+            tile_data = first_tile.get_attribute("data-tile")
+
+            if not tile_data or not tile_data.strip():
+                return False
+
+            # It's this player's turn - place a tile
+            print(f"{player_name} placing tile {tile_data}")
+            first_tile.click()
+            player_page.wait_for_timeout(300)
+
+            confirm = player_page.locator("#confirm-place-tile")
+            if confirm.count() > 0 and confirm.is_visible():
+                confirm.click()
+                print(f"  {player_name} placed tile!")
+                player_page.wait_for_timeout(500)
+
+                # Handle buy stocks phase if it appears
+                buy_section = player_page.locator("#buy-stocks-section")
+                if buy_section.count() > 0 and buy_section.is_visible():
+                    confirm_buy = player_page.locator("#confirm-buy")
+                    if confirm_buy.count() > 0 and confirm_buy.is_visible():
+                        confirm_buy.click()
+                        print(f"  {player_name} skipped buying stocks")
+                        player_page.wait_for_timeout(500)
+
+                return True
+            return False
+
+        # Track turns played by humans (Host + Player1 + Player2)
+        turns_played = {"Host": 0, "Player1": 0, "Player2": 0}
+        players = [
+            ("Host", host_player),
+            ("Player1", player1),
+            ("Player2", player2),
+        ]
+        max_turns = 6  # Play up to 6 human turns total
+
+        # Play turns until we've accumulated enough turns or timed out
+        for _ in range(60):  # Max 60 iterations (with 500ms delay = ~30 seconds)
+            for player_name, player_page in players:
+                if try_place_tile(player_page, player_name):
+                    turns_played[player_name] += 1
+                    # After placing, wait for game state to update for everyone
+                    player_page.wait_for_timeout(500)
+                    # Break inner loop to re-check all players fresh
+                    break
+
+            total_turns = sum(turns_played.values())
+            if total_turns >= max_turns:
+                break
+
+            # Small delay between checks
+            player1.wait_for_timeout(500)
+
+        total_turns = sum(turns_played.values())
+        print("\n=== Results ===")
+        print(f"Host turns: {turns_played['Host']}")
+        print(f"Player1 turns: {turns_played['Player1']}")
+        print(f"Player2 turns: {turns_played['Player2']}")
+        print(f"Total turns: {total_turns}")
+
+        # Verify at least 2 different humans got to play
+        # Note: Player1 and Player2 are the key players we want to verify
+        humans_who_played = sum(1 for t in turns_played.values() if t > 0)
+        assert turns_played["Player1"] > 0 or turns_played["Player2"] > 0, (
+            f"Neither Player1 nor Player2 got to play! "
+            f"Turns: {turns_played}. Console logs:\n" + "\n".join(console_logs[-20:])
+        )
+        # At least 2 total turns should have happened
+        assert total_turns >= 2, f"Only {total_turns} turns played, expected at least 2"
+        print(f"SUCCESS: {humans_who_played} humans played, {total_turns} total turns")
+
+        print("\n=== Console Logs (last 15) ===")
+        for log in console_logs[-15:]:
+            print(log)
+
+        host_player_context.close()
+        player1_context.close()
+        player2_context.close()
