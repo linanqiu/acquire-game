@@ -21,6 +21,7 @@
         </header>
 
         <main class="host-main">
+            {% if not display_mode %}
             <section class="lobby-controls" id="lobby-controls">
                 <h2>Game Controls</h2>
                 <div class="control-buttons">
@@ -33,6 +34,11 @@
                 </div>
                 <p class="player-count">Players: <span id="player-count">0</span>/6 (min 2 to start)</p>
             </section>
+            {% else %}
+            <section class="display-mode-banner" id="display-mode-banner">
+                <p>TV Display Mode</p>
+            </section>
+            {% endif %}
 
             <section class="board-section">
                 <div class="game-board" id="game-board">
@@ -270,6 +276,6 @@
             sessionToken: "{{ session_token }}"
         };
     </script>
-    <script src="/static/js/host.js"></script>
+    <script type="module" src="/static/js/host/index.js"></script>
 </body>
 </html>
