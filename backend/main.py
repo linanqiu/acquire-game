@@ -6,7 +6,14 @@ import uuid
 from collections import defaultdict
 from typing import Optional, Union, Literal
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException, Form
+from fastapi import (
+    FastAPI,
+    WebSocket,
+    WebSocketDisconnect,
+    Request,
+    HTTPException,
+    Form,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -275,7 +282,9 @@ async def create_room(player_name: str = Form(...)):
         raise HTTPException(status_code=500, detail="Failed to create room")
 
     # Redirect to host view with credentials
-    redirect_url = f"/host/{room_code}?player_id={player_id}&session_token={session_token}"
+    redirect_url = (
+        f"/host/{room_code}?player_id={player_id}&session_token={session_token}"
+    )
     return RedirectResponse(url=redirect_url, status_code=303)
 
 
@@ -298,12 +307,16 @@ async def join_room(room_code: str, player_name: str = Form(...)):
     if session_token is None:
         # Check if it was a duplicate name
         room = session_manager.get_room(room_code.upper())
-        if room and any(p.name.lower() == player_name.lower() for p in room.players.values()):
+        if room and any(
+            p.name.lower() == player_name.lower() for p in room.players.values()
+        ):
             raise HTTPException(status_code=400, detail="Player name already taken")
         raise HTTPException(status_code=400, detail="Failed to join room")
 
     # Redirect to player view with credentials
-    redirect_url = f"/play/{room_code.upper()}?player_id={player_id}&session_token={session_token}"
+    redirect_url = (
+        f"/play/{room_code.upper()}?player_id={player_id}&session_token={session_token}"
+    )
     return RedirectResponse(url=redirect_url, status_code=303)
 
 

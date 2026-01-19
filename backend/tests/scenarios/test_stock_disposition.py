@@ -1,6 +1,5 @@
 """Tests for stock disposition during mergers."""
 
-
 from game.game import GamePhase
 from game.board import Tile
 from tests.scenarios.conftest import (
@@ -42,7 +41,9 @@ class TestDispositionOptions:
         }
 
         # Sell all 4 shares at $200 (Tower size 2)
-        result = game.handle_stock_disposition(player.player_id, sell=4, trade=0, keep=0)
+        result = game.handle_stock_disposition(
+            player.player_id, sell=4, trade=0, keep=0
+        )
 
         assert result["success"] is True
         assert result["sold"] == 4
@@ -78,7 +79,9 @@ class TestDispositionOptions:
         }
 
         # Trade all 6 shares for 3 Luxor
-        result = game.handle_stock_disposition(player.player_id, sell=0, trade=6, keep=0)
+        result = game.handle_stock_disposition(
+            player.player_id, sell=0, trade=6, keep=0
+        )
 
         assert result["success"] is True
         assert result["traded"] == 6
@@ -115,7 +118,9 @@ class TestDispositionOptions:
         }
 
         # Keep all 5 shares
-        result = game.handle_stock_disposition(player.player_id, sell=0, trade=0, keep=5)
+        result = game.handle_stock_disposition(
+            player.player_id, sell=0, trade=0, keep=5
+        )
 
         assert result["success"] is True
         assert result["kept"] == 5
@@ -151,7 +156,9 @@ class TestDispositionOptions:
         }
 
         # Sell 2, trade 4 (for 2 Luxor), keep 2
-        result = game.handle_stock_disposition(player.player_id, sell=2, trade=4, keep=2)
+        result = game.handle_stock_disposition(
+            player.player_id, sell=2, trade=4, keep=2
+        )
 
         assert result["success"] is True
         assert result["sold"] == 2
@@ -195,7 +202,9 @@ class TestDispositionConstraints:
         }
 
         # Try to trade 10 (would need 5 Luxor)
-        result = game.handle_stock_disposition(player.player_id, sell=0, trade=10, keep=0)
+        result = game.handle_stock_disposition(
+            player.player_id, sell=0, trade=10, keep=0
+        )
 
         assert result["success"] is False
         assert "not enough" in result["error"].lower()
@@ -227,7 +236,9 @@ class TestDispositionConstraints:
         }
 
         # Try to trade 3 (odd number)
-        result = game.handle_stock_disposition(player.player_id, sell=0, trade=3, keep=2)
+        result = game.handle_stock_disposition(
+            player.player_id, sell=0, trade=3, keep=2
+        )
 
         assert result["success"] is False
         assert "even" in result["error"].lower()
@@ -259,7 +270,9 @@ class TestDispositionConstraints:
         }
 
         # Try to dispose of wrong total
-        result = game.handle_stock_disposition(player.player_id, sell=2, trade=2, keep=1)  # Total 5 != 6
+        result = game.handle_stock_disposition(
+            player.player_id, sell=2, trade=2, keep=1
+        )  # Total 5 != 6
 
         assert result["success"] is False
         assert "don't add up" in result["error"].lower()
@@ -333,5 +346,8 @@ class TestMultipleStockholders:
         assert p1.money > p1_initial_money
 
         # Now p2 should be prompted
-        if game.pending_action and game.pending_action.get("type") == "stock_disposition":
+        if (
+            game.pending_action
+            and game.pending_action.get("type") == "stock_disposition"
+        ):
             assert game.pending_action.get("player_id") == "p2"

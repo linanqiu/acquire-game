@@ -1,6 +1,5 @@
 """Tests for tile placement rules and results."""
 
-
 from game.game import GamePhase
 from game.board import Tile, TileState
 from game.rules import Rules
@@ -151,7 +150,15 @@ class TestPlacementValidation:
         builder = ChainBuilder(game)
 
         # Activate all 7 chains
-        chains = ["Luxor", "Tower", "American", "Worldwide", "Festival", "Imperial", "Continental"]
+        chains = [
+            "Luxor",
+            "Tower",
+            "American",
+            "Worldwide",
+            "Festival",
+            "Imperial",
+            "Continental",
+        ]
         row_letters = ["A", "B", "C", "D", "E", "F", "G"]
         for i, chain in enumerate(chains):
             builder.setup_chain(chain, 2, start_col=1, row=row_letters[i])

@@ -1,6 +1,5 @@
 """Tests for bot game completion and phase handling."""
 
-
 from game.game import Game, GamePhase
 from game.board import Tile
 from tests.scenarios.conftest import ChainBuilder
@@ -35,7 +34,10 @@ class TestBotGameCompletion:
                     game.end_game()
                     break
                 # Also check if tile bag is empty and no progress
-                if len(game.tile_bag) == last_tiles and turn_count > force_end_after + 50:
+                if (
+                    len(game.tile_bag) == last_tiles
+                    and turn_count > force_end_after + 50
+                ):
                     # Game is stuck, force end
                     game.end_game()
                     break

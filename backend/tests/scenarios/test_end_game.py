@@ -1,6 +1,5 @@
 """Tests for end game conditions and finalization."""
 
-
 from game.game import GamePhase
 from game.board import Tile
 from game.rules import Rules
@@ -67,7 +66,7 @@ class TestEndGameConditions:
 
         # One safe chain, one unsafe chain
         builder.setup_chain("Luxor", 11, start_col=1, row="A")  # Safe
-        builder.setup_chain("Tower", 5, start_col=1, row="C")   # Unsafe
+        builder.setup_chain("Tower", 5, start_col=1, row="C")  # Unsafe
 
         can_end = Rules.check_end_game(game.board, game.hotel)
         assert can_end is False
@@ -155,9 +154,9 @@ class TestEndGameFinalization:
         p2 = game.get_player("p2")
         p3 = game.get_player("p3")
 
-        give_player_stocks(p1, "Luxor", 2, game.hotel)   # Least
+        give_player_stocks(p1, "Luxor", 2, game.hotel)  # Least
         give_player_stocks(p2, "Luxor", 10, game.hotel)  # Most
-        give_player_stocks(p3, "Luxor", 5, game.hotel)   # Middle
+        give_player_stocks(p3, "Luxor", 5, game.hotel)  # Middle
 
         # End the game
         result = game.end_game()
