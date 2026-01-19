@@ -1,6 +1,5 @@
 """Tests for stock pricing based on chain tiers and sizes."""
 
-
 from game.hotel import Hotel, HotelTier
 
 
@@ -116,23 +115,43 @@ class TestPriceBrackets:
 
         # Cheap tier brackets
         cheap_expected = {
-            2: 200, 3: 300, 4: 400, 5: 500,
-            6: 600, 7: 600, 8: 600, 9: 600, 10: 600,
-            11: 700, 15: 700, 20: 700,
-            21: 800, 25: 800, 30: 800,
-            31: 900, 35: 900, 40: 900,
-            41: 1000, 50: 1000
+            2: 200,
+            3: 300,
+            4: 400,
+            5: 500,
+            6: 600,
+            7: 600,
+            8: 600,
+            9: 600,
+            10: 600,
+            11: 700,
+            15: 700,
+            20: 700,
+            21: 800,
+            25: 800,
+            30: 800,
+            31: 900,
+            35: 900,
+            40: 900,
+            41: 1000,
+            50: 1000,
         }
         for size, expected_price in cheap_expected.items():
-            assert hotel.get_stock_price("Luxor", size) == expected_price, f"Luxor size {size}"
+            assert hotel.get_stock_price("Luxor", size) == expected_price, (
+                f"Luxor size {size}"
+            )
 
         # Medium tier brackets (+$100 from cheap)
         for size, cheap_price in cheap_expected.items():
-            assert hotel.get_stock_price("American", size) == cheap_price + 100, f"American size {size}"
+            assert hotel.get_stock_price("American", size) == cheap_price + 100, (
+                f"American size {size}"
+            )
 
         # Expensive tier brackets (+$200 from cheap)
         for size, cheap_price in cheap_expected.items():
-            assert hotel.get_stock_price("Imperial", size) == cheap_price + 200, f"Imperial size {size}"
+            assert hotel.get_stock_price("Imperial", size) == cheap_price + 200, (
+                f"Imperial size {size}"
+            )
 
 
 class TestBonusPricing:

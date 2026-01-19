@@ -1,8 +1,6 @@
 """Integration tests for lobby create/join game flows."""
 
 
-
-
 class TestCreateGameFlow:
     """Tests for the create game flow."""
 
@@ -16,7 +14,9 @@ class TestCreateGameFlow:
         assert response.status_code == 303
         assert "/host/" in response.headers["location"]
 
-    def test_create_includes_credentials_in_redirect(self, client, clean_session_manager):
+    def test_create_includes_credentials_in_redirect(
+        self, client, clean_session_manager
+    ):
         """Redirect URL should include player_id and session_token."""
         response = client.post(
             "/create",
@@ -57,7 +57,9 @@ class TestCreateGameFlow:
         )
         assert response.status_code == 200
         # Should contain room code display
-        assert b"room_code" in response.content.lower() or b"Room Code" in response.content
+        assert (
+            b"room_code" in response.content.lower() or b"Room Code" in response.content
+        )
 
     def test_create_requires_player_name(self, client, clean_session_manager):
         """POST /create without player_name should fail."""
@@ -103,7 +105,9 @@ class TestJoinGameFlow:
         player = list(room.players.values())[0]
         assert player.name == "Bob"
 
-    def test_join_case_insensitive_room_code(self, client, room_code, clean_session_manager):
+    def test_join_case_insensitive_room_code(
+        self, client, room_code, clean_session_manager
+    ):
         """Room code should be case insensitive."""
         lower_code = room_code.lower()
         response = client.post(
@@ -341,12 +345,12 @@ class TestViewEndpoints:
 
     def test_host_view_accepts_credentials(self, client, room_code):
         """Host view should accept player_id and session_token params."""
-        response = client.get(
-            f"/host/{room_code}?player_id=test123&session_token=abc"
-        )
+        response = client.get(f"/host/{room_code}?player_id=test123&session_token=abc")
         assert response.status_code == 200
 
-    def test_player_view_accepts_credentials(self, client, room_code, clean_session_manager):
+    def test_player_view_accepts_credentials(
+        self, client, room_code, clean_session_manager
+    ):
         """Player view should accept session_token param."""
         # First add a player to the room
         player_id = "test_player_123"

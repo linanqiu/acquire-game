@@ -1,6 +1,5 @@
 """Tests for merger mechanics."""
 
-
 from game.game import GamePhase
 from game.board import Tile
 from game.rules import Rules
@@ -96,7 +95,9 @@ class TestMergerProcessing:
         defunct = ["Tower", "American"]
 
         # Sort defunct by size (what _start_merger_process does)
-        defunct_sorted = sorted(defunct, key=lambda c: game.board.get_chain_size(c), reverse=True)
+        defunct_sorted = sorted(
+            defunct, key=lambda c: game.board.get_chain_size(c), reverse=True
+        )
 
         assert defunct_sorted[0] == "Tower"  # Tower (3) should be first
         assert defunct_sorted[1] == "American"  # American (2) second

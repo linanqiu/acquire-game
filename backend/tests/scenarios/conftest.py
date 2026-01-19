@@ -91,9 +91,7 @@ class ChainBuilder:
         self.game.hotel.activate_chain(chain_name)
         return tiles
 
-    def setup_lone_tiles(
-        self, positions: list[tuple[int, str]]
-    ) -> list[Tile]:
+    def setup_lone_tiles(self, positions: list[tuple[int, str]]) -> list[Tile]:
         """Place tiles without assigning to any chain.
 
         Args:
@@ -119,8 +117,10 @@ def chain_builder(game_with_two_players):
 @pytest.fixture
 def fresh_chain_builder():
     """Factory for creating chain builders with custom games."""
+
     def _make_builder(game: Game) -> ChainBuilder:
         return ChainBuilder(game)
+
     return _make_builder
 
 

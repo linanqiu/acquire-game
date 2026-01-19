@@ -124,7 +124,8 @@ class TestJoinRoom:
         location = response.headers["location"]
         # Extract player_id from URL: /play/XXXX?player_id=...&session_token=...
         import re
-        match = re.search(r'player_id=([^&]+)', location)
+
+        match = re.search(r"player_id=([^&]+)", location)
         player_id = match.group(1)
 
         room = session_manager.get_room(room_code)

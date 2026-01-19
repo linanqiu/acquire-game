@@ -1,6 +1,5 @@
 """Tests for chain founding mechanics."""
 
-
 from game.game import GamePhase
 from game.board import Tile
 from tests.scenarios.conftest import (

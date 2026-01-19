@@ -1,6 +1,5 @@
 """Tests for majority/minority bonus calculations."""
 
-
 from game.rules import Rules
 from tests.scenarios.conftest import (
     ChainBuilder,
@@ -23,9 +22,7 @@ class TestBonusDistribution:
         p1 = game.get_player("p1")
         give_player_stocks(p1, "Luxor", 5, game.hotel)
 
-        bonuses = Rules.calculate_bonuses(
-            game.players, "Luxor", 3, game.hotel
-        )
+        bonuses = Rules.calculate_bonuses(game.players, "Luxor", 3, game.hotel)
 
         # Luxor size 3 = $300 price -> $3000 majority, $1500 minority
         assert "p1" in bonuses
@@ -52,9 +49,7 @@ class TestBonusDistribution:
         give_player_stocks(p2, "Tower", 3, game.hotel)
         give_player_stocks(p3, "Tower", 1, game.hotel)
 
-        bonuses = Rules.calculate_bonuses(
-            game.players, "Tower", 4, game.hotel
-        )
+        bonuses = Rules.calculate_bonuses(game.players, "Tower", 4, game.hotel)
 
         # P1 gets majority bonus ($4000)
         assert bonuses["p1"]["majority"] == 4000
@@ -65,7 +60,10 @@ class TestBonusDistribution:
         assert bonuses["p2"]["minority"] == 2000
 
         # P3 gets nothing
-        assert "p3" not in bonuses or (bonuses.get("p3", {}).get("majority", 0) == 0 and bonuses.get("p3", {}).get("minority", 0) == 0)
+        assert "p3" not in bonuses or (
+            bonuses.get("p3", {}).get("majority", 0) == 0
+            and bonuses.get("p3", {}).get("minority", 0) == 0
+        )
 
     def test_tie_for_majority_splits_both(self, game_with_three_players):
         """Tie for majority splits both majority and minority bonuses."""
@@ -73,7 +71,9 @@ class TestBonusDistribution:
         builder = ChainBuilder(game)
 
         # Set up chain
-        builder.setup_chain("American", 5, start_col=1, row="A")  # Medium tier, $600 price
+        builder.setup_chain(
+            "American", 5, start_col=1, row="A"
+        )  # Medium tier, $600 price
 
         # P1 and P2 tied for majority
         p1 = game.get_player("p1")
@@ -84,9 +84,7 @@ class TestBonusDistribution:
         give_player_stocks(p2, "American", 5, game.hotel)
         give_player_stocks(p3, "American", 2, game.hotel)
 
-        bonuses = Rules.calculate_bonuses(
-            game.players, "American", 5, game.hotel
-        )
+        bonuses = Rules.calculate_bonuses(game.players, "American", 5, game.hotel)
 
         # Majority = $6000, Minority = $3000, Total = $9000
         # Split between 2 = $4500 each, rounded up to $4500
@@ -117,9 +115,7 @@ class TestBonusDistribution:
         give_player_stocks(p2, "Festival", 4, game.hotel)
         give_player_stocks(p3, "Festival", 4, game.hotel)
 
-        bonuses = Rules.calculate_bonuses(
-            game.players, "Festival", 6, game.hotel
-        )
+        bonuses = Rules.calculate_bonuses(game.players, "Festival", 6, game.hotel)
 
         # Majority = $7000, Minority = $3500, Total = $10500
         # Split 3 ways = $3500 each, rounded up
@@ -135,7 +131,9 @@ class TestBonusDistribution:
         builder = ChainBuilder(game)
 
         # Set up chain
-        builder.setup_chain("Imperial", 5, start_col=1, row="A")  # Expensive, $700 price
+        builder.setup_chain(
+            "Imperial", 5, start_col=1, row="A"
+        )  # Expensive, $700 price
 
         # P1 has clear majority, P2 and P3 tied for minority
         p1 = game.get_player("p1")
@@ -148,9 +146,7 @@ class TestBonusDistribution:
         give_player_stocks(p3, "Imperial", 3, game.hotel)  # Tied minority
         give_player_stocks(p4, "Imperial", 1, game.hotel)  # Less than minority
 
-        bonuses = Rules.calculate_bonuses(
-            game.players, "Imperial", 5, game.hotel
-        )
+        bonuses = Rules.calculate_bonuses(game.players, "Imperial", 5, game.hotel)
 
         # P1 gets full majority ($7000)
         assert bonuses["p1"]["majority"] == 7000
@@ -195,9 +191,7 @@ class TestBonusRounding:
         give_player_stocks(p2, "Luxor", 3, game.hotel)
         give_player_stocks(p3, "Luxor", 3, game.hotel)
 
-        bonuses = Rules.calculate_bonuses(
-            game.players, "Luxor", 3, game.hotel
-        )
+        bonuses = Rules.calculate_bonuses(game.players, "Luxor", 3, game.hotel)
 
         # Each gets $1500 (4500 / 3 = 1500, already even)
         for player_id in ["p1", "p2", "p3"]:
@@ -215,9 +209,7 @@ class TestBonusEdgeCases:
         builder.setup_chain("Luxor", 3, start_col=1, row="A")
 
         # No one owns Luxor stock
-        bonuses = Rules.calculate_bonuses(
-            game.players, "Luxor", 3, game.hotel
-        )
+        bonuses = Rules.calculate_bonuses(game.players, "Luxor", 3, game.hotel)
 
         assert bonuses == {}
 
@@ -228,9 +220,7 @@ class TestBonusEdgeCases:
         p1 = game.get_player("p1")
         p1._stocks["Luxor"] = 5
 
-        bonuses = Rules.calculate_bonuses(
-            game.players, "Luxor", 0, game.hotel
-        )
+        bonuses = Rules.calculate_bonuses(game.players, "Luxor", 0, game.hotel)
 
         # Size 0 = $0 price = $0 bonuses
         if bonuses:
