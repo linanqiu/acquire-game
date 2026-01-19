@@ -288,8 +288,8 @@ async def create_room(player_name: str = Form(...)):
     return RedirectResponse(url=redirect_url, status_code=303)
 
 
-@app.post("/join/{room_code}")
-async def join_room(room_code: str, player_name: str = Form(...)):
+@app.post("/join")
+async def join_room(room_code: str = Form(...), player_name: str = Form(...)):
     """Join an existing room and redirect to player view."""
     room = session_manager.get_room(room_code.upper())
     if room is None:
@@ -1055,10 +1055,26 @@ async def broadcast_game_state(room_code: str):
     # Build public game state
     current_player_id = game["turn_order"][game["current_turn_index"]]
 
+    # Build chain info with sizes and prices
+    hotel_state = hotel.get_state()
+    chains_info = []
+    for chain_name in hotel.get_all_chain_names():
+        size = board.get_chain_size(chain_name)
+        price = hotel.get_stock_price(chain_name, size)
+        chains_info.append(
+            {
+                "name": chain_name,
+                "size": size,
+                "price": price,
+                "stocks_available": hotel_state["available_stocks"].get(chain_name, 25),
+            }
+        )
+    hotel_state["chains"] = chains_info
+
     public_state = {
         "type": "game_state",
         "board": board.get_state(),
-        "hotel": hotel.get_state(),
+        "hotel": hotel_state,
         "turn_order": game["turn_order"],
         "current_player": current_player_id,
         "phase": game["phase"],

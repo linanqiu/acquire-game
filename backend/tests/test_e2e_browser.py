@@ -5,6 +5,7 @@ import subprocess
 import time
 import os
 import json
+import re
 
 # Skip all tests if playwright is not installed
 pytest.importorskip("playwright")
@@ -95,7 +96,7 @@ class TestLobbyE2E:
         page.wait_for_url("**/host/**")
 
         # Should redirect to host view
-        expect(page).to_have_url(pytest.approx_re(r".*/host/[A-Z]{4}\?.*"))
+        expect(page).to_have_url(re.compile(r".*/host/[A-Z]{4}\?.*"))
 
         # Room code should be visible
         expect(page.locator("#room-code")).to_be_visible()
@@ -121,7 +122,7 @@ class TestLobbyE2E:
 
         # Should redirect to player view
         page2.wait_for_url(f"**/play/{room_code}**")
-        expect(page2).to_have_url(pytest.approx_re(rf".*/play/{room_code}\?.*"))
+        expect(page2).to_have_url(re.compile(rf".*/play/{room_code}\?.*"))
 
         page2.close()
 
@@ -273,12 +274,13 @@ def capture_page_state(page, name="page"):
 def dump_websocket_traffic(ws_messages):
     """Pretty print WebSocket traffic."""
     print("\n=== WebSocket Traffic ===")
-    for direction, payload in ws_messages:
+    for direction, frame in ws_messages:
         try:
+            payload = frame if isinstance(frame, str) else str(frame)
             data = json.loads(payload)
             print(f"{direction}: {json.dumps(data, indent=2)[:300]}")
         except Exception:
-            print(f"{direction}: {payload[:300] if payload else 'empty'}")
+            print(f"{direction}: {str(frame)[:300] if frame else 'empty'}")
 
 
 # =============================================================================
@@ -360,8 +362,8 @@ class TestGameFlowWithDebugging:
         ws_messages = []
 
         def handle_websocket(ws):
-            ws.on("framesent", lambda f: ws_messages.append(("sent", f.payload)))
-            ws.on("framereceived", lambda f: ws_messages.append(("recv", f.payload)))
+            ws.on("framesent", lambda f: ws_messages.append(("sent", f)))
+            ws.on("framereceived", lambda f: ws_messages.append(("recv", f)))
 
         page.on("websocket", handle_websocket)
 
