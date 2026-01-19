@@ -21,28 +21,43 @@ class TestRoomCreation:
     """Tests for room creation endpoint."""
 
     def test_create_room_returns_code(self, client, clean_session_manager):
-        """POST /create should return a room code."""
-        response = client.post("/create")
-        assert response.status_code == 200
-        data = response.json()
-        assert "room_code" in data
-        assert len(data["room_code"]) == 4
-        assert data["room_code"].isalpha()
-        assert data["room_code"].isupper()
+        """POST /create should redirect with room code."""
+        response = client.post(
+            "/create",
+            data={"player_name": "TestPlayer"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 303
+        location = response.headers["location"]
+        # Extract room code from URL: /host/XXXX?player_id=...
+        room_code = location.split("/host/")[1].split("?")[0]
+        assert len(room_code) == 4
+        assert room_code.isalpha()
+        assert room_code.isupper()
 
     def test_create_room_is_unique(self, client, clean_session_manager):
         """Each created room should have a unique code."""
         codes = set()
-        for _ in range(10):
-            response = client.post("/create")
-            code = response.json()["room_code"]
+        for i in range(10):
+            response = client.post(
+                "/create",
+                data={"player_name": f"Player{i}"},
+                follow_redirects=False,
+            )
+            location = response.headers["location"]
+            code = location.split("/host/")[1].split("?")[0]
             assert code not in codes
             codes.add(code)
 
     def test_create_room_registers_in_manager(self, client, clean_session_manager):
         """Created room should be registered in session manager."""
-        response = client.post("/create")
-        code = response.json()["room_code"]
+        response = client.post(
+            "/create",
+            data={"player_name": "TestPlayer"},
+            follow_redirects=False,
+        )
+        location = response.headers["location"]
+        code = location.split("/host/")[1].split("?")[0]
         room = clean_session_manager.get_room(code)
         assert room is not None
         assert room.room_code == code
@@ -53,27 +68,47 @@ class TestJoinRoom:
     """Tests for joining rooms."""
 
     def test_join_room_success(self, client, room_code):
-        """POST /join/{room_code} should add player to room."""
-        response = client.post(f"/join/{room_code}?name=Alice")
-        assert response.status_code == 200
-        data = response.json()
-        assert "player_id" in data
-        assert data["room_code"] == room_code
+        """POST /join/{room_code} should redirect after adding player."""
+        response = client.post(
+            f"/join/{room_code}",
+            data={"player_name": "Alice"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 303
+        location = response.headers["location"]
+        assert "player_id=" in location
+        assert room_code in location
 
     def test_join_room_not_found(self, client, clean_session_manager):
         """Joining non-existent room should return 404."""
-        response = client.post("/join/XXXX?name=Alice")
+        response = client.post(
+            "/join/XXXX",
+            data={"player_name": "Alice"},
+            follow_redirects=False,
+        )
         assert response.status_code == 404
 
     def test_join_room_multiple_players(self, client, room_code):
         """Multiple players should be able to join a room."""
-        response1 = client.post(f"/join/{room_code}?name=Alice")
-        response2 = client.post(f"/join/{room_code}?name=Bob")
-        response3 = client.post(f"/join/{room_code}?name=Charlie")
+        response1 = client.post(
+            f"/join/{room_code}",
+            data={"player_name": "Alice"},
+            follow_redirects=False,
+        )
+        response2 = client.post(
+            f"/join/{room_code}",
+            data={"player_name": "Bob"},
+            follow_redirects=False,
+        )
+        response3 = client.post(
+            f"/join/{room_code}",
+            data={"player_name": "Charlie"},
+            follow_redirects=False,
+        )
 
-        assert response1.status_code == 200
-        assert response2.status_code == 200
-        assert response3.status_code == 200
+        assert response1.status_code == 303
+        assert response2.status_code == 303
+        assert response3.status_code == 303
 
         # Verify all players are in room
         room = session_manager.get_room(room_code)
@@ -81,8 +116,16 @@ class TestJoinRoom:
 
     def test_join_room_first_player_is_host(self, client, room_code):
         """First player to join should be marked as host."""
-        response = client.post(f"/join/{room_code}?name=Alice")
-        player_id = response.json()["player_id"]
+        response = client.post(
+            f"/join/{room_code}",
+            data={"player_name": "Alice"},
+            follow_redirects=False,
+        )
+        location = response.headers["location"]
+        # Extract player_id from URL: /play/XXXX?player_id=...&session_token=...
+        import re
+        match = re.search(r'player_id=([^&]+)', location)
+        player_id = match.group(1)
 
         room = session_manager.get_room(room_code)
         assert room.players[player_id].is_host is True
@@ -91,10 +134,18 @@ class TestJoinRoom:
         """Cannot join a room that is full."""
         # Fill the room (max 6 players)
         for i in range(6):
-            client.post(f"/join/{room_code}?name=Player{i}")
+            client.post(
+                f"/join/{room_code}",
+                data={"player_name": f"Player{i}"},
+                follow_redirects=False,
+            )
 
         # 7th player should fail
-        response = client.post(f"/join/{room_code}?name=PlayerExtra")
+        response = client.post(
+            f"/join/{room_code}",
+            data={"player_name": "PlayerExtra"},
+            follow_redirects=False,
+        )
         assert response.status_code == 400
         assert "full" in response.json()["detail"].lower()
 
@@ -102,7 +153,11 @@ class TestJoinRoom:
         """Cannot join a room where game has started."""
         clean_session_manager.start_game(room_with_players)
 
-        response = client.post(f"/join/{room_with_players}?name=NewPlayer")
+        response = client.post(
+            f"/join/{room_with_players}",
+            data={"player_name": "NewPlayer"},
+            follow_redirects=False,
+        )
         assert response.status_code == 400
         assert "started" in response.json()["detail"].lower()
 
