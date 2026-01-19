@@ -1,16 +1,12 @@
 """Tests for merger mechanics."""
 
-import pytest
 
-from game.game import Game, GamePhase
+from game.game import GamePhase
 from game.board import Tile
-from game.hotel import Hotel
 from game.rules import Rules
 from tests.scenarios.conftest import (
     ChainBuilder,
     give_player_tile,
-    give_player_stocks,
-    set_current_player,
 )
 
 

@@ -1,10 +1,8 @@
 """Tests for stock disposition during mergers."""
 
-import pytest
 
-from game.game import Game, GamePhase
+from game.game import GamePhase
 from game.board import Tile
-from game.hotel import Hotel
 from tests.scenarios.conftest import (
     ChainBuilder,
     give_player_tile,
@@ -313,7 +311,6 @@ class TestMultipleStockholders:
         give_player_stocks(p2, "Tower", 4, game.hotel)
 
         p1_initial_money = p1.money
-        p2_initial_money = p2.money
 
         # Set up merger state for p1
         game.phase = GamePhase.MERGING

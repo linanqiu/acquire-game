@@ -1,15 +1,12 @@
 """Tests for tile placement rules and results."""
 
-import pytest
 
-from game.game import Game, GamePhase
-from game.board import Board, Tile, TileState
-from game.hotel import Hotel
-from game.rules import Rules, PlacementResult
+from game.game import GamePhase
+from game.board import Tile, TileState
+from game.rules import Rules
 from tests.scenarios.conftest import (
     ChainBuilder,
     give_player_tile,
-    set_current_player,
 )
 
 

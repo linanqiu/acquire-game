@@ -1,11 +1,8 @@
 """Tests for bot game completion and phase handling."""
 
-import pytest
 
 from game.game import Game, GamePhase
 from game.board import Tile
-from game.bot import Bot
-from game.hotel import Hotel
 from tests.scenarios.conftest import ChainBuilder
 
 
@@ -122,12 +119,8 @@ class TestBotPhaseHandling:
         # Execute bot turn
         actions = game.execute_bot_turn(bot_player.player_id)
 
-        # Bot should have founded a chain
-        chain_founded = any(
-            a.get("action") == "found_chain" and a.get("success")
-            for a in actions
-        )
-        # If the bot played a different tile, that's also valid
+        # Bot should have taken at least one action
+        # (could be founding a chain or playing a different tile)
         assert len(actions) > 0
 
     def test_bot_handles_merger_choice(self):
@@ -177,7 +170,6 @@ class TestBotPhaseHandling:
         bot_player.add_tile(tile)
 
         # Execute bot turn
-        initial_tower_stock = bot_player.get_stock_count("Tower")
         actions = game.execute_bot_turn(bot_player.player_id)
 
         # Bot should have made disposition decision
