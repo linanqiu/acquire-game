@@ -1,11 +1,13 @@
 """End-to-end browser tests using Playwright."""
 
-import pytest
-import subprocess
-import time
-import os
 import json
+import os
 import re
+import subprocess
+import sys
+import time
+
+import pytest
 
 # Skip all tests if playwright is not installed
 pytest.importorskip("playwright")
@@ -19,10 +21,11 @@ def server():
     # Change to backend directory
     backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+    # Use sys.executable to get the same Python interpreter running the tests
     # Start server on a different port to avoid conflicts
     proc = subprocess.Popen(
         [
-            "python",
+            sys.executable,
             "-m",
             "uvicorn",
             "main:app",
@@ -690,6 +693,296 @@ class TestChainFoundingAndMerger:
 
         if not merger_detected:
             print("No merger occurred in time limit (this is OK for basic testing)")
+
+
+class TestBotTurnProgression:
+    """Tests for bot turn progression - catches stuck game bugs."""
+
+    def test_bot_turn_completes_within_timeout(
+        self, page: Page, server, browser: Browser
+    ):
+        """Verify bot turns complete within reasonable time - catches stuck games."""
+        # Create game with only bots
+        page.goto(f"{server}/")
+        page.fill("#create-player-name", "Host")
+        page.click("button:has-text('Create Game')")
+        page.wait_for_url("**/host/**")
+
+        # Add 3 bots
+        add_bot_btn = page.locator("#add-bot-btn")
+        for _ in range(3):
+            if add_bot_btn.count() > 0 and add_bot_btn.is_visible():
+                add_bot_btn.click()
+                page.wait_for_timeout(300)
+
+        start_btn = page.locator("#start-game-btn")
+        if start_btn.count() > 0 and start_btn.is_visible():
+            start_btn.click()
+        page.wait_for_timeout(1000)
+
+        # Track current player changes
+        BOT_TURN_TIMEOUT = 5000  # 5 seconds max per bot turn
+        last_player = None
+        stuck_since = None
+
+        for i in range(30):  # Monitor for 30 seconds
+            page.wait_for_timeout(1000)
+
+            # Get current turn info from page
+            turn_element = page.locator(
+                ".current-turn, #current-turn, [data-current-player]"
+            )
+            turn_text = turn_element.text_content() if turn_element.count() > 0 else ""
+
+            if last_player == turn_text and turn_text:
+                if stuck_since is None:
+                    stuck_since = i
+                elif (i - stuck_since) * 1000 > BOT_TURN_TIMEOUT:
+                    assert False, (
+                        f"Game stuck on '{turn_text}' for {(i - stuck_since)}s"
+                    )
+            else:
+                stuck_since = None
+                last_player = turn_text
+                if turn_text:
+                    print(f"Turn progressed to: {turn_text}")
+
+    def test_turn_counter_progresses(self, page: Page, server, browser: Browser):
+        """Verify turn number increases over time - game is actually progressing."""
+        ws_messages = []
+
+        def handle_ws(ws):
+            ws.on("framereceived", lambda f: ws_messages.append(f))
+
+        page.on("websocket", handle_ws)
+
+        # Setup game with bots
+        page.goto(f"{server}/")
+        page.fill("#create-player-name", "Host")
+        page.click("button:has-text('Create Game')")
+        page.wait_for_url("**/host/**")
+
+        add_bot_btn = page.locator("#add-bot-btn")
+        for _ in range(3):
+            if add_bot_btn.count() > 0 and add_bot_btn.is_visible():
+                add_bot_btn.click()
+                page.wait_for_timeout(300)
+
+        start_btn = page.locator("#start-game-btn")
+        if start_btn.count() > 0 and start_btn.is_visible():
+            start_btn.click()
+
+        # Track game state messages
+        game_states = []
+        for i in range(20):
+            page.wait_for_timeout(1000)
+            for msg in ws_messages:
+                try:
+                    payload = msg.payload if hasattr(msg, "payload") else str(msg)
+                    data = json.loads(payload)
+                    if data.get("type") == "game_state":
+                        game_states.append(
+                            {
+                                "current_player": data.get("current_player"),
+                                "phase": data.get("phase"),
+                                "tiles_remaining": data.get("tiles_remaining"),
+                            }
+                        )
+                except Exception:
+                    pass
+            ws_messages.clear()
+
+        # Verify we got multiple different current_players
+        players_seen = set(
+            s["current_player"] for s in game_states if s["current_player"]
+        )
+        print(f"Players seen: {players_seen}")
+        assert len(players_seen) > 1, f"Only saw {players_seen} - turns not progressing"
+
+        # Verify tiles are being used
+        if len(game_states) >= 2:
+            first_tiles = game_states[0].get("tiles_remaining")
+            last_tiles = game_states[-1].get("tiles_remaining")
+            if first_tiles and last_tiles:
+                assert last_tiles < first_tiles, (
+                    f"Tile count not decreasing - bots not playing. "
+                    f"Started: {first_tiles}, Ended: {last_tiles}"
+                )
+
+    def test_current_player_changes(self, page: Page, server, browser: Browser):
+        """Verify current_player changes - not stuck on same player."""
+        import itertools
+
+        ws_messages = []
+
+        def handle_ws(ws):
+            ws.on("framereceived", lambda f: ws_messages.append(f))
+
+        page.on("websocket", handle_ws)
+
+        # Setup bot-only game
+        page.goto(f"{server}/")
+        page.fill("#create-player-name", "Host")
+        page.click("button:has-text('Create Game')")
+        page.wait_for_url("**/host/**")
+
+        add_bot_btn = page.locator("#add-bot-btn")
+        for _ in range(3):
+            if add_bot_btn.count() > 0 and add_bot_btn.is_visible():
+                add_bot_btn.click()
+                page.wait_for_timeout(300)
+
+        start_btn = page.locator("#start-game-btn")
+        if start_btn.count() > 0 and start_btn.is_visible():
+            start_btn.click()
+
+        # Collect current_player values over time
+        current_players = []
+        for i in range(15):
+            page.wait_for_timeout(1000)
+            for msg in ws_messages:
+                try:
+                    payload = msg.payload if hasattr(msg, "payload") else str(msg)
+                    data = json.loads(payload)
+                    if data.get("type") == "game_state":
+                        player = data.get("current_player")
+                        if player:
+                            current_players.append(player)
+                except Exception:
+                    pass
+            ws_messages.clear()
+
+        if not current_players:
+            pytest.skip("No game state messages received")
+
+        # Should see player changes (turn rotation)
+        unique_players = set(current_players)
+        consecutive_same = max(
+            len(list(g)) for _, g in itertools.groupby(current_players)
+        )
+
+        print(f"Players seen: {unique_players}")
+        print(f"Max consecutive same player: {consecutive_same}")
+
+        # Fail if same player appears too many consecutive times (stuck)
+        assert consecutive_same < 5, (
+            f"Same player {consecutive_same} times in a row - likely stuck. "
+            f"Players sequence: {current_players[:20]}"
+        )
+
+    def test_board_state_changes(self, page: Page, server, browser: Browser):
+        """Verify board state changes - tiles being placed."""
+        # Setup game
+        page.goto(f"{server}/")
+        page.fill("#create-player-name", "Host")
+        page.click("button:has-text('Create Game')")
+        page.wait_for_url("**/host/**")
+
+        add_bot_btn = page.locator("#add-bot-btn")
+        for _ in range(3):
+            if add_bot_btn.count() > 0 and add_bot_btn.is_visible():
+                add_bot_btn.click()
+                page.wait_for_timeout(300)
+
+        start_btn = page.locator("#start-game-btn")
+        if start_btn.count() > 0 and start_btn.is_visible():
+            start_btn.click()
+        page.wait_for_timeout(2000)
+
+        # Count placed tiles at intervals
+        tile_counts = []
+        for i in range(10):
+            page.wait_for_timeout(2000)
+            # Count cells with tiles placed
+            placed = page.locator(
+                ".cell.placed, .cell[data-tile], .board-cell:not(.empty), "
+                "[data-placed='true'], .tile-placed"
+            ).count()
+            tile_counts.append(placed)
+            print(f"After {(i + 1) * 2}s: {placed} tiles placed")
+
+        # Tile count should increase over time (game is progressing)
+        if tile_counts[-1] == tile_counts[0] == 0:
+            # If we can't detect tiles via CSS, check for game state changes
+            body_content = page.locator("body").text_content() or ""
+            if "game over" in body_content.lower():
+                print("Game completed!")
+                return
+            pytest.skip("Could not detect tile placement via CSS selectors")
+
+        assert tile_counts[-1] > tile_counts[0], (
+            f"Board not changing: started with {tile_counts[0]}, ended with {tile_counts[-1]}"
+        )
+
+    def test_game_makes_significant_progress(
+        self, page: Page, server, browser: Browser
+    ):
+        """Verify game makes progress - either completes or plays many turns."""
+        ws_messages = []
+
+        def handle_ws(ws):
+            ws.on("framereceived", lambda f: ws_messages.append(f))
+
+        page.on("websocket", handle_ws)
+
+        page.goto(f"{server}/")
+        page.fill("#create-player-name", "Host")
+        page.click("button:has-text('Create Game')")
+        page.wait_for_url("**/host/**")
+
+        add_bot_btn = page.locator("#add-bot-btn")
+        for _ in range(3):
+            if add_bot_btn.count() > 0 and add_bot_btn.is_visible():
+                add_bot_btn.click()
+                page.wait_for_timeout(300)
+
+        start_btn = page.locator("#start-game-btn")
+        if start_btn.count() > 0 and start_btn.is_visible():
+            start_btn.click()
+
+        initial_tiles_remaining = None
+        last_tiles_remaining = None
+        turns_detected = 0
+
+        # Monitor for 60 seconds
+        for i in range(60):
+            page.wait_for_timeout(1000)
+
+            # Check for game over
+            body = page.locator("body").text_content() or ""
+            if "game over" in body.lower() or "final scores" in body.lower():
+                print(f"Game completed in {i} seconds!")
+                return  # Success - game finished
+
+            # Parse WebSocket messages for game state
+            for msg in ws_messages:
+                try:
+                    payload = msg.payload if hasattr(msg, "payload") else str(msg)
+                    data = json.loads(payload)
+                    if data.get("type") == "game_state":
+                        tiles_remaining = data.get("tiles_remaining")
+                        if tiles_remaining is not None:
+                            if initial_tiles_remaining is None:
+                                initial_tiles_remaining = tiles_remaining
+                            if last_tiles_remaining != tiles_remaining:
+                                turns_detected += 1
+                            last_tiles_remaining = tiles_remaining
+                except Exception:
+                    pass
+            ws_messages.clear()
+
+            if i % 10 == 0:
+                print(
+                    f"{i}s: Still playing, tiles remaining: {last_tiles_remaining}, "
+                    f"turns detected: {turns_detected}"
+                )
+
+        # If we got here, game didn't finish but should have made progress
+        assert turns_detected >= 5, (
+            f"Only {turns_detected} turns detected in 60s - game barely progressed. "
+            f"Initial tiles: {initial_tiles_remaining}, "
+            f"Final tiles: {last_tiles_remaining}"
+        )
 
 
 class TestGameEndDetection:
