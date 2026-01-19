@@ -115,10 +115,10 @@ At the time of merger, all players reveal their stock holdings in the **defunct 
 ### Bonus Amounts
 
 Bonuses are determined by:
-1. The **tier** of the defunct chain (Budget, Standard, Premium)
+1. The **tier** of the defunct chain (Cheap, Medium, Expensive)
 2. The **size** of the defunct chain (number of tiles at merger time)
 
-| Chain Size | Budget Tier | Standard Tier | Premium Tier |
+| Chain Size | Cheap Tier | Medium Tier | Expensive Tier |
 |------------|-------------|---------------|--------------|
 | | Majority / Minority | Majority / Minority | Majority / Minority |
 | 2 tiles | $2,000 / $1,000 | $3,000 / $1,500 | $4,000 / $2,000 |

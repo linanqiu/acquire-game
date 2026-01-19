@@ -4,7 +4,7 @@ This documentation provides a comprehensive reference for the official rules of 
 
 ## Game Overview
 
-- **Players**: 2-6 (4 is optimal for tournament play)
+- **Players**: 3-6 (4 is optimal)
 - **Age**: 12+
 - **Duration**: 60-90 minutes
 - **Designer**: Sid Sackson
@@ -75,9 +75,9 @@ Acquire features seven hotel chains organized into three pricing tiers:
 
 | Tier | Chains | Starting Price (2 tiles) |
 |------|--------|-------------------------|
-| **Budget** | Luxor, Tower | $200 |
-| **Standard** | American, Festival, Worldwide | $300 |
-| **Premium** | Continental, Imperial | $400 |
+| **Cheap** | Luxor, Tower | $200 |
+| **Medium** | American, Festival, Worldwide | $300 |
+| **Expensive** | Continental, Imperial | $400 |
 
 ---
 

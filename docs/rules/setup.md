@@ -52,15 +52,15 @@ A standard Acquire game includes:
 
 | Chain | Tier | Color (Classic) | Starting Price |
 |-------|------|-----------------|----------------|
-| **Luxor** | Budget | Yellow | $200 |
-| **Tower** | Budget | Red | $200 |
-| **American** | Standard | Blue | $300 |
-| **Festival** | Standard | Green | $300 |
-| **Worldwide** | Standard | Orange | $300 |
-| **Continental** | Premium | Purple | $400 |
-| **Imperial** | Premium | Turquoise | $400 |
+| **Luxor** | Cheap | Gold | $200 |
+| **Tower** | Cheap | Brown | $200 |
+| **American** | Medium | Blue | $300 |
+| **Festival** | Medium | Green | $300 |
+| **Worldwide** | Medium | Purple | $300 |
+| **Continental** | Expensive | Cyan | $400 |
+| **Imperial** | Expensive | Red | $400 |
 
-**Note**: In the 2008 Wizards of the Coast edition, Luxor was renamed "Sackson" in honor of designer Sid Sackson.
+**Note**: In the 2008 Wizards of the Coast edition, Luxor was renamed "Sackson" in honor of designer Sid Sackson. Colors listed are from the original board game; the digital UI may use different colors.
 
 ---
 
@@ -158,7 +158,6 @@ For optimal play:
 
 | Players | Notes |
 |---------|-------|
-| 2 | Playable but less strategic |
 | 3 | Good game, faster pace |
 | 4 | **Optimal** - tournament standard |
 | 5 | Good game, more competition for stock |

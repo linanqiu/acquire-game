@@ -16,7 +16,7 @@ This document covers all rules related to buying, holding, and managing stock in
 ### Stock Value
 
 Stock value is determined by:
-1. **Chain tier**: Budget, Standard, or Premium
+1. **Chain tier**: Cheap, Medium, or Expensive
 2. **Chain size**: Number of tiles in the chain
 
 As chains grow larger, stock becomes more valuable.
@@ -71,14 +71,14 @@ Players may only purchase stock in **active chains**:
 ### Price Determination
 
 Stock price is found by:
-1. Identifying the **chain tier** (Budget/Standard/Premium)
+1. Identifying the **chain tier** (Cheap/Medium/Expensive)
 2. Counting the **number of tiles** in the chain
 3. Looking up the price on the **information card**
 
 ### Price Table (Quick Reference)
 
-| Chain Size | Budget | Standard | Premium |
-|------------|--------|----------|---------|
+| Chain Size | Cheap | Medium | Expensive |
+|------------|-------|--------|-----------|
 | 2 tiles | $200 | $300 | $400 |
 | 3 tiles | $300 | $400 | $500 |
 | 4 tiles | $400 | $500 | $600 |
@@ -90,9 +90,9 @@ Stock price is found by:
 | 41+ tiles | $1,000 | $1,100 | $1,200 |
 
 **Chain Tiers:**
-- **Budget**: Luxor, Tower
-- **Standard**: American, Festival, Worldwide
-- **Premium**: Continental, Imperial
+- **Cheap**: Luxor, Tower
+- **Medium**: American, Festival, Worldwide
+- **Expensive**: Continental, Imperial
 
 See [Pricing Reference](pricing.md) for the complete official table.
 

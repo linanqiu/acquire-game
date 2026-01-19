@@ -8,27 +8,27 @@ This document covers the seven hotel chains in Acquire, including their pricing 
 
 Acquire features seven hotel chains organized into three pricing tiers:
 
-### Budget Tier (Lowest Prices)
+### Cheap Tier (Lowest Prices)
 
 | Chain | Color (Classic) | Starting Price | Stock per Share (2 tiles) |
 |-------|-----------------|----------------|---------------------------|
-| **Luxor** | Yellow | $200 | $200 |
-| **Tower** | Red | $200 | $200 |
+| **Luxor** | Gold | $200 | $200 |
+| **Tower** | Brown | $200 | $200 |
 
-### Standard Tier (Medium Prices)
+### Medium Tier (Medium Prices)
 
 | Chain | Color (Classic) | Starting Price | Stock per Share (2 tiles) |
 |-------|-----------------|----------------|---------------------------|
 | **American** | Blue | $300 | $300 |
 | **Festival** | Green | $300 | $300 |
-| **Worldwide** | Orange | $300 | $300 |
+| **Worldwide** | Purple | $300 | $300 |
 
-### Premium Tier (Highest Prices)
+### Expensive Tier (Highest Prices)
 
 | Chain | Color (Classic) | Starting Price | Stock per Share (2 tiles) |
 |-------|-----------------|----------------|---------------------------|
-| **Continental** | Purple | $400 | $400 |
-| **Imperial** | Turquoise/Cyan | $400 | $400 |
+| **Continental** | Cyan | $400 | $400 |
+| **Imperial** | Red | $400 | $400 |
 
 ---
 
@@ -36,7 +36,7 @@ Acquire features seven hotel chains organized into three pricing tiers:
 
 At any given chain size, the three tiers have different stock prices:
 
-| Chain Size | Budget | Standard | Premium |
+| Chain Size | Cheap | Medium | Expensive |
 |------------|--------|----------|---------|
 | 2 tiles | $200 | $300 | $400 |
 | 3 tiles | $300 | $400 | $500 |
@@ -95,7 +95,7 @@ Player places tile 6D:
 └────┴────┴────┘
 
 1. Tiles 6C and 6D are now connected
-2. Player chooses to found "American" (Standard tier)
+2. Player chooses to found "American" (Medium tier)
 3. American chain marker placed on the tiles
 4. Player receives 1 free American stock
 ```
@@ -103,9 +103,9 @@ Player places tile 6D:
 ### Strategic Considerations for Founding
 
 **Choosing the chain tier:**
-- **Budget chains** (Luxor, Tower): Lower stock prices mean cheaper purchases, but smaller bonuses
-- **Standard chains** (American, Festival, Worldwide): Balanced pricing
-- **Premium chains** (Continental, Imperial): Higher stock prices, larger bonuses, but more expensive to invest in
+- **Cheap chains** (Luxor, Tower): Lower stock prices mean cheaper purchases, but smaller bonuses
+- **Medium chains** (American, Festival, Worldwide): Balanced pricing
+- **Expensive chains** (Continental, Imperial): Higher stock prices, larger bonuses, but more expensive to invest in
 
 **Timing considerations:**
 - Founding early allows you to buy cheap stock
@@ -274,9 +274,9 @@ because it would create an 8th chain.
 - Controlling merger timing is a key strategy
 
 ### Chain Selection
-- Budget chains are easier to dominate (cheaper stock)
-- Premium chains offer larger bonuses but require more capital
-- Standard chains provide balanced risk/reward
+- Cheap chains are easier to dominate (cheaper stock)
+- Expensive chains offer larger bonuses but require more capital
+- Medium chains provide balanced risk/reward
 
 ---
 

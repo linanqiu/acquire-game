@@ -125,9 +125,9 @@ If two or more players have exactly equal money:
 ### Game State at Declaration
 
 **Board state:**
-- American: 18 tiles (Standard tier)
-- Continental: 43 tiles (Premium tier)
-- Imperial: 12 tiles (Premium tier)
+- American: 18 tiles (Medium tier)
+- Continental: 43 tiles (Expensive tier)
+- Imperial: 12 tiles (Expensive tier)
 
 **Stock holdings:**
 
@@ -139,15 +139,15 @@ If two or more players have exactly equal money:
 
 ### Step 1: Final Bonuses
 
-**American (18 tiles, Standard tier):**
+**American (18 tiles, Medium tier):**
 - Majority: Alice (8 shares) - $8,000
 - Minority: Bob (5 shares) - $4,000
 
-**Continental (43 tiles, Premium tier):**
+**Continental (43 tiles, Expensive tier):**
 - Majority: Bob (6 shares) - $12,000
 - Minority: Carol (4 shares) - $6,000
 
-**Imperial (12 tiles, Premium tier):**
+**Imperial (12 tiles, Expensive tier):**
 - Majority: Carol (5 shares) - $9,000
 - Minority: Alice (4 shares) - $4,500
 
@@ -162,9 +162,9 @@ If two or more players have exactly equal money:
 ### Step 2: Stock Sales
 
 **Stock prices:**
-- American (18 tiles, Standard): $800/share
-- Continental (43 tiles, Premium): $1,200/share
-- Imperial (12 tiles, Premium): $900/share
+- American (18 tiles, Medium): $800/share
+- Continental (43 tiles, Expensive): $1,200/share
+- Imperial (12 tiles, Expensive): $900/share
 
 | Player | American | Continental | Imperial | Stock Value |
 |--------|----------|-------------|----------|-------------|

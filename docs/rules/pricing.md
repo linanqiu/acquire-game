@@ -10,9 +10,11 @@ The seven hotel chains are divided into three pricing tiers:
 
 | Tier | Chains | Marker Colors (Classic) |
 |------|--------|------------------------|
-| **Budget** | Luxor, Tower | Yellow, Red |
-| **Standard** | American, Festival, Worldwide | Blue, Green, Orange |
-| **Premium** | Continental, Imperial | Purple, Turquoise |
+| **Cheap** | Luxor, Tower | Gold, Brown |
+| **Medium** | American, Festival, Worldwide | Blue, Green, Purple |
+| **Expensive** | Continental, Imperial | Cyan, Red |
+
+**Note**: Colors listed are from the original board game. The digital UI may use different colors for better accessibility or aesthetics.
 
 ---
 
@@ -22,8 +24,8 @@ Stock prices are determined by the chain's tier and the number of tiles in the c
 
 ### Stock Price by Chain Size
 
-| Chain Size | Budget | Standard | Premium |
-|------------|--------|----------|---------|
+| Chain Size | Cheap | Medium | Expensive |
+|------------|-------|--------|-----------|
 | | (Luxor, Tower) | (American, Festival, Worldwide) | (Continental, Imperial) |
 | **2 tiles** | $200 | $300 | $400 |
 | **3 tiles** | $300 | $400 | $500 |
@@ -47,7 +49,7 @@ Stock prices are determined by the chain's tier and the number of tiles in the c
 
 For those who prefer looking up by specific chain name:
 
-### Budget Tier: Luxor & Tower
+### Cheap Tier: Luxor & Tower
 
 | Tiles | Stock Price |
 |-------|-------------|
@@ -61,7 +63,7 @@ For those who prefer looking up by specific chain name:
 | 31-40 | $900 |
 | 41+ | $1,000 |
 
-### Standard Tier: American, Festival & Worldwide
+### Medium Tier: American, Festival & Worldwide
 
 | Tiles | Stock Price |
 |-------|-------------|
@@ -75,7 +77,7 @@ For those who prefer looking up by specific chain name:
 | 31-40 | $1,000 |
 | 41+ | $1,100 |
 
-### Premium Tier: Continental & Imperial
+### Expensive Tier: Continental & Imperial
 
 | Tiles | Stock Price |
 |-------|-------------|
@@ -97,8 +99,8 @@ Bonuses are paid to majority and minority stockholders when a chain becomes defu
 
 ### Bonus Amounts by Chain Size and Tier
 
-| Chain Size | Budget Tier | Standard Tier | Premium Tier |
-|------------|-------------|---------------|--------------|
+| Chain Size | Cheap Tier | Medium Tier | Expensive Tier |
+|------------|------------|-------------|----------------|
 | | Majority / Minority | Majority / Minority | Majority / Minority |
 | **2 tiles** | $2,000 / $1,000 | $3,000 / $1,500 | $4,000 / $2,000 |
 | **3 tiles** | $3,000 / $1,500 | $4,000 / $2,000 | $5,000 / $2,500 |
@@ -116,7 +118,7 @@ Bonuses are paid to majority and minority stockholders when a chain becomes defu
 
 ## Bonus Tables by Tier
 
-### Budget Tier Bonuses: Luxor & Tower
+### Cheap Tier Bonuses: Luxor & Tower
 
 | Tiles | Majority Bonus | Minority Bonus |
 |-------|----------------|----------------|
@@ -130,7 +132,7 @@ Bonuses are paid to majority and minority stockholders when a chain becomes defu
 | 31-40 | $9,000 | $4,500 |
 | 41+ | $10,000 | $5,000 |
 
-### Standard Tier Bonuses: American, Festival & Worldwide
+### Medium Tier Bonuses: American, Festival & Worldwide
 
 | Tiles | Majority Bonus | Minority Bonus |
 |-------|----------------|----------------|
@@ -144,7 +146,7 @@ Bonuses are paid to majority and minority stockholders when a chain becomes defu
 | 31-40 | $10,000 | $5,000 |
 | 41+ | $11,000 | $5,500 |
 
-### Premium Tier Bonuses: Continental & Imperial
+### Expensive Tier Bonuses: Continental & Imperial
 
 | Tiles | Majority Bonus | Minority Bonus |
 |-------|----------------|----------------|
@@ -196,7 +198,7 @@ Majority holder receives full majority bonus.
 
 This format mirrors the information cards included with the game:
 
-### BUDGET TIER (Luxor, Tower)
+### CHEAP TIER (Luxor, Tower)
 
 | Size | Stock | Majority | Minority |
 |------|-------|----------|----------|
@@ -210,7 +212,7 @@ This format mirrors the information cards included with the game:
 | 31-40 | $900 | $9,000 | $4,500 |
 | 41+ | $1,000 | $10,000 | $5,000 |
 
-### STANDARD TIER (American, Festival, Worldwide)
+### MEDIUM TIER (American, Festival, Worldwide)
 
 | Size | Stock | Majority | Minority |
 |------|-------|----------|----------|
@@ -224,7 +226,7 @@ This format mirrors the information cards included with the game:
 | 31-40 | $1,000 | $10,000 | $5,000 |
 | 41+ | $1,100 | $11,000 | $5,500 |
 
-### PREMIUM TIER (Continental, Imperial)
+### EXPENSIVE TIER (Continental, Imperial)
 
 | Size | Stock | Majority | Minority |
 |------|-------|----------|----------|
@@ -271,7 +273,7 @@ Majority bonus = Stock price × 10
 
 Minority bonus = Majority bonus / 2
 
-**Example for 5-tile Standard chain:**
+**Example for 5-tile Medium chain:**
 - Stock price: $600
 - Majority: $600 × 10 = $6,000
 - Minority: $6,000 / 2 = $3,000
