@@ -1,9 +1,6 @@
 """Integration tests for lobby create/join game flows."""
 
-import pytest
-from fastapi.testclient import TestClient
 
-from main import app, session_manager
 
 
 class TestCreateGameFlow:
@@ -94,7 +91,7 @@ class TestJoinGameFlow:
 
     def test_join_adds_player_to_room(self, client, room_code, clean_session_manager):
         """Joining should add player to room."""
-        response = client.post(
+        client.post(
             f"/join/{room_code}",
             data={"player_name": "Bob"},
             follow_redirects=False,

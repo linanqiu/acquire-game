@@ -1,10 +1,6 @@
 """Tests for majority/minority bonus calculations."""
 
-import pytest
 
-from game.game import Game
-from game.board import Tile
-from game.hotel import Hotel
 from game.rules import Rules
 from tests.scenarios.conftest import (
     ChainBuilder,

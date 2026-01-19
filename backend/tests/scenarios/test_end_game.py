@@ -1,16 +1,12 @@
 """Tests for end game conditions and finalization."""
 
-import pytest
 
-from game.game import Game, GamePhase
+from game.game import GamePhase
 from game.board import Tile
-from game.hotel import Hotel
 from game.rules import Rules
 from tests.scenarios.conftest import (
     ChainBuilder,
-    give_player_tile,
     give_player_stocks,
-    set_current_player,
 )
 
 
@@ -20,7 +16,6 @@ class TestEndGameConditions:
     def test_ends_when_chain_reaches_41(self, game_with_two_players):
         """Game can end when any chain reaches 41+ tiles."""
         game = game_with_two_players
-        builder = ChainBuilder(game)
 
         # Create a chain with 41 tiles (need to span multiple rows)
         # Place 12 tiles each in rows A, B, C and 5 in row D
@@ -235,8 +230,6 @@ class TestEndGameFromLobby:
         # Give player stocks in inactive chain
         p1 = game.get_player("p1")
         p1._stocks["Luxor"] = 10  # Directly set without activating chain
-
-        initial_money = p1.money
 
         # Set up another chain so game can technically end
         # Need to place tiles without going through normal chain setup to avoid

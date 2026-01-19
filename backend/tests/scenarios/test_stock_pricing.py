@@ -1,8 +1,7 @@
 """Tests for stock pricing based on chain tiers and sizes."""
 
-import pytest
 
-from game.hotel import Hotel, HotelChain, HotelTier
+from game.hotel import Hotel, HotelTier
 
 
 class TestPriceTiers:
