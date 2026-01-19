@@ -67,21 +67,28 @@ Corporations are divided into three pricing tiers:
 
 ## Turn Sequence
 
-Each turn consists of three steps performed **in order**:
+Each turn consists of four steps performed **in order**:
 
-### 1. Play a Tile
+### 1. Trade with Players (Optional)
+- Before placing a tile, the active player may propose trades with other players
+- Trades can involve stock certificates, cash, or both
+- Other players may accept or decline any proposed trade
+- This is the only time player-to-player trades may occur
+- Once the active player moves to tile placement, trading closes for the turn
+
+### 2. Play a Tile
 - Place exactly one tile from your hand onto its matching board space
 - The tile must be placed on the space matching its coordinates (e.g., tile "3-C" goes on column 3, row C)
 - This may result in: nothing, founding a corporation, expanding a corporation, or a merger
 
-### 2. Buy Stock (Optional)
+### 3. Buy Stock (Optional)
 - You may purchase **up to 3 stock certificates total** in any active corporation(s)
 - Purchases can be split across different corporations (e.g., 2 American + 1 Tower)
 - You can only buy stock in corporations currently on the board
 - You cannot buy if no corporations are active
 - You cannot buy more stock than is available in the stock market
 
-### 3. Draw a Tile
+### 4. Draw a Tile
 - Draw one tile from the face-down supply to replenish your hand to 6 tiles
 - If you draw an unplayable tile (see [Unplayable Tiles](#unplayable-tiles)), follow the appropriate rules
 
@@ -142,7 +149,7 @@ A merger occurs when a tile connects two or more corporations.
 ### Determining the Survivor
 
 1. **Count tiles**: The corporation with the **most tiles survives**; smaller corporations become defunct
-2. **Tie-breaker**: If corporations are tied in size, the **merge-maker (active player) chooses** which corporation survives
+2. **Tie-breaker**: If corporations are tied in size, the **mergemaker (active player) chooses** which corporation survives
 
 ### Safe Corporations
 
@@ -169,7 +176,7 @@ Determine majority and minority stockholders for the defunct corporation:
 | Clear majority, tie for minority | Majority holder gets full majority bonus. Tied minority holders split the minority bonus evenly. **Round up to nearest $100**. |
 
 #### Step 2: Dispose of Stock
-Starting with the merge-maker and proceeding clockwise, each stockholder chooses what to do with their defunct stock. Players may combine any of these options:
+Starting with the mergemaker and proceeding clockwise, each stockholder chooses what to do with their defunct stock. Players may combine any of these options:
 
 1. **HOLD**: Keep the stock certificates for potential future use if that corporation is founded again
 2. **SELL**: Sell stock back to the bank at the **current price** (based on defunct corporation's size BEFORE the merger)
@@ -188,7 +195,7 @@ When one tile merges three or more corporations:
 
 1. The **largest corporation survives**
 2. Handle defunct corporations **one at a time, from largest to smallest**
-3. If there's a **tie in size**, the merge-maker chooses the order
+3. If there's a **tie in size**, the mergemaker chooses the order
 4. For each defunct corporation, complete the full merger resolution (bonuses, stock disposition) before moving to the next
 
 ---
@@ -206,9 +213,14 @@ When one tile merges three or more corporations:
 - Shares not held by players are in the stock market (available for purchase)
 - When stock is sold or traded back, it returns to the stock market
 
-### No Trading Between Players
-- Players may NOT trade or sell stock directly to other players
-- All transactions go through the bank/stock market
+### Player-to-Player Trading
+- Players **may** trade stock directly with other players
+- Trading can only occur **before tile placement** during the active player's turn
+- Only the active player may initiate trades
+- The other player may **accept or decline** any proposed trade
+- Players may negotiate terms (stock for stock, stock for cash, or combinations)
+- Multiple trades may occur in a single trading phase
+- Once the active player places their tile, trading is closed for that turn
 
 ---
 
@@ -318,10 +330,10 @@ The game can end when **either** condition is met:
 ### Tie Resolution
 | Situation | Resolution |
 |-----------|------------|
-| Tied corporation sizes in merger | Merge-maker chooses survivor |
+| Tied corporation sizes in merger | Mergemaker chooses survivor |
 | Tied for majority stockholder | Split combined maj+min bonus, round up to $100 |
 | Tied for minority stockholder | Split minority bonus, round up to $100 |
-| Multiple defunct corps same size | Merge-maker chooses order |
+| Multiple defunct corps same size | Mergemaker chooses order |
 
 ### Money and Rounding
 - All bonus splits **round UP to the nearest $100**

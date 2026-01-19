@@ -184,6 +184,46 @@ During mergers, if many players want to trade:
 
 ---
 
+## Player-to-Player Trading
+
+### Trading Window
+
+Player-to-player trading can **only** occur during **Phase 1** of the active player's turn:
+- Before placing a tile
+- Only the active player may initiate trades
+- Once tile placement begins, trading closes for the turn
+
+### Trade Rules
+
+| Rule | Description |
+|------|-------------|
+| **Initiator** | Only the active player may propose trades |
+| **Acceptance** | Other players may accept or decline any trade |
+| **Items** | Stock certificates, cash, or combinations |
+| **Frequency** | Multiple trades may occur per trading phase |
+| **Timing** | Must complete before tile placement |
+
+### Valid Trade Examples
+
+- **Stock for stock**: 2 Tower shares for 1 Continental share
+- **Stock for cash**: 3 Luxor shares for $1,500
+- **Combination**: 1 American share + $500 for 2 Festival shares
+- **Multi-party**: Active player may trade with different players in sequence
+
+### Trade Strategies
+
+**As the active player:**
+- Negotiate before revealing your intended tile placement
+- Trade to consolidate majority positions
+- Offer premium prices for stocks you need
+
+**As the responding player:**
+- Evaluate the trade based on chain potential
+- Consider why the active player wants this trade
+- Remember: you can always decline
+
+---
+
 ## Stock Holding Strategies
 
 ### Early Game
@@ -242,7 +282,7 @@ A: No. Stock purchases happen AFTER tile placement.
 A: Yes, if you were unable to legally place any tile, you may still buy stock.
 
 **Q: Can I give or trade stock with another player?**
-A: No. Stock can only be bought from the market, received as founder's bonus, or obtained through merger trades.
+A: Yes, but only during Phase 1 (Trade with Players) before tile placement. The active player may propose trades; other players may accept or decline.
 
 **Q: Does the founder's bonus count toward my 3-per-turn limit?**
 A: No. The bonus is separate from purchases.

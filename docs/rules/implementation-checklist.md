@@ -35,11 +35,21 @@ This document maps the official rules to implementation requirements for verifyi
 
 ## Turn Sequence
 
-- [ ] Three phases in order: Place Tile → Buy Stock → Draw Tile
+- [ ] Four phases in order: Trade → Place Tile → Buy Stock → Draw Tile
+- [ ] Player-to-player trading is **optional** (Phase 1)
 - [ ] Tile placement is **mandatory** (unless all tiles unplayable)
 - [ ] Stock purchase is **optional**
 - [ ] Maximum **3 stocks purchased per turn**
 - [ ] Tile drawing is **mandatory**
+
+## Player-to-Player Trading
+
+- [ ] Trading only allowed **before** tile placement
+- [ ] Only **active player** may initiate trades
+- [ ] Other players may **accept or decline** proposed trades
+- [ ] Trades can include stock, cash, or combinations
+- [ ] Multiple trades may occur per trading phase
+- [ ] Trading closes once tile placement begins
 
 ## Tile Placement Results
 
@@ -63,7 +73,7 @@ This document maps the official rules to implementation requirements for verifyi
 ### Merger
 - [ ] Triggered when tile adjacent to 2+ corporations
 - [ ] Larger corporation survives
-- [ ] Tie in size: **merge-maker chooses** survivor
+- [ ] Tie in size: **mergemaker chooses** survivor
 
 ## Merger Resolution
 
@@ -82,7 +92,7 @@ This document maps the official rules to implementation requirements for verifyi
 - [ ] Bonus rounding is **UP to nearest $100**
 
 ### Stock Disposition
-- [ ] Order: merge-maker first, then clockwise
+- [ ] Order: mergemaker first, then clockwise
 - [ ] Three options: HOLD, SELL, TRADE
 - [ ] HOLD: Keep stock for potential future corporation founding
 - [ ] SELL: At current price (defunct corp size before merger)
@@ -93,7 +103,7 @@ This document maps the official rules to implementation requirements for verifyi
 ### Multiple Mergers (3+ corps)
 - [ ] Largest corporation survives
 - [ ] Process defunct corps **largest to smallest**
-- [ ] Tie in defunct corp size: merge-maker chooses order
+- [ ] Tie in defunct corp size: mergemaker chooses order
 - [ ] Complete full resolution for each defunct corp before next
 
 ## Stock Purchase
@@ -228,3 +238,7 @@ This matches the official rules.
 8. **Exactly 41 tiles** - can game be declared over?
 9. **All 7 corps active, no mergers possible** - handled correctly?
 10. **Stock sold/traded mid-merger** - availability updates immediately?
+
+---
+
+[Back to Table of Contents](README.md)

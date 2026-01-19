@@ -6,9 +6,25 @@ This document covers the complete turn structure, player actions, and game flow 
 
 ## Turn Structure
 
-Each player's turn consists of **three mandatory phases** performed in order:
+Each player's turn consists of **four phases** performed in order:
 
-### Phase 1: Place a Tile
+### Phase 1: Trade with Players (Optional)
+
+Before placing a tile, the active player may propose stock trades with other players.
+
+**Trading rules:**
+- Only the active player may initiate trades
+- Trades can involve stock certificates, cash, or combinations
+- The other player may **accept or decline** any proposed trade
+- Multiple trades may occur in this phase
+- Once tile placement begins, trading closes for the turn
+
+**Examples of valid trades:**
+- 2 Tower shares for 1 Continental share
+- 3 Luxor shares for $1,500 cash
+- 1 American share + $500 for 2 Festival shares
+
+### Phase 2: Place a Tile
 
 The active player **must** place exactly one tile from their hand onto the board in its corresponding space.
 
@@ -20,7 +36,7 @@ The active player **must** place exactly one tile from their hand onto the board
 
 See [Tile Placement Rules](tiles.md) for detailed placement rules.
 
-### Phase 2: Buy Stock (Optional)
+### Phase 3: Buy Stock (Optional)
 
 After placing a tile, the player **may** purchase stock certificates:
 
@@ -38,7 +54,7 @@ After placing a tile, the player **may** purchase stock certificates:
 
 See [Stock Purchasing](stocks.md) for detailed purchasing rules.
 
-### Phase 3: Draw a Tile
+### Phase 4: Draw a Tile
 
 The player draws **one tile** from the face-down tile pool to replenish their hand.
 
@@ -63,7 +79,16 @@ The player draws **one tile** from the face-down tile pool to replenish their ha
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │ PHASE 1: PLACE TILE (Mandatory)                     │   │
+│  │ PHASE 1: TRADE WITH PLAYERS (Optional)              │   │
+│  │                                                     │   │
+│  │  • Propose trades to other players                  │   │
+│  │  • Other players may accept or decline              │   │
+│  │  • Trade stock, cash, or combinations               │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                           │                                 │
+│                           ▼                                 │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ PHASE 2: PLACE TILE (Mandatory)                     │   │
 │  │                                                     │   │
 │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐          │   │
 │  │  │ Orphan   │  │ Found    │  │ Expand   │          │   │
@@ -86,7 +111,7 @@ The player draws **one tile** from the face-down tile pool to replenish their ha
 │                           │                                 │
 │                           ▼                                 │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │ PHASE 2: BUY STOCK (Optional)                       │   │
+│  │ PHASE 3: BUY STOCK (Optional)                       │   │
 │  │                                                     │   │
 │  │  • Buy 0-3 stocks in active chains                  │   │
 │  │  • Pay stock price to bank                          │   │
@@ -95,7 +120,7 @@ The player draws **one tile** from the face-down tile pool to replenish their ha
 │                           │                                 │
 │                           ▼                                 │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │ PHASE 3: DRAW TILE (Mandatory)                      │   │
+│  │ PHASE 4: DRAW TILE (Mandatory)                      │   │
 │  │                                                     │   │
 │  │  • Draw 1 tile from face-down pool                  │   │
 │  │  • Maintain 6 tiles in hand                         │   │
@@ -171,6 +196,7 @@ All merger procedures must be completed before the player may buy stock. The mer
 - Draw one tile (if tiles remain)
 
 ### Optional Actions
+- Trade stock with other players (before tile placement)
 - Buy stock (0-3 certificates)
 - Declare game end (when conditions are met)
 
@@ -184,6 +210,7 @@ All merger procedures must be completed before the player may buy stock. The mer
 ## End of Turn Checklist
 
 Before the next player begins, verify:
+- [ ] Player-to-player trading phase completed (if any trades occurred)
 - [ ] Exactly one tile was placed
 - [ ] Any chain founding was resolved (marker placed, free stock given)
 - [ ] Any merger was fully resolved (bonuses paid, stock disposed)
@@ -195,11 +222,12 @@ Before the next player begins, verify:
 
 ## Common Mistakes to Avoid
 
-1. **Buying stock before placing tile**: Stock purchase comes AFTER tile placement
-2. **Buying more than 3 stocks**: Maximum 3 per turn, regardless of chain
-3. **Buying stock in defunct chains**: Can only buy stock in active chains on the board
-4. **Forgetting founder's bonus**: Player who founds a chain gets 1 free stock
-5. **Skipping tile draw**: Always draw unless the pool is empty
+1. **Trading after tile placement**: Player-to-player trades can only happen BEFORE tile placement
+2. **Buying stock before placing tile**: Stock purchase comes AFTER tile placement
+3. **Buying more than 3 stocks**: Maximum 3 per turn, regardless of chain
+4. **Buying stock in defunct chains**: Can only buy stock in active chains on the board
+5. **Forgetting founder's bonus**: Player who founds a chain gets 1 free stock
+6. **Skipping tile draw**: Always draw unless the pool is empty
 
 ---
 

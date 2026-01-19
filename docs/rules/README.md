@@ -25,7 +25,8 @@ Become the wealthiest player by strategically forming hotel chains, buying stock
 - Drawing starting tiles
 
 ### 2. [Gameplay Overview](gameplay.md)
-- Turn structure (place tile, buy stock, draw tile)
+- Turn structure (trade, place tile, buy stock, draw tile)
+- Player-to-player trading rules
 - Player order
 - Game flow
 
@@ -83,7 +84,7 @@ Acquire features seven hotel chains organized into three pricing tiers:
 ## Quick Rules Summary
 
 1. **Start**: Each player receives $6,000 and draws 6 tiles
-2. **Turn**: Place 1 tile, buy up to 3 stocks, draw 1 tile
+2. **Turn**: Trade with players (optional), place 1 tile, buy up to 3 stocks, draw 1 tile
 3. **Found**: Connecting tiles creates a chain; founder gets 1 free stock
 4. **Merge**: Larger chain absorbs smaller; stockholders get bonuses
 5. **Safe**: Chains with 11+ tiles cannot be acquired

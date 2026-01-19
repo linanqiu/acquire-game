@@ -170,24 +170,24 @@ Bonuses are paid to majority and minority stockholders when a chain becomes defu
 
 | Tied Players | Calculation | Each Receives |
 |--------------|-------------|---------------|
-| 2 players | $\frac{M + m}{2}$ | Half of combined |
-| 3 players | $\frac{M + m}{3}$ | Third of combined |
-| $n$ players | $\frac{M + m}{n}$ | Equal share |
+| 2 players | (M + m) / 2 | Half of combined |
+| 3 players | (M + m) / 3 | Third of combined |
+| n players | (M + m) / n | Equal share |
 
-where $M$ = majority bonus, $m$ = minority bonus.
+where M = majority bonus, m = minority bonus.
 
-**Round up** to nearest $\$100$ if needed.
+**Round up** to nearest $100 if needed.
 **No minority bonus** is paid separately.
 
 ### Tie for Minority
 
 | Tied Players | Calculation | Each Receives |
 |--------------|-------------|---------------|
-| 2 players | $\frac{m}{2}$ | Half |
-| 3 players | $\frac{m}{3}$ | Third |
-| $n$ players | $\frac{m}{n}$ | Equal share |
+| 2 players | m / 2 | Half |
+| 3 players | m / 3 | Third |
+| n players | m / n | Equal share |
 
-**Round up** to nearest $\$100$ if needed.
+**Round up** to nearest $100 if needed.
 Majority holder receives full majority bonus.
 
 ---
@@ -261,20 +261,20 @@ This format mirrors the information cards included with the game:
 For those interested in the mathematical patterns:
 
 ### Stock Price Formula
-- **Base price** $= \text{Tier base} \in \{\$200, \$300, \$400\}$
-- **Size increment** $= \$100$ per size bracket
-- Each size bracket adds approximately $\$100$ to the base
+- **Base price** = Tier base ($200, $300, or $400)
+- **Size increment** = $100 per size bracket
+- Each size bracket adds approximately $100 to the base
 
 ### Bonus Formula
 
-$$\text{Majority bonus} = \text{Stock price} \times 10$$
+Majority bonus = Stock price × 10
 
-$$\text{Minority bonus} = \frac{\text{Majority bonus}}{2}$$
+Minority bonus = Majority bonus / 2
 
 **Example for 5-tile Standard chain:**
-- Stock price: $\$600$
-- Majority: $\$600 \times 10 = \$6{,}000$
-- Minority: $\$6{,}000 \div 2 = \$3{,}000$
+- Stock price: $600
+- Majority: $600 × 10 = $6,000
+- Minority: $6,000 / 2 = $3,000
 
 ---
 

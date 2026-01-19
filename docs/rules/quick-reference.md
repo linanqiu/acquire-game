@@ -82,9 +82,19 @@ Minority Bonus = Stock Price × 5
 
 ## Turn Sequence
 
-1. **PLACE** - Put one tile on matching space
-2. **BUY** - Purchase 0-3 stocks (optional)
-3. **DRAW** - Take one tile from supply
+1. **TRADE** - Trade stock with other players (optional)
+2. **PLACE** - Put one tile on matching space
+3. **BUY** - Purchase 0-3 stocks (optional)
+4. **DRAW** - Take one tile from supply
+
+## Player Trading Rules
+
+| Rule | Details |
+|------|---------|
+| When | Phase 1 only (before tile placement) |
+| Initiator | Active player only |
+| Response | Other players may accept or decline |
+| Items | Stock, cash, or combinations |
 
 ## End Game Triggers
 
