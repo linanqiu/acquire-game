@@ -228,15 +228,16 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 The product roadmap lives in [`docs/roadmap/`](docs/roadmap/README.md) with:
 
-- **5 Epics**: Frontend Foundation, Game UI, Real-time, AI Training, Deployment
-- **45 Stories**: Each designed for single-session completion
+- **6 Epics**: Backend Hardening, Frontend Foundation, Game UI, Real-time, AI Training, Deployment
+- **57 Stories**: Each designed for single-session completion
 - **Dependency Graph**: Clear parallelization opportunities
 
 ### Epic Overview
 
 | Epic | Stories | Status | Parallelizable |
 |------|---------|--------|----------------|
-| [Frontend Foundation](docs/roadmap/epics/01-frontend-foundation.md) | 10 | Not Started | Yes (independent track) |
+| [Backend Hardening](docs/roadmap/epics/00-backend-hardening.md) | 12 | Not Started | Yes - DO FIRST |
+| [Frontend Foundation](docs/roadmap/epics/01-frontend-foundation.md) | 10 | Not Started | After BH complete |
 | [Game UI](docs/roadmap/epics/02-game-ui.md) | 15 | Not Started | After FF-005 |
 | [Real-time Integration](docs/roadmap/epics/03-realtime-integration.md) | 6 | Not Started | After FF-001 |
 | [AI Training](docs/roadmap/epics/04-ai-training.md) | 9 | Not Started | Yes (independent track) |
@@ -245,7 +246,7 @@ The product roadmap lives in [`docs/roadmap/`](docs/roadmap/README.md) with:
 ### Parallelization
 
 Three tracks can run independently:
-1. **Frontend** (FF → GU → RT)
+1. **Backend → Frontend** (BH → FF → GU → RT)
 2. **AI Training** (AI-001 → AI-009)
 3. **Deployment** (DP-001 → DP-005)
 
