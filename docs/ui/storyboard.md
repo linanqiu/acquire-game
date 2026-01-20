@@ -4,7 +4,7 @@
 
 Complete storyboard for the Acquire board game frontend redesign. This document defines every screen, user flow, and interaction the new frontend must support.
 
-**Design Reference:** `docs/ui/DESIGN_PRINCIPLES.md` (Bloomberg terminal aesthetic, dark theme, monospace typography, information-dense)
+**Design Reference:** `design-system.md` (Bloomberg terminal aesthetic, dark theme, monospace typography, information-dense)
 
 ---
 
@@ -23,9 +23,9 @@ Complete storyboard for the Acquire board game frontend redesign. This document 
 
 | Tier | Chains | Price at 2 tiles |
 |------|--------|------------------|
-| Budget | Luxor, Tower | $200 |
-| Standard | American, Festival, Worldwide | $300 |
-| Premium | Continental, Imperial | $400 |
+| Cheap | Luxor, Tower | $200 |
+| Medium | American, Festival, Worldwide | $300 |
+| Expensive | Continental, Imperial | $400 |
 
 ### End Game Conditions
 Game **may** end (player choice) when:
@@ -63,6 +63,9 @@ Game **may** end (player choice) when:
 Host creates game -> Gets 4-letter room code -> Host view shows QR code + room code
 -> Players join via QR scan or manual code entry -> Host adds bots if needed
 -> Host starts game (requires 3+ players)
+-> Turn order randomized (digital version) or determined by tile draw closest to 1A (physical rules)
+-> Each player receives $6,000 and 6 hidden tiles
+-> First player begins their turn
 ```
 
 ### Flow 2: Player Turn (4 Phases)
@@ -103,6 +106,7 @@ PHASE 3: BUY STOCKS (Optional)
 PHASE 4: DRAW TILE (Automatic)
 |- Draw 1 tile from pool to replenish to 6
 |- If pool empty, continue without drawing
+|- UI should show tile pool status (remaining tiles or "EMPTY")
 ```
 
 ### Flow 3: Merger Resolution
@@ -396,8 +400,10 @@ Connection lost -> Show reconnecting spinner
 | Orphan | "1A - Isolated tile (no chain)" |
 | Found chain | "3C - Creates new chain! Choose name after placement" |
 | Expand | "6D - AMERICAN grows to 4 tiles ($500/share)" |
+| Expand + absorb orphans | "6D - AMERICAN grows to 6 tiles (absorbs 2 orphans)" |
 | Merger | "5C - AMERICAN (5 tiles) absorbs LUXOR (3 tiles)" |
 | Merger (tied) | "5C - TIE! AMERICAN (4) vs LUXOR (4). You choose survivor" |
+| Multi-chain merger | "5C - Triple merger! AMERICAN survives, LUXOR & TOWER defunct" |
 
 ### Unplayable Tile Handling
 ```
@@ -434,19 +440,19 @@ If ALL 6 tiles are unplayable:
 | Your tile connected 3 orphan tiles.      |
 | Choose which hotel chain to establish:   |
 |                                          |
-| BUDGET TIER (starts at $200/share)       |
+| CHEAP TIER (starts at $200/share)        |
 | +------------------+ +------------------+ |
 | | [Y] LUXOR        | | [Br] TOWER       | |
 | | 25 stock avail   | | 25 stock avail   | |
 | +------------------+ +------------------+ |
 |                                          |
-| STANDARD TIER (starts at $300/share)     |
+| MEDIUM TIER (starts at $300/share)       |
 | +-----------+ +-----------+ +-----------+ |
 | |[B]AMERICAN| |[P]FESTIVAL| |[G]WORLDWIDE| |
 | | 25 avail  | | 25 avail  | | 25 avail  | |
 | +-----------+ +-----------+ +-----------+ |
 |                                          |
-| PREMIUM TIER (starts at $400/share)      |
+| EXPENSIVE TIER (starts at $400/share)    |
 | +------------------+ +------------------+ |
 | | [R] CONTINENTAL  | | [Bl] IMPERIAL    | |
 | | 25 stock avail   | | 25 stock avail   | |
@@ -462,7 +468,7 @@ If ALL 6 tiles are unplayable:
 |-------|--------|----------|
 | Available | Full color, stock count | Selectable |
 | Already on board | Grayed out, "ACTIVE" | Not selectable |
-| No stock available | Full color, "0 avail" | Selectable (receive cash instead of stock) |
+| No stock available | Full color, "0 avail" | Selectable (no free stock given - rare edge case) |
 
 ### Founding Confirmation
 ```
@@ -473,7 +479,21 @@ If ALL 6 tiles are unplayable:
 | Starting stock price: $400/share         |
 |                                          |
 | You received: 1 FREE AMERICAN share      |
-| (No stock available? You'd get $400)     |
+|                                          |
+| [CONTINUE TO BUY STOCKS ->]              |
++------------------------------------------+
+```
+
+### Founding Confirmation (No Stock Available - Rare)
+```
++------------------------------------------+
+| [ok] AMERICAN FOUNDED!                   |
++------------------------------------------+
+| Chain size: 3 tiles                      |
+| Starting stock price: $400/share         |
+|                                          |
+| All 25 AMERICAN shares already owned.    |
+| No founder's bonus awarded.              |
 |                                          |
 | [CONTINUE TO BUY STOCKS ->]              |
 +------------------------------------------+
@@ -508,7 +528,7 @@ If ALL 6 tiles are unplayable:
 +------------------------------------------+
 | LUXOR ACQUIRED BY AMERICAN               |
 +------------------------------------------+
-| LUXOR (5 tiles, Budget tier) bonuses:    |
+| LUXOR (5 tiles, Cheap tier) bonuses:    |
 |                                          |
 | [crown] MAJORITY (6 shares): BOB         |
 |    Bonus: $5,000                         |
@@ -680,6 +700,8 @@ If ALL 6 tiles are unplayable:
 ## Screen 2f: Player View - End Game Declaration
 
 When end conditions are met (your turn):
+
+### Variant 1: Chain Reached 41+ Tiles
 ```
 +------------------------------------------+
 | END GAME AVAILABLE                       |
@@ -689,6 +711,23 @@ When end conditions are met (your turn):
 | You may declare the game over now,       |
 | or continue playing for strategic        |
 | advantage.                               |
+|                                          |
+| [DECLARE GAME OVER]  [CONTINUE PLAYING]  |
++------------------------------------------+
+```
+
+### Variant 2: All Chains Are Safe
+```
++------------------------------------------+
+| END GAME AVAILABLE                       |
++------------------------------------------+
+| All active chains are now SAFE (11+):    |
+|  - AMERICAN: 15 tiles                    |
+|  - CONTINENTAL: 22 tiles                 |
+|  - IMPERIAL: 11 tiles                    |
+|                                          |
+| You may declare the game over now,       |
+| or continue playing.                     |
 |                                          |
 | [DECLARE GAME OVER]  [CONTINUE PLAYING]  |
 +------------------------------------------+
@@ -769,6 +808,7 @@ If "DECLARE GAME OVER":
 - **Current player**: > marker in scoreboard, name in header
 - **Trade visibility**: All proposed/completed trades shown
 - **Chain status**: Size, price, available stock, [P] for safe
+- **Tile pool status**: Show remaining tiles (e.g., "TILES: 42" or "TILES: EMPTY")
 - **Activity log**: Rolling log of recent game events
 - **Room code**: Always visible for latecomers
 
@@ -957,22 +997,48 @@ If "DECLARE GAME OVER":
 
 ## Rules Coverage Checklist
 
+### Setup Rules
 - [x] 3-6 players, $6,000 starting cash, 6 tiles per hand
-- [x] 12x9 board, 7 chains, 25 stock per chain
+- [x] 12x9 board (108 tiles), 7 chains, 25 stock per chain
+- [x] Turn order determination (randomized for digital)
+
+### Turn Phase Rules
 - [x] 4-phase turn: Trade -> Place Tile -> Buy Stock -> Draw Tile
 - [x] Player-to-player trading (active player proposes, others respond)
 - [x] Trading closes after tile placement
+- [x] Buy 0-3 stocks per turn in active chains only
+- [x] Tile pool exhaustion handling (continue without drawing)
+
+### Tile Placement Rules
 - [x] Tile outcomes: orphan, found chain, expand chain, merger
-- [x] Chain founding: choose chain, get 1 free stock (or cash if none)
+- [x] Expansion with orphan absorption (orphans join existing chain)
+- [x] Unplayable tiles: permanently (merge 2 safe) vs temporarily (8th chain)
+- [x] Tile replacement when tiles are permanently unplayable
+
+### Chain Rules
+- [x] Chain founding: choose chain, get 1 free stock
+- [x] Founder gets NO bonus if all 25 stocks already distributed
+- [x] Chain tiers: Cheap, Medium, Expensive (pricing per rules)
+- [x] Safe chains: 11+ tiles, cannot be acquired
+- [x] Max 7 chains on board at once
+
+### Merger Rules
 - [x] Merger: larger survives, tie = mergemaker chooses, safe always survives
 - [x] Merger bonuses: majority/minority with tie-breaking rules
-- [x] Stock disposition: sell/trade(2:1)/hold in clockwise order
+- [x] Sole stockholder gets BOTH bonuses
+- [x] Tie for majority: combine and split maj+min, round up to $100
+- [x] Tie for minority: split minority, round up to $100
+- [x] Stock disposition: sell/trade(2:1)/hold in clockwise order from mergemaker
+- [x] Trade only if surviving chain has stock available
 - [x] Multi-chain merger: resolve largest defunct first
-- [x] Safe chains: 11+ tiles, cannot be acquired
-- [x] End game: 41+ tiles OR all chains safe, declaration optional
+
+### End Game Rules
+- [x] End game conditions: 41+ tiles OR all chains safe
+- [x] Declaration is optional (player choice)
+- [x] Declaration ends turn immediately (no tile, no buy, no draw)
 - [x] Final scoring: bonuses for all active chains, sell all stock
 - [x] Defunct held stock = worthless at game end
-- [x] Unplayable tiles: permanently (merge 2 safe) vs temporarily (8th chain)
-- [x] Tile replacement when all tiles unplayable
-- [x] Public info: cash, stocks, tile count, board state
+
+### Information Visibility
+- [x] Public info: cash, stocks, tile count, board state, chain sizes, stock availability
 - [x] Private info: specific tiles in hand
