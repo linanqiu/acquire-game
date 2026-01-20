@@ -1,4 +1,8 @@
-"""Tests for end game conditions and finalization."""
+"""Scenario tests for end game - from docs/tests/scenario/end-game.md
+
+End game scenarios cover conditions for ending the game, declaration,
+final scoring, and winner determination.
+"""
 
 from game.game import GamePhase
 from game.board import Tile
@@ -6,6 +10,7 @@ from game.rules import Rules
 from tests.scenarios.conftest import (
     ChainBuilder,
     give_player_stocks,
+    give_player_tile,
 )
 
 
@@ -247,3 +252,223 @@ class TestEndGameFromLobby:
         # Money should remain unchanged from Luxor (it's inactive)
         # The only money change would be from Tower, but p1 has no Tower stock
         assert p1.get_stock_count("Luxor") == 0  # All stocks should be liquidated
+
+
+class TestEndGameDeclaration:
+    """Tests for end game declaration (Scenarios 7.4 - 7.5)."""
+
+    def test_scenario_7_4_end_game_declaration_is_optional(
+        self, game_with_three_players
+    ):
+        """Scenario 7.4: End Game Declaration is Optional
+
+        Player can choose not to declare even when conditions are met.
+        """
+        game = game_with_three_players
+        builder = ChainBuilder(game)
+
+        # Create two safe chains (end condition met)
+        builder.setup_chain("Luxor", 11, start_col=1, row="A")
+        builder.setup_chain("Tower", 11, start_col=1, row="C")
+
+        # Verify end condition is met
+        assert Rules.check_end_game(game.board, game.hotel)
+
+        player = game.get_current_player()
+
+        # Player can still place tiles and continue the game
+        tile = Tile(5, "E")
+        give_player_tile(player, tile, game)
+
+        result = game.play_tile(player.player_id, tile)
+        assert result["success"] is True
+
+        # Game is still playing
+        assert game.phase != GamePhase.GAME_OVER
+
+    def test_scenario_7_5_declaration_ends_game_immediately(
+        self, game_with_three_players
+    ):
+        """Scenario 7.5: Declaration Ends Game Immediately
+
+        When player declares game over, it ends immediately.
+        """
+        game = game_with_three_players
+        builder = ChainBuilder(game)
+
+        # Create safe chains (end condition met)
+        builder.setup_chain("American", 12, start_col=1, row="A")
+
+        # Verify end condition is met
+        assert Rules.check_end_game(game.board, game.hotel)
+
+        # Declare game over
+        result = game.end_game()
+
+        assert result["success"] is True
+        assert game.phase == GamePhase.GAME_OVER
+
+
+class TestTieForWinner:
+    """Tests for tied winner scenarios (Scenario 7.12)."""
+
+    def test_scenario_7_12_tie_for_winner(self, game_with_three_players):
+        """Scenario 7.12: Tie for Winner
+
+        Multiple players can be declared winners with equal money.
+        """
+        game = game_with_three_players
+        builder = ChainBuilder(game)
+
+        # Set up chain
+        builder.setup_chain("Luxor", 5, start_col=1, row="A")
+
+        p1 = game.get_player("p1")
+        p2 = game.get_player("p2")
+        p3 = game.get_player("p3")
+
+        # Set up equal stock holdings for p1 and p2
+        # Give them the same number of stocks so they tie
+        give_player_stocks(p1, "Luxor", 5, game.hotel)
+        give_player_stocks(p2, "Luxor", 5, game.hotel)
+        give_player_stocks(p3, "Luxor", 2, game.hotel)
+
+        # Ensure they have same starting cash
+        p1._money = 5000
+        p2._money = 5000
+        p3._money = 5000
+
+        # End the game
+        result = game.end_game()
+
+        assert result["success"] is True
+        standings = result["standings"]
+
+        # P1 and P2 should have same money (tied for first)
+        assert standings[0]["money"] == standings[1]["money"]
+
+        # P3 should have less
+        assert standings[2]["money"] < standings[0]["money"]
+
+
+class TestFullEndGameWalkthrough:
+    """Tests for complete end game sequence (Scenario 7.14)."""
+
+    def test_scenario_7_14_full_end_game_walkthrough(self, game_with_three_players):
+        """Scenario 7.14: Full End Game Walkthrough
+
+        Complete end game with bonuses, stock sale, and winner determination.
+        """
+        game = game_with_three_players
+
+        # Set up Continental chain with 15 tiles (spanning rows A and B)
+        for col in range(1, 13):  # 12 tiles in row A
+            tile = Tile(col, "A")
+            game.board.place_tile(tile)
+            game.board.set_chain(tile, "Continental")
+        for col in range(1, 4):  # 3 more tiles in row B
+            tile = Tile(col, "B")
+            game.board.place_tile(tile)
+            game.board.set_chain(tile, "Continental")
+        game.hotel.activate_chain("Continental")
+
+        # Set up American chain with 10 tiles
+        for col in range(1, 11):  # 10 tiles in row D
+            tile = Tile(col, "D")
+            game.board.place_tile(tile)
+            game.board.set_chain(tile, "American")
+        game.hotel.activate_chain("American")
+
+        p1 = game.get_player("p1")
+        p2 = game.get_player("p2")
+        p3 = game.get_player("p3")
+
+        # Set initial cash
+        p1._money = 3000
+        p2._money = 2500
+        p3._money = 4000
+
+        # Give stocks
+        give_player_stocks(p1, "Continental", 6, game.hotel)
+        give_player_stocks(p1, "American", 4, game.hotel)
+
+        give_player_stocks(p2, "Continental", 3, game.hotel)
+        give_player_stocks(p2, "American", 7, game.hotel)
+
+        give_player_stocks(p3, "Continental", 4, game.hotel)
+        give_player_stocks(p3, "American", 2, game.hotel)
+
+        # Record initial money
+        initial_p1_money = p1.money
+        initial_p2_money = p2.money
+        initial_p3_money = p3.money
+
+        # End the game
+        result = game.end_game()
+
+        assert result["success"] is True
+        assert game.phase == GamePhase.GAME_OVER
+
+        # All players should have received bonuses and stock liquidation
+        assert p1.money > initial_p1_money
+        assert p2.money > initial_p2_money
+        assert p3.money > initial_p3_money
+
+        # All stocks should be liquidated
+        for player in [p1, p2, p3]:
+            assert player.get_stock_count("Continental") == 0
+            assert player.get_stock_count("American") == 0
+
+        # Verify winner is determined
+        assert "winner" in result or "standings" in result
+
+
+class TestEndGameEdgeCases:
+    """Tests for end game edge cases (Scenarios 7.15 - 7.16)."""
+
+    def test_scenario_7_15_end_game_with_no_chains(self, game_with_three_players):
+        """Scenario 7.15: End Game with No Chains (Edge Case)
+
+        Game cannot end normally with no active chains.
+        """
+        game = game_with_three_players
+
+        # No chains on board
+        can_end = Rules.check_end_game(game.board, game.hotel)
+        assert can_end is False
+
+        # Game should continue
+        assert game.phase == GamePhase.PLAYING
+
+    def test_scenario_7_16_actions_blocked_after_declaration(
+        self, game_with_three_players
+    ):
+        """Scenario 7.16: Actions Blocked After Game Over
+
+        No actions allowed after game is declared over.
+        """
+        game = game_with_three_players
+        builder = ChainBuilder(game)
+
+        # Create safe chain for end condition
+        builder.setup_chain("Luxor", 11, start_col=1, row="A")
+
+        # End the game
+        game.end_game()
+        assert game.phase == GamePhase.GAME_OVER
+
+        player = game.get_current_player()
+
+        # Try to place a tile
+        tile = Tile(5, "E")
+        give_player_tile(player, tile, game)
+        result = game.play_tile(player.player_id, tile)
+        assert result["success"] is False
+
+        # Try to buy stock
+        result = game.buy_stocks(player.player_id, ["Luxor"])
+        assert result["success"] is False
+
+        # Try to end game again
+        result = game.end_game()
+        assert result["success"] is False
