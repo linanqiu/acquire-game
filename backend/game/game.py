@@ -30,7 +30,7 @@ class GamePhase(Enum):
 class Game:
     """Main game class that orchestrates the full Acquire game."""
 
-    MIN_PLAYERS = 2
+    MIN_PLAYERS = 3
     MAX_PLAYERS = 6
     STARTING_TILES = 6
     MAX_STOCKS_PER_TURN = 3

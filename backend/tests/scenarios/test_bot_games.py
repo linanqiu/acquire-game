@@ -50,6 +50,7 @@ class TestBotGameCompletion:
         game = Game(seed=42)  # Using a different seed that works better
         game.add_player("bot1", "Bot 1", is_bot=True)
         game.add_player("bot2", "Bot 2", is_bot=True)
+        game.add_player("bot3", "Bot 3", is_bot=True)
         game.start_game()
 
         turn_count = self._run_bot_game(game, max_turns=500, force_end_after=150)
@@ -107,6 +108,7 @@ class TestBotPhaseHandling:
         game = Game(seed=42)
         game.add_player("bot1", "Bot 1", is_bot=True)
         game.add_player("bot2", "Bot 2", is_bot=True)
+        game.add_player("bot3", "Bot 3", is_bot=True)
         game.start_game()
 
         # Find a tile that would cause founding
@@ -130,6 +132,7 @@ class TestBotPhaseHandling:
         game = Game(seed=42)
         game.add_player("bot1", "Bot 1", is_bot=True)
         game.add_player("bot2", "Bot 2", is_bot=True)
+        game.add_player("bot3", "Bot 3", is_bot=True)
         game.start_game()
 
         builder = ChainBuilder(game)
@@ -154,6 +157,7 @@ class TestBotPhaseHandling:
         game = Game(seed=42)
         game.add_player("bot1", "Bot 1", is_bot=True)
         game.add_player("bot2", "Bot 2", is_bot=True)
+        game.add_player("bot3", "Bot 3", is_bot=True)
         game.start_game()
 
         builder = ChainBuilder(game)
@@ -182,6 +186,7 @@ class TestBotPhaseHandling:
         game = Game(seed=42)
         game.add_player("bot1", "Bot 1", is_bot=True)
         game.add_player("bot2", "Bot 2", is_bot=True)
+        game.add_player("bot3", "Bot 3", is_bot=True)
         game.start_game()
 
         builder = ChainBuilder(game)
@@ -218,6 +223,7 @@ class TestBotDifficulties:
         game = Game(seed=42)
         game.add_player("bot1", "Easy Bot", is_bot=True, bot_difficulty="easy")
         game.add_player("bot2", "Bot 2", is_bot=True)
+        game.add_player("bot3", "Bot 3", is_bot=True)
         game.start_game()
 
         # Run a few turns
@@ -238,6 +244,7 @@ class TestBotDifficulties:
         game = Game(seed=42)
         game.add_player("bot1", "Hard Bot", is_bot=True, bot_difficulty="hard")
         game.add_player("bot2", "Bot 2", is_bot=True)
+        game.add_player("bot3", "Bot 3", is_bot=True)
         game.start_game()
 
         # Run a few turns
@@ -254,6 +261,7 @@ class TestBotDifficulties:
         game = Game(seed=42)
         game.add_player("bot1", "Medium Bot", is_bot=True, bot_difficulty="medium")
         game.add_player("bot2", "Bot 2", is_bot=True)
+        game.add_player("bot3", "Bot 3", is_bot=True)
         game.start_game()
 
         # Run a few turns

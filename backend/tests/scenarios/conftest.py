@@ -10,10 +10,11 @@ from game.player import Player
 
 @pytest.fixture
 def game_with_two_players():
-    """Fresh game with 2 players, started."""
+    """Fresh game with 3 players, started (MIN_PLAYERS=3)."""
     game = Game(seed=42)
     game.add_player("p1", "Alice")
     game.add_player("p2", "Bob")
+    game.add_player("p3", "Charlie")
     game.start_game()
     return game
 

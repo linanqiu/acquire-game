@@ -98,6 +98,7 @@ class TestAddingPlayers:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         with pytest.raises(ValueError, match="started"):
@@ -131,6 +132,7 @@ class TestStartGame:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         assert game.phase == GamePhase.PLAYING
@@ -141,6 +143,7 @@ class TestStartGame:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         for player in game.players:
@@ -151,11 +154,12 @@ class TestStartGame:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         # Check that tile bag exists and has correct count
-        # 108 total - (6 * 2 players) = 96 remaining
-        assert len(game.tile_bag) == 108 - 12
+        # 108 total - (6 * 3 players) = 90 remaining
+        assert len(game.tile_bag) == 108 - 18
 
     def test_cannot_start_with_less_than_min_players(self):
         """Test that game cannot start with fewer than 2 players."""
@@ -170,6 +174,7 @@ class TestStartGame:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         with pytest.raises(ValueError, match="already started"):
@@ -184,6 +189,7 @@ class TestTurnFlow:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         current = game.get_current_player()
@@ -194,6 +200,7 @@ class TestTurnFlow:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         # Set phase to allow next_turn
@@ -208,10 +215,12 @@ class TestTurnFlow:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         game.phase = GamePhase.BUYING_STOCKS
         game.next_turn()  # p2
+        game.next_turn()  # p3
         game.next_turn()  # p1
 
         current = game.get_current_player()
@@ -222,6 +231,7 @@ class TestTurnFlow:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         player = game.get_current_player()
@@ -238,6 +248,7 @@ class TestTurnFlow:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         # Try to play a tile not in hand
@@ -255,6 +266,7 @@ class TestTurnFlow:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         p2 = game.get_player("p2")
@@ -273,6 +285,7 @@ class TestBuyStocks:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         # Play isolated tile to get to buying phase
@@ -289,6 +302,7 @@ class TestBuyStocks:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         # Manually set up an active chain
@@ -312,6 +326,7 @@ class TestBuyStocks:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         # Set up active chain
@@ -333,6 +348,7 @@ class TestBuyStocks:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         # Set up active chain
@@ -363,6 +379,7 @@ class TestChainFounding:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         # Place an isolated tile on the board first
@@ -388,6 +405,7 @@ class TestChainFounding:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         # Set up for founding
@@ -417,6 +435,7 @@ class TestChainFounding:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         # Activate Luxor
@@ -473,6 +492,7 @@ class TestMergerFlow:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         merger_tile = self.setup_merger_scenario(game)
@@ -493,6 +513,7 @@ class TestMergerFlow:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         merger_tile = self.setup_merger_scenario(game)
@@ -515,6 +536,7 @@ class TestMergerFlow:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         # Create two chains of equal size
@@ -549,6 +571,7 @@ class TestMergerFlow:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         # Create two chains of equal size
@@ -586,6 +609,7 @@ class TestStockDisposition:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         # Set up merger scenario
@@ -626,6 +650,7 @@ class TestStockDisposition:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         # Set up merger
@@ -665,6 +690,7 @@ class TestStockDisposition:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         # Set up merger
@@ -707,6 +733,7 @@ class TestEndGame:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         # Create a chain with 41 tiles
@@ -727,6 +754,7 @@ class TestEndGame:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         # Create two chains, both with 11+ tiles (safe)
@@ -752,6 +780,7 @@ class TestEndGame:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         # Set up some chains and stocks
@@ -771,7 +800,7 @@ class TestEndGame:
         assert result["success"] is True
         assert game.phase == GamePhase.GAME_OVER
         assert "standings" in result
-        assert len(result["standings"]) == 2
+        assert len(result["standings"]) == 3
         assert result["standings"][0]["rank"] == 1
 
     def test_end_game_pays_final_bonuses(self):
@@ -779,6 +808,7 @@ class TestEndGame:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         # Set up a chain
@@ -815,6 +845,7 @@ class TestBotExecution:
         game = Game()
         game.add_player("bot1", "Bot Alice", is_bot=True)
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         # Ensure it's bot's turn
@@ -834,6 +865,7 @@ class TestBotExecution:
         game = Game()
         game.add_player("bot1", "Bot Alice", is_bot=True)
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         # Place a tile that will allow founding when adjacent tile is played
@@ -859,6 +891,7 @@ class TestBotExecution:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         actions = game.execute_bot_turn("p1")
@@ -876,6 +909,7 @@ class TestGameState:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         state = game.get_public_state()
@@ -885,14 +919,15 @@ class TestGameState:
         assert "board" in state
         assert "chains" in state
         assert "players" in state
-        assert len(state["players"]) == 2
-        assert state["tiles_remaining"] == 108 - 12
+        assert len(state["players"]) == 3
+        assert state["tiles_remaining"] == 108 - 18
 
     def test_get_player_state(self):
         """Test getting private player state."""
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         state = game.get_player_state("p1")
@@ -907,6 +942,7 @@ class TestGameState:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         state = game.get_player_state("p1")
@@ -920,6 +956,7 @@ class TestGameState:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         assert game.can_player_act("p1") is True
@@ -934,6 +971,7 @@ class TestEndTurn:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         player = game.get_current_player()
@@ -953,6 +991,7 @@ class TestEndTurn:
         game = Game()
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
         game.start_game()
 
         player = game.get_current_player()

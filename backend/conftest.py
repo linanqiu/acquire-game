@@ -112,6 +112,7 @@ def started_room(clean_session_manager):
     code = clean_session_manager.create_room()
     clean_session_manager.join_room(code, "player_1", "Alice")
     clean_session_manager.join_room(code, "player_2", "Bob")
+    clean_session_manager.join_room(code, "player_3", "Charlie")
     clean_session_manager.start_game(code)
     return code
 
