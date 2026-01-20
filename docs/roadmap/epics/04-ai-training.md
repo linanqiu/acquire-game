@@ -12,6 +12,8 @@ Build the neural network training pipeline to create stronger-than-heuristic bot
 - Train neural bot to match/exceed hard bot
 - Create evaluation framework for benchmarking
 
+> **Note**: Story implementation notes contain directional code examples. Always verify actual `Game`, `Rules`, and `Action` API signatures in the codebase before implementing.
+
 ## Tech Stack
 
 - **Language**: Python 3.12
