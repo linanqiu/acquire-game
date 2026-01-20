@@ -138,8 +138,8 @@ class Hotel:
         return name in self._active_chains
 
     def get_active_chains(self) -> list[str]:
-        """Get list of chains currently on the board."""
-        return list(self._active_chains)
+        """Get list of chains currently on the board (sorted for determinism)."""
+        return sorted(self._active_chains)
 
     def get_inactive_chains(self) -> list[str]:
         """Get list of chains not on the board (available to found)."""

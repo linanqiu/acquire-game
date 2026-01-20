@@ -127,12 +127,12 @@ class Rules:
 
         elif len(adjacent_chains) == 1:
             # Expanding an existing chain
-            chain_name = list(adjacent_chains)[0]
+            chain_name = adjacent_chains[0]
             return PlacementResult(PlacementResult.EXPAND, chain=chain_name)
 
         else:
             # Multiple chains - merger
-            return PlacementResult(PlacementResult.MERGE, chains=list(adjacent_chains))
+            return PlacementResult(PlacementResult.MERGE, chains=adjacent_chains)
 
     @classmethod
     def get_merger_survivor(
