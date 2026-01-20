@@ -8,9 +8,9 @@ This directory contains everything needed to implement the Acquire frontend:
 
 | Document | Purpose |
 |----------|---------|
-| [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md) | Visual language: colors, typography, spacing, animation |
-| [STORYBOARD.md](./STORYBOARD.md) | All screens, wireframes, states, and user flows |
-| [COMPONENTS.md](./COMPONENTS.md) | Reusable UI component specifications |
+| [design-system.md](./design-system.md) | Visual language: colors, typography, spacing, animation |
+| [storyboard.md](./storyboard.md) | All screens, wireframes, states, and user flows |
+| [components.md](./components.md) | Reusable UI component specifications |
 
 ## Design Philosophy
 
