@@ -36,6 +36,13 @@ VALID_CHAINS = [
 ]
 
 
+def _validate_chain_name(v: str) -> str:
+    """Shared validator for chain names."""
+    if v not in VALID_CHAINS:
+        raise ValueError(f"Invalid chain: {v}. Must be one of {VALID_CHAINS}")
+    return v
+
+
 class PlaceTileMessage(BaseModel):
     """Validate place_tile action messages."""
 
@@ -64,9 +71,7 @@ class FoundChainMessage(BaseModel):
     @classmethod
     def validate_chain(cls, v: str) -> str:
         """Validate chain name."""
-        if v not in VALID_CHAINS:
-            raise ValueError(f"Invalid chain: {v}. Must be one of {VALID_CHAINS}")
-        return v
+        return _validate_chain_name(v)
 
 
 class MergerChoiceMessage(BaseModel):
@@ -79,9 +84,7 @@ class MergerChoiceMessage(BaseModel):
     @classmethod
     def validate_chain(cls, v: str) -> str:
         """Validate chain name."""
-        if v not in VALID_CHAINS:
-            raise ValueError(f"Invalid chain: {v}. Must be one of {VALID_CHAINS}")
-        return v
+        return _validate_chain_name(v)
 
 
 class DispositionData(BaseModel):
@@ -111,9 +114,7 @@ class MergerDispositionMessage(BaseModel):
     @classmethod
     def validate_chain(cls, v: str) -> str:
         """Validate chain name."""
-        if v not in VALID_CHAINS:
-            raise ValueError(f"Invalid chain: {v}. Must be one of {VALID_CHAINS}")
-        return v
+        return _validate_chain_name(v)
 
 
 class BuyStocksMessage(BaseModel):
