@@ -14,6 +14,7 @@ from main import (
     broadcast_game_state,
 )
 from game.board import Tile
+from game.game import GamePhase
 
 
 class TestBotTurnAutoExecution:
@@ -31,10 +32,9 @@ class TestBotTurnAutoExecution:
         game = room.game
 
         assert game is not None
-        assert "turn_order" in game
-        assert "current_turn_index" in game
-        assert game["phase"] == "place_tile"
-        assert len(game["turn_order"]) == 3  # 3 players
+        assert len(game.turn_order) == 3  # 3 players
+        assert game.phase == GamePhase.PLAYING
+        assert game.turn_phase == "place_tile"
 
     @pytest.mark.asyncio
     async def test_current_player_has_tiles(self, game_room, clean_session_manager):
@@ -42,8 +42,8 @@ class TestBotTurnAutoExecution:
         room = clean_session_manager.get_room(game_room)
         game = room.game
 
-        current_player_id = game["turn_order"][game["current_turn_index"]]
-        current_player = game["players"][current_player_id]
+        current_player_id = game.get_current_player_id()
+        current_player = game.get_player(current_player_id)
 
         assert current_player.hand_size == 6
         assert len(current_player.hand) == 6
@@ -83,9 +83,9 @@ class TestTurnAdvancesAfterHumanAction:
         room = clean_session_manager.get_room(game_room)
         game = room.game
 
-        initial_turn_index = game["current_turn_index"]
-        current_player_id = game["turn_order"][initial_turn_index]
-        player = game["players"][current_player_id]
+        initial_turn_index = game.current_turn_index
+        current_player_id = game.get_current_player_id()
+        player = game.get_player(current_player_id)
         tile = player.hand[0]
 
         with patch.object(session_manager, "send_to_player", new_callable=AsyncMock):
@@ -101,7 +101,7 @@ class TestTurnAdvancesAfterHumanAction:
                     )
 
                     # If in buy_stocks phase, proceed to end turn
-                    if game["phase"] == "buy_stocks":
+                    if game.turn_phase == "buy_stocks":
                         await handle_player_action(
                             game_room,
                             current_player_id,
@@ -109,7 +109,7 @@ class TestTurnAdvancesAfterHumanAction:
                         )
 
         # Turn should have advanced
-        new_turn_index = game["current_turn_index"]
+        new_turn_index = game.current_turn_index
         assert new_turn_index != initial_turn_index, (
             f"Turn index should have changed from {initial_turn_index}"
         )
@@ -121,11 +121,11 @@ class TestTurnAdvancesAfterHumanAction:
         game = room.game
 
         # Set to last player
-        num_players = len(game["turn_order"])
-        game["current_turn_index"] = num_players - 1
+        num_players = len(game.turn_order)
+        game.current_turn_index = num_players - 1
 
-        last_player_id = game["turn_order"][num_players - 1]
-        player = game["players"][last_player_id]
+        last_player_id = game.turn_order[num_players - 1]
+        player = game.get_player(last_player_id)
         tile = player.hand[0]
 
         with patch.object(session_manager, "send_to_player", new_callable=AsyncMock):
@@ -139,7 +139,7 @@ class TestTurnAdvancesAfterHumanAction:
                         {"action": "place_tile", "tile": str(tile)},
                     )
 
-                    if game["phase"] == "buy_stocks":
+                    if game.turn_phase == "buy_stocks":
                         await handle_player_action(
                             game_room,
                             last_player_id,
@@ -147,7 +147,7 @@ class TestTurnAdvancesAfterHumanAction:
                         )
 
         # Should wrap to first player
-        assert game["current_turn_index"] == 0
+        assert game.current_turn_index == 0
 
 
 class TestMultiPhaseBotTurn:
@@ -158,15 +158,15 @@ class TestMultiPhaseBotTurn:
         """Placing adjacent tiles should trigger chain founding phase."""
         room = clean_session_manager.get_room(game_room)
         game = room.game
-        board = game["board"]
+        board = game.board
 
         # Place a tile first
         tile1 = Tile(5, "E")
         board.place_tile(tile1)
 
         # Give current player an adjacent tile
-        current_player_id = game["turn_order"][0]
-        player = game["players"][current_player_id]
+        current_player_id = game.get_current_player_id()
+        player = game.get_player(current_player_id)
 
         # Clear player's hand and add adjacent tile
         player._hand.clear()
@@ -188,15 +188,15 @@ class TestMultiPhaseBotTurn:
                     )
 
         # Should be in found_chain phase
-        assert game["phase"] == "found_chain"
+        assert game.turn_phase == "found_chain"
 
     @pytest.mark.asyncio
     async def test_found_chain_then_buy_stocks(self, game_room, clean_session_manager):
         """After founding chain, game should proceed to buy_stocks phase."""
         room = clean_session_manager.get_room(game_room)
         game = room.game
-        board = game["board"]
-        hotel = game["hotel"]
+        board = game.board
+        hotel = game.hotel
 
         # Set up for chain founding
         tile1 = Tile(5, "E")
@@ -204,12 +204,15 @@ class TestMultiPhaseBotTurn:
         board.place_tile(tile1)
         board.place_tile(tile2)
 
-        game["phase"] = "found_chain"
-        current_player_id = game["turn_order"][0]
+        game.turn_phase = "found_chain"
+        current_player_id = game.get_current_player_id()
 
-        game["pending_action"] = {
+        # Game.found_chain() expects available_chains in the pending_action
+        game.pending_action = {
+            "type": "found_chain",
             "tile": tile1,
             "connected_tiles": board.get_connected_tiles(tile1),
+            "available_chains": hotel.get_inactive_chains(),
         }
 
         with patch.object(session_manager, "send_to_player", new_callable=AsyncMock):
@@ -224,7 +227,7 @@ class TestMultiPhaseBotTurn:
                     )
 
         # Should be in buy_stocks phase now
-        assert game["phase"] == "buy_stocks"
+        assert game.turn_phase == "buy_stocks"
         assert hotel.is_chain_active("Luxor")
 
 
@@ -236,8 +239,8 @@ class TestBotMergerHandling:
         """Merger should be detected when connecting two chains."""
         room = clean_session_manager.get_room(game_room)
         game = room.game
-        board = game["board"]
-        hotel = game["hotel"]
+        board = game.board
+        hotel = game.hotel
 
         # Set up two chains with a gap
         # Chain 1: Luxor at 1A, 2A, 3A
@@ -255,8 +258,8 @@ class TestBotMergerHandling:
         hotel.activate_chain("Tower")
 
         # Give current player the merger tile (4A)
-        current_player_id = game["turn_order"][0]
-        player = game["players"][current_player_id]
+        current_player_id = game.get_current_player_id()
+        player = game.get_player(current_player_id)
         player._hand.clear()
 
         merger_tile = Tile(4, "A")
@@ -278,7 +281,7 @@ class TestBotMergerHandling:
 
         # Since Luxor is larger, it should automatically win
         # Game should proceed to buy_stocks phase after merger
-        assert game["phase"] == "buy_stocks"
+        assert game.turn_phase == "buy_stocks"
 
 
 class TestMultipleConsecutiveBotTurns:
@@ -292,12 +295,12 @@ class TestMultipleConsecutiveBotTurns:
         room = clean_session_manager.get_room(game_room)
         game = room.game
 
-        initial_pool_size = len(game["tile_pool"])
+        initial_pool_size = len(game.tile_pool)
 
         # Play multiple turns
         for turn in range(3):
-            current_player_id = game["turn_order"][game["current_turn_index"]]
-            player = game["players"][current_player_id]
+            current_player_id = game.get_current_player_id()
+            player = game.get_player(current_player_id)
 
             if player.hand_size > 0:
                 tile = player.hand[0]
@@ -317,7 +320,7 @@ class TestMultipleConsecutiveBotTurns:
                                 {"action": "place_tile", "tile": str(tile)},
                             )
 
-                            if game["phase"] == "buy_stocks":
+                            if game.turn_phase == "buy_stocks":
                                 await handle_player_action(
                                     game_room,
                                     current_player_id,
@@ -325,7 +328,7 @@ class TestMultipleConsecutiveBotTurns:
                                 )
 
         # Tile pool should have decreased
-        final_pool_size = len(game["tile_pool"])
+        final_pool_size = len(game.tile_pool)
         assert final_pool_size < initial_pool_size, (
             f"Pool size should decrease. Initial: {initial_pool_size}, "
             f"Final: {final_pool_size}"
@@ -403,8 +406,8 @@ class TestWebSocketMessageBroadcasting:
         host_ws = mock_websockets[0]
         room.host_websocket = host_ws
 
-        current_player_id = game["turn_order"][0]
-        player = game["players"][current_player_id]
+        current_player_id = game.get_current_player_id()
+        player = game.get_player(current_player_id)
         tile = player.hand[0]
 
         player_ws = mock_websockets[1]
