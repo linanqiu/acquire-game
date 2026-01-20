@@ -148,6 +148,12 @@ class EndTurnMessage(BaseModel):
     action: Literal["end_turn"]
 
 
+class DeclareEndGameMessage(BaseModel):
+    """Validate declare_end_game action messages."""
+
+    action: Literal["declare_end_game"]
+
+
 class ProposeTradeMessage(BaseModel):
     """Validate propose_trade action messages."""
 
@@ -209,6 +215,7 @@ WebSocketMessage = Union[
     MergerDispositionMessage,
     BuyStocksMessage,
     EndTurnMessage,
+    DeclareEndGameMessage,
     ProposeTradeMessage,
     AcceptTradeMessage,
     RejectTradeMessage,
@@ -238,6 +245,7 @@ def validate_websocket_message(
         "merger_disposition": MergerDispositionMessage,
         "buy_stocks": BuyStocksMessage,
         "end_turn": EndTurnMessage,
+        "declare_end_game": DeclareEndGameMessage,
         "propose_trade": ProposeTradeMessage,
         "accept_trade": AcceptTradeMessage,
         "reject_trade": RejectTradeMessage,
@@ -586,6 +594,9 @@ async def handle_player_action(room_code: str, player_id: str, data: dict) -> No
     elif action == "end_turn":
         await handle_end_turn(room_code, player_id)
 
+    elif action == "declare_end_game":
+        await handle_declare_end_game(room_code, player_id)
+
     elif action == "propose_trade":
         # validated_msg is ProposeTradeMessage
         await handle_propose_trade(
@@ -929,6 +940,63 @@ async def handle_end_turn(room_code: str, player_id: str):
 
     # Process bot turns if the next player is a bot
     await process_bot_turns(room_code)
+
+
+async def handle_declare_end_game(room_code: str, player_id: str):
+    """Handle a player declaring the game over.
+
+    This is used when end-game conditions are met and the current player
+    chooses to end the game (rather than continuing to play).
+    """
+    room = session_manager.get_room(room_code)
+    if room is None or room.game is None:
+        return
+
+    game = room.game
+
+    # Use Game.declare_end_game() method
+    result = game.declare_end_game(player_id)
+
+    if not result.get("success"):
+        await session_manager.send_to_player(
+            room_code,
+            player_id,
+            {"type": "error", "message": result.get("error", "Unknown error")},
+        )
+        return
+
+    # Build final scores from standings
+    standings = result.get("standings", [])
+    final_scores = {}
+    for entry in standings:
+        final_scores[entry["player_id"]] = {
+            "name": entry["name"],
+            "money": entry["money"],
+        }
+
+    winner = result.get("winner", {})
+    winner_id = winner.get("player_id") if winner else None
+
+    # Broadcast final results
+    await session_manager.broadcast_to_room(
+        room_code,
+        {
+            "type": "game_over",
+            "scores": final_scores,
+            "winner": winner_id,
+            "declared_by": player_id,
+        },
+    )
+
+    await session_manager.send_to_host(
+        room_code,
+        {
+            "type": "game_over",
+            "scores": final_scores,
+            "winner": winner_id,
+            "declared_by": player_id,
+        },
+    )
 
 
 # =============================================================================

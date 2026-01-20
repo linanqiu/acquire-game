@@ -24,6 +24,7 @@ class EventType(Enum):
     TURN_ENDED = "turn_ended"
     GAME_STARTED = "game_started"
     GAME_ENDED = "game_ended"
+    END_GAME_DECLARED = "end_game_declared"
 
 
 @dataclass

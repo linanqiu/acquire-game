@@ -453,3 +453,35 @@ class CancelTradeResult(GameResponse):
         if self.canceled_by:
             d["canceled_by"] = self.canceled_by
         return d
+
+
+# =============================================================================
+# Declare End Game Response
+# =============================================================================
+
+
+@dataclass
+class DeclareEndGameResult(GameResponse):
+    """Result of declaring the game over.
+
+    This is different from EndGameResult - this represents a player's
+    explicit declaration to end the game when conditions are met.
+
+    Attributes:
+        declared_by: ID of the player who declared the end
+        standings: List of players in final order (after finalization)
+        winner: The winning player
+    """
+
+    declared_by: Optional[str] = None
+    standings: List[PlayerStanding] = field(default_factory=list)
+    winner: Optional[PlayerStanding] = None
+
+    def to_dict(self) -> dict:
+        d = super().to_dict()
+        if self.declared_by:
+            d["declared_by"] = self.declared_by
+        if self.success:
+            d["standings"] = [s.to_dict() for s in self.standings]
+            d["winner"] = self.winner.to_dict() if self.winner else None
+        return d

@@ -472,3 +472,248 @@ class TestEndGameEdgeCases:
         # Try to end game again
         result = game.end_game()
         assert result["success"] is False
+
+
+class TestDeclareEndGame:
+    """Tests for explicit end-game declaration by players (BH-004).
+
+    Per the game rules, when end-game conditions are met, the current
+    player MAY choose to end the game - it is not automatic.
+    """
+
+    def test_can_declare_end_game_when_chain_41_tiles(self, game_with_three_players):
+        """can_declare_end_game returns True when a chain has 41+ tiles."""
+        game = game_with_three_players
+
+        # Create a chain with 41 tiles (need to span multiple rows)
+        # Place 12 tiles each in rows A, B, C and 5 in row D
+        for col in range(1, 13):
+            tile = Tile(col, "A")
+            game.board.place_tile(tile)
+            game.board.set_chain(tile, "Luxor")
+
+        for col in range(1, 13):
+            tile = Tile(col, "B")
+            game.board.place_tile(tile)
+            game.board.set_chain(tile, "Luxor")
+
+        for col in range(1, 13):
+            tile = Tile(col, "C")
+            game.board.place_tile(tile)
+            game.board.set_chain(tile, "Luxor")
+
+        for col in range(1, 6):  # 5 more tiles
+            tile = Tile(col, "D")
+            game.board.place_tile(tile)
+            game.board.set_chain(tile, "Luxor")
+
+        game.hotel.activate_chain("Luxor")
+
+        # Total: 12 + 12 + 12 + 5 = 41 tiles
+        assert game.board.get_chain_size("Luxor") == 41
+        assert game.can_declare_end_game() is True
+
+    def test_can_declare_end_game_when_all_chains_safe(self, game_with_three_players):
+        """can_declare_end_game returns True when all chains are safe (11+)."""
+        game = game_with_three_players
+        builder = ChainBuilder(game)
+
+        # Create two safe chains
+        builder.setup_chain("Luxor", 11, start_col=1, row="A")
+        builder.setup_chain("Tower", 11, start_col=1, row="C")
+
+        assert game.can_declare_end_game() is True
+
+    def test_cannot_declare_end_game_conditions_not_met(self, game_with_three_players):
+        """can_declare_end_game returns False when conditions not met."""
+        game = game_with_three_players
+        builder = ChainBuilder(game)
+
+        # Create one safe chain and one unsafe chain
+        builder.setup_chain("Luxor", 11, start_col=1, row="A")  # Safe
+        builder.setup_chain("Tower", 5, start_col=1, row="C")  # Unsafe
+
+        assert game.can_declare_end_game() is False
+
+    def test_cannot_declare_end_game_no_chains(self, game_with_three_players):
+        """can_declare_end_game returns False when no chains exist."""
+        game = game_with_three_players
+
+        # No chains on board
+        assert game.can_declare_end_game() is False
+
+    def test_cannot_declare_end_game_wrong_phase(self, game_with_three_players):
+        """can_declare_end_game returns False during wrong game phases."""
+        game = game_with_three_players
+        builder = ChainBuilder(game)
+
+        # Create safe chain
+        builder.setup_chain("Luxor", 11, start_col=1, row="A")
+
+        # Force into merging phase
+        game.phase = GamePhase.MERGING
+
+        assert game.can_declare_end_game() is False
+
+    def test_declare_end_game_success(self, game_with_three_players):
+        """declare_end_game succeeds when conditions are met."""
+        game = game_with_three_players
+        builder = ChainBuilder(game)
+
+        # Create safe chain
+        builder.setup_chain("Luxor", 11, start_col=1, row="A")
+
+        player = game.get_current_player()
+        result = game.declare_end_game(player.player_id)
+
+        assert result["success"] is True
+        assert result["declared_by"] == player.player_id
+        assert game.phase == GamePhase.GAME_OVER
+        assert "standings" in result
+        assert "winner" in result
+
+    def test_declare_end_game_not_your_turn(self, game_with_three_players):
+        """declare_end_game fails when not the current player's turn."""
+        game = game_with_three_players
+        builder = ChainBuilder(game)
+
+        # Create safe chain
+        builder.setup_chain("Luxor", 11, start_col=1, row="A")
+
+        # Get a non-current player
+        current_player = game.get_current_player()
+        other_player = [
+            p for p in game.players if p.player_id != current_player.player_id
+        ][0]
+
+        result = game.declare_end_game(other_player.player_id)
+
+        assert result["success"] is False
+        assert "current player" in result["error"].lower()
+        assert game.phase != GamePhase.GAME_OVER
+
+    def test_declare_end_game_conditions_not_met(self, game_with_three_players):
+        """declare_end_game fails when end-game conditions not met."""
+        game = game_with_three_players
+        builder = ChainBuilder(game)
+
+        # Create one unsafe chain
+        builder.setup_chain("Luxor", 5, start_col=1, row="A")
+
+        player = game.get_current_player()
+        result = game.declare_end_game(player.player_id)
+
+        assert result["success"] is False
+        assert "conditions" in result["error"].lower()
+        assert game.phase != GamePhase.GAME_OVER
+
+    def test_declare_end_game_already_over(self, game_with_three_players):
+        """declare_end_game fails when game is already over."""
+        game = game_with_three_players
+        builder = ChainBuilder(game)
+
+        # Create safe chain
+        builder.setup_chain("Luxor", 11, start_col=1, row="A")
+
+        # End the game first
+        game.end_game()
+        assert game.phase == GamePhase.GAME_OVER
+
+        player = game.get_current_player()
+        result = game.declare_end_game(player.player_id)
+
+        assert result["success"] is False
+        assert "already over" in result["error"].lower()
+
+    def test_declare_end_game_in_buying_stocks_phase(self, game_with_three_players):
+        """declare_end_game works during buying stocks phase."""
+        game = game_with_three_players
+        builder = ChainBuilder(game)
+
+        # Create safe chain
+        builder.setup_chain("Luxor", 11, start_col=1, row="A")
+
+        # Move to buying stocks phase
+        game.phase = GamePhase.BUYING_STOCKS
+
+        player = game.get_current_player()
+        result = game.declare_end_game(player.player_id)
+
+        assert result["success"] is True
+        assert game.phase == GamePhase.GAME_OVER
+
+    def test_end_game_available_in_player_state(self, game_with_three_players):
+        """end_game_available flag is set correctly in player state."""
+        game = game_with_three_players
+        builder = ChainBuilder(game)
+
+        # Create safe chain
+        builder.setup_chain("Luxor", 11, start_col=1, row="A")
+
+        current_player = game.get_current_player()
+        other_player = [
+            p for p in game.players if p.player_id != current_player.player_id
+        ][0]
+
+        # Current player should have end_game_available = True
+        current_state = game.get_player_state(current_player.player_id)
+        assert current_state["end_game_available"] is True
+
+        # Other player should have end_game_available = False
+        other_state = game.get_player_state(other_player.player_id)
+        assert other_state["end_game_available"] is False
+
+    def test_end_game_available_false_when_conditions_not_met(
+        self, game_with_three_players
+    ):
+        """end_game_available is False when conditions not met."""
+        game = game_with_three_players
+        builder = ChainBuilder(game)
+
+        # Create one unsafe chain
+        builder.setup_chain("Luxor", 5, start_col=1, row="A")
+
+        current_player = game.get_current_player()
+        state = game.get_player_state(current_player.player_id)
+
+        assert state["end_game_available"] is False
+
+    def test_declare_end_game_pays_bonuses(self, game_with_three_players):
+        """declare_end_game triggers proper bonus payments."""
+        game = game_with_three_players
+        builder = ChainBuilder(game)
+
+        # Create safe chain
+        builder.setup_chain("Luxor", 11, start_col=1, row="A")
+
+        p1 = game.get_player("p1")
+        give_player_stocks(p1, "Luxor", 5, game.hotel)
+
+        initial_money = p1.money
+
+        # Declare end game
+        result = game.declare_end_game(p1.player_id)
+
+        assert result["success"] is True
+        # Player should have received bonuses/stock sale proceeds
+        assert p1.money > initial_money
+
+    def test_declare_end_game_emits_event(self, game_with_three_players):
+        """declare_end_game emits an event to the activity log."""
+        game = game_with_three_players
+        builder = ChainBuilder(game)
+
+        # Create safe chain
+        builder.setup_chain("Luxor", 11, start_col=1, row="A")
+
+        events_before = len(game._events)
+
+        player = game.get_current_player()
+        game.declare_end_game(player.player_id)
+
+        # Should have emitted both end_game and end_game_declared events
+        assert len(game._events) > events_before
+
+        # Check that end_game_declared event was emitted
+        event_types = [e.event_type.value for e in game._events]
+        assert "end_game_declared" in event_types

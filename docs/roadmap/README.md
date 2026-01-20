@@ -14,7 +14,7 @@
 
 | Epic | Progress | Available Stories |
 |------|----------|-------------------|
-| [Backend Hardening](epics/00-backend-hardening.md) | 3/13 | BH-003, BH-004, BH-005, BH-006, BH-007, BH-008, BH-009, BH-010 |
+| [Backend Hardening](epics/00-backend-hardening.md) | 4/13 | BH-005, BH-006, BH-007, BH-008, BH-009, BH-010 |
 | [Frontend Foundation](epics/01-frontend-foundation.md) | 0/10 | (blocked by BH) |
 | [Game UI](epics/02-game-ui.md) | 0/15 | (blocked by FF) |
 | [Real-time Integration](epics/03-realtime-integration.md) | 0/6 | (blocked by FF) |
