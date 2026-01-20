@@ -1,5 +1,12 @@
 # User Preferences
 
+## Setup (Claude on Mobile/Fresh Sessions)
+On fresh sessions (e.g., Claude on mobile), install dependencies first:
+```bash
+pip install -r backend/requirements.txt
+pip install ruff
+```
+
 ## Git Workflow
 After completing code changes, always follow this sequence before being asked:
 1. Run ruff format

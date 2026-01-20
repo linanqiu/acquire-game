@@ -14,8 +14,8 @@
 
 | Epic | Progress | Available Stories |
 |------|----------|-------------------|
-| [Backend Hardening](epics/00-backend-hardening.md) | 4/13 | BH-005, BH-006, BH-007, BH-008, BH-009, BH-010 |
-| [Frontend Foundation](epics/01-frontend-foundation.md) | 0/10 | (blocked by BH) |
+| [Backend Hardening](epics/00-backend-hardening.md) | 13/13 ✅ | Complete |
+| [Frontend Foundation](epics/01-frontend-foundation.md) | 0/10 | FF-001, FF-002, FF-003, FF-010 |
 | [Game UI](epics/02-game-ui.md) | 0/15 | (blocked by FF) |
 | [Real-time Integration](epics/03-realtime-integration.md) | 0/6 | (blocked by FF) |
 | [AI Training](epics/04-ai-training.md) | 0/9 | AI-001, AI-003 |
@@ -57,7 +57,9 @@ GU-001, GU-002, GU-003
 ### Critical Path
 
 ```
-BH-001 → BH-002/003/004 → FF-001 → FF-002/FF-003 → FF-005/FF-006 → GU-002/GU-003 → RT Integration → Deploy
+[DONE] BH-001 → BH-002/003/004 → FF-001 → FF-002/FF-003 → FF-005/FF-006 → GU-002/GU-003 → RT Integration → Deploy
+                                  ↑
+                            YOU ARE HERE
 ```
 
 ## How to Claim a Story
@@ -66,6 +68,7 @@ BH-001 → BH-002/003/004 → FF-001 → FF-002/FF-003 → FF-005/FF-006 → GU-
 1. Check the story's `Dependencies` - all must be `complete`
 2. Verify no other agent has it `in-progress`
 3. Read the full story file including Implementation Notes
+4. **Important**: Verify actual codebase APIs match story examples (they may be outdated)
 
 ### Claiming Process
 ```bash
@@ -133,11 +136,11 @@ Each story follows this template:
 
 ## Epic Overview
 
-### Epic 0: Backend Hardening (13 stories) ⚠️ DO FIRST
-Fix critical architecture issues and add tests before frontend work.
+### Epic 0: Backend Hardening (13 stories) ✅ COMPLETE
+Fixed critical architecture issues and added comprehensive tests.
 - **Tech**: Python, pytest, FastAPI
-- **Start**: BH-001 (critical), BH-007/009/010 (can parallel)
-- **Why**: Unify dual state management, add missing frontend features, fill test gaps
+- **Result**: 645 tests (up from 365), unified state management, frontend-ready APIs
+- **Next**: Frontend Foundation is now unblocked
 
 ### Epic 1: Frontend Foundation (10 stories)
 Setup React + TypeScript project with design system components.

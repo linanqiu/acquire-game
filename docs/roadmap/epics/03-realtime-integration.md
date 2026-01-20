@@ -49,27 +49,39 @@ FF-001
 
 Based on existing backend (`backend/main.py`):
 
-### Client → Server
-- `join_game` - Join a room
-- `start_game` - Host starts the game
-- `add_bot` - Add AI player
-- `play_tile` - Place a tile
-- `found_chain` - Choose chain name
-- `choose_survivor` - Pick merger survivor
-- `dispose_stock` - Handle defunct shares
-- `buy_stocks` - Purchase stocks
-- `end_turn` - Complete turn
-- `propose_trade` - Start trade
-- `respond_trade` - Accept/decline trade
-- `declare_end_game` - Trigger game end
+> **Note**: Always verify actual message types in `main.py` before implementing. This documentation may be outdated.
 
-### Server → Client
-- `game_state` - Full state update
-- `player_state` - Private player info
-- `error` - Error message
-- `trade_proposal` - Incoming trade offer
-- `trade_response` - Trade result
-- `game_over` - Final results
+### Client → Server (action field)
+- `place_tile` - Place a tile on the board
+- `found_chain` - Choose chain name when founding
+- `merger_choice` - Pick merger survivor chain
+- `merger_disposition` - Handle defunct shares (sell/trade/keep)
+- `buy_stocks` - Purchase stocks (up to 3)
+- `end_turn` - Complete turn and draw tile
+- `add_bot` - Add AI player (lobby only)
+- `start_game` - Host starts the game
+- `end_game` - Force game end (lobby or when allowed)
+- `declare_end_game` - Trigger game end during play
+- `propose_trade` - Start trade offer
+- `accept_trade` - Accept pending trade
+- `reject_trade` - Decline pending trade
+- `cancel_trade` - Cancel own trade offer
+
+### Server → Client (type field)
+- `game_state` - Full public state update
+- `lobby_update` - Lobby state (players, bots, started)
+- `error` - Error message with details
+- `choose_chain` - Prompt to pick chain for founding
+- `choose_merger_survivor` - Prompt to pick surviving chain
+- `stock_disposition_required` - Prompt to handle defunct shares
+- `can_end_game` - Notify player can declare game end
+- `all_tiles_unplayable` - Player has no playable tiles
+- `tiles_replaced` - Unplayable tiles were replaced
+- `trade_proposed` - Incoming trade offer
+- `trade_accepted` - Trade was accepted
+- `trade_rejected` - Trade was declined
+- `trade_canceled` - Trade was canceled
+- `game_over` - Final results with scores and winner
 
 ## Success Criteria
 

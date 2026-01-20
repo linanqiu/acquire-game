@@ -12,6 +12,7 @@ from tests.scenarios.conftest import (
     ChainBuilder,
     give_player_tile,
     give_player_stocks,
+    set_current_player,
 )
 
 
@@ -604,3 +605,205 @@ class TestBonusEdgeCases:
         if bonuses:
             assert bonuses.get("p1", {}).get("majority", 0) == 0
             assert bonuses.get("p1", {}).get("minority", 0) == 0
+
+
+class TestMergerQueueVisibility:
+    """Tests for merger disposition queue visibility (BH-005)."""
+
+    def test_no_merger_state_in_lobby(self, game_in_lobby):
+        """No merger state should be present in lobby phase."""
+        game = game_in_lobby
+        state = game.get_public_state()
+
+        assert "merger_state" not in state
+
+    def test_no_merger_state_in_normal_play(self, game_with_three_players):
+        """No merger state during normal play phase."""
+        game = game_with_three_players
+        state = game.get_public_state()
+
+        assert "merger_state" not in state
+
+    def test_merger_state_during_stock_disposition(self, game_with_three_players):
+        """Merger state should include disposition queue during stock disposition."""
+        game = game_with_three_players
+        builder = ChainBuilder(game)
+
+        # Set up Luxor (3 tiles) and Tower (2 tiles)
+        builder.setup_chain("Luxor", 3, start_col=1, row="A")
+        builder.setup_chain("Tower", 2, start_col=5, row="A")
+
+        # Give players stocks in Tower (the defunct chain)
+        p1 = game.get_player("p1")
+        p2 = game.get_player("p2")
+
+        give_player_stocks(p1, "Tower", 3, game.hotel)
+        give_player_stocks(p2, "Tower", 2, game.hotel)
+        # p3 has no Tower stock (not fetched, won't be in queue)
+
+        # Set p1 as current player and give them the merger tile
+        set_current_player(game, "p1")
+        tile = Tile(4, "A")  # Between Luxor and Tower
+        give_player_tile(p1, tile, game)
+
+        # Play tile to trigger merger
+        game.play_tile("p1", tile)
+
+        # Should be in stock disposition phase
+        assert game.phase == GamePhase.MERGING
+        assert game.pending_action is not None
+        assert game.pending_action.get("type") == "stock_disposition"
+
+        # Check merger state in public state
+        state = game.get_public_state()
+
+        assert "merger_state" in state
+        merger_state = state["merger_state"]
+
+        assert merger_state["survivor"] == "Luxor"
+        assert merger_state["defunct"] == "Tower"
+        assert "disposition_queue" in merger_state
+
+        queue = merger_state["disposition_queue"]
+        # Only p1 and p2 have Tower stock, should be in queue
+        # Starting from current player (p1)
+        assert len(queue) == 2
+
+        # p1 should be first and current (index 0)
+        assert queue[0]["player_id"] == "p1"
+        assert queue[0]["name"] == "Alice"
+        assert queue[0]["status"] == "current"
+
+        # p2 should be second and waiting
+        assert queue[1]["player_id"] == "p2"
+        assert queue[1]["name"] == "Bob"
+        assert queue[1]["status"] == "waiting"
+
+    def test_merger_queue_status_updates_after_disposition(
+        self, game_with_three_players
+    ):
+        """Queue status should update as players complete disposition."""
+        game = game_with_three_players
+        builder = ChainBuilder(game)
+
+        # Set up Luxor (3 tiles) and Tower (2 tiles)
+        builder.setup_chain("Luxor", 3, start_col=1, row="A")
+        builder.setup_chain("Tower", 2, start_col=5, row="A")
+
+        # Give all 3 players stocks in Tower
+        p1 = game.get_player("p1")
+        p2 = game.get_player("p2")
+        p3 = game.get_player("p3")
+
+        give_player_stocks(p1, "Tower", 2, game.hotel)
+        give_player_stocks(p2, "Tower", 2, game.hotel)
+        give_player_stocks(p3, "Tower", 2, game.hotel)
+
+        # Set p1 as current player and give them the merger tile
+        set_current_player(game, "p1")
+        tile = Tile(4, "A")
+        give_player_tile(p1, tile, game)
+
+        # Play tile to trigger merger
+        game.play_tile("p1", tile)
+
+        # Verify initial state - p1 is current
+        state = game.get_public_state()
+        queue = state["merger_state"]["disposition_queue"]
+        assert queue[0]["status"] == "current"  # p1
+        assert queue[1]["status"] == "waiting"  # p2
+        assert queue[2]["status"] == "waiting"  # p3
+
+        # p1 disposes their stock
+        game.handle_stock_disposition("p1", sell=2, trade=0, keep=0)
+
+        # Now p2 should be current, p1 completed
+        state = game.get_public_state()
+        queue = state["merger_state"]["disposition_queue"]
+        assert queue[0]["status"] == "completed"  # p1
+        assert queue[1]["status"] == "current"  # p2
+        assert queue[2]["status"] == "waiting"  # p3
+
+        # p2 disposes their stock
+        game.handle_stock_disposition("p2", sell=2, trade=0, keep=0)
+
+        # Now p3 should be current
+        state = game.get_public_state()
+        queue = state["merger_state"]["disposition_queue"]
+        assert queue[0]["status"] == "completed"  # p1
+        assert queue[1]["status"] == "completed"  # p2
+        assert queue[2]["status"] == "current"  # p3
+
+    def test_merger_state_not_present_after_disposition_complete(
+        self, game_with_three_players
+    ):
+        """Merger state should not be present after all dispositions complete."""
+        game = game_with_three_players
+        builder = ChainBuilder(game)
+
+        # Set up Luxor (3 tiles) and Tower (2 tiles)
+        builder.setup_chain("Luxor", 3, start_col=1, row="A")
+        builder.setup_chain("Tower", 2, start_col=5, row="A")
+
+        # Give only p1 stocks in Tower for simplicity
+        p1 = game.get_player("p1")
+        give_player_stocks(p1, "Tower", 2, game.hotel)
+
+        # Set p1 as current player and give them the merger tile
+        set_current_player(game, "p1")
+        tile = Tile(4, "A")
+        give_player_tile(p1, tile, game)
+
+        # Play tile to trigger merger
+        game.play_tile("p1", tile)
+
+        # Verify merger state is present
+        state = game.get_public_state()
+        assert "merger_state" in state
+
+        # p1 disposes their stock - this completes the merger
+        game.handle_stock_disposition("p1", sell=2, trade=0, keep=0)
+
+        # Should now be in buying stocks phase, no merger state
+        assert game.phase == GamePhase.BUYING_STOCKS
+        state = game.get_public_state()
+        assert "merger_state" not in state
+
+    def test_merger_state_player_info(self, game_with_four_players):
+        """Merger state should include player IDs and names."""
+        game = game_with_four_players
+        builder = ChainBuilder(game)
+
+        # Set up chains
+        builder.setup_chain("American", 4, start_col=1, row="A")
+        builder.setup_chain("Tower", 3, start_col=6, row="A")
+
+        # Give stocks to some players
+        p2 = game.get_player("p2")
+        p4 = game.get_player("p4")
+
+        give_player_stocks(p2, "Tower", 3, game.hotel)
+        give_player_stocks(p4, "Tower", 2, game.hotel)
+
+        # Set p1 as current player
+        set_current_player(game, "p1")
+        tile = Tile(5, "A")
+        give_player_tile(game.get_player("p1"), tile, game)
+
+        # Play tile to trigger merger
+        game.play_tile("p1", tile)
+
+        # Check queue order - should go from current player around
+        # Current is p1, but p1 has no stock
+        # Queue should be: p2 (current), p4 (waiting)
+        state = game.get_public_state()
+        assert "merger_state" in state
+
+        queue = state["merger_state"]["disposition_queue"]
+        assert len(queue) == 2
+
+        # Verify player info is correct
+        assert queue[0]["player_id"] == "p2"
+        assert queue[0]["name"] == "Bob"
+        assert queue[1]["player_id"] == "p4"
+        assert queue[1]["name"] == "Diana"

@@ -1583,6 +1583,56 @@ class Game:
 
         return actions
 
+    def _get_merger_state(self) -> dict | None:
+        """Get current merger state for broadcasting.
+
+        Returns merger disposition queue information during STOCK_DISPOSITION phase,
+        or None if not in an active merger with stock disposition.
+        """
+        # Only return merger state during active stock disposition
+        if self.phase != GamePhase.MERGING:
+            return None
+
+        if (
+            not self.pending_action
+            or self.pending_action.get("type") != "stock_disposition"
+        ):
+            return None
+
+        survivor = self._merger_survivor
+        current_defunct = self._merger_current_defunct
+
+        if not survivor or not current_defunct:
+            return None
+
+        # Build queue with status
+        queue = []
+        for i, player_id in enumerate(self._merger_stock_players):
+            player = self.get_player(player_id)
+            if not player:
+                continue
+
+            if i < self._merger_stock_index:
+                status = "completed"
+            elif i == self._merger_stock_index:
+                status = "current"
+            else:
+                status = "waiting"
+
+            queue.append(
+                {
+                    "player_id": player_id,
+                    "name": player.name,
+                    "status": status,
+                }
+            )
+
+        return {
+            "survivor": survivor,
+            "defunct": current_defunct,
+            "disposition_queue": queue,
+        }
+
     def get_public_state(self) -> dict:
         """Get public game state visible to everyone.
 
@@ -1620,7 +1670,10 @@ class Game:
                 }
             )
 
-        return {
+        # Get merger state if applicable
+        merger_state = self._get_merger_state()
+
+        state = {
             "phase": self.phase.value,
             "current_player": self.get_current_player().player_id
             if self.players
@@ -1639,6 +1692,11 @@ class Game:
             "recent_events": [e.to_dict() for e in self._events[-20:]],
         }
 
+        if merger_state:
+            state["merger_state"] = merger_state
+
+        return state
+
     def get_player_state(self, player_id: str) -> dict:
         """Get private state for a specific player.
 
@@ -1656,6 +1714,11 @@ class Game:
 
         # Add private info
         playable_tiles = Rules.get_playable_tiles(self.board, player.hand, self.hotel)
+
+        # Get playability details for each tile in hand
+        tile_playability = Rules.get_tiles_playability(
+            self.board, player.hand, self.hotel
+        )
 
         # Get player-specific trade information
         incoming_trades = [
@@ -1676,6 +1739,7 @@ class Game:
             **public,
             "hand": [str(t) for t in player.hand],
             "playable_tiles": [str(t) for t in playable_tiles],
+            "tile_playability": tile_playability,
             "can_act": self.can_player_act(player_id),
             "incoming_trades": incoming_trades,
             "outgoing_trades": outgoing_trades,
