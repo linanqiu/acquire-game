@@ -1,16 +1,15 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { HomePage } from './pages/HomePage'
-import { LobbyPage } from './pages/LobbyPage'
-import { GamePage } from './pages/GamePage'
+import { LobbyPage, PlayerPage, HostPage, NotFoundPage } from './pages'
 import './App.css'
 
-function App() {
+export function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/lobby" element={<LobbyPage />} />
-        <Route path="/game/:gameId" element={<GamePage />} />
+        <Route path="/" element={<LobbyPage />} />
+        <Route path="/play/:room" element={<PlayerPage />} />
+        <Route path="/host/:room" element={<HostPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   )

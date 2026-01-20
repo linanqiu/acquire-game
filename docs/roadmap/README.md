@@ -15,9 +15,9 @@
 | Epic | Progress | Available Stories |
 |------|----------|-------------------|
 | [Backend Hardening](epics/00-backend-hardening.md) | 13/13 ✅ | Complete |
-| [Frontend Foundation](epics/01-frontend-foundation.md) | 3/11 | FF-004, FF-005, FF-006, FF-010, FF-011 |
-| [Game UI](epics/02-game-ui.md) | 0/15 | (blocked by FF) |
-| [Real-time Integration](epics/03-realtime-integration.md) | 0/6 | (blocked by FF) |
+| [Frontend Foundation](epics/01-frontend-foundation.md) | 7/11 | FF-007, FF-008, FF-009, FF-011 |
+| [Game UI](epics/02-game-ui.md) | 0/15 | GU-001, GU-002, GU-003 (unblocked) |
+| [Real-time Integration](epics/03-realtime-integration.md) | 0/6 | RT-001, RT-002 (unblocked) |
 | [AI Training](epics/04-ai-training.md) | 0/9 | AI-001, AI-003 |
 | [Deployment](epics/05-deployment.md) | 0/5 | DP-001 |
 
@@ -46,12 +46,14 @@ BH-008,011,012 (Tests)             ↓                     DP-003, DP-005
 FF-001 (Project Setup) ✓           ↓
 FF-002 (Design Tokens) ✓       AI-009
 FF-003 (Typography) ✓
+FF-004 (Colors) ✓
+FF-005 (Layout) ✓
+FF-006 (Button) ✓
+FF-010 (Routing) ✓
     ↓
-FF-004, FF-010, FF-011 (available now)
+FF-007, FF-008, FF-009, FF-011 (available now)
     ↓
-FF-005, FF-006, FF-007
-    ↓
-GU-001, GU-002, GU-003
+GU-001, GU-002, GU-003 (now unblocked)
     ↓
   ...etc
 ```
@@ -59,9 +61,9 @@ GU-001, GU-002, GU-003
 ### Critical Path
 
 ```
-[DONE] BH-001 → BH-002/003/004 → [DONE] FF-001 → [DONE] FF-002/FF-003 → FF-005/FF-006 → GU-002/GU-003 → RT Integration → Deploy
-                                                                              ↑
-                                                                        YOU ARE HERE
+[DONE] BH-001 → BH-002/003/004 → [DONE] FF-001 → [DONE] FF-002/FF-003/FF-004/FF-005/FF-006/FF-010 → GU-001/GU-002/GU-003 → RT Integration → Deploy
+                                                                                                            ↑
+                                                                                                      YOU ARE HERE
 ```
 
 ## How to Claim a Story
@@ -160,13 +162,13 @@ Fixed critical architecture issues and added comprehensive tests.
 ### Epic 1: Frontend Foundation (11 stories)
 Setup React + TypeScript project with design system components.
 - **Tech**: Vite, React 18, TypeScript, CSS Variables
-- **Progress**: FF-001 ✓, FF-002 ✓, FF-003 ✓ complete
-- **Available**: FF-004, FF-005, FF-006, FF-010, FF-011
+- **Progress**: FF-001 ✓, FF-002 ✓, FF-003 ✓, FF-004 ✓, FF-005 ✓, FF-006 ✓, FF-010 ✓ complete
+- **Available**: FF-007, FF-008, FF-009, FF-011
 
 ### Epic 2: Game UI (15 stories)
 Build all game-specific UI components and pages.
 - **Tech**: React components, game state integration
-- **Start**: After FF-005, FF-006, FF-007
+- **Available**: GU-001, GU-002, GU-003 (now unblocked after FF-005, FF-006)
 
 ### Epic 3: Real-time Integration (6 stories)
 WebSocket client and state synchronization.

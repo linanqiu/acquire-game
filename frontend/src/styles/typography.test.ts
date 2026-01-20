@@ -6,10 +6,7 @@ import { dirname, resolve } from 'path'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-const typographyCSS = readFileSync(
-  resolve(__dirname, './typography.css'),
-  'utf-8'
-)
+const typographyCSS = readFileSync(resolve(__dirname, './typography.css'), 'utf-8')
 
 describe('Typography System', () => {
   describe('Google Fonts Import', () => {
@@ -102,23 +99,17 @@ describe('Typography System', () => {
   describe('Line Height Utility Classes', () => {
     it('defines .leading-tight class', () => {
       expect(typographyCSS).toContain('.leading-tight')
-      expect(typographyCSS).toContain(
-        'line-height: var(--line-height-tight)'
-      )
+      expect(typographyCSS).toContain('line-height: var(--line-height-tight)')
     })
 
     it('defines .leading-normal class', () => {
       expect(typographyCSS).toContain('.leading-normal')
-      expect(typographyCSS).toContain(
-        'line-height: var(--line-height-normal)'
-      )
+      expect(typographyCSS).toContain('line-height: var(--line-height-normal)')
     })
 
     it('defines .leading-relaxed class', () => {
       expect(typographyCSS).toContain('.leading-relaxed')
-      expect(typographyCSS).toContain(
-        'line-height: var(--line-height-relaxed)'
-      )
+      expect(typographyCSS).toContain('line-height: var(--line-height-relaxed)')
     })
   })
 
@@ -145,16 +136,12 @@ describe('Typography System', () => {
 
     it('defines .money-positive class', () => {
       expect(typographyCSS).toContain('.money-positive')
-      expect(typographyCSS).toMatch(
-        /\.money-positive[^}]*color: var\(--text-positive\)/
-      )
+      expect(typographyCSS).toMatch(/\.money-positive[^}]*color: var\(--text-positive\)/)
     })
 
     it('defines .money-negative class', () => {
       expect(typographyCSS).toContain('.money-negative')
-      expect(typographyCSS).toMatch(
-        /\.money-negative[^}]*color: var\(--text-negative\)/
-      )
+      expect(typographyCSS).toMatch(/\.money-negative[^}]*color: var\(--text-negative\)/)
     })
   })
 

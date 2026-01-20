@@ -11,10 +11,7 @@ const __dirname = dirname(__filename)
 describe('TokenSwatch', () => {
   beforeAll(() => {
     // Inject the tokens CSS into jsdom
-    const tokensCSS = readFileSync(
-      resolve(__dirname, '../styles/tokens.css'),
-      'utf-8'
-    )
+    const tokensCSS = readFileSync(resolve(__dirname, '../styles/tokens.css'), 'utf-8')
     const style = document.createElement('style')
     style.textContent = tokensCSS
     document.head.appendChild(style)
