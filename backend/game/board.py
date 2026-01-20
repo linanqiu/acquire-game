@@ -141,7 +141,7 @@ class Board:
 
     def get_chain_size(self, chain_name: str) -> int:
         """Get the number of tiles in a chain."""
-        return len(self.get_chain_tiles(chain_name))
+        return sum(1 for cell in self._grid.values() if cell.chain == chain_name)
 
     def get_connected_tiles(self, start_tile: Tile) -> set[Tile]:
         """Get all tiles connected to start_tile (flood fill of played tiles)."""

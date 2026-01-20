@@ -367,7 +367,7 @@ class TestMergerDuringTurn:
         assert result["result"] == "merge"
 
         # American (larger) should be the survivor
-        assert game._merger_survivor == "American"
+        assert game._merger.survivor == "American"
 
         # Process the merger - bonuses should be paid
         # The merger flow handles disposition for each player

@@ -1,5 +1,6 @@
 """Main game orchestration for Acquire board game."""
 
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional, Dict, List, TYPE_CHECKING
 import random
@@ -32,6 +33,33 @@ from game.responses import (
 )
 
 
+@dataclass
+class MergerState:
+    """Encapsulates all state related to an in-progress merger.
+
+    This consolidates what was previously 6 separate attributes on the Game class,
+    making merger state management clearer and easier to reset.
+    """
+
+    chains: list[str] = field(default_factory=list)  # All chains involved in merger
+    survivor: Optional[str] = None  # The surviving chain
+    defunct_queue: list[str] = field(default_factory=list)  # Defunct chains to process
+    current_defunct: Optional[str] = None  # Currently processing defunct chain
+    stock_players: list[str] = field(
+        default_factory=list
+    )  # Players handling disposition
+    stock_index: int = 0  # Current player index in disposition queue
+
+    def reset(self) -> None:
+        """Reset all merger state after completion."""
+        self.chains = []
+        self.survivor = None
+        self.defunct_queue = []
+        self.current_defunct = None
+        self.stock_players = []
+        self.stock_index = 0
+
+
 class GamePhase(Enum):
     """Game phases that control what actions are valid."""
 
@@ -42,6 +70,18 @@ class GamePhase(Enum):
     MERGING = "merging"
     BUYING_STOCKS = "buying_stocks"
     GAME_OVER = "game_over"
+
+
+# Phase string mapping - single source of truth for bidirectional conversion
+_PHASE_TO_STRING = {
+    GamePhase.LOBBY: "lobby",
+    GamePhase.PLAYING: "place_tile",
+    GamePhase.FOUNDING_CHAIN: "found_chain",
+    GamePhase.MERGING: "merger",
+    GamePhase.BUYING_STOCKS: "buy_stocks",
+    GamePhase.GAME_OVER: "game_over",
+}
+_STRING_TO_PHASE = {v: k for k, v in _PHASE_TO_STRING.items()}
 
 
 class Game:
@@ -71,15 +111,8 @@ class Game:
         self.phase: GamePhase = GamePhase.LOBBY
         self.pending_action: Optional[dict] = None  # Track what action is needed
 
-        # Merger state tracking
-        self._merger_chains: list[str] = []  # Chains involved in current merger
-        self._merger_survivor: Optional[str] = None  # Surviving chain
-        self._merger_defunct_queue: list[str] = []  # Defunct chains to process
-        self._merger_current_defunct: Optional[str] = None  # Currently processing
-        self._merger_stock_players: list[
-            str
-        ] = []  # Players to handle stock disposition
-        self._merger_stock_index: int = 0  # Current player handling disposition
+        # Merger state tracking (consolidated into single object)
+        self._merger = MergerState()
 
         # Player-to-player trading state
         self.pending_trades: Dict[str, TradeOffer] = {}  # trade_id -> TradeOffer
@@ -112,33 +145,17 @@ class Game:
     @property
     def turn_phase(self) -> str:
         """Get the current turn phase as a string for WebSocket compatibility."""
-        # Map GamePhase to turn phase strings used by WebSocket handlers
-        phase_map = {
-            GamePhase.LOBBY: "lobby",
-            GamePhase.PLAYING: "place_tile",
-            GamePhase.FOUNDING_CHAIN: "found_chain",
-            GamePhase.MERGING: "merger",
-            GamePhase.BUYING_STOCKS: "buy_stocks",
-            GamePhase.GAME_OVER: "game_over",
-        }
         # Check pending_action for stock_disposition
         if self.phase == GamePhase.MERGING and self.pending_action:
             if self.pending_action.get("type") == "stock_disposition":
                 return "stock_disposition"
-        return phase_map.get(self.phase, "unknown")
+        return _PHASE_TO_STRING.get(self.phase, "unknown")
 
     @turn_phase.setter
     def turn_phase(self, value: str) -> None:
         """Set turn phase from string (for test compatibility)."""
-        phase_map = {
-            "place_tile": GamePhase.PLAYING,
-            "found_chain": GamePhase.FOUNDING_CHAIN,
-            "merger": GamePhase.MERGING,
-            "buy_stocks": GamePhase.BUYING_STOCKS,
-            "game_over": GamePhase.GAME_OVER,
-        }
-        if value in phase_map:
-            self.phase = phase_map[value]
+        if value in _STRING_TO_PHASE:
+            self.phase = _STRING_TO_PHASE[value]
 
     def add_player(
         self,
@@ -506,7 +523,7 @@ class Game:
         elif result.result_type == PlacementResult.MERGE:
             # Merger! Determine survivor
             chains = result.chains
-            self._merger_chains = chains
+            self._merger.chains = chains
 
             self._emit_event(
                 EventType.TILE_PLACED,
@@ -519,7 +536,7 @@ class Game:
 
             if isinstance(survivor, str):
                 # Clear winner
-                self._merger_survivor = survivor
+                self._merger.survivor = survivor
                 defunct = [c for c in chains if c != survivor]
                 self._start_merger_process(tile, survivor, defunct)
                 return PlayTileResult(
@@ -639,8 +656,8 @@ class Game:
     ):
         """Start processing a merger."""
         self.phase = GamePhase.MERGING
-        self._merger_survivor = survivor
-        self._merger_defunct_queue = sorted(
+        self._merger.survivor = survivor
+        self._merger.defunct_queue = sorted(
             defunct_chains, key=lambda c: self.board.get_chain_size(c), reverse=True
         )
 
@@ -656,13 +673,13 @@ class Game:
 
     def _process_next_defunct_chain(self, tile: Tile = None):
         """Process the next defunct chain in the queue."""
-        if not self._merger_defunct_queue:
+        if not self._merger.defunct_queue:
             # All defunct chains processed, finalize merger
             self._finalize_merger(tile)
             return
 
-        defunct = self._merger_defunct_queue.pop(0)
-        self._merger_current_defunct = defunct
+        defunct = self._merger.defunct_queue.pop(0)
+        self._merger.current_defunct = defunct
 
         # Pay bonuses
         chain_size = self.board.get_chain_size(defunct)
@@ -697,8 +714,8 @@ class Game:
                 stockholders.append(p.player_id)
 
         if stockholders:
-            self._merger_stock_players = stockholders
-            self._merger_stock_index = 0
+            self._merger.stock_players = stockholders
+            self._merger.stock_index = 0
             self._prompt_next_stock_disposition()
         else:
             # No stockholders, continue to next defunct chain
@@ -706,24 +723,24 @@ class Game:
 
     def _prompt_next_stock_disposition(self):
         """Prompt the next player for stock disposition."""
-        if self._merger_stock_index >= len(self._merger_stock_players):
+        if self._merger.stock_index >= len(self._merger.stock_players):
             # All players handled, process next defunct chain
             self._process_next_defunct_chain()
             return
 
-        player_id = self._merger_stock_players[self._merger_stock_index]
+        player_id = self._merger.stock_players[self._merger.stock_index]
         player = self.get_player(player_id)
-        defunct = self._merger_current_defunct
+        defunct = self._merger.current_defunct
         count = player.get_stock_count(defunct)
 
         self.pending_action = {
             "type": "stock_disposition",
             "player_id": player_id,
             "defunct_chain": defunct,
-            "surviving_chain": self._merger_survivor,
+            "surviving_chain": self._merger.survivor,
             "stock_count": count,
             "available_to_trade": self.hotel.get_available_stocks(
-                self._merger_survivor
+                self._merger.survivor
             ),
         }
 
@@ -763,9 +780,9 @@ class Game:
             )
 
         tile = self.pending_action.get("tile")
-        defunct = [c for c in self._merger_chains if c != chain_name]
+        defunct = [c for c in self._merger.chains if c != chain_name]
 
-        self._merger_survivor = chain_name
+        self._merger.survivor = chain_name
         self.pending_action = None
 
         self._start_merger_process(tile, chain_name, defunct)
@@ -866,7 +883,7 @@ class Game:
         )
 
         # Move to next player or next defunct chain
-        self._merger_stock_index += 1
+        self._merger.stock_index += 1
         self._prompt_next_stock_disposition()
 
         return StockDispositionResult(
@@ -881,11 +898,11 @@ class Game:
 
     def _finalize_merger(self, tile: Tile = None):
         """Finalize the merger by merging all defunct chains into survivor."""
-        survivor = self._merger_survivor
-        defunct_chains = [c for c in self._merger_chains if c != survivor]
+        survivor = self._merger.survivor
+        defunct_chains = [c for c in self._merger.chains if c != survivor]
 
         # Merge all defunct chains into survivor on the board
-        for defunct in self._merger_chains:
+        for defunct in self._merger.chains:
             if defunct != survivor:
                 self.board.merge_chains(survivor, defunct)
                 self.hotel.deactivate_chain(defunct)
@@ -908,12 +925,7 @@ class Game:
         )
 
         # Reset merger state
-        self._merger_chains = []
-        self._merger_survivor = None
-        self._merger_defunct_queue = []
-        self._merger_current_defunct = None
-        self._merger_stock_players = []
-        self._merger_stock_index = 0
+        self._merger.reset()
 
         self.phase = GamePhase.BUYING_STOCKS
         self.pending_action = None
@@ -1599,22 +1611,22 @@ class Game:
         ):
             return None
 
-        survivor = self._merger_survivor
-        current_defunct = self._merger_current_defunct
+        survivor = self._merger.survivor
+        current_defunct = self._merger.current_defunct
 
         if not survivor or not current_defunct:
             return None
 
         # Build queue with status
         queue = []
-        for i, player_id in enumerate(self._merger_stock_players):
+        for i, player_id in enumerate(self._merger.stock_players):
             player = self.get_player(player_id)
             if not player:
                 continue
 
-            if i < self._merger_stock_index:
+            if i < self._merger.stock_index:
                 status = "completed"
-            elif i == self._merger_stock_index:
+            elif i == self._merger.stock_index:
                 status = "current"
             else:
                 status = "waiting"
@@ -1855,12 +1867,14 @@ class Game:
         )
 
         # Copy merger state
-        new_game._merger_chains = list(self._merger_chains)
-        new_game._merger_survivor = self._merger_survivor
-        new_game._merger_defunct_queue = list(self._merger_defunct_queue)
-        new_game._merger_current_defunct = self._merger_current_defunct
-        new_game._merger_stock_players = list(self._merger_stock_players)
-        new_game._merger_stock_index = self._merger_stock_index
+        new_game._merger = MergerState(
+            chains=list(self._merger.chains),
+            survivor=self._merger.survivor,
+            defunct_queue=list(self._merger.defunct_queue),
+            current_defunct=self._merger.current_defunct,
+            stock_players=list(self._merger.stock_players),
+            stock_index=self._merger.stock_index,
+        )
 
         # Copy pending trades (deep copy each trade)
         new_game.pending_trades = {}
@@ -1898,12 +1912,12 @@ class Game:
             "current_player_index": self.current_player_index,
             "phase": self.phase.value,
             "pending_action": self.pending_action,
-            "merger_chains": self._merger_chains,
-            "merger_survivor": self._merger_survivor,
-            "merger_defunct_queue": self._merger_defunct_queue,
-            "merger_current_defunct": self._merger_current_defunct,
-            "merger_stock_players": self._merger_stock_players,
-            "merger_stock_index": self._merger_stock_index,
+            "merger_chains": self._merger.chains,
+            "merger_survivor": self._merger.survivor,
+            "merger_defunct_queue": self._merger.defunct_queue,
+            "merger_current_defunct": self._merger.current_defunct,
+            "merger_stock_players": self._merger.stock_players,
+            "merger_stock_index": self._merger.stock_index,
             "pending_trades": {
                 trade_id: trade.to_dict()
                 for trade_id, trade in self.pending_trades.items()
@@ -1950,12 +1964,14 @@ class Game:
         game.pending_action = state.get("pending_action")
 
         # Load merger state
-        game._merger_chains = state.get("merger_chains", [])
-        game._merger_survivor = state.get("merger_survivor")
-        game._merger_defunct_queue = state.get("merger_defunct_queue", [])
-        game._merger_current_defunct = state.get("merger_current_defunct")
-        game._merger_stock_players = state.get("merger_stock_players", [])
-        game._merger_stock_index = state.get("merger_stock_index", 0)
+        game._merger = MergerState(
+            chains=state.get("merger_chains", []),
+            survivor=state.get("merger_survivor"),
+            defunct_queue=state.get("merger_defunct_queue", []),
+            current_defunct=state.get("merger_current_defunct"),
+            stock_players=state.get("merger_stock_players", []),
+            stock_index=state.get("merger_stock_index", 0),
+        )
 
         # Load pending trades
         game.pending_trades = {}
