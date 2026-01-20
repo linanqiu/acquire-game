@@ -16,7 +16,7 @@
 |------|----------|-------------------|
 | [Backend Hardening](epics/00-backend-hardening.md) | 13/13 ✅ | Complete |
 | [Frontend Foundation](epics/01-frontend-foundation.md) | 8/11 | FF-007, FF-008, FF-009 |
-| [Game UI](epics/02-game-ui.md) | 0/15 | GU-001, GU-002, GU-003 (unblocked) |
+| [Game UI](epics/02-game-ui.md) | 0/16 | GU-001, GU-002, GU-003 (unblocked) |
 | [Real-time Integration](epics/03-realtime-integration.md) | 0/6 | RT-001, RT-002 (unblocked) |
 | [AI Training](epics/04-ai-training.md) | 0/9 | AI-001, AI-003 |
 | [Deployment](epics/05-deployment.md) | 0/5 | DP-001 |
@@ -166,10 +166,11 @@ Setup React + TypeScript project with design system components.
 - **Progress**: FF-001 ✓, FF-002 ✓, FF-003 ✓, FF-004 ✓, FF-005 ✓, FF-006 ✓, FF-010 ✓, FF-011 ✓ complete
 - **Available**: FF-007, FF-008, FF-009
 
-### Epic 2: Game UI (15 stories)
+### Epic 2: Game UI (16 stories)
 Build all game-specific UI components and pages.
 - **Tech**: React components, game state integration
 - **Available**: GU-001, GU-002, GU-003 (now unblocked after FF-005, FF-006)
+- **Final**: GU-016 (Comprehensive E2E Tests) - implements all test scenarios from `docs/tests/frontend-e2e/`
 
 ### Epic 3: Real-time Integration (6 stories)
 WebSocket client and state synchronization.
