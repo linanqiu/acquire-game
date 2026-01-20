@@ -713,38 +713,38 @@ async def handle_place_tile(room_code: str, player_id: str, tile_str: str):
     # Play the tile using Game class
     result = game.play_tile(player_id, tile)
 
-    if not result.get("success"):
+    if not result.success:
         await session_manager.send_to_player(
             room_code,
             player_id,
-            {"type": "error", "message": result.get("error", "Unknown error")},
+            {"type": "error", "message": result.error or "Unknown error"},
         )
         return
 
     # Handle different results
-    if result.get("next_action") == "found_chain":
+    if result.next_action == "found_chain":
         # Player needs to choose which chain to found
         await session_manager.send_to_player(
             room_code,
             player_id,
             {
                 "type": "choose_chain",
-                "available_chains": result.get("available_chains", []),
+                "available_chains": result.available_chains or [],
             },
         )
 
-    elif result.get("next_action") == "choose_merger_survivor":
+    elif result.next_action == "choose_merger_survivor":
         # Tie - player must choose survivor
         await session_manager.send_to_player(
             room_code,
             player_id,
             {
                 "type": "choose_merger_survivor",
-                "tied_chains": result.get("tied_chains", []),
+                "tied_chains": result.tied_chains or [],
             },
         )
 
-    elif result.get("next_action") == "stock_disposition":
+    elif result.next_action == "stock_disposition":
         # Someone needs to handle stock disposition during merger
         pending = game.pending_action
         if pending and pending.get("type") == "stock_disposition":
