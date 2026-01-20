@@ -33,8 +33,8 @@ Establish the React + TypeScript project with a complete design system based on 
 
 | ID | Title | Effort | Status |
 |----|-------|--------|--------|
-| [FF-002](../stories/01-frontend-foundation/FF-002.md) | Design Tokens | S | not-started |
-| [FF-003](../stories/01-frontend-foundation/FF-003.md) | Typography System | S | not-started |
+| [FF-002](../stories/01-frontend-foundation/FF-002.md) | Design Tokens | S | complete |
+| [FF-003](../stories/01-frontend-foundation/FF-003.md) | Typography System | S | complete |
 
 ### Phase 3: Core Styling (After FF-002)
 
