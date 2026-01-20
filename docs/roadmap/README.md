@@ -15,7 +15,7 @@
 | Epic | Progress | Available Stories |
 |------|----------|-------------------|
 | [Backend Hardening](epics/00-backend-hardening.md) | 13/13 ✅ | Complete |
-| [Frontend Foundation](epics/01-frontend-foundation.md) | 8/11 | FF-007, FF-008, FF-009 |
+| [Frontend Foundation](epics/01-frontend-foundation.md) | 11/11 ✅ | Complete |
 | [Game UI](epics/02-game-ui.md) | 0/16 | GU-001, GU-002, GU-003 (unblocked) |
 | [Real-time Integration](epics/03-realtime-integration.md) | 0/6 | RT-001, RT-002 (unblocked) |
 | [AI Training](epics/04-ai-training.md) | 0/9 | AI-001, AI-003 |
@@ -51,8 +51,9 @@ FF-005 (Layout) ✓
 FF-006 (Button) ✓
 FF-010 (Routing) ✓
 FF-011 (E2E Infrastructure) ✓
-    ↓
-FF-007, FF-008, FF-009 (available now)
+FF-007 (Inputs) ✓
+FF-008 (Modal) ✓
+FF-009 (Toast) ✓
     ↓
 GU-001, GU-002, GU-003 (now unblocked)
     ↓
@@ -62,9 +63,9 @@ GU-001, GU-002, GU-003 (now unblocked)
 ### Critical Path
 
 ```
-[DONE] BH-001 → BH-002/003/004 → [DONE] FF-001 → [DONE] FF-002/FF-003/FF-004/FF-005/FF-006/FF-010 → GU-001/GU-002/GU-003 → RT Integration → Deploy
-                                                                                                            ↑
-                                                                                                      YOU ARE HERE
+[DONE] BH-001 → BH-002/003/004 → [DONE] FF-001 → [DONE] FF-002 through FF-011 → GU-001/GU-002/GU-003 → RT Integration → Deploy
+                                                                                        ↑
+                                                                                  YOU ARE HERE
 ```
 
 ## How to Claim a Story
@@ -160,11 +161,11 @@ Fixed critical architecture issues and added comprehensive tests.
 - **Result**: 645 tests (up from 365), unified state management, frontend-ready APIs
 - **Next**: Frontend Foundation is now unblocked
 
-### Epic 1: Frontend Foundation (11 stories)
+### Epic 1: Frontend Foundation (11 stories) ✅ COMPLETE
 Setup React + TypeScript project with design system components.
 - **Tech**: Vite, React 18, TypeScript, CSS Variables
-- **Progress**: FF-001 ✓, FF-002 ✓, FF-003 ✓, FF-004 ✓, FF-005 ✓, FF-006 ✓, FF-010 ✓, FF-011 ✓ complete
-- **Available**: FF-007, FF-008, FF-009
+- **Result**: Complete design system with typography, colors, layout components, forms, modals, toasts
+- **Next**: Game UI is now unblocked
 
 ### Epic 2: Game UI (16 stories)
 Build all game-specific UI components and pages.
