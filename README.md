@@ -183,8 +183,7 @@ acquire/
 │       ├── epics/           # Epic overviews
 │       └── stories/         # Individual stories
 └── deploy/
-    ├── Dockerfile
-    └── railway.toml
+    └── Dockerfile
 ```
 
 ---
