@@ -9,6 +9,7 @@ from game.board import Board, Tile, TileState
 if TYPE_CHECKING:
     from game.action import Action
 from game.action import TradeOffer
+from game.events import EventType, GameEvent, create_event
 from game.hotel import Hotel
 from game.player import Player
 from game.rules import Rules, PlacementResult
@@ -50,6 +51,7 @@ class Game:
     STARTING_TILES = 6
     MAX_STOCKS_PER_TURN = 3
     MAX_PENDING_TRADES_PER_PLAYER = 5  # Limit to prevent spam
+    MAX_EVENTS = 50  # Maximum number of events to keep in the log
 
     def __init__(self, seed: Optional[int] = None):
         """Initialize a new game in lobby state.
@@ -80,6 +82,9 @@ class Game:
 
         # Player-to-player trading state
         self.pending_trades: Dict[str, TradeOffer] = {}  # trade_id -> TradeOffer
+
+        # Event logging for activity feed
+        self._events: List[GameEvent] = []
 
     # Convenience properties for backward compatibility with WebSocket handlers
 
@@ -216,6 +221,15 @@ class Game:
         self.current_player_index = 0
         self.phase = GamePhase.PLAYING
 
+        # Emit game started event
+        player_names = [p.name for p in self.players]
+        self._emit_event(
+            EventType.GAME_STARTED,
+            None,
+            f"Game started with {len(self.players)} players",
+            {"players": player_names},
+        )
+
     def get_current_player(self) -> Player:
         """Get the player whose turn it is.
 
@@ -256,6 +270,39 @@ class Game:
         self.current_player_index = (self.current_player_index + 1) % len(self.players)
         self.phase = GamePhase.PLAYING
         self.pending_action = None
+
+    def _emit_event(
+        self,
+        event_type: EventType,
+        player_id: str | None,
+        message: str,
+        details: dict | None = None,
+    ) -> None:
+        """Emit a game event to the activity log.
+
+        Args:
+            event_type: The type of event
+            player_id: ID of the player who triggered the event (if applicable)
+            message: Human-readable description of the event
+            details: Machine-readable data about the event
+        """
+        event = create_event(event_type, player_id, message, details)
+        self._events.append(event)
+
+        # Trim to max events
+        if len(self._events) > self.MAX_EVENTS:
+            self._events = self._events[-self.MAX_EVENTS :]
+
+    def get_events(self, limit: int = 20) -> List[GameEvent]:
+        """Get recent events from the activity log.
+
+        Args:
+            limit: Maximum number of events to return
+
+        Returns:
+            List of recent GameEvent objects
+        """
+        return self._events[-limit:]
 
     def handle_all_tiles_unplayable(self, player: Player) -> Optional[dict]:
         """Handle the case where a player has no playable tiles at turn start.
@@ -393,6 +440,12 @@ class Game:
         if result.result_type == PlacementResult.NOTHING:
             # Just placed, move to buying stocks
             self.phase = GamePhase.BUYING_STOCKS
+            self._emit_event(
+                EventType.TILE_PLACED,
+                player_id,
+                f"{player.name} placed {tile}",
+                {"tile": str(tile)},
+            )
             return PlayTileResult(
                 success=True,
                 tile=str(tile),
@@ -405,6 +458,19 @@ class Game:
             chain_name = result.chain
             self._expand_chain(tile, chain_name)
             self.phase = GamePhase.BUYING_STOCKS
+            chain_size = self.board.get_chain_size(chain_name)
+            self._emit_event(
+                EventType.TILE_PLACED,
+                player_id,
+                f"{player.name} placed {tile}",
+                {"tile": str(tile)},
+            )
+            self._emit_event(
+                EventType.CHAIN_EXPANDED,
+                player_id,
+                f"{chain_name} grows to {chain_size} tiles",
+                {"chain": chain_name, "size": chain_size},
+            )
             return PlayTileResult(
                 success=True,
                 tile=str(tile),
@@ -422,6 +488,12 @@ class Game:
                 "tile": tile,
                 "available_chains": available,
             }
+            self._emit_event(
+                EventType.TILE_PLACED,
+                player_id,
+                f"{player.name} placed {tile}",
+                {"tile": str(tile)},
+            )
             return PlayTileResult(
                 success=True,
                 tile=str(tile),
@@ -434,6 +506,13 @@ class Game:
             # Merger! Determine survivor
             chains = result.chains
             self._merger_chains = chains
+
+            self._emit_event(
+                EventType.TILE_PLACED,
+                player_id,
+                f"{player.name} placed {tile}",
+                {"tile": str(tile)},
+            )
 
             survivor = Rules.get_merger_survivor(self.board, chains)
 
@@ -538,6 +617,13 @@ class Game:
         self.phase = GamePhase.BUYING_STOCKS
         self.pending_action = None
 
+        self._emit_event(
+            EventType.CHAIN_FOUNDED,
+            player_id,
+            f"{chain_name} founded with {chain_size} tiles",
+            {"chain": chain_name, "size": chain_size, "founder": player.name},
+        )
+
         return FoundChainResult(
             success=True,
             chain=chain_name,
@@ -557,6 +643,14 @@ class Game:
             defunct_chains, key=lambda c: self.board.get_chain_size(c), reverse=True
         )
 
+        defunct_str = ", ".join(defunct_chains)
+        self._emit_event(
+            EventType.MERGER_STARTED,
+            self.get_current_player().player_id,
+            f"{defunct_str} merging into {survivor}",
+            {"survivor": survivor, "defunct": defunct_chains},
+        )
+
         self._process_next_defunct_chain(tile)
 
     def _process_next_defunct_chain(self, tile: Tile = None):
@@ -573,11 +667,24 @@ class Game:
         chain_size = self.board.get_chain_size(defunct)
         bonuses = Rules.calculate_bonuses(self.players, defunct, chain_size, self.hotel)
 
+        bonus_details = []
         for player_id, bonus in bonuses.items():
             player = self.get_player(player_id)
             if player:
                 total = bonus.get("majority", 0) + bonus.get("minority", 0)
                 player.add_money(total)
+                if total > 0:
+                    bonus_details.append(
+                        {"player": player.name, "amount": total, "type": bonus}
+                    )
+
+        if bonus_details:
+            self._emit_event(
+                EventType.BONUSES_PAID,
+                None,
+                f"Bonuses paid for {defunct}",
+                {"chain": defunct, "bonuses": bonus_details},
+            )
 
         # Find players who need to handle stock disposition
         stockholders = []
@@ -740,6 +847,23 @@ class Game:
 
         # Keep is automatic (just don't do anything with them)
 
+        # Emit stock disposition event
+        parts = []
+        if sell > 0:
+            parts.append(f"sold {sell}")
+        if trade > 0:
+            parts.append(f"traded {trade}")
+        if keep > 0:
+            parts.append(f"kept {keep}")
+        disposition_str = ", ".join(parts) if parts else "disposed"
+
+        self._emit_event(
+            EventType.STOCK_DISPOSED,
+            player_id,
+            f"{player.name} {disposition_str} {defunct}",
+            {"chain": defunct, "sold": sell, "traded": trade, "kept": keep},
+        )
+
         # Move to next player or next defunct chain
         self._merger_stock_index += 1
         self._prompt_next_stock_disposition()
@@ -757,6 +881,7 @@ class Game:
     def _finalize_merger(self, tile: Tile = None):
         """Finalize the merger by merging all defunct chains into survivor."""
         survivor = self._merger_survivor
+        defunct_chains = [c for c in self._merger_chains if c != survivor]
 
         # Merge all defunct chains into survivor on the board
         for defunct in self._merger_chains:
@@ -771,6 +896,15 @@ class Game:
                 cell = self.board.get_cell(t.column, t.row)
                 if cell.chain is None:
                     self.board.set_chain(t, survivor)
+
+        # Emit merger completed event
+        survivor_size = self.board.get_chain_size(survivor)
+        self._emit_event(
+            EventType.MERGER_COMPLETED,
+            None,
+            f"Merger complete, {survivor} now has {survivor_size} tiles",
+            {"survivor": survivor, "defunct": defunct_chains, "size": survivor_size},
+        )
 
         # Reset merger state
         self._merger_chains = []
@@ -838,6 +972,16 @@ class Game:
             player.buy_stock(chain_name, 1, price)
             bought.append(StockPurchase(chain=chain_name, price=price))
 
+        # Emit stock purchase event if any purchases were made
+        if bought:
+            purchase_str = ", ".join(f"1 {p.chain} for ${p.price}" for p in bought)
+            self._emit_event(
+                EventType.STOCK_PURCHASED,
+                player_id,
+                f"{player.name} bought {purchase_str}",
+                {"purchases": [p.to_dict() for p in bought], "total_cost": total_cost},
+            )
+
         return BuyStocksResult(
             success=True,
             purchased=bought,
@@ -883,6 +1027,14 @@ class Game:
 
         # Check for end game condition
         can_end = Rules.check_end_game(self.board, self.hotel)
+
+        # Emit turn ended event
+        self._emit_event(
+            EventType.TURN_ENDED,
+            player_id,
+            f"{player.name} ended their turn",
+            {"drew_tile": str(drawn_tile) if drawn_tile else None},
+        )
 
         # Move to next player
         self.next_turn()
@@ -961,10 +1113,23 @@ class Game:
 
         self.phase = GamePhase.GAME_OVER
 
+        # Emit game ended event
+        winner = standings[0] if standings else None
+        if winner:
+            self._emit_event(
+                EventType.GAME_ENDED,
+                winner.player_id,
+                f"Game over! {winner.name} wins with ${winner.money}",
+                {
+                    "winner": winner.to_dict(),
+                    "standings": [s.to_dict() for s in standings],
+                },
+            )
+
         return EndGameResult(
             success=True,
             standings=standings,
-            winner=standings[0] if standings else None,
+            winner=winner,
         )
 
     # =========================================================================
@@ -1020,6 +1185,24 @@ class Game:
 
         # Add to pending trades
         self.pending_trades[trade.trade_id] = trade
+
+        # Emit trade proposed event
+        from_player = self.get_player(trade.from_player_id)
+        to_player = self.get_player(trade.to_player_id)
+        self._emit_event(
+            EventType.TRADE_PROPOSED,
+            trade.from_player_id,
+            f"{from_player.name} proposed a trade to {to_player.name}",
+            {
+                "trade_id": trade.trade_id,
+                "from_player": from_player.name,
+                "to_player": to_player.name,
+                "offering": trade.offering_stocks,
+                "offering_money": trade.offering_money,
+                "requesting": trade.requesting_stocks,
+                "requesting_money": trade.requesting_money,
+            },
+        )
 
         return ProposeTradeResult(
             success=True,
@@ -1081,6 +1264,22 @@ class Game:
         # Remove the trade from pending
         del self.pending_trades[trade_id]
 
+        # Emit trade accepted event
+        self._emit_event(
+            EventType.TRADE_ACCEPTED,
+            player_id,
+            f"Trade accepted: {from_player.name} and {to_player.name}",
+            {
+                "trade_id": trade_id,
+                "from_player": from_player.name,
+                "to_player": to_player.name,
+                "offered_stocks": trade.offering_stocks,
+                "offered_money": trade.offering_money,
+                "requested_stocks": trade.requesting_stocks,
+                "requested_money": trade.requesting_money,
+            },
+        )
+
         return AcceptTradeResult(
             success=True,
             trade_id=trade_id,
@@ -1116,8 +1315,20 @@ class Game:
                 success=False, error="Only the trade recipient can reject"
             )
 
+        # Get player names for event
+        rejecting_player = self.get_player(player_id)
+        proposing_player = self.get_player(trade.from_player_id)
+
         # Remove the trade
         del self.pending_trades[trade_id]
+
+        # Emit trade rejected event
+        self._emit_event(
+            EventType.TRADE_REJECTED,
+            player_id,
+            f"{rejecting_player.name} rejected trade from {proposing_player.name}",
+            {"trade_id": trade_id, "rejected_by": rejecting_player.name},
+        )
 
         return RejectTradeResult(success=True, trade_id=trade_id, rejected_by=player_id)
 
@@ -1145,8 +1356,19 @@ class Game:
                 success=False, error="Only the trade proposer can cancel"
             )
 
+        # Get player name for event
+        canceling_player = self.get_player(player_id)
+
         # Remove the trade
         del self.pending_trades[trade_id]
+
+        # Emit trade canceled event
+        self._emit_event(
+            EventType.TRADE_CANCELED,
+            player_id,
+            f"{canceling_player.name} canceled their trade offer",
+            {"trade_id": trade_id, "canceled_by": canceling_player.name},
+        )
 
         return CancelTradeResult(success=True, trade_id=trade_id, canceled_by=player_id)
 
@@ -1339,6 +1561,7 @@ class Game:
             "pending_trades": [
                 trade.to_dict() for trade in self.pending_trades.values()
             ],
+            "recent_events": [e.to_dict() for e in self._events[-20:]],
         }
 
     def get_player_state(self, player_id: str) -> dict:
@@ -1505,6 +1728,9 @@ class Game:
                 trade_id=trade.trade_id,
             )
 
+        # Copy events
+        new_game._events = list(self._events)
+
         return new_game
 
     def get_full_state(self) -> dict:
@@ -1535,6 +1761,7 @@ class Game:
                 trade_id: trade.to_dict()
                 for trade_id, trade in self.pending_trades.items()
             },
+            "events": [e.to_dict() for e in self._events],
         }
 
     @classmethod
@@ -1587,5 +1814,8 @@ class Game:
         game.pending_trades = {}
         for trade_id, trade_data in state.get("pending_trades", {}).items():
             game.pending_trades[trade_id] = TradeOffer.from_dict(trade_data)
+
+        # Load events
+        game._events = [GameEvent.from_dict(e) for e in state.get("events", [])]
 
         return game
