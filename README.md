@@ -1,149 +1,151 @@
 # Acquire Board Game
 
-A web-based implementation of the classic 1999 Acquire board game with a "couch co-op" architecture.
+A digital implementation of the classic Acquire board game with a "couch co-op" architecture designed for local multiplayer.
 
 [![CI](https://github.com/linanqiu/acquire-game/actions/workflows/ci.yml/badge.svg)](https://github.com/linanqiu/acquire-game/actions/workflows/ci.yml)
 
-## Product Vision
+---
 
-**Play Acquire with friends on any device** - One shared board on a TV/laptop, each player uses their phone for private tiles and actions. Add bots to fill empty seats.
+## For AI Agents: Start Here
+
+If you're an AI agent tasked with working on this project:
+
+1. **Read the roadmap** at [`docs/roadmap/README.md`](docs/roadmap/README.md)
+2. **Find an unclaimed story** with `Status: not-started` and no blocking dependencies
+3. **Mark it `in-progress`** by editing the story file
+4. **Complete the acceptance criteria** following the implementation notes
+5. **Run verification commands** listed in the story
+6. **Mark it `complete`** and commit your changes
+
+Stories are designed for single-session completion. See [Roadmap](#roadmap) for the full breakdown.
+
+---
 
 ## Architecture
 
+### Couch Co-op Pattern
+
+Acquire uses a **shared display + private terminals** architecture, similar to Jackbox games:
+
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   Host Display  │     │  Player Phone   │     │  Player Phone   │
-│   (TV/Laptop)   │     │   (Private)     │     │   (Private)     │
-└────────┬────────┘     └────────┬────────┘     └────────┬────────┘
-         │                       │                       │
-         │              WebSocket Connections            │
-         └───────────────────────┼───────────────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │    FastAPI Backend      │
-                    │  (Game Logic + State)   │
-                    └─────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                        SHARED DISPLAY                            │
+│                      (TV or Laptop)                              │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              12x9 Game Board                            │    │
+│  │   Shows: Tiles, Chains, Public Game State               │    │
+│  │   Hidden: Individual player tiles, private info         │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐        │
+│  │ Player 1 │  │ Player 2 │  │ Player 3 │  │   Bot    │        │
+│  │  $6000   │  │  $4200   │  │  $5100   │  │  $3800   │        │
+│  │ 3 stocks │  │ 5 stocks │  │ 2 stocks │  │ 4 stocks │        │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘        │
+└─────────────────────────────────────────────────────────────────┘
+         │               │               │
+    WebSocket       WebSocket       WebSocket
+         │               │               │
+┌────────▼───────┐ ┌────▼────────┐ ┌────▼────────┐
+│  Player Phone  │ │ Player Phone│ │ Player Phone│
+│  (Private)     │ │  (Private)  │ │  (Private)  │
+│                │ │             │ │             │
+│ ┌────────────┐ │ │ Your tiles: │ │ Your tiles: │
+│ │ Your tiles │ │ │  [A1] [B5]  │ │  [C3] [D7]  │
+│ │ [A1] [C3]  │ │ │  [E2] [F9]  │ │  [G4] [H8]  │
+│ │ [B5] [D7]  │ │ │             │ │             │
+│ └────────────┘ │ │ [Buy Stock] │ │ [End Turn]  │
+│ [Place Tile]   │ │             │ │             │
+└────────────────┘ └─────────────┘ └─────────────┘
+```
+
+### Key Architecture Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| **Backend-first development** | Complete, tested game logic before any UI |
+| **WebSocket real-time** | Bidirectional communication for instant state sync |
+| **Authoritative server** | All game logic runs server-side; clients are dumb terminals |
+| **Heuristic bots first** | Rule-based bots (easy/medium/hard) before ML training |
+| **React frontend (planned)** | Component-based UI with TypeScript for maintainability |
+| **Zustand state management** | Lightweight, hooks-based state for React |
+
+### System Components
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Backend (Python)                        │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
+│  │   FastAPI   │  │   Session   │  │    Game Engine      │ │
+│  │  (HTTP/WS)  │──│   Manager   │──│  Board | Rules      │ │
+│  │             │  │  (Rooms)    │  │  Player | Hotel     │ │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘ │
+│                                              │              │
+│                                    ┌─────────▼───────────┐ │
+│                                    │    Bot Engine       │ │
+│                                    │  Easy|Medium|Hard   │ │
+│                                    │  (Future: Neural)   │ │
+│                                    └─────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                     WebSocket / HTTP
+                            │
+┌─────────────────────────────────────────────────────────────┐
+│                    Frontend (React)                          │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
+│  │   Host View │  │ Player View │  │   State Store       │ │
+│  │  (Board,    │  │ (Tiles,     │  │   (Zustand)         │ │
+│  │   Scores)   │  │  Actions)   │  │                     │ │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Development Roadmap
+## Current Status
 
-### 🎯 MVP Scope
-> **Goal:** Fully playable game with rule-based bots, no critical security issues, deployed to cloud.
+### What's Complete
 
----
+- **Game Engine** (~3600 LOC Python)
+  - Full Acquire rules implementation
+  - Board, Hotel, Player, Rules modules
+  - Three-tier bot AI (easy, medium, hard)
+  - Comprehensive test coverage (pytest)
 
-### Phase 1: Core Game Logic ✅
-- [x] Board implementation (12x9 grid, 108 tiles)
-- [x] Hotel chains (7 chains, 3 pricing tiers)
-- [x] Player state (money, stocks, tiles)
-- [x] Game rules engine (placement, founding, mergers)
-- [x] Rule-based bot AI (easy/medium/hard difficulty)
-- [x] Game orchestration (turn flow, state management)
-- [x] Unit tests for all game modules
+- **Server Infrastructure**
+  - FastAPI with WebSocket support
+  - Session/room management (4-letter codes)
+  - Bot integration in multiplayer rooms
+  - Docker containerization
 
-### Phase 2: Server & Real-time ✅
-- [x] Session manager (room codes, player connections)
-- [x] FastAPI application with HTTP routes
-- [x] WebSocket endpoints (host + player)
-- [x] Game state broadcasting
-- [x] Bot player support in rooms
-- [x] Integration tests
+- **AI Training Foundation**
+  - State encoder (game → 750-dim tensor)
+  - Training configuration system
+  - Deterministic game seeding for reproducibility
 
-### Phase 3: Security Hardening 🎯 MVP
-- [ ] Input validation on all WebSocket messages
-- [ ] Rate limiting on WebSocket actions
-- [ ] Player authentication tokens
-- [ ] Proper stock mutation through Player methods
+### What's Planned
 
-### Phase 4: Frontend Integration 🎯 MVP
-- [x] HTML templates (lobby, host, player views)
-- [x] CSS styling with responsive design
-- [x] JavaScript WebSocket clients
-- [x] Host display board grid rendering
-- [x] Player tile rack and portfolio UI
-- [ ] Wire up tile placement action
-- [ ] Wire up chain founding selection
-- [ ] Wire up stock buying modal
-- [ ] Wire up merger decisions (sell/trade/keep)
-- [ ] Wire up end turn / game over
+See the [Roadmap](#roadmap) for detailed stories:
 
-### Phase 5: Deployment 🎯 MVP
-- [x] Docker containerization
-- [x] GitHub Actions CI pipeline
-- [x] Railway configuration
-- [ ] Deploy to Railway
-- [ ] Verify WebSocket connectivity
-- [ ] Basic health monitoring
-
----
-
-### Post-MVP: AI Training Infrastructure
-- [x] Unified action representation (`action.py`)
-- [x] Deterministic game seeding and cloning
-- [x] Legal action enumeration for RL
-- [x] State encoder (game → tensor)
-- [x] Training config with curriculum
-- [ ] Gymnasium environment wrapper
-- [ ] PPO policy network
-- [ ] Training pipeline with self-play
-- [ ] Neural bot integration
-
-### Post-MVP: Advanced Features
-- [x] Player-to-player trading (backend)
-- [ ] Trade negotiation UI
-- [ ] House rules configuration
-- [ ] Persistent game state
-- [ ] Spectator mode
-- [ ] Game replays
+- **Frontend** - React + TypeScript UI (host view, player view)
+- **Real-time Integration** - WebSocket client, state management
+- **AI Training** - MCTS, neural bots, decision transformer
+- **Deployment** - Railway setup, monitoring, logging
 
 ---
 
 ## Tech Stack
 
-| Component | Technology | Status |
-|-----------|------------|--------|
-| Backend | Python 3.12 + FastAPI | ✅ |
-| Frontend | Vanilla HTML/CSS/JS | ✅ |
-| Real-time | WebSockets | ✅ |
-| Session | In-memory | ✅ |
-| Testing | pytest + pytest-asyncio | ✅ |
-| CI/CD | GitHub Actions | ✅ |
-| Container | Docker | ✅ |
-| AI Training | NumPy + Config System | 🔄 |
-| Deployment | Railway | 📋 |
-
----
-
-## Quick Start
-
-### Local Development
-
-```bash
-# Clone the repo
-git clone https://github.com/linanqiu/acquire-game.git
-cd acquire-game
-
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate
-
-# Install dependencies
-pip install -r backend/requirements.txt
-
-# Run tests
-cd backend && pytest -v
-
-# Start development server
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### Access the Game
-- **Lobby**: http://localhost:8000
-- **Create a room** → Share the 4-letter code
-- **Players join** on their phones via the code
-- **Host display** shows the shared board
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| Backend | Python 3.12 + FastAPI | Game logic, API, WebSocket |
+| Frontend | React + TypeScript + Vite | UI components (planned) |
+| State | Zustand | Frontend state management |
+| Testing | pytest, Playwright | Unit tests, E2E tests |
+| Linting | ruff | Format + lint |
+| CI/CD | GitHub Actions | Automated checks |
+| Container | Docker | Deployment packaging |
+| Hosting | Railway | Cloud deployment |
 
 ---
 
@@ -152,104 +154,239 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 acquire/
 ├── backend/
-│   ├── main.py              # FastAPI app entry point
-│   ├── conftest.py          # Shared pytest fixtures
+│   ├── main.py              # FastAPI entry point
 │   ├── game/
-│   │   ├── board.py         # Board state and tile logic
-│   │   ├── player.py        # Player state management
-│   │   ├── hotel.py         # Hotel chain logic
-│   │   ├── rules.py         # Game rules validation
+│   │   ├── board.py         # 12x9 grid, tile placement
+│   │   ├── player.py        # Player state, stocks, money
+│   │   ├── hotel.py         # Chain logic, pricing tiers
+│   │   ├── rules.py         # Legal moves, mergers
 │   │   ├── game.py          # Game orchestration
-│   │   └── bot.py           # AI player logic
+│   │   ├── bot.py           # Heuristic AI (3 levels)
+│   │   └── action.py        # Unified action representation
 │   ├── session/
-│   │   └── manager.py       # Room/session management
-│   └── tests/
-│       ├── test_board.py
-│       ├── test_hotel.py
-│       ├── test_player.py
-│       ├── test_rules.py
-│       ├── test_game.py
-│       ├── test_bot.py
-│       └── test_integration.py
-├── frontend/
-│   ├── templates/
-│   │   ├── lobby.html
-│   │   ├── host.html
-│   │   └── player.html
-│   └── static/
-│       ├── css/style.css
-│       ├── js/host.js
-│       └── js/player.js
+│   │   └── manager.py       # Room codes, connections
+│   ├── training/            # AI training infrastructure
+│   │   ├── state_encoder.py # Game → tensor encoding
+│   │   └── config.py        # Training configuration
+│   └── tests/               # pytest test suite
+├── frontend/                # (Planned) React application
 ├── docs/
-│   └── rules/               # Comprehensive game rules
-├── deploy/
-│   ├── Dockerfile
-│   ├── docker-compose.yml
-│   └── railway.toml
-└── .github/
-    └── workflows/
-        └── ci.yml
+│   ├── rules/               # Game rules documentation
+│   ├── ui/                  # UI specifications
+│   │   ├── storyboard.md    # Screen-by-screen spec
+│   │   ├── design-system.md # Colors, typography
+│   │   └── components.md    # Component specifications
+│   ├── ai/                  # AI training documentation
+│   │   └── ROADMAP.md       # Training phases
+│   └── roadmap/             # Product roadmap
+│       ├── README.md        # Dashboard, how to claim stories
+│       ├── epics/           # Epic overviews
+│       └── stories/         # Individual stories
+└── deploy/
+    ├── Dockerfile
+    └── railway.toml
 ```
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Python 3.12+
+- Node.js 20+ (for frontend, when implemented)
+
+### Local Development
+
+```bash
+# Clone
+git clone https://github.com/linanqiu/acquire-game.git
+cd acquire-game
+
+# Python environment
+python3 -m venv venv
+source venv/bin/activate
+pip install -r backend/requirements.txt
+
+# Run tests
+cd backend && pytest -v
+
+# Start server
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### Access Points
+
+- **Lobby**: http://localhost:8000
+- **Create room** → Get 4-letter code → Share with players
+- **Players join** via code on their phones
+- **Host display** shows shared board
+
+---
+
+## Roadmap
+
+The product roadmap lives in [`docs/roadmap/`](docs/roadmap/README.md) with:
+
+- **5 Epics**: Frontend Foundation, Game UI, Real-time, AI Training, Deployment
+- **45 Stories**: Each designed for single-session completion
+- **Dependency Graph**: Clear parallelization opportunities
+
+### Epic Overview
+
+| Epic | Stories | Status | Parallelizable |
+|------|---------|--------|----------------|
+| [Frontend Foundation](docs/roadmap/epics/01-frontend-foundation.md) | 10 | Not Started | Yes (independent track) |
+| [Game UI](docs/roadmap/epics/02-game-ui.md) | 15 | Not Started | After FF-005 |
+| [Real-time Integration](docs/roadmap/epics/03-realtime-integration.md) | 6 | Not Started | After FF-001 |
+| [AI Training](docs/roadmap/epics/04-ai-training.md) | 9 | Not Started | Yes (independent track) |
+| [Deployment](docs/roadmap/epics/05-deployment.md) | 5 | Not Started | Yes (independent track) |
+
+### Parallelization
+
+Three tracks can run independently:
+1. **Frontend** (FF → GU → RT)
+2. **AI Training** (AI-001 → AI-009)
+3. **Deployment** (DP-001 → DP-005)
+
+---
+
+## Collaboration Standards
+
+### Code Quality Requirements
+
+All code must pass CI checks before merge:
+
+```bash
+# Format check
+ruff format --check .
+
+# Lint check
+ruff check .
+
+# Tests with coverage
+pytest --cov=game --cov-report=term-missing
+```
+
+### Git Workflow
+
+1. **Before committing**: Run `ruff format . && ruff check .`
+2. **Commit messages**: Descriptive, imperative mood ("Add tile placement", not "Added")
+3. **Branch naming**: `feature/FF-001-project-setup`, `fix/merger-calculation`
+4. **PR requirements**: All CI checks pass, tests included for new code
+
+### Testing Standards
+
+**Testing is paramount.** Every feature needs:
+
+1. **Unit tests** (pytest) - Test individual functions/classes
+2. **Integration tests** - Test module interactions
+3. **E2E tests** (Playwright, when frontend exists) - Simulate real user scenarios
+
+```bash
+# Run all tests
+cd backend && pytest -v
+
+# Run with coverage (aim for >80%)
+pytest --cov=game --cov-report=html
+
+# Run specific test
+pytest tests/test_rules.py::test_merger_payout -v
+```
+
+**E2E Test Philosophy**: Tests should simulate actual user/bot scenarios:
+- Player joins room, places tile, buys stock, ends turn
+- Host view updates when any player acts
+- Bot takes turn within time limit
+- Reconnection after disconnect
+
+### Linting & Formatting
+
+We use **ruff** for both:
+
+```bash
+# Auto-format
+ruff format .
+
+# Lint with auto-fix
+ruff check --fix .
+
+# Check only (CI mode)
+ruff format --check . && ruff check .
+```
+
+Configuration is in `pyproject.toml`. Do not disable rules without team discussion.
+
+---
+
+## Creating New Stories
+
+Before creating a new story, follow this process:
+
+### 1. Check for Scope Creep
+
+Ask yourself (or the product manager):
+- Does this directly support the MVP goal?
+- Is this a "nice to have" or a "must have"?
+- Can we ship without this?
+
+If it's scope creep, document it in a `docs/roadmap/backlog/` file for post-MVP.
+
+### 2. Verify Architecture Alignment
+
+Check with the architect (or review existing decisions):
+- Does this fit the couch co-op pattern?
+- Does it follow the authoritative server model?
+- Will it work with the planned tech stack?
+
+### 3. Write the Story
+
+Use the standard template in [`docs/roadmap/stories/`](docs/roadmap/stories/):
+
+```markdown
+# [EPIC-NNN]: [Title]
+
+## Metadata
+- **Epic**: [Epic Name]
+- **Status**: `not-started`
+- **Priority**: `critical` | `high` | `medium` | `low`
+- **Effort**: `XS` (<30m) | `S` (30-60m) | `M` (1-2h) | `L` (2-4h)
+- **Dependencies**: [List of story IDs or "None"]
+
+## Context
+[Why this story exists]
+
+## Requirements
+[What must be built]
+
+## Acceptance Criteria
+- [ ] [Testable criterion 1]
+- [ ] [Testable criterion 2]
+
+## Implementation Notes
+[Suggested approach]
+
+## Verification
+[Commands to verify completion]
+```
+
+### 4. Update Dependencies
+
+If your story blocks or is blocked by others, update both story files.
 
 ---
 
 ## Game Rules
 
-See [docs/rules/](docs/rules/) for comprehensive rules documentation.
+See [`docs/rules/`](docs/rules/) for comprehensive rules.
 
 **Quick Summary:**
-- 2-6 players place tiles on a 12x9 grid
-- Adjacent tiles form hotel chains (7 possible chains)
-- Players buy stocks in chains (up to 3 per turn)
+- 3-6 players place tiles on a 12x9 grid
+- Adjacent tiles form hotel chains (7 possible)
+- Buy stocks in chains (up to 3 per turn)
 - Mergers pay bonuses to majority/minority stockholders
-- Game ends when any chain reaches 41+ tiles or all chains are "safe" (11+)
-- Winner: most cash after selling all stocks
-
----
-
-## Development
-
-```bash
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=game --cov-report=html
-
-# Run specific test file
-pytest tests/test_rules.py -v
-
-# Run tests matching pattern
-pytest -k "merger" -v
-```
-
----
-
-## Deployment
-
-### Docker
-
-```bash
-# Build
-docker build -t acquire-game -f deploy/Dockerfile .
-
-# Run
-docker run -p 8000:8000 acquire-game
-```
-
-### Railway (One-click deploy)
-
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new)
-
----
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Write tests for new functionality
-4. Ensure all tests pass
-5. Submit a pull request
+- Game ends when any chain reaches 41+ tiles or all are "safe" (11+)
+- Winner: most cash after liquidating all stocks
 
 ---
 
