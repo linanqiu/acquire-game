@@ -6,9 +6,34 @@ test.describe('Home Page', () => {
     await expect(page.getByRole('heading', { name: /acquire/i })).toBeVisible()
   })
 
-  test('navigates to lobby', async ({ page }) => {
+  test('shows lobby page content', async ({ page }) => {
     await page.goto('/')
-    await page.click('text=Enter Lobby')
-    await expect(page.getByRole('heading', { name: /game lobby/i })).toBeVisible()
+    // Lobby page shows "Acquire" and description
+    await expect(page.getByText(/board game/i)).toBeVisible()
+  })
+})
+
+test.describe('Routing', () => {
+  test('player route shows room code', async ({ page }) => {
+    await page.goto('/play/ABCD')
+    await expect(page.getByText('ABCD')).toBeVisible()
+    await expect(page.getByText(/player view/i)).toBeVisible()
+  })
+
+  test('host route shows room code', async ({ page }) => {
+    await page.goto('/host/WXYZ')
+    await expect(page.getByText('WXYZ')).toBeVisible()
+    await expect(page.getByText(/host view/i)).toBeVisible()
+  })
+
+  test('unknown route shows 404', async ({ page }) => {
+    await page.goto('/unknown/route')
+    await expect(page.getByText('404')).toBeVisible()
+  })
+
+  test('room code is case insensitive (uppercased)', async ({ page }) => {
+    await page.goto('/play/abcd')
+    // Should show ABCD in uppercase
+    await expect(page.getByText('ABCD')).toBeVisible()
   })
 })

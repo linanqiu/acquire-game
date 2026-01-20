@@ -1,3 +1,6 @@
+// Re-export API types for WebSocket integration
+export * from './api'
+
 // Chain names in Acquire
 export type ChainName =
   | 'luxor'
