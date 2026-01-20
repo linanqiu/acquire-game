@@ -124,6 +124,7 @@ describe('Design Tokens', () => {
     it('defines border style tokens', () => {
       expect(tokensCSS).toContain('--border-width: 1px')
       expect(tokensCSS).toContain('--border-style: solid')
+      expect(tokensCSS).toContain('--border-default:')
     })
   })
 
