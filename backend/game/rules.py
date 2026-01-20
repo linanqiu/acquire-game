@@ -390,6 +390,32 @@ class Rules:
         return [tile for tile in tiles if not cls.can_place_tile(board, tile, hotel)]
 
     @classmethod
+    def are_all_tiles_unplayable(
+        cls, board: Board, tiles: list[Tile], hotel: Hotel
+    ) -> bool:
+        """Check if all tiles in a hand are unplayable.
+
+        According to Acquire rules, if a player has no playable tiles at the
+        start of their turn, they must reveal their hand, remove all unplayable
+        tiles from the game, and draw new tiles.
+
+        Args:
+            board: The game board
+            tiles: List of tiles to check (player's hand)
+            hotel: Hotel manager
+
+        Returns:
+            True if all tiles are unplayable, False otherwise
+        """
+        if not tiles:
+            return False  # Empty hand is not "all unplayable"
+
+        for tile in tiles:
+            if cls.can_place_tile(board, tile, hotel):
+                return False
+        return True
+
+    @classmethod
     def get_all_legal_actions(cls, game: "Game", player_id: str) -> List[Action]:
         """
         Return all legal actions for the given player in the current game state.

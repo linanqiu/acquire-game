@@ -189,6 +189,55 @@ class Game:
         self.phase = GamePhase.PLAYING
         self.pending_action = None
 
+    def handle_all_tiles_unplayable(self, player: Player) -> Optional[dict]:
+        """Handle the case where a player has no playable tiles at turn start.
+
+        According to Acquire rules, if all tiles in a player's hand are unplayable
+        at the start of their turn, they must:
+        1. Reveal their hand to all players
+        2. Set aside all unplayable tiles (removed from game, not back to tile bag)
+        3. Draw new tiles to refill their hand
+
+        Args:
+            player: The player to check
+
+        Returns:
+            Dict with information about what happened, or None if hand was playable.
+            If returns a dict, it contains:
+            - revealed_hand: List of tile strings that were revealed
+            - removed_tiles: List of tile strings that were removed from game
+            - new_tiles: List of tile strings drawn as replacements
+        """
+        # Check if all tiles are unplayable
+        if not Rules.are_all_tiles_unplayable(self.board, player.hand, self.hotel):
+            return None
+
+        # Record the revealed hand
+        revealed_hand = [str(t) for t in player.hand]
+        removed_tiles = []
+
+        # Remove all unplayable tiles from the game (not back to tile bag)
+        tiles_to_remove = list(player.hand)  # Copy since we're modifying
+        for tile in tiles_to_remove:
+            player.remove_tile(tile)
+            removed_tiles.append(str(tile))
+            # Note: tiles are removed from game, NOT returned to tile_bag
+
+        # Draw new tiles up to hand limit
+        new_tiles = []
+        while player.hand_size < Player.MAX_HAND_SIZE and self.tile_bag:
+            tile = self.draw_tile(player)
+            if tile:
+                new_tiles.append(str(tile))
+            else:
+                break
+
+        return {
+            "revealed_hand": revealed_hand,
+            "removed_tiles": removed_tiles,
+            "new_tiles": new_tiles,
+        }
+
     def draw_tile(self, player: Player) -> Optional[Tile]:
         """Draw a tile from the bag for a player.
 
@@ -399,10 +448,22 @@ class Game:
         for t in connected:
             self.board.set_chain(t, chain_name)
 
-        # Give founder a free stock if available
+        # Give founder a free stock if available, otherwise cash equivalent
+        chain_size = self.board.get_chain_size(chain_name)
+        stock_price = self.hotel.get_stock_price(chain_name, chain_size)
+        founder_bonus_type = None
+        founder_bonus_value = 0
+
         if self.hotel.get_available_stocks(chain_name) > 0:
             self.hotel.buy_stock(chain_name)
             player.add_stocks(chain_name, 1)
+            founder_bonus_type = "stock"
+            founder_bonus_value = 1
+        else:
+            # No stock available - give cash equivalent
+            player.add_money(stock_price)
+            founder_bonus_type = "cash"
+            founder_bonus_value = stock_price
 
         self.phase = GamePhase.BUYING_STOCKS
         self.pending_action = None
@@ -411,6 +472,8 @@ class Game:
             "success": True,
             "chain": chain_name,
             "founder_bonus": True,
+            "founder_bonus_type": founder_bonus_type,
+            "founder_bonus_value": founder_bonus_value,
             "next_action": "buy_stocks",
         }
 

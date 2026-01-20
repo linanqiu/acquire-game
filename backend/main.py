@@ -10,13 +10,9 @@ from fastapi import (
     FastAPI,
     WebSocket,
     WebSocketDisconnect,
-    Request,
     HTTPException,
     Form,
 )
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel, field_validator, ValidationError
 
 from session.manager import SessionManager
@@ -24,6 +20,7 @@ from game.board import Board, Tile
 from game.hotel import Hotel
 from game.player import Player
 from game.rules import Rules
+from game.action import TradeOffer
 
 
 # =============================================================================
@@ -153,6 +150,59 @@ class EndTurnMessage(BaseModel):
     action: Literal["end_turn"]
 
 
+class ProposeTradeMessage(BaseModel):
+    """Validate propose_trade action messages."""
+
+    action: Literal["propose_trade"]
+    to_player_id: str
+    offering_stocks: dict[str, int] = {}
+    offering_money: int = 0
+    requesting_stocks: dict[str, int] = {}
+    requesting_money: int = 0
+
+    @field_validator("offering_stocks", "requesting_stocks")
+    @classmethod
+    def validate_stocks(cls, v: dict) -> dict:
+        """Validate stock dictionaries."""
+        for chain, quantity in v.items():
+            if chain not in VALID_CHAINS:
+                raise ValueError(f"Invalid chain: {chain}")
+            if not isinstance(quantity, int) or quantity < 0:
+                raise ValueError(
+                    f"Stock quantity for {chain} must be non-negative integer"
+                )
+        return v
+
+    @field_validator("offering_money", "requesting_money")
+    @classmethod
+    def validate_money(cls, v: int) -> int:
+        """Validate money amounts."""
+        if v < 0:
+            raise ValueError("Money amount must be non-negative")
+        return v
+
+
+class AcceptTradeMessage(BaseModel):
+    """Validate accept_trade action messages."""
+
+    action: Literal["accept_trade"]
+    trade_id: str
+
+
+class RejectTradeMessage(BaseModel):
+    """Validate reject_trade action messages."""
+
+    action: Literal["reject_trade"]
+    trade_id: str
+
+
+class CancelTradeMessage(BaseModel):
+    """Validate cancel_trade action messages."""
+
+    action: Literal["cancel_trade"]
+    trade_id: str
+
+
 # Union type for all valid message types
 WebSocketMessage = Union[
     PlaceTileMessage,
@@ -161,6 +211,10 @@ WebSocketMessage = Union[
     MergerDispositionMessage,
     BuyStocksMessage,
     EndTurnMessage,
+    ProposeTradeMessage,
+    AcceptTradeMessage,
+    RejectTradeMessage,
+    CancelTradeMessage,
 ]
 
 
@@ -186,6 +240,10 @@ def validate_websocket_message(
         "merger_disposition": MergerDispositionMessage,
         "buy_stocks": BuyStocksMessage,
         "end_turn": EndTurnMessage,
+        "propose_trade": ProposeTradeMessage,
+        "accept_trade": AcceptTradeMessage,
+        "reject_trade": RejectTradeMessage,
+        "cancel_trade": CancelTradeMessage,
     }
 
     if action not in message_types:
@@ -254,21 +312,11 @@ rate_limiter = RateLimiter(max_requests=10, window_seconds=1)
 
 app = FastAPI(title="Acquire Board Game")
 
-# Mount static files and templates
-app.mount("/static", StaticFiles(directory="../frontend/static"), name="static")
-templates = Jinja2Templates(directory="../frontend/templates")
-
 # Global session manager
 session_manager = SessionManager()
 
 
 # HTTP Routes
-@app.get("/", response_class=HTMLResponse)
-async def lobby(request: Request):
-    """Render lobby page."""
-    return templates.TemplateResponse("lobby.html", {"request": request})
-
-
 @app.post("/create")
 async def create_room(player_name: str = Form(...)):
     """Create a new game room and add the creator as first player."""
@@ -281,14 +329,17 @@ async def create_room(player_name: str = Form(...)):
     if session_token is None:
         raise HTTPException(status_code=500, detail="Failed to create room")
 
-    # Redirect to player view with credentials (and is_host flag for controls)
-    redirect_url = f"/play/{room_code}?player_id={player_id}&session_token={session_token}&is_host=1"
-    return RedirectResponse(url=redirect_url, status_code=303)
+    return {
+        "room_code": room_code,
+        "player_id": player_id,
+        "session_token": session_token,
+        "is_host": True,
+    }
 
 
 @app.post("/join")
 async def join_room(room_code: str = Form(...), player_name: str = Form(...)):
-    """Join an existing room and redirect to player view."""
+    """Join an existing room."""
     room = session_manager.get_room(room_code.upper())
     if room is None:
         raise HTTPException(status_code=404, detail="Room not found")
@@ -311,68 +362,11 @@ async def join_room(room_code: str = Form(...), player_name: str = Form(...)):
             raise HTTPException(status_code=400, detail="Player name already taken")
         raise HTTPException(status_code=400, detail="Failed to join room")
 
-    # Redirect to player view with credentials
-    redirect_url = (
-        f"/play/{room_code.upper()}?player_id={player_id}&session_token={session_token}"
-    )
-    return RedirectResponse(url=redirect_url, status_code=303)
-
-
-@app.get("/host/{room_code}", response_class=HTMLResponse)
-async def host_view(
-    request: Request,
-    room_code: str,
-    player_id: Optional[str] = None,
-    session_token: Optional[str] = None,
-):
-    """Render host display."""
-    room = session_manager.get_room(room_code)
-    if room is None:
-        raise HTTPException(status_code=404, detail="Room not found")
-
-    return templates.TemplateResponse(
-        "host.html",
-        {
-            "request": request,
-            "room_code": room_code,
-            "player_id": player_id or "",
-            "session_token": session_token or "",
-        },
-    )
-
-
-@app.get("/play/{room_code}", response_class=HTMLResponse)
-async def player_view(
-    request: Request,
-    room_code: str,
-    player_id: str,
-    session_token: Optional[str] = None,
-    is_host: Optional[str] = None,
-):
-    """Render player view."""
-    room = session_manager.get_room(room_code)
-    if room is None:
-        raise HTTPException(status_code=404, detail="Room not found")
-
-    if player_id not in room.players:
-        raise HTTPException(status_code=404, detail="Player not found in room")
-
-    player = room.players[player_id]
-    # Check if this player is the host (first player in the room)
-    player_list = list(room.players.keys())
-    is_host_bool = is_host == "1" or (player_list and player_list[0] == player_id)
-
-    return templates.TemplateResponse(
-        "player.html",
-        {
-            "request": request,
-            "room_code": room_code,
-            "player_id": player_id,
-            "player_name": player.name,
-            "session_token": session_token or "",
-            "is_host": is_host_bool,
-        },
-    )
+    return {
+        "room_code": room_code.upper(),
+        "player_id": player_id,
+        "session_token": session_token,
+    }
 
 
 @app.post("/room/{room_code}/add-bot")
@@ -594,6 +588,30 @@ async def handle_player_action(room_code: str, player_id: str, data: dict) -> No
     elif action == "end_turn":
         await handle_end_turn(room_code, player_id)
 
+    elif action == "propose_trade":
+        # validated_msg is ProposeTradeMessage
+        await handle_propose_trade(
+            room_code,
+            player_id,
+            validated_msg.to_player_id,
+            validated_msg.offering_stocks,
+            validated_msg.offering_money,
+            validated_msg.requesting_stocks,
+            validated_msg.requesting_money,
+        )
+
+    elif action == "accept_trade":
+        # validated_msg is AcceptTradeMessage
+        await handle_accept_trade(room_code, player_id, validated_msg.trade_id)
+
+    elif action == "reject_trade":
+        # validated_msg is RejectTradeMessage
+        await handle_reject_trade(room_code, player_id, validated_msg.trade_id)
+
+    elif action == "cancel_trade":
+        # validated_msg is CancelTradeMessage
+        await handle_cancel_trade(room_code, player_id, validated_msg.trade_id)
+
 
 async def initialize_game(room_code: str):
     """Initialize game state for a room."""
@@ -636,6 +654,7 @@ async def initialize_game(room_code: str):
         "current_turn_index": 0,
         "phase": "place_tile",  # place_tile, found_chain, merger, buy_stocks
         "pending_action": None,  # For tracking multi-step actions
+        "pending_trades": {},  # trade_id -> TradeOffer for player-to-player trading
     }
 
     # Process bot turns if the first player is a bot
@@ -670,6 +689,65 @@ async def handle_place_tile(room_code: str, player_id: str, tile_str: str):
     player = game["players"][player_id]
     board = game["board"]
     hotel = game["hotel"]
+    tile_pool = game["tile_pool"]
+
+    # Check if all tiles in hand are unplayable (special rule)
+    # If so, reveal hand, remove unplayable tiles from game, and draw new ones
+    if Rules.are_all_tiles_unplayable(board, player.hand, hotel):
+        # Reveal hand to all players
+        revealed_hand = [str(t) for t in player.hand]
+        removed_tiles = []
+
+        # Remove all tiles from hand (they're removed from game, not back to pool)
+        tiles_to_remove = list(player.hand)
+        for t in tiles_to_remove:
+            player.remove_tile(t)
+            removed_tiles.append(str(t))
+
+        # Draw new tiles up to hand limit
+        new_tiles = []
+        while player.hand_size < 6 and tile_pool:
+            new_tile = tile_pool.pop()
+            player.add_tile(new_tile)
+            new_tiles.append(str(new_tile))
+
+        # Broadcast the all-unplayable event to all players
+        await session_manager.broadcast_to_room(
+            room_code,
+            {
+                "type": "all_tiles_unplayable",
+                "player_id": player_id,
+                "player_name": player.name,
+                "revealed_hand": revealed_hand,
+                "removed_tiles": removed_tiles,
+                "new_tiles_count": len(new_tiles),
+            },
+        )
+
+        # Also notify the player of their new hand
+        await session_manager.send_to_player(
+            room_code,
+            player_id,
+            {
+                "type": "tiles_replaced",
+                "removed_tiles": removed_tiles,
+                "new_hand": [str(t) for t in player.hand],
+            },
+        )
+
+        # Broadcast updated state and return - player needs to try again with new tiles
+        await broadcast_game_state(room_code)
+
+        # Return error so client knows to retry with new hand
+        await session_manager.send_to_player(
+            room_code,
+            player_id,
+            {
+                "type": "error",
+                "message": "Your tiles were replaced. Please select a new tile to play.",
+            },
+        )
+        return
 
     # Verify player has this tile
     if not player.has_tile(tile):
@@ -777,10 +855,16 @@ async def handle_found_chain(room_code: str, player_id: str, chain_name: str):
     for t in connected_tiles:
         board.set_chain(t, chain_name)
 
-    # Give founder a free stock if available
+    # Give founder a free stock if available, otherwise cash equivalent
+    chain_size = board.get_chain_size(chain_name)
+    stock_price = hotel.get_stock_price(chain_name, chain_size)
+
     if hotel.get_available_stocks(chain_name) > 0:
         hotel.buy_stock(chain_name)
         player.add_stocks(chain_name, 1)
+    else:
+        # No stock available - give cash equivalent
+        player.add_money(stock_price)
 
     game["pending_action"] = None
     game["phase"] = "buy_stocks"
@@ -998,6 +1082,301 @@ async def handle_end_turn(room_code: str, player_id: str):
 
     # Process bot turns if the next player is a bot
     await process_bot_turns(room_code)
+
+
+# =============================================================================
+# Player-to-Player Trading Handlers
+# =============================================================================
+
+MAX_PENDING_TRADES_PER_PLAYER = 5
+
+
+async def handle_propose_trade(
+    room_code: str,
+    player_id: str,
+    to_player_id: str,
+    offering_stocks: dict,
+    offering_money: int,
+    requesting_stocks: dict,
+    requesting_money: int,
+):
+    """Handle a player proposing a trade to another player."""
+    room = session_manager.get_room(room_code)
+    if room is None or room.game is None:
+        return
+
+    game = room.game
+    players = game["players"]
+    pending_trades = game.get("pending_trades", {})
+
+    # Validate players exist
+    if player_id not in players:
+        await session_manager.send_to_player(
+            room_code, player_id, {"type": "error", "message": "Player not found"}
+        )
+        return
+
+    if to_player_id not in players:
+        await session_manager.send_to_player(
+            room_code,
+            player_id,
+            {"type": "error", "message": "Target player not found"},
+        )
+        return
+
+    if player_id == to_player_id:
+        await session_manager.send_to_player(
+            room_code,
+            player_id,
+            {"type": "error", "message": "Cannot trade with yourself"},
+        )
+        return
+
+    # Check pending trade limit
+    player_pending_count = sum(
+        1 for t in pending_trades.values() if t.from_player_id == player_id
+    )
+    if player_pending_count >= MAX_PENDING_TRADES_PER_PLAYER:
+        await session_manager.send_to_player(
+            room_code,
+            player_id,
+            {
+                "type": "error",
+                "message": f"Maximum {MAX_PENDING_TRADES_PER_PLAYER} pending trades allowed",
+            },
+        )
+        return
+
+    # Create trade offer
+    trade = TradeOffer(
+        from_player_id=player_id,
+        to_player_id=to_player_id,
+        offering_stocks=offering_stocks,
+        offering_money=offering_money,
+        requesting_stocks=requesting_stocks,
+        requesting_money=requesting_money,
+    )
+
+    # Validate the trade
+    from_player = players[player_id]
+    to_player = players[to_player_id]
+
+    # Check that at least one thing is being exchanged
+    has_offering = offering_money > 0 or any(
+        qty > 0 for qty in offering_stocks.values()
+    )
+    has_requesting = requesting_money > 0 or any(
+        qty > 0 for qty in requesting_stocks.values()
+    )
+
+    if not has_offering and not has_requesting:
+        await session_manager.send_to_player(
+            room_code,
+            player_id,
+            {"type": "error", "message": "Trade must include at least one item"},
+        )
+        return
+
+    # Check offering player has the resources
+    if not from_player.can_afford_trade(offering_stocks, offering_money):
+        await session_manager.send_to_player(
+            room_code,
+            player_id,
+            {"type": "error", "message": "You don't have the offered resources"},
+        )
+        return
+
+    # Check receiving player has the requested resources
+    if not to_player.can_afford_trade(requesting_stocks, requesting_money):
+        await session_manager.send_to_player(
+            room_code,
+            player_id,
+            {
+                "type": "error",
+                "message": "Target player doesn't have the requested resources",
+            },
+        )
+        return
+
+    # Add to pending trades
+    pending_trades[trade.trade_id] = trade
+    game["pending_trades"] = pending_trades
+
+    # Notify both players
+    trade_notification = {
+        "type": "trade_proposed",
+        "trade": trade.to_dict(),
+    }
+    await session_manager.send_to_player(room_code, player_id, trade_notification)
+    await session_manager.send_to_player(room_code, to_player_id, trade_notification)
+
+
+async def handle_accept_trade(room_code: str, player_id: str, trade_id: str):
+    """Handle a player accepting a trade offer."""
+    room = session_manager.get_room(room_code)
+    if room is None or room.game is None:
+        return
+
+    game = room.game
+    players = game["players"]
+    pending_trades = game.get("pending_trades", {})
+
+    if trade_id not in pending_trades:
+        await session_manager.send_to_player(
+            room_code, player_id, {"type": "error", "message": "Trade not found"}
+        )
+        return
+
+    trade = pending_trades[trade_id]
+
+    # Only the recipient can accept
+    if trade.to_player_id != player_id:
+        await session_manager.send_to_player(
+            room_code,
+            player_id,
+            {"type": "error", "message": "Only the trade recipient can accept"},
+        )
+        return
+
+    from_player = players[trade.from_player_id]
+    to_player = players[trade.to_player_id]
+
+    # Re-validate the trade (resources may have changed)
+    if not from_player.can_afford_trade(trade.offering_stocks, trade.offering_money):
+        del pending_trades[trade_id]
+        await session_manager.send_to_player(
+            room_code,
+            player_id,
+            {
+                "type": "error",
+                "message": "Trade is no longer valid - proposer lacks resources",
+            },
+        )
+        return
+
+    if not to_player.can_afford_trade(trade.requesting_stocks, trade.requesting_money):
+        del pending_trades[trade_id]
+        await session_manager.send_to_player(
+            room_code,
+            player_id,
+            {
+                "type": "error",
+                "message": "Trade is no longer valid - you lack requested resources",
+            },
+        )
+        return
+
+    # Execute the trade
+    from_player.execute_trade_give(trade.offering_stocks, trade.offering_money)
+    to_player.execute_trade_give(trade.requesting_stocks, trade.requesting_money)
+    to_player.execute_trade_receive(trade.offering_stocks, trade.offering_money)
+    from_player.execute_trade_receive(trade.requesting_stocks, trade.requesting_money)
+
+    # Remove the trade
+    del pending_trades[trade_id]
+
+    # Notify both players
+    trade_notification = {
+        "type": "trade_accepted",
+        "trade_id": trade_id,
+        "from_player": trade.from_player_id,
+        "to_player": trade.to_player_id,
+    }
+    await session_manager.send_to_player(
+        room_code, trade.from_player_id, trade_notification
+    )
+    await session_manager.send_to_player(
+        room_code, trade.to_player_id, trade_notification
+    )
+
+    # Broadcast updated game state
+    await broadcast_game_state(room_code)
+
+
+async def handle_reject_trade(room_code: str, player_id: str, trade_id: str):
+    """Handle a player rejecting a trade offer."""
+    room = session_manager.get_room(room_code)
+    if room is None or room.game is None:
+        return
+
+    game = room.game
+    pending_trades = game.get("pending_trades", {})
+
+    if trade_id not in pending_trades:
+        await session_manager.send_to_player(
+            room_code, player_id, {"type": "error", "message": "Trade not found"}
+        )
+        return
+
+    trade = pending_trades[trade_id]
+
+    # Only the recipient can reject
+    if trade.to_player_id != player_id:
+        await session_manager.send_to_player(
+            room_code,
+            player_id,
+            {"type": "error", "message": "Only the trade recipient can reject"},
+        )
+        return
+
+    # Remove the trade
+    del pending_trades[trade_id]
+
+    # Notify both players
+    trade_notification = {
+        "type": "trade_rejected",
+        "trade_id": trade_id,
+        "rejected_by": player_id,
+    }
+    await session_manager.send_to_player(
+        room_code, trade.from_player_id, trade_notification
+    )
+    await session_manager.send_to_player(
+        room_code, trade.to_player_id, trade_notification
+    )
+
+
+async def handle_cancel_trade(room_code: str, player_id: str, trade_id: str):
+    """Handle a player canceling their own trade offer."""
+    room = session_manager.get_room(room_code)
+    if room is None or room.game is None:
+        return
+
+    game = room.game
+    pending_trades = game.get("pending_trades", {})
+
+    if trade_id not in pending_trades:
+        await session_manager.send_to_player(
+            room_code, player_id, {"type": "error", "message": "Trade not found"}
+        )
+        return
+
+    trade = pending_trades[trade_id]
+
+    # Only the proposer can cancel
+    if trade.from_player_id != player_id:
+        await session_manager.send_to_player(
+            room_code,
+            player_id,
+            {"type": "error", "message": "Only the trade proposer can cancel"},
+        )
+        return
+
+    # Remove the trade
+    del pending_trades[trade_id]
+
+    # Notify both players
+    trade_notification = {
+        "type": "trade_canceled",
+        "trade_id": trade_id,
+        "canceled_by": player_id,
+    }
+    await session_manager.send_to_player(
+        room_code, trade.from_player_id, trade_notification
+    )
+    await session_manager.send_to_player(
+        room_code, trade.to_player_id, trade_notification
+    )
 
 
 async def end_game(room_code: str):
