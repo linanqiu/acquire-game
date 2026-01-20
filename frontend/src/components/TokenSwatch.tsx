@@ -32,29 +32,23 @@ export function TokenSwatch() {
           flexWrap: 'wrap',
         }}
       >
-        {[
-          'luxor',
-          'tower',
-          'american',
-          'festival',
-          'worldwide',
-          'continental',
-          'imperial',
-        ].map((chain) => (
-          <span
-            key={chain}
-            data-testid={`chain-${chain}`}
-            style={{
-              backgroundColor: `var(--chain-${chain})`,
-              padding: 'var(--space-1) var(--space-2)',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: 'var(--text-sm)',
-              textTransform: 'uppercase',
-            }}
-          >
-            {chain}
-          </span>
-        ))}
+        {['luxor', 'tower', 'american', 'festival', 'worldwide', 'continental', 'imperial'].map(
+          (chain) => (
+            <span
+              key={chain}
+              data-testid={`chain-${chain}`}
+              style={{
+                backgroundColor: `var(--chain-${chain})`,
+                padding: 'var(--space-1) var(--space-2)',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: 'var(--text-sm)',
+                textTransform: 'uppercase',
+              }}
+            >
+              {chain}
+            </span>
+          )
+        )}
       </div>
     </div>
   )

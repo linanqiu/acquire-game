@@ -7,43 +7,43 @@
   /* ==========================================================================
      Colors - Background
      ========================================================================== */
-  --bg-primary: #1a1a2e;    /* deep navy-charcoal */
-  --bg-secondary: #16213e;  /* slightly lighter for cards/panels */
-  --bg-tertiary: #0f0f1a;   /* darkest, for depth */
-  --border: #2a2a4a;        /* subtle separation */
+  --bg-primary: #1a1a2e; /* deep navy-charcoal */
+  --bg-secondary: #16213e; /* slightly lighter for cards/panels */
+  --bg-tertiary: #0f0f1a; /* darkest, for depth */
+  --border: #2a2a4a; /* subtle separation */
 
   /* ==========================================================================
      Colors - Text
      ========================================================================== */
-  --text-primary: #e8e8e8;    /* off-white, easy on eyes */
-  --text-secondary: #8888aa;  /* muted for labels */
-  --text-accent: #ffffff;     /* pure white for emphasis only */
-  --text-negative: #ff6b6b;   /* muted red for losses/warnings */
-  --text-positive: #6bff8a;   /* muted green for gains */
+  --text-primary: #e8e8e8; /* off-white, easy on eyes */
+  --text-secondary: #8888aa; /* muted for labels */
+  --text-accent: #ffffff; /* pure white for emphasis only */
+  --text-negative: #ff6b6b; /* muted red for losses/warnings */
+  --text-positive: #6bff8a; /* muted green for gains */
 
   /* ==========================================================================
      Colors - Hotel Chains
      ========================================================================== */
-  --chain-luxor: #c9a227;       /* Budget tier */
-  --chain-tower: #7a5c3d;       /* Budget tier */
-  --chain-american: #5e7a8a;    /* Standard tier */
-  --chain-festival: #8a5e7a;    /* Standard tier */
-  --chain-worldwide: #5e8a6a;   /* Standard tier */
+  --chain-luxor: #c9a227; /* Budget tier */
+  --chain-tower: #7a5c3d; /* Budget tier */
+  --chain-american: #5e7a8a; /* Standard tier */
+  --chain-festival: #8a5e7a; /* Standard tier */
+  --chain-worldwide: #5e8a6a; /* Standard tier */
   --chain-continental: #8a3d3d; /* Premium tier */
-  --chain-imperial: #3d5e8a;    /* Premium tier */
+  --chain-imperial: #3d5e8a; /* Premium tier */
 
   /* ==========================================================================
      Typography
      ========================================================================== */
-  --font-primary: "IBM Plex Mono", "Fira Code", "Consolas", monospace;
-  --font-pixel: "Press Start 2P", monospace;
+  --font-primary: 'IBM Plex Mono', 'Fira Code', 'Consolas', monospace;
+  --font-pixel: 'Press Start 2P', monospace;
 
   /* Type Scale */
-  --text-xl: 24px;  /* Phase announcements, winner declaration */
-  --text-lg: 18px;  /* Section headers, player names */
-  --text-md: 14px;  /* Stock prices, tile labels, body text */
-  --text-sm: 12px;  /* Secondary info, timestamps */
-  --text-xs: 10px;  /* Fine print, helper text */
+  --text-xl: 24px; /* Phase announcements, winner declaration */
+  --text-lg: 18px; /* Section headers, player names */
+  --text-md: 14px; /* Stock prices, tile labels, body text */
+  --text-sm: 12px; /* Secondary info, timestamps */
+  --text-xs: 10px; /* Fine print, helper text */
 
   /* Font Weights */
   --font-normal: 400;
@@ -77,9 +77,9 @@
   --border-default: var(--border-width) var(--border-style) var(--border);
 
   /* Border Radius */
-  --radius-sm: 2px;      /* buttons, inputs */
-  --radius-md: 4px;      /* cards, modals */
-  --radius-lg: 8px;      /* large containers */
+  --radius-sm: 2px; /* buttons, inputs */
+  --radius-md: 4px; /* cards, modals */
+  --radius-lg: 8px; /* large containers */
   --radius-full: 9999px; /* pills, badges */
 
   /* ==========================================================================
@@ -100,18 +100,18 @@
   --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* Duration Scale */
-  --duration-fast: 100ms;      /* micro-interactions */
-  --duration-normal: 200ms;    /* state changes */
-  --duration-slow: 400ms;      /* emphasis animations */
-  --duration-dramatic: 800ms;  /* merger effects */
+  --duration-fast: 100ms; /* micro-interactions */
+  --duration-normal: 200ms; /* state changes */
+  --duration-slow: 400ms; /* emphasis animations */
+  --duration-dramatic: 800ms; /* merger effects */
 
   /* ==========================================================================
      Responsive Breakpoints
      ========================================================================== */
-  --breakpoint-sm: 375px;   /* small phones */
-  --breakpoint-md: 768px;   /* tablets */
-  --breakpoint-lg: 1024px;  /* laptops */
-  --breakpoint-xl: 1280px;  /* desktops/TVs */
+  --breakpoint-sm: 375px; /* small phones */
+  --breakpoint-md: 768px; /* tablets */
+  --breakpoint-lg: 1024px; /* laptops */
+  --breakpoint-xl: 1280px; /* desktops/TVs */
 
   /* ==========================================================================
      Component Tokens

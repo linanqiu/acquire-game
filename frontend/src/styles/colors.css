@@ -1,0 +1,172 @@
+/**
+ * Acquire Color System
+ * Utility classes built on design tokens
+ */
+
+/* ==========================================================================
+   Base dark theme
+   Ensures dark background by default
+   ========================================================================== */
+
+html,
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* ==========================================================================
+   Background utilities
+   ========================================================================== */
+
+.bg-primary {
+  background-color: var(--bg-primary);
+}
+
+.bg-secondary {
+  background-color: var(--bg-secondary);
+}
+
+.bg-tertiary {
+  background-color: var(--bg-tertiary);
+}
+
+/* ==========================================================================
+   Text color utilities
+   ========================================================================== */
+
+.text-primary {
+  color: var(--text-primary);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.text-accent {
+  color: var(--text-accent);
+}
+
+.text-positive {
+  color: var(--text-positive);
+}
+
+.text-negative {
+  color: var(--text-negative);
+}
+
+/* ==========================================================================
+   Chain background colors
+   ========================================================================== */
+
+.bg-luxor {
+  background-color: var(--chain-luxor);
+}
+
+.bg-tower {
+  background-color: var(--chain-tower);
+}
+
+.bg-american {
+  background-color: var(--chain-american);
+}
+
+.bg-festival {
+  background-color: var(--chain-festival);
+}
+
+.bg-worldwide {
+  background-color: var(--chain-worldwide);
+}
+
+.bg-continental {
+  background-color: var(--chain-continental);
+}
+
+.bg-imperial {
+  background-color: var(--chain-imperial);
+}
+
+/* ==========================================================================
+   Chain text colors
+   ========================================================================== */
+
+.text-luxor {
+  color: var(--chain-luxor);
+}
+
+.text-tower {
+  color: var(--chain-tower);
+}
+
+.text-american {
+  color: var(--chain-american);
+}
+
+.text-festival {
+  color: var(--chain-festival);
+}
+
+.text-worldwide {
+  color: var(--chain-worldwide);
+}
+
+.text-continental {
+  color: var(--chain-continental);
+}
+
+.text-imperial {
+  color: var(--chain-imperial);
+}
+
+/* ==========================================================================
+   Border utilities
+   ========================================================================== */
+
+.border {
+  border: 1px solid var(--border);
+}
+
+.border-luxor {
+  border-color: var(--chain-luxor);
+}
+
+.border-tower {
+  border-color: var(--chain-tower);
+}
+
+.border-american {
+  border-color: var(--chain-american);
+}
+
+.border-festival {
+  border-color: var(--chain-festival);
+}
+
+.border-worldwide {
+  border-color: var(--chain-worldwide);
+}
+
+.border-continental {
+  border-color: var(--chain-continental);
+}
+
+.border-imperial {
+  border-color: var(--chain-imperial);
+}
+
+/* ==========================================================================
+   Orphan tile color
+   For tiles not belonging to any chain
+   ========================================================================== */
+
+.bg-orphan {
+  background-color: #4a4a5a;
+}
+
+.text-orphan {
+  color: #4a4a5a;
+}
+
+.border-orphan {
+  border-color: #4a4a5a;
+}

@@ -1,0 +1,20 @@
+.panel {
+  background-color: var(--bg-secondary);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+.panelTitle {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: var(--border-default);
+}
+
+.panelContent {
+  padding: var(--space-3) var(--space-4);
+}

@@ -1,3 +1,4 @@
-export { HomePage } from './HomePage'
 export { LobbyPage } from './LobbyPage'
-export { GamePage } from './GamePage'
+export { PlayerPage } from './PlayerPage'
+export { HostPage } from './HostPage'
+export { NotFoundPage } from './NotFoundPage'

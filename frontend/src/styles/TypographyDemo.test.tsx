@@ -10,16 +10,10 @@ const __dirname = dirname(__filename)
 // Load CSS files and inject them into the document
 beforeAll(() => {
   const tokensCSS = readFileSync(resolve(__dirname, './tokens.css'), 'utf-8')
-  const typographyCSS = readFileSync(
-    resolve(__dirname, './typography.css'),
-    'utf-8'
-  )
+  const typographyCSS = readFileSync(resolve(__dirname, './typography.css'), 'utf-8')
 
   // Remove the @import statement (Google Fonts won't load in jsdom anyway)
-  const typographyCSSWithoutImport = typographyCSS.replace(
-    /@import url\([^)]+\);/g,
-    ''
-  )
+  const typographyCSSWithoutImport = typographyCSS.replace(/@import url\([^)]+\);/g, '')
 
   const style = document.createElement('style')
   style.textContent = tokensCSS + typographyCSSWithoutImport
@@ -33,7 +27,11 @@ beforeAll(() => {
 describe('Typography Component Integration', () => {
   describe('Text Size Classes', () => {
     it('applies .text-xs class with font-size token', () => {
-      render(<span className="text-xs" data-testid="text-xs">XS</span>)
+      render(
+        <span className="text-xs" data-testid="text-xs">
+          XS
+        </span>
+      )
       const el = screen.getByTestId('text-xs')
       expect(el).toHaveClass('text-xs')
       const style = getComputedStyle(el)
@@ -42,28 +40,44 @@ describe('Typography Component Integration', () => {
     })
 
     it('applies .text-sm class with font-size token', () => {
-      render(<span className="text-sm" data-testid="text-sm">SM</span>)
+      render(
+        <span className="text-sm" data-testid="text-sm">
+          SM
+        </span>
+      )
       const el = screen.getByTestId('text-sm')
       const style = getComputedStyle(el)
       expect(style.fontSize).toMatch(/var\(--text-sm\)|12px/)
     })
 
     it('applies .text-md class with font-size token', () => {
-      render(<span className="text-md" data-testid="text-md">MD</span>)
+      render(
+        <span className="text-md" data-testid="text-md">
+          MD
+        </span>
+      )
       const el = screen.getByTestId('text-md')
       const style = getComputedStyle(el)
       expect(style.fontSize).toMatch(/var\(--text-md\)|14px/)
     })
 
     it('applies .text-lg class with font-size token', () => {
-      render(<span className="text-lg" data-testid="text-lg">LG</span>)
+      render(
+        <span className="text-lg" data-testid="text-lg">
+          LG
+        </span>
+      )
       const el = screen.getByTestId('text-lg')
       const style = getComputedStyle(el)
       expect(style.fontSize).toMatch(/var\(--text-lg\)|18px/)
     })
 
     it('applies .text-xl class with font-size token', () => {
-      render(<span className="text-xl" data-testid="text-xl">XL</span>)
+      render(
+        <span className="text-xl" data-testid="text-xl">
+          XL
+        </span>
+      )
       const el = screen.getByTestId('text-xl')
       const style = getComputedStyle(el)
       expect(style.fontSize).toMatch(/var\(--text-xl\)|24px/)
@@ -172,10 +186,7 @@ describe('Typography Component Integration', () => {
   describe('Combined Classes', () => {
     it('can combine multiple typography classes', () => {
       render(
-        <span
-          className="text-lg font-bold tabular-nums text-center"
-          data-testid="combined"
-        >
+        <span className="text-lg font-bold tabular-nums text-center" data-testid="combined">
           $1,234
         </span>
       )

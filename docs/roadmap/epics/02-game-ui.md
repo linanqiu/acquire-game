@@ -65,6 +65,12 @@ Build all game-specific UI components and pages, from the lobby through game ove
 | [GU-014](../stories/02-game-ui/GU-014.md) | Game Over Screen | M | GU-006, FF-008 | not-started |
 | [GU-015](../stories/02-game-ui/GU-015.md) | Reconnection UI | M | FF-008, FF-009 | not-started |
 
+### Phase 7: Comprehensive Testing
+
+| ID | Title | Effort | Dependencies | Status |
+|----|-------|--------|--------------|--------|
+| [GU-016](../stories/02-game-ui/GU-016.md) | Comprehensive E2E Test Suite | L | GU-001 through GU-015, FF-011 | not-started |
+
 ## Dependency Graph
 
 ```
@@ -94,6 +100,9 @@ GU-004 + GU-007 + RT-002
 
 GU-002 + GU-006 + RT-002
    └── GU-013 (Host View)
+
+GU-001..GU-015 + FF-011
+   └── GU-016 (Comprehensive E2E Tests)
 ```
 
 ## Success Criteria
