@@ -313,7 +313,12 @@ class TestBuyStocks:
         game.hotel.activate_chain("Luxor")
 
         # Play isolated tile to get to buying phase
-        tile = game.get_current_player().hand[0]
+        # Find a tile that won't conflict with manually placed tiles (1A, 2A)
+        tile = next(
+            t
+            for t in game.get_current_player().hand
+            if not (t.column in [1, 2] and t.row == "A")
+        )
         game.play_tile("p1", tile)
 
         # Buy stock
@@ -336,7 +341,12 @@ class TestBuyStocks:
         game.board.set_chain(Tile(2, "A"), "Luxor")
         game.hotel.activate_chain("Luxor")
 
-        tile = game.get_current_player().hand[0]
+        # Find a tile that won't conflict with manually placed tiles (1A, 2A)
+        tile = next(
+            t
+            for t in game.get_current_player().hand
+            if not (t.column in [1, 2] and t.row == "A")
+        )
         game.play_tile("p1", tile)
 
         result = game.buy_stocks("p1", ["Luxor", "Luxor", "Luxor", "Luxor"])
@@ -361,7 +371,8 @@ class TestBuyStocks:
         player = game.get_current_player()
         initial_money = player.money
 
-        tile = player.hand[0]
+        # Find a tile that won't conflict with manually placed tiles (1A, 2A)
+        tile = next(t for t in player.hand if not (t.column in [1, 2] and t.row == "A"))
         game.play_tile("p1", tile)
 
         game.buy_stocks("p1", ["Luxor"])
