@@ -282,24 +282,26 @@ class TestBuyStocks:
 
     def test_buy_stocks_requires_active_chain(self):
         """Test that you can only buy stocks of active chains."""
-        game = Game()
+        game = Game(seed=42)
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
         game.add_player("p3", "Charlie")
         game.start_game()
 
         # Play isolated tile to get to buying phase
-        tile = game.get_current_player().hand[0]
-        game.play_tile("p1", tile)
+        player = game.get_current_player()
+        player_id = player.player_id
+        tile = player.hand[0]
+        game.play_tile(player_id, tile)
 
         # Try to buy inactive chain
-        result = game.buy_stocks("p1", ["Luxor"])
+        result = game.buy_stocks(player_id, ["Luxor"])
         assert result["success"] is False
         assert "not active" in result["error"]
 
     def test_buy_stocks_success(self):
         """Test successfully buying stocks."""
-        game = Game()
+        game = Game(seed=42)
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
         game.add_player("p3", "Charlie")
@@ -314,21 +316,19 @@ class TestBuyStocks:
 
         # Play isolated tile to get to buying phase
         # Find a tile that won't conflict with manually placed tiles (1A, 2A)
-        tile = next(
-            t
-            for t in game.get_current_player().hand
-            if not (t.column in [1, 2] and t.row == "A")
-        )
-        game.play_tile("p1", tile)
+        player = game.get_current_player()
+        player_id = player.player_id
+        tile = next(t for t in player.hand if not (t.column in [1, 2] and t.row == "A"))
+        game.play_tile(player_id, tile)
 
         # Buy stock
-        result = game.buy_stocks("p1", ["Luxor"])
+        result = game.buy_stocks(player_id, ["Luxor"])
         assert result["success"] is True
         assert len(result["purchased"]) == 1
 
     def test_cannot_buy_more_than_three_stocks(self):
         """Test that you cannot buy more than 3 stocks per turn."""
-        game = Game()
+        game = Game(seed=42)
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
         game.add_player("p3", "Charlie")
@@ -342,20 +342,18 @@ class TestBuyStocks:
         game.hotel.activate_chain("Luxor")
 
         # Find a tile that won't conflict with manually placed tiles (1A, 2A)
-        tile = next(
-            t
-            for t in game.get_current_player().hand
-            if not (t.column in [1, 2] and t.row == "A")
-        )
-        game.play_tile("p1", tile)
+        player = game.get_current_player()
+        player_id = player.player_id
+        tile = next(t for t in player.hand if not (t.column in [1, 2] and t.row == "A"))
+        game.play_tile(player_id, tile)
 
-        result = game.buy_stocks("p1", ["Luxor", "Luxor", "Luxor", "Luxor"])
+        result = game.buy_stocks(player_id, ["Luxor", "Luxor", "Luxor", "Luxor"])
         assert result["success"] is False
         assert "up to 3" in result["error"]
 
     def test_buy_stocks_deducts_money(self):
         """Test that buying stocks deducts money."""
-        game = Game()
+        game = Game(seed=42)
         game.add_player("p1", "Alice")
         game.add_player("p2", "Bob")
         game.add_player("p3", "Charlie")
@@ -369,13 +367,14 @@ class TestBuyStocks:
         game.hotel.activate_chain("Luxor")
 
         player = game.get_current_player()
+        player_id = player.player_id
         initial_money = player.money
 
         # Find a tile that won't conflict with manually placed tiles (1A, 2A)
         tile = next(t for t in player.hand if not (t.column in [1, 2] and t.row == "A"))
-        game.play_tile("p1", tile)
+        game.play_tile(player_id, tile)
 
-        game.buy_stocks("p1", ["Luxor"])
+        game.buy_stocks(player_id, ["Luxor"])
 
         # Luxor at size 2 costs $200
         assert player.money == initial_money - 200
