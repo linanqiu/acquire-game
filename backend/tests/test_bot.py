@@ -1,5 +1,7 @@
 """Tests for the Bot AI player."""
 
+import random
+
 import pytest
 
 from game.board import Board, Tile
@@ -135,25 +137,30 @@ class TestChooseTileToPlay:
         assert result == legal_tile
 
     def test_easy_difficulty_random_selection(self):
-        """Test easy difficulty uses random selection."""
-        player = Player("bot1", "Bot Player")
-        bot = Bot(player, difficulty="easy")
+        """Test easy difficulty uses random selection based on RNG seed."""
         board = Board()
         hotel = Hotel()
 
-        # Add multiple tiles
+        # Add multiple tiles to player hands
         tiles = [Tile(1, "A"), Tile(5, "E"), Tile(10, "I")]
-        for tile in tiles:
-            player.add_tile(tile)
 
-        # Run multiple times and check we get different results
-        results = set()
-        for _ in range(20):
+        # Use many different seeds to prove randomness is used
+        # With 3 options and 20 seeds, probability of all same is (1/3)^19 ≈ 0%
+        results_by_seed = {}
+        for seed in range(20):
+            player = Player("bot1", "Bot Player")
+            for tile in tiles:
+                player.add_tile(tile)
+            rng = random.Random(seed)
+            bot = Bot(player, difficulty="easy", rng=rng)
             result = bot.choose_tile_to_play(board, hotel)
-            results.add(result)
+            results_by_seed[seed] = result
 
-        # With random selection, we should eventually see multiple different tiles
-        assert len(results) >= 2
+        # Different seeds should produce different results (proves randomness is used)
+        unique_results = set(results_by_seed.values())
+        assert len(unique_results) >= 2, (
+            "Easy mode should use randomness - different seeds should give different tiles"
+        )
 
 
 class TestChooseChainToFound:
@@ -204,20 +211,25 @@ class TestChooseChainToFound:
         assert result in ["American", "Worldwide"]
 
     def test_easy_difficulty_random_chain(self):
-        """Test easy difficulty picks randomly."""
-        player = Player("bot1", "Bot Player")
-        bot = Bot(player, difficulty="easy")
+        """Test easy difficulty picks randomly based on RNG seed."""
         board = Board()
-
         available = ["Luxor", "American", "Imperial"]
 
-        results = set()
-        for _ in range(30):
+        # Use many different seeds to prove randomness is used
+        # With 3 options and 20 seeds, probability of all same is (1/3)^19 ≈ 0%
+        results_by_seed = {}
+        for seed in range(20):
+            player = Player("bot1", "Bot Player")
+            rng = random.Random(seed)
+            bot = Bot(player, difficulty="easy", rng=rng)
             result = bot.choose_chain_to_found(available, board)
-            results.add(result)
+            results_by_seed[seed] = result
 
-        # Should eventually see multiple chains selected
-        assert len(results) >= 2
+        # Different seeds should produce different results (proves randomness is used)
+        unique_results = set(results_by_seed.values())
+        assert len(unique_results) >= 2, (
+            "Easy mode should use randomness - different seeds should give different chains"
+        )
 
 
 class TestChooseMergerSurvivor:
@@ -268,21 +280,27 @@ class TestChooseMergerSurvivor:
         assert result == "Imperial"
 
     def test_easy_difficulty_random(self):
-        """Test easy difficulty picks randomly."""
-        player = Player("bot1", "Bot Player")
-        player._stocks["Luxor"] = 10
-        player._stocks["Tower"] = 0
-        bot = Bot(player, difficulty="easy")
+        """Test easy difficulty picks randomly based on RNG seed."""
         board = Board()
         hotel = Hotel()
 
-        results = set()
-        for _ in range(20):
+        # Use many different seeds to prove randomness is used
+        # With 2 options and 20 seeds, probability of all same is (0.5)^19 ≈ 0%
+        results_by_seed = {}
+        for seed in range(20):
+            player = Player("bot1", "Bot Player")
+            player._stocks["Luxor"] = 10
+            player._stocks["Tower"] = 0
+            rng = random.Random(seed)
+            bot = Bot(player, difficulty="easy", rng=rng)
             result = bot.choose_merger_survivor(["Luxor", "Tower"], board, hotel)
-            results.add(result)
+            results_by_seed[seed] = result
 
-        # Easy mode should show randomness
-        assert len(results) >= 2
+        # Different seeds should produce different results (proves randomness is used)
+        unique_results = set(results_by_seed.values())
+        assert len(unique_results) >= 2, (
+            "Easy mode should use randomness - different seeds should give different survivors"
+        )
 
 
 class TestChooseStockDisposition:
@@ -520,9 +538,7 @@ class TestChooseStocksToBuy:
         assert "Luxor" not in result
 
     def test_easy_difficulty_random_purchase(self):
-        """Test easy difficulty purchases randomly."""
-        player = Player("bot1", "Bot Player")
-        bot = Bot(player, difficulty="easy")
+        """Test easy difficulty purchases randomly based on RNG seed."""
         board = Board()
         hotel = Hotel()
 
@@ -539,16 +555,22 @@ class TestChooseStocksToBuy:
             board.set_chain(tile, "Tower")
         hotel.activate_chain("Tower")
 
-        # Run multiple times
-        chains_bought = {"Luxor": 0, "Tower": 0}
-        for _ in range(30):
+        # Use many different seeds to prove randomness is used
+        # With 2 options and 20 seeds, probability of all same is (0.5)^19 ≈ 0%
+        results_by_seed = {}
+        for seed in range(20):
+            player = Player("bot1", "Bot Player")
+            rng = random.Random(seed)
+            bot = Bot(player, difficulty="easy", rng=rng)
             result = bot.choose_stocks_to_buy(board, hotel, max_stocks=1)
             if result:
-                chains_bought[result[0]] += 1
+                results_by_seed[seed] = result[0]
 
-        # Both chains should be bought sometimes
-        assert chains_bought["Luxor"] > 0
-        assert chains_bought["Tower"] > 0
+        # Different seeds should produce different results (proves randomness is used)
+        unique_results = set(results_by_seed.values())
+        assert len(unique_results) >= 2, (
+            "Easy mode should use randomness - different seeds should give different purchases"
+        )
 
 
 class TestIntegration:
