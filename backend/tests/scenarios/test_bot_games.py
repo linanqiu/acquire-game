@@ -89,6 +89,7 @@ class TestBotGameCompletion:
             game = Game(seed=seed)
             game.add_player("bot1", "Bot 1", is_bot=True)
             game.add_player("bot2", "Bot 2", is_bot=True)
+            game.add_player("bot3", "Bot 3", is_bot=True)
             game.start_game()
 
             turn_count = self._run_bot_game(game, max_turns=500, force_end_after=150)
