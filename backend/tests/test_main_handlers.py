@@ -151,12 +151,26 @@ class TestHandlePlaceTileValidation:
         game = room.game
 
         current_player_id = game.get_current_player_id()
+        player = game.get_player(current_player_id)
+
+        # Find a tile that's definitely NOT in the player's hand
+        player_tile_strs = {str(t) for t in player.hand}
+        # Try tiles until we find one not in hand
+        invalid_tile = None
+        for col in range(1, 13):
+            for row in "ABCDEFGHI":
+                tile_str = f"{col}{row}"
+                if tile_str not in player_tile_strs:
+                    invalid_tile = tile_str
+                    break
+            if invalid_tile:
+                break
 
         with patch.object(
             session_manager, "send_to_player", new_callable=AsyncMock
         ) as mock_send:
             # Try to place a tile not in hand
-            await handle_place_tile(game_room, current_player_id, "12I")
+            await handle_place_tile(game_room, current_player_id, invalid_tile)
 
             mock_send.assert_called()
             call_args = mock_send.call_args[0]
