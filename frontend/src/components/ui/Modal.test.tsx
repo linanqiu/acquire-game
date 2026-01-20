@@ -146,11 +146,91 @@ describe('Modal', () => {
 
   it('has aria-labelledby pointing to title', () => {
     render(<Modal {...defaultProps} />)
-    expect(screen.getByRole('dialog')).toHaveAttribute('aria-labelledby', 'modal-title')
+    const dialog = screen.getByRole('dialog')
+    const labelledBy = dialog.getAttribute('aria-labelledby')
+    expect(labelledBy).toBeTruthy()
+    // Verify the ID matches the title element's ID
+    const titleElement = screen.getByText('Test Modal')
+    expect(titleElement.getAttribute('id')).toBe(labelledBy)
   })
 
-  it('title has correct id for aria-labelledby', () => {
+  it('title has id for aria-labelledby', () => {
     render(<Modal {...defaultProps} />)
-    expect(screen.getByText('Test Modal')).toHaveAttribute('id', 'modal-title')
+    const titleElement = screen.getByText('Test Modal')
+    expect(titleElement.getAttribute('id')).toBeTruthy()
+  })
+
+  // Focus trap tests
+  describe('focus trap', () => {
+    it('wraps focus from last to first element on Tab', () => {
+      const onConfirm = vi.fn()
+      render(
+        <Modal {...defaultProps} onConfirm={onConfirm} confirmLabel="OK">
+          <button>First focusable</button>
+        </Modal>
+      )
+
+      // Focus the last button (OK/confirm button)
+      const okButton = screen.getByText('OK')
+      okButton.focus()
+      expect(document.activeElement).toBe(okButton)
+
+      // Press Tab - should wrap to first focusable element (close button)
+      fireEvent.keyDown(screen.getByTestId('modal-backdrop'), {
+        key: 'Tab',
+        shiftKey: false,
+      })
+
+      // Focus should wrap to first element (close button)
+      expect(document.activeElement).toBe(screen.getByLabelText('Close modal'))
+    })
+
+    it('wraps focus from first to last element on Shift+Tab', () => {
+      const onConfirm = vi.fn()
+      render(
+        <Modal {...defaultProps} onConfirm={onConfirm} confirmLabel="OK">
+          <button>Middle focusable</button>
+        </Modal>
+      )
+
+      // Focus the first focusable element (close button)
+      const closeButton = screen.getByLabelText('Close modal')
+      closeButton.focus()
+      expect(document.activeElement).toBe(closeButton)
+
+      // Press Shift+Tab - should wrap to last focusable element
+      fireEvent.keyDown(screen.getByTestId('modal-backdrop'), {
+        key: 'Tab',
+        shiftKey: true,
+      })
+
+      // Focus should wrap to last element (OK button)
+      expect(document.activeElement).toBe(screen.getByText('OK'))
+    })
+
+    it('does not prevent default Tab when not on boundary elements', () => {
+      const onConfirm = vi.fn()
+      render(
+        <Modal {...defaultProps} onConfirm={onConfirm} confirmLabel="OK">
+          <button>Middle button</button>
+        </Modal>
+      )
+
+      // Focus a middle element
+      const middleButton = screen.getByText('Middle button')
+      middleButton.focus()
+
+      // Press Tab - should not prevent default (normal tab behavior)
+      const event = new KeyboardEvent('keydown', {
+        key: 'Tab',
+        bubbles: true,
+      })
+      const preventDefaultSpy = vi.spyOn(event, 'preventDefault')
+
+      screen.getByTestId('modal-backdrop').dispatchEvent(event)
+
+      // preventDefault should not have been called since we're not at a boundary
+      expect(preventDefaultSpy).not.toHaveBeenCalled()
+    })
   })
 })

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useId } from 'react'
 import { createPortal } from 'react-dom'
 import { Button } from './Button'
 import styles from './Modal.module.css'
@@ -26,6 +26,7 @@ export function Modal({
 }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null)
   const previousActiveElement = useRef<Element | null>(null)
+  const titleId = useId()
 
   // Focus management and body scroll lock
   useEffect(() => {
@@ -97,11 +98,11 @@ export function Modal({
         className={styles.modal}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="modal-title"
+        aria-labelledby={titleId}
         tabIndex={-1}
       >
         <div className={styles.header}>
-          <h2 id="modal-title" className={styles.title}>
+          <h2 id={titleId} className={styles.title}>
             {title}
           </h2>
           {dismissible && (
