@@ -1,5 +1,18 @@
 # User Preferences
 
+## Feature Implementation Workflow
+Before implementing any feature (FF-XXX, etc.):
+1. Check `docs/roadmap/README.md` for current progress and completed stories
+2. Read recent completed stories to understand what's already built
+3. Read the target story document at `docs/roadmap/stories/<epic>/<story-id>.md`
+4. Review acceptance criteria - these define "done", not implementation details
+5. Use implementation notes as guidance, not gospel - they may have technical gaps
+
+When deviating from story suggestions:
+- Make the call based on what you encounter during implementation
+- Note the deviation and reasoning in the commit message or story doc
+- Ensure acceptance criteria are still met (or update them with justification)
+
 ## Setup (Claude on Mobile/Fresh Sessions)
 On fresh sessions (e.g., Claude on mobile), install dependencies first:
 ```bash
