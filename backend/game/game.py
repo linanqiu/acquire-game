@@ -28,6 +28,7 @@ from game.responses import (
     AcceptTradeResult,
     RejectTradeResult,
     CancelTradeResult,
+    DeclareEndGameResult,
 )
 
 
@@ -1132,6 +1133,80 @@ class Game:
             winner=winner,
         )
 
+    def can_declare_end_game(self) -> bool:
+        """Check if the current player can declare the game over.
+
+        Per Acquire rules, a player MAY declare the game over when:
+        1. Any single chain has 41 or more tiles, OR
+        2. All active chains on the board are "safe" (11+ tiles each)
+
+        Note: This is an OPTIONAL declaration - the player can choose to continue.
+
+        Returns:
+            True if end-game conditions are met and declaration is allowed
+        """
+        # Can only declare during certain phases
+        if self.phase not in (GamePhase.PLAYING, GamePhase.BUYING_STOCKS):
+            return False
+
+        # Use the existing Rules.check_end_game method
+        return Rules.check_end_game(self.board, self.hotel)
+
+    def declare_end_game(self, player_id: str) -> DeclareEndGameResult:
+        """Player declares the game is over.
+
+        This allows a player to explicitly end the game when end-game
+        conditions are met. Per the rules, this is optional - players
+        may choose to continue playing even when conditions are met.
+
+        Args:
+            player_id: ID of the player declaring the end
+
+        Returns:
+            DeclareEndGameResult with final standings
+        """
+        # Validate game state
+        if self.phase == GamePhase.GAME_OVER:
+            return DeclareEndGameResult(success=False, error="Game is already over")
+
+        if self.phase == GamePhase.LOBBY:
+            return DeclareEndGameResult(success=False, error="Game has not started")
+
+        # Check if it's this player's turn (only current player can declare)
+        current_player = self.get_current_player()
+        if player_id != current_player.player_id:
+            return DeclareEndGameResult(
+                success=False, error="Only the current player can declare end game"
+            )
+
+        # Check if end-game conditions are met
+        if not self.can_declare_end_game():
+            return DeclareEndGameResult(
+                success=False, error="End game conditions are not met"
+            )
+
+        # End the game (this handles bonuses, stock sales, and standings)
+        end_result = self.end_game()
+
+        if not end_result.success:
+            return DeclareEndGameResult(success=False, error=end_result.error)
+
+        # Emit end game declared event
+        player = self.get_player(player_id)
+        self._emit_event(
+            EventType.END_GAME_DECLARED,
+            player_id,
+            f"{player.name} declared the game over",
+            {"declared_by": player.name},
+        )
+
+        return DeclareEndGameResult(
+            success=True,
+            declared_by=player_id,
+            standings=end_result.standings,
+            winner=end_result.winner,
+        )
+
     # =========================================================================
     # Player-to-Player Trading Methods
     # =========================================================================
@@ -1590,6 +1665,13 @@ class Game:
             t.to_dict() for t in self.get_outgoing_trades_for_player(player_id)
         ]
 
+        # Check if this player can declare end game
+        # Only the current player can declare, and only if conditions are met
+        end_game_available = (
+            player_id == self.get_current_player().player_id
+            and self.can_declare_end_game()
+        )
+
         return {
             **public,
             "hand": [str(t) for t in player.hand],
@@ -1597,6 +1679,7 @@ class Game:
             "can_act": self.can_player_act(player_id),
             "incoming_trades": incoming_trades,
             "outgoing_trades": outgoing_trades,
+            "end_game_available": end_game_available,
         }
 
     def apply_action(self, player_id: str, action: "Action") -> dict:
