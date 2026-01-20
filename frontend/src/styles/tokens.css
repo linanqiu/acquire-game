@@ -1,0 +1,120 @@
+/**
+ * Acquire Design Tokens
+ * CSS custom properties derived from docs/ui/design-system.md
+ */
+
+:root {
+  /* ==========================================================================
+     Colors - Background
+     ========================================================================== */
+  --bg-primary: #1a1a2e;    /* deep navy-charcoal */
+  --bg-secondary: #16213e;  /* slightly lighter for cards/panels */
+  --bg-tertiary: #0f0f1a;   /* darkest, for depth */
+  --border: #2a2a4a;        /* subtle separation */
+
+  /* ==========================================================================
+     Colors - Text
+     ========================================================================== */
+  --text-primary: #e8e8e8;    /* off-white, easy on eyes */
+  --text-secondary: #8888aa;  /* muted for labels */
+  --text-accent: #ffffff;     /* pure white for emphasis only */
+  --text-negative: #ff6b6b;   /* muted red for losses/warnings */
+  --text-positive: #6bff8a;   /* muted green for gains */
+
+  /* ==========================================================================
+     Colors - Hotel Chains
+     ========================================================================== */
+  --chain-luxor: #c9a227;       /* Budget tier */
+  --chain-tower: #7a5c3d;       /* Budget tier */
+  --chain-american: #5e7a8a;    /* Standard tier */
+  --chain-festival: #8a5e7a;    /* Standard tier */
+  --chain-worldwide: #5e8a6a;   /* Standard tier */
+  --chain-continental: #8a3d3d; /* Premium tier */
+  --chain-imperial: #3d5e8a;    /* Premium tier */
+
+  /* ==========================================================================
+     Typography
+     ========================================================================== */
+  --font-primary: "IBM Plex Mono", "Fira Code", "Consolas", monospace;
+  --font-pixel: "Press Start 2P", monospace;
+
+  /* Type Scale */
+  --text-xl: 24px;  /* Phase announcements, winner declaration */
+  --text-lg: 18px;  /* Section headers, player names */
+  --text-md: 14px;  /* Stock prices, tile labels, body text */
+  --text-sm: 12px;  /* Secondary info, timestamps */
+  --text-xs: 10px;  /* Fine print, helper text */
+
+  /* Font Weights */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-bold: 700;
+
+  /* Line Heights */
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+
+  /* ==========================================================================
+     Spacing
+     Base unit: 4px
+     ========================================================================== */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ==========================================================================
+     Borders
+     ========================================================================== */
+  --border-width: 1px;
+  --border-style: solid;
+
+  /* Border Radius */
+  --radius-sm: 2px;      /* buttons, inputs */
+  --radius-md: 4px;      /* cards, modals */
+  --radius-lg: 8px;      /* large containers */
+  --radius-full: 9999px; /* pills, badges */
+
+  /* ==========================================================================
+     Shadows
+     Keep shadows minimal - dark theme provides natural depth
+     ========================================================================== */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.5);
+
+  /* ==========================================================================
+     Animation
+     ========================================================================== */
+  /* Timing Functions */
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Duration Scale */
+  --duration-fast: 100ms;      /* micro-interactions */
+  --duration-normal: 200ms;    /* state changes */
+  --duration-slow: 400ms;      /* emphasis animations */
+  --duration-dramatic: 800ms;  /* merger effects */
+
+  /* ==========================================================================
+     Responsive Breakpoints
+     ========================================================================== */
+  --breakpoint-sm: 375px;   /* small phones */
+  --breakpoint-md: 768px;   /* tablets */
+  --breakpoint-lg: 1024px;  /* laptops */
+  --breakpoint-xl: 1280px;  /* desktops/TVs */
+
+  /* ==========================================================================
+     Component Tokens
+     ========================================================================== */
+  /* Touch target minimum */
+  --touch-target-min: 44px;
+}
