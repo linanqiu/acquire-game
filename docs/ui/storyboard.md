@@ -246,7 +246,7 @@ Connection lost -> Show reconnecting spinner
 ```
 +------------------------------------------+
 | HEADER                                   |
-|  Player Name | Room Code | $6,000        |
+|  Player Name | Room Code | $6,000 | [42] |
 +------------------------------------------+
 | PHASE INDICATOR                          |
 |  "PHASE 1: TRADES" or "BOB'S TURN"       |
@@ -264,20 +264,62 @@ Connection lost -> Show reconnecting spinner
 +------------------------------------------+
 ```
 
+**Header elements:**
+- Player Name: Your name
+- Room Code: 4-letter code for joining
+- Cash: Your current balance (e.g., $6,000)
+- Tile Pool: Tiles remaining [42] or [EMPTY]
+
 ### State Variations
 
 | Game State | Phase Indicator | Main Content | Tile Rack | Actions |
 |------------|-----------------|--------------|-----------|---------|
 | Pre-game (lobby) | "WAITING FOR HOST" | Player list, bot count | Hidden | None (host controls on host view) |
+| **Your turn: End game option** | "END GAME AVAILABLE" | Declaration modal | Visible | Declare or continue |
 | Your turn: Trading | "PHASE 1: TRADES" | Trade UI | Visible | Propose trade, skip to tiles |
 | Your turn: Place tile | "PHASE 2: PLACE TILE" | Board with highlights | Active (selectable) | Tap tile, tap board |
 | Your turn: Found chain | "CHOOSE A CHAIN" | Chain selection modal | Dimmed | Pick chain name |
-| Your turn: Merger | "MERGER: LUXOR ACQUIRED" | Disposition interface | Dimmed | Sell/Trade/Hold sliders |
+| Your turn: Merger (your disposition) | "MERGER: DISPOSE STOCK" | Disposition interface | Dimmed | Sell/Trade/Hold sliders |
+| Your turn: Merger (waiting) | "MERGER: WAITING" | Disposition queue | Dimmed | Watch others dispose |
 | Your turn: Buy stocks | "PHASE 3: BUY STOCKS" | Stock purchase cart | Dimmed | Add to cart, confirm |
+| Your turn: End of turn | "END OF TURN" | Tile replacement offer | Visible | Replace or continue |
 | Other's turn | "BOB'S TURN" | Board view, waiting message | Preview only | Watch, respond to trades |
 | Respond to trade | "TRADE FROM BOB" | Trade proposal modal | Preview only | Accept/Decline |
 | Merger (your disposition) | "YOUR TURN TO DISPOSE" | Disposition interface | Dimmed | Sell/Trade/Hold sliders |
+| Merger (waiting) | "MERGER IN PROGRESS" | Disposition queue | Preview only | Watch others dispose |
 | Game over | "GAME OVER" | Final scores | Hidden | Play again, back to lobby |
+
+**Turn Flow Diagram:**
+```
+Your Turn Starts
+       |
+       v
+[End conditions met?]--YES--> END GAME OPTION --> [Declare?]--YES--> FINAL SCORING
+       |                                               |
+       NO                                              NO
+       |                                               |
+       v                                               v
+PHASE 1: TRADES (optional) <---------------------------+
+       |
+       v
+PHASE 2: PLACE TILE (mandatory)
+       |
+       +--[Founds chain?]--> CHOOSE CHAIN --> receive free stock
+       |
+       +--[Triggers merger?]--> MERGER RESOLUTION (all players dispose)
+       |
+       v
+PHASE 3: BUY STOCKS (optional, 0-3)
+       |
+       v
+PHASE 4: DRAW TILE (automatic)
+       |
+       v
+[Have permanently unplayable tiles?]--YES--> OFFER REPLACEMENT (optional)
+       |
+       v
+TURN ENDS --> Next Player
+```
 
 ---
 
@@ -345,8 +387,10 @@ Connection lost -> Show reconnecting spinner
 - Only show "Propose Trade" when it's your turn and in Phase 1
 - Only show stocks/cash you actually have in "You Offer"
 - Show opponent's holdings to help build valid requests
+- **Trades are sequential**: One proposal at a time, wait for response before proposing another
 - Trade response modal appears immediately when proposal received
 - Trading UI hidden once tile placement begins
+- "VIEW PENDING" shows your outstanding proposal (if any) and its status
 
 ---
 
@@ -406,28 +450,45 @@ Connection lost -> Show reconnecting spinner
 | Multi-chain merger | "5C - Triple merger! AMERICAN survives, LUXOR & TOWER defunct" |
 
 ### Unplayable Tile Handling
-```
-+------------------------------------------+
-| TILE 12I IS PERMANENTLY UNPLAYABLE       |
-+------------------------------------------+
-| This tile would merge CONTINENTAL        |
-| and IMPERIAL, both safe chains.          |
-|                                          |
-| [REPLACE WITH NEW TILE]                  |
-+------------------------------------------+
-```
 
-If ALL 6 tiles are unplayable:
+**Two scenarios for tile replacement:**
+
+**Scenario 1: ALL 6 tiles are unplayable (during Phase 2)**
+
+If you cannot legally play ANY tile, replacement happens immediately so you can proceed:
 ```
 +------------------------------------------+
 | ALL TILES UNPLAYABLE                     |
 +------------------------------------------+
 | None of your tiles can be legally        |
-| placed. Replacing all unplayable tiles.  |
+| placed. Drawing replacement tiles...     |
+|                                          |
+| Replacing: 3B, 7D, 12I (merge 2 safe)    |
+|            9A, 11C (would create 8th)    |
+|            6E (merge 2 safe)             |
 |                                          |
 | [DRAW NEW TILES]                         |
 +------------------------------------------+
 ```
+After drawing, if still unplayable, repeat. If pool empty, skip Phase 2.
+
+**Scenario 2: SOME tiles are permanently unplayable (end of turn)**
+
+If you have playable tiles, play one normally. At END of turn (after drawing), you may optionally replace permanently unplayable tiles:
+```
++------------------------------------------+
+| END OF TURN                              |
++------------------------------------------+
+| You have 2 permanently unplayable tiles: |
+|   12I - would merge 2 safe chains        |
+|   3B - would merge 2 safe chains         |
+|                                          |
+| Replace them now?                        |
+|                                          |
+| [REPLACE TILES]     [KEEP FOR NOW]       |
++------------------------------------------+
+```
+**Note:** Temporarily unplayable tiles (would create 8th chain) may become playable later and should NOT be replaced.
 
 ---
 
@@ -610,6 +671,12 @@ If ALL 6 tiles are unplayable:
 +------------------------------------------+
 ```
 
+**Notes on disposition order:**
+- Players with 0 shares in defunct chain are skipped
+- After ALL players dispose, merger completes
+- **If you're the mergemaker**: After merger completes, you continue to Phase 3 (buy stocks)
+- **If you're not the mergemaker**: You return to watching the active player's turn
+
 ### Multi-Chain Merger (3+ Chains)
 ```
 +------------------------------------------+
@@ -626,6 +693,17 @@ If ALL 6 tiles are unplayable:
 | [CONTINUE ->]                            |
 +------------------------------------------+
 ```
+
+**Multi-chain merger flow:**
+1. Show overview of all chains involved
+2. Resolve FIRST defunct chain (largest):
+   - Pay LUXOR bonuses
+   - ALL players dispose LUXOR stock (in order)
+3. Resolve SECOND defunct chain:
+   - Pay CONTINENTAL bonuses
+   - ALL players dispose CONTINENTAL stock (in order)
+4. Merger complete
+5. Active player continues to Phase 3
 
 ---
 
@@ -868,6 +946,28 @@ If "DECLARE GAME OVER":
 |  | ---- | ------ | ------ | ------- | ------ | -----            | |
 |  |  1st | BOB    | $3,200 | $11,000 | $18,000| $32,200  [crown] | |
 |  |  2nd | CAROL  | $5,100 | $8,500  | $14,500| $28,100          | |
+|  |  3rd | ALICE  | $4,500 | $8,300  | $12,000| $24,800          | |
+|  |  4th | DAN    | $2,800 | $6,200  | $10,500| $19,500          | |
+|  +--------------------------------------------------------------+ |
+|                                                                   |
+|                        [PLAY AGAIN]                               |
++------------------------------------------------------------------+
+```
+
+### Host View - Results (Tie)
+```
++------------------------------------------------------------------+
+|                          GAME OVER                                |
++------------------------------------------------------------------+
+|                                                                   |
+|                    [crown] TIE GAME! [crown]                      |
+|                 BOB & CAROL: $32,200 each                         |
+|                                                                   |
+|  +--------------------------------------------------------------+ |
+|  | RANK | PLAYER | CASH   | BONUSES | STOCK  | TOTAL            | |
+|  | ---- | ------ | ------ | ------- | ------ | -----            | |
+|  | =1st | BOB    | $3,200 | $11,000 | $18,000| $32,200  [crown] | |
+|  | =1st | CAROL  | $5,100 | $9,100  | $18,000| $32,200  [crown] | |
 |  |  3rd | ALICE  | $4,500 | $8,300  | $12,000| $24,800          | |
 |  |  4th | DAN    | $2,800 | $6,200  | $10,500| $19,500          | |
 |  +--------------------------------------------------------------+ |
