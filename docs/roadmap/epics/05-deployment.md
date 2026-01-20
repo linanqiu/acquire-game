@@ -45,7 +45,8 @@ DP-001 (Railway Setup)
 Already configured in `/deploy/`:
 - `Dockerfile` - Container build
 - `docker-compose.yml` - Local development
-- `railway.toml` - Railway configuration
+
+> **Note**: `railway.toml` was temporarily removed to prevent deployment costs while the frontend is not available. DP-001 includes recreating this file.
 
 ## Success Criteria
 
