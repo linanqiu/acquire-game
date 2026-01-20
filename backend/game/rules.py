@@ -54,6 +54,32 @@ class Rules:
     END_GAME_SIZE = 41
 
     @classmethod
+    def _count_safe_chains(cls, board: Board, chains: list[str]) -> int:
+        """Count how many chains in the list are safe (11+ tiles).
+
+        Args:
+            board: The game board
+            chains: List of chain names to check
+
+        Returns:
+            Number of safe chains
+        """
+        return sum(1 for c in chains if board.get_chain_size(c) >= cls.SAFE_SIZE)
+
+    @classmethod
+    def _are_all_chains_safe(cls, board: Board, chains: list[str]) -> bool:
+        """Check if all chains in the list are safe (11+ tiles).
+
+        Args:
+            board: The game board
+            chains: List of chain names to check
+
+        Returns:
+            True if all chains are safe
+        """
+        return all(board.get_chain_size(c) >= cls.SAFE_SIZE for c in chains)
+
+    @classmethod
     def can_place_tile(cls, board: Board, tile: Tile, hotel: Hotel = None) -> bool:
         """Check if tile placement is valid.
 
@@ -80,14 +106,8 @@ class Rules:
 
         # Check for safe chain merger
         if len(adjacent_chains) >= 2:
-            safe_count = 0
-            for chain_name in adjacent_chains:
-                chain_size = board.get_chain_size(chain_name)
-                if chain_size >= cls.SAFE_SIZE:
-                    safe_count += 1
-
             # Cannot merge two or more safe chains
-            if safe_count >= 2:
+            if cls._count_safe_chains(board, adjacent_chains) >= 2:
                 return False
 
         # Check if this would create an 8th chain
@@ -307,28 +327,8 @@ class Rules:
                 return True
 
         # Check if all active chains are safe (11+ tiles)
-        all_safe = True
-        for chain_name in active_chains:
-            if board.get_chain_size(chain_name) < cls.SAFE_SIZE:
-                all_safe = False
-                break
-
-        if all_safe:
-            return True
-
-        # Check if all 7 chains are active and no legal mergers possible
-        if len(active_chains) >= cls.MAX_CHAINS:
-            # Check if all chains are safe (which means no mergers possible)
-            all_safe = True
-            for chain_name in active_chains:
-                if board.get_chain_size(chain_name) < cls.SAFE_SIZE:
-                    all_safe = False
-                    break
-
-            if all_safe:
-                return True
-
-        return False
+        # Note: If all chains are safe, mergers are impossible, so game can end
+        return cls._are_all_chains_safe(board, active_chains)
 
     @classmethod
     def is_tile_permanently_unplayable(
@@ -356,15 +356,8 @@ class Rules:
         if len(adjacent_chains) < 2:
             return False  # Can't merge if fewer than 2 adjacent chains
 
-        # Count safe chains
-        safe_count = 0
-        for chain_name in adjacent_chains:
-            chain_size = board.get_chain_size(chain_name)
-            if chain_size >= cls.SAFE_SIZE:
-                safe_count += 1
-
         # Permanently unplayable if would merge 2+ safe chains
-        return safe_count >= 2
+        return cls._count_safe_chains(board, adjacent_chains) >= 2
 
     @classmethod
     def get_playable_tiles(
@@ -454,13 +447,7 @@ class Rules:
 
         # Check for safe chain merger (would merge 2+ safe chains)
         if len(adjacent_chains) >= 2:
-            safe_count = 0
-            for chain_name in adjacent_chains:
-                chain_size = board.get_chain_size(chain_name)
-                if chain_size >= cls.SAFE_SIZE:
-                    safe_count += 1
-
-            if safe_count >= 2:
+            if cls._count_safe_chains(board, adjacent_chains) >= 2:
                 return {
                     "playable": False,
                     "reason": UnplayableReason.MERGE_SAFE_CHAINS.value,

@@ -166,6 +166,24 @@ class SessionManager:
         if websocket in player.websockets:
             player.websockets.remove(websocket)
 
+    async def _send_to_websockets(
+        self, player: PlayerConnection, message: dict
+    ) -> None:
+        """Send message to all websockets for a player, removing dead connections.
+
+        Args:
+            player: The player connection to send to
+            message: The message dict to send
+        """
+        dead_websockets = []
+        for ws in player.websockets:
+            try:
+                await ws.send_json(message)
+            except Exception:
+                dead_websockets.append(ws)
+        for ws in dead_websockets:
+            player.websockets.remove(ws)
+
     async def broadcast_to_room(self, room_code: str, message: dict):
         """Send message to all connected players in room."""
         room = self.get_room(room_code)
@@ -175,14 +193,7 @@ class SessionManager:
         for player in room.players.values():
             if player.is_bot:
                 continue
-            dead_websockets = []
-            for ws in player.websockets:
-                try:
-                    await ws.send_json(message)
-                except Exception:
-                    dead_websockets.append(ws)
-            for ws in dead_websockets:
-                player.websockets.remove(ws)
+            await self._send_to_websockets(player, message)
 
     async def send_to_player(self, room_code: str, player_id: str, message: dict):
         """Send private message to specific player (all their connections)."""
@@ -192,15 +203,7 @@ class SessionManager:
         if player_id not in room.players:
             return
 
-        player = room.players[player_id]
-        dead_websockets = []
-        for ws in player.websockets:
-            try:
-                await ws.send_json(message)
-            except Exception:
-                dead_websockets.append(ws)
-        for ws in dead_websockets:
-            player.websockets.remove(ws)
+        await self._send_to_websockets(room.players[player_id], message)
 
     async def send_to_host(self, room_code: str, message: dict):
         """Send message to host display."""
