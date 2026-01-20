@@ -14,7 +14,7 @@ This document maps the official rules to implementation requirements for verifyi
 
 - [ ] Each player starts with **$6,000**
 - [ ] Each player draws **6 tiles** to start
-- [ ] Support for **2-6 players**
+- [ ] Support for **3-6 players**
 - [ ] Turn order determined by initial tile draw (closest to 1-A goes first)
 
 ## Corporations

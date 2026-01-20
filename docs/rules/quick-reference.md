@@ -7,7 +7,7 @@
 | Board Size | 12 × 9 (108 tiles) |
 | Starting Cash | $6,000 |
 | Tiles Per Player | 6 |
-| Players | 2-6 |
+| Players | 3-6 (4 optimal) |
 | Corporations | 7 |
 | Stocks Per Corp | 25 |
 | Max Stocks Per Turn | 3 |
