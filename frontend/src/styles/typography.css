@@ -1,0 +1,207 @@
+/**
+ * Acquire Typography System
+ * Monospace-first typography based on IBM Plex Mono
+ * Implements the "Bloomberg terminal" aesthetic
+ */
+
+/* Google Fonts import - IBM Plex Mono with required weights */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&display=swap');
+
+/* ==========================================================================
+   Base Typography
+   Applied to the entire document using design tokens
+   ========================================================================== */
+
+body {
+  font-family: var(--font-primary);
+  font-size: var(--text-md);
+  font-weight: var(--font-normal);
+  line-height: var(--line-height-normal);
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ==========================================================================
+   Heading Styles
+   ========================================================================== */
+
+h1,
+.heading-xl {
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+  line-height: var(--line-height-tight);
+  color: var(--text-accent);
+  margin: 0 0 var(--space-4) 0;
+}
+
+h2,
+.heading-lg {
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  line-height: var(--line-height-tight);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-3) 0;
+}
+
+h3,
+.heading-md {
+  font-size: var(--text-md);
+  font-weight: var(--font-medium);
+  line-height: var(--line-height-tight);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-2) 0;
+}
+
+/* ==========================================================================
+   Text Size Utility Classes
+   ========================================================================== */
+
+.text-xs {
+  font-size: var(--text-xs);
+}
+
+.text-sm {
+  font-size: var(--text-sm);
+}
+
+.text-md {
+  font-size: var(--text-md);
+}
+
+.text-lg {
+  font-size: var(--text-lg);
+}
+
+.text-xl {
+  font-size: var(--text-xl);
+}
+
+/* ==========================================================================
+   Font Weight Utility Classes
+   ========================================================================== */
+
+.font-normal {
+  font-weight: var(--font-normal);
+}
+
+.font-medium {
+  font-weight: var(--font-medium);
+}
+
+.font-bold {
+  font-weight: var(--font-bold);
+}
+
+/* ==========================================================================
+   Line Height Utility Classes
+   ========================================================================== */
+
+.leading-tight {
+  line-height: var(--line-height-tight);
+}
+
+.leading-normal {
+  line-height: var(--line-height-normal);
+}
+
+.leading-relaxed {
+  line-height: var(--line-height-relaxed);
+}
+
+/* ==========================================================================
+   Text Color Utility Classes
+   ========================================================================== */
+
+.text-primary {
+  color: var(--text-primary);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.text-accent {
+  color: var(--text-accent);
+}
+
+.text-negative {
+  color: var(--text-negative);
+}
+
+.text-positive {
+  color: var(--text-positive);
+}
+
+/* ==========================================================================
+   Numeric Typography
+   Tabular numbers ensure columns of numbers align vertically
+   ========================================================================== */
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Money values - combine tabular nums with appropriate styling */
+.money {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-medium);
+}
+
+.money-positive {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-medium);
+  color: var(--text-positive);
+}
+
+.money-negative {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-medium);
+  color: var(--text-negative);
+}
+
+/* ==========================================================================
+   Text Alignment
+   ========================================================================== */
+
+.text-left {
+  text-align: left;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+/* ==========================================================================
+   Additional Typography Utilities
+   ========================================================================== */
+
+/* Prevent text from wrapping */
+.text-nowrap {
+  white-space: nowrap;
+}
+
+/* Truncate text with ellipsis */
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Uppercase text for labels */
+.text-uppercase {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Remove default list styling */
+.list-none {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
