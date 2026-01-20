@@ -37,5 +37,15 @@ Exception: For brainstorming or documentation updates, skip steps 1-2.
 - Always run tests after writing new tests or modifying existing ones
 - Don't just write tests - verify they pass
 
+### Avoiding Flaky Tests
+- **Never assume specific tiles in player hands** when using `game_room` fixture - tiles are randomly distributed
+- When testing invalid tile scenarios, dynamically find a tile NOT in the player's hand:
+  ```python
+  player_tile_strs = {str(t) for t in player.hand}
+  invalid_tile = next(f"{c}{r}" for c in range(1,13) for r in "ABCDEFGHI" if f"{c}{r}" not in player_tile_strs)
+  ```
+- When testing valid tile scenarios, use `player.hand[0]` or similar to get actual tiles
+- Run flaky-prone tests multiple times locally: `for i in {1..20}; do pytest path/to/test -v 2>&1 | grep -E "(PASSED|FAILED)"; done`
+
 ## CI Awareness
 - GitHub CI runs: ruff lint, ruff format check, pytest with coverage
