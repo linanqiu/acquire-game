@@ -2,9 +2,11 @@
 
 ## Feature Implementation Workflow
 Before implementing any feature (FF-XXX, etc.):
-1. Read the story document at `docs/roadmap/stories/<epic>/<story-id>.md`
-2. Review acceptance criteria - these define "done", not implementation details
-3. Use implementation notes as guidance, not gospel - they may have technical gaps
+1. Check `docs/roadmap/README.md` for current progress and completed stories
+2. Read recent completed stories to understand what's already built
+3. Read the target story document at `docs/roadmap/stories/<epic>/<story-id>.md`
+4. Review acceptance criteria - these define "done", not implementation details
+5. Use implementation notes as guidance, not gospel - they may have technical gaps
 
 When deviating from story suggestions:
 - Make the call based on what you encounter during implementation
