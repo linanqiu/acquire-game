@@ -110,7 +110,7 @@ class Bot:
 
         # Check if this expands a chain we have stock in
         if len(adjacent_chains) == 1:
-            chain_name = list(adjacent_chains)[0]
+            chain_name = adjacent_chains[0]
             stock_count = self.player.get_stock_count(chain_name)
             if stock_count > 0:
                 score += 50 + stock_count * 5  # Bonus for expanding owned chains

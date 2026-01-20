@@ -148,7 +148,7 @@ class TestBoard:
         # Tile adjacent to the chain
         tile3 = Tile(3, "A")
         chains = board.get_adjacent_chains(tile3)
-        assert chains == {"Luxor"}
+        assert chains == ["Luxor"]
 
     def test_get_adjacent_chains_multiple(self):
         board = Board()
@@ -162,7 +162,7 @@ class TestBoard:
 
         # Tile between them
         chains = board.get_adjacent_chains(Tile(2, "A"))
-        assert chains == {"Luxor", "Tower"}
+        assert chains == ["Luxor", "Tower"]  # sorted alphabetically
 
     def test_get_chain_tiles(self):
         board = Board()

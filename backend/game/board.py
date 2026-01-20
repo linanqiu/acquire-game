@@ -121,15 +121,15 @@ class Board:
         adjacent = self.get_adjacent_tiles(tile)
         return [t for t in adjacent if self._grid[t.coords].state != TileState.EMPTY]
 
-    def get_adjacent_chains(self, tile: Tile) -> set[str]:
-        """Get unique chain names adjacent to a tile."""
+    def get_adjacent_chains(self, tile: Tile) -> list[str]:
+        """Get unique chain names adjacent to a tile (sorted for determinism)."""
         adjacent = self.get_adjacent_tiles(tile)
         chains = set()
         for t in adjacent:
             cell = self._grid[t.coords]
             if cell.chain:
                 chains.add(cell.chain)
-        return chains
+        return sorted(chains)
 
     def get_chain_tiles(self, chain_name: str) -> list[Tile]:
         """Get all tiles belonging to a chain."""
