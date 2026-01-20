@@ -79,12 +79,46 @@ FF-005 + FF-006
 
 ## Success Criteria
 
-- [ ] `npm run dev` starts development server
-- [ ] `npm run build` produces production bundle
-- [ ] `npm run test` runs component tests
-- [ ] `npm run e2e` runs Playwright tests
-- [ ] All components render correctly with design tokens
-- [ ] Storybook (optional) shows component library
+### Development Environment
+- [ ] `npm run dev` starts development server on port 5173
+- [ ] `npm run build` produces production bundle in `dist/`
+- [ ] Hot module replacement works correctly
+- [ ] TypeScript strict mode enabled with no errors
+
+### Testing Infrastructure
+- [ ] `npm run test` runs Vitest unit tests
+- [ ] `npm run test -- --coverage` shows >80% coverage for `src/components/`, `src/hooks/`, `src/lib/`
+- [ ] `npm run e2e` runs Playwright tests against running backend
+- [ ] All component tests pass with documented test cases (see individual story Testing Requirements)
+- [ ] WebSocket mock utilities available for unit testing (`tests/mocks/websocket.ts`)
+- [ ] Test fixtures provide consistent mock game state (`tests/fixtures/gameState.ts`)
+
+### Code Quality
+- [ ] `npm run lint` passes with no ESLint errors
+- [ ] `npm run format` enforces Prettier formatting
+- [ ] All components use design tokens (no hardcoded colors/spacing)
+- [ ] CSS Modules used for component styling
+
+### Component Library
+- [ ] All layout components (Header, PageShell, Card, Panel) implemented and tested
+- [ ] Button component with all variants (primary, secondary, ghost, danger) and states
+- [ ] Input components (TextInput, Select, RadioGroup) implemented and tested
+- [ ] Modal component with focus trap and keyboard handling
+- [ ] Toast system with auto-dismiss and stacking
+
+### Integration Readiness
+- [ ] Vite proxy configured for `/api` and `/ws` routes
+- [ ] React Router configured with all placeholder pages
+- [ ] Test infrastructure ready for Real-time Integration epic (RT-001+)
+- [ ] E2E test scenarios documented in `docs/tests/frontend-e2e/`
+
+## Testing Documentation
+
+All frontend testing follows the standards established in [FF-001](../stories/01-frontend-foundation/FF-001.md#testing-standards):
+
+- **Coverage target**: >80% for components, hooks, and lib
+- **Test naming**: Collocated `*.test.tsx` files
+- **E2E scenarios**: See [`docs/tests/frontend-e2e/`](../../tests/frontend-e2e/README.md)
 
 ## Reference
 
