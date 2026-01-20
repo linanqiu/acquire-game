@@ -2,7 +2,7 @@
 
 from game.game import GamePhase
 from game.board import Tile, TileState
-from game.rules import Rules
+from game.rules import Rules, UnplayableReason
 from tests.scenarios.conftest import (
     ChainBuilder,
     give_player_tile,
@@ -201,3 +201,164 @@ class TestTileFromString:
         tile = Tile.from_string("  3B  ")
         assert tile.column == 3
         assert tile.row == "B"
+
+
+class TestTilePlayability:
+    """Tests for tile playability details (BH-006)."""
+
+    def test_playable_tile_returns_playable_true(self, game_with_two_players):
+        """A playable tile should return playable: True."""
+        game = game_with_two_players
+        tile = Tile(6, "E")  # Empty location with no adjacent tiles
+
+        result = Rules.get_tile_playability(game.board, tile, game.hotel)
+
+        assert result["playable"] is True
+        assert result["reason"] is None
+        assert result["permanent"] is None
+
+    def test_tile_between_safe_chains_returns_merge_reason(self, game_with_two_players):
+        """A tile between two safe chains should show merge reason."""
+        game = game_with_two_players
+        builder = ChainBuilder(game)
+
+        # Set up two safe chains
+        builder.setup_chain("Luxor", 11, start_col=1, row="A")
+        builder.setup_chain("Tower", 11, start_col=1, row="C")
+
+        # 1B would merge them
+        tile = Tile(1, "B")
+
+        result = Rules.get_tile_playability(game.board, tile, game.hotel)
+
+        assert result["playable"] is False
+        assert result["reason"] == UnplayableReason.MERGE_SAFE_CHAINS.value
+        assert result["permanent"] is False  # Could become playable if chains merge
+
+    def test_tile_creating_8th_chain_returns_eighth_chain_reason(
+        self, game_with_two_players
+    ):
+        """A tile that would create an 8th chain should show reason."""
+        game = game_with_two_players
+        builder = ChainBuilder(game)
+
+        # Activate all 7 chains
+        chains = [
+            "Luxor",
+            "Tower",
+            "American",
+            "Worldwide",
+            "Festival",
+            "Imperial",
+            "Continental",
+        ]
+        row_letters = ["A", "B", "C", "D", "E", "F", "G"]
+        for i, chain in enumerate(chains):
+            builder.setup_chain(chain, 2, start_col=1, row=row_letters[i])
+
+        # Place a lone tile
+        game.board.place_tile(Tile(10, "I"))
+
+        # 11I adjacent to 10I would try to found an 8th chain
+        tile = Tile(11, "I")
+
+        result = Rules.get_tile_playability(game.board, tile, game.hotel)
+
+        assert result["playable"] is False
+        assert result["reason"] == UnplayableReason.EIGHTH_CHAIN.value
+        assert (
+            result["permanent"] is True
+        )  # Permanently unplayable while 7 chains exist
+
+    def test_get_tiles_playability_returns_dict_for_all_tiles(
+        self, game_with_two_players
+    ):
+        """get_tiles_playability should return info for all provided tiles."""
+        game = game_with_two_players
+        player = game.get_current_player()
+
+        result = Rules.get_tiles_playability(game.board, player.hand, game.hotel)
+
+        # Should have entry for each tile in hand
+        assert len(result) == len(player.hand)
+
+        # Each tile should have playability info
+        for tile_str, info in result.items():
+            assert "playable" in info
+            assert "reason" in info
+            assert "permanent" in info
+
+    def test_player_state_includes_tile_playability(self, game_with_two_players):
+        """get_player_state should include tile_playability field."""
+        game = game_with_two_players
+        player = game.get_current_player()
+
+        state = game.get_player_state(player.player_id)
+
+        assert "tile_playability" in state
+        assert isinstance(state["tile_playability"], dict)
+
+        # Should have same tiles as hand
+        assert len(state["tile_playability"]) == len(state["hand"])
+
+        # Each tile in hand should have playability info
+        for tile_str in state["hand"]:
+            assert tile_str in state["tile_playability"]
+
+    def test_playability_shows_correct_reasons_in_player_state(
+        self, game_with_two_players
+    ):
+        """Player state should show correct playability reasons."""
+        game = game_with_two_players
+        builder = ChainBuilder(game)
+
+        # Set up two safe chains
+        builder.setup_chain("Luxor", 11, start_col=1, row="A")
+        builder.setup_chain("Tower", 11, start_col=1, row="C")
+
+        # Give player a tile that would merge them
+        player = game.get_current_player()
+        blocking_tile = Tile(1, "B")
+        give_player_tile(player, blocking_tile, game)
+
+        state = game.get_player_state(player.player_id)
+
+        # The blocking tile should show as unplayable
+        assert "1B" in state["tile_playability"]
+        assert state["tile_playability"]["1B"]["playable"] is False
+        assert state["tile_playability"]["1B"]["reason"] == "would_merge_safe_chains"
+
+    def test_tile_adjacent_to_single_safe_chain_is_playable(
+        self, game_with_two_players
+    ):
+        """A tile adjacent to only one safe chain should be playable."""
+        game = game_with_two_players
+        builder = ChainBuilder(game)
+
+        # Set up one safe chain
+        builder.setup_chain("Luxor", 11, start_col=1, row="A")
+
+        # Tile adjacent to only Luxor
+        tile = Tile(12, "A")
+
+        result = Rules.get_tile_playability(game.board, tile, game.hotel)
+
+        assert result["playable"] is True
+
+    def test_tile_between_safe_and_unsafe_chain_is_playable(
+        self, game_with_two_players
+    ):
+        """A tile between a safe and unsafe chain should be playable."""
+        game = game_with_two_players
+        builder = ChainBuilder(game)
+
+        # Set up one safe chain and one unsafe chain
+        builder.setup_chain("Luxor", 11, start_col=1, row="A")  # Safe
+        builder.setup_chain("Tower", 5, start_col=1, row="C")  # Unsafe
+
+        # Tile between them
+        tile = Tile(1, "B")
+
+        result = Rules.get_tile_playability(game.board, tile, game.hotel)
+
+        assert result["playable"] is True

@@ -1,5 +1,6 @@
 """Game rules and validation logic for Acquire."""
 
+from enum import Enum
 from typing import Union, List, Tuple, TYPE_CHECKING
 from game.board import Board, Tile, TileState
 from game.hotel import Hotel
@@ -7,6 +8,14 @@ from game.action import Action, TradeOffer
 
 if TYPE_CHECKING:
     from game.game import Game
+
+
+class UnplayableReason(Enum):
+    """Reasons why a tile cannot be played."""
+
+    PLAYABLE = "playable"
+    MERGE_SAFE_CHAINS = "would_merge_safe_chains"
+    EIGHTH_CHAIN = "would_create_eighth_chain"
 
 
 class PlacementResult:
@@ -414,6 +423,86 @@ class Rules:
             if cls.can_place_tile(board, tile, hotel):
                 return False
         return True
+
+    @classmethod
+    def get_tile_playability(cls, board: Board, tile: Tile, hotel: Hotel) -> dict:
+        """Determine if a tile is playable and why not if it isn't.
+
+        Args:
+            board: The game board
+            tile: The tile to check
+            hotel: Hotel manager
+
+        Returns:
+            Dict with:
+                - playable: bool - whether the tile can be played
+                - reason: str | None - why it can't be played (if not playable)
+                - permanent: bool | None - whether the unplayability is permanent
+        """
+        # Check if cell is already occupied
+        cell = board.get_cell(tile.column, tile.row)
+        if cell.state != TileState.EMPTY:
+            # Already played, technically playable (just not by placing again)
+            return {
+                "playable": True,
+                "reason": None,
+                "permanent": None,
+            }
+
+        # Get adjacent chains
+        adjacent_chains = board.get_adjacent_chains(tile)
+
+        # Check for safe chain merger (would merge 2+ safe chains)
+        if len(adjacent_chains) >= 2:
+            safe_count = 0
+            for chain_name in adjacent_chains:
+                chain_size = board.get_chain_size(chain_name)
+                if chain_size >= cls.SAFE_SIZE:
+                    safe_count += 1
+
+            if safe_count >= 2:
+                return {
+                    "playable": False,
+                    "reason": UnplayableReason.MERGE_SAFE_CHAINS.value,
+                    "permanent": False,  # Could become playable if a chain is merged
+                }
+
+        # Check if this would create an 8th chain
+        if len(adjacent_chains) == 0:
+            adjacent_played = board.get_adjacent_played_tiles(tile)
+            if len(adjacent_played) > 0:
+                # This would create a new chain
+                active_chains = hotel.get_active_chains()
+                if len(active_chains) >= cls.MAX_CHAINS:
+                    return {
+                        "playable": False,
+                        "reason": UnplayableReason.EIGHTH_CHAIN.value,
+                        "permanent": True,  # Can never be played while all 7 chains exist
+                    }
+
+        return {
+            "playable": True,
+            "reason": None,
+            "permanent": None,
+        }
+
+    @classmethod
+    def get_tiles_playability(
+        cls, board: Board, tiles: list[Tile], hotel: Hotel
+    ) -> dict[str, dict]:
+        """Get playability status for multiple tiles.
+
+        Args:
+            board: The game board
+            tiles: List of tiles to check (e.g., player's hand)
+            hotel: Hotel manager
+
+        Returns:
+            Dict mapping tile string (e.g., "5C") to playability info
+        """
+        return {
+            str(tile): cls.get_tile_playability(board, tile, hotel) for tile in tiles
+        }
 
     @classmethod
     def get_all_legal_actions(cls, game: "Game", player_id: str) -> List[Action]:

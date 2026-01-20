@@ -1715,6 +1715,11 @@ class Game:
         # Add private info
         playable_tiles = Rules.get_playable_tiles(self.board, player.hand, self.hotel)
 
+        # Get playability details for each tile in hand
+        tile_playability = Rules.get_tiles_playability(
+            self.board, player.hand, self.hotel
+        )
+
         # Get player-specific trade information
         incoming_trades = [
             t.to_dict() for t in self.get_incoming_trades_for_player(player_id)
@@ -1734,6 +1739,7 @@ class Game:
             **public,
             "hand": [str(t) for t in player.hand],
             "playable_tiles": [str(t) for t in playable_tiles],
+            "tile_playability": tile_playability,
             "can_act": self.can_player_act(player_id),
             "incoming_trades": incoming_trades,
             "outgoing_trades": outgoing_trades,
