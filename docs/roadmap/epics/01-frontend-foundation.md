@@ -25,7 +25,7 @@ Establish the React + TypeScript project with a complete design system based on 
 
 | ID | Title | Effort | Status |
 |----|-------|--------|--------|
-| [FF-001](../stories/01-frontend-foundation/FF-001.md) | Project Setup | M | not-started |
+| [FF-001](../stories/01-frontend-foundation/FF-001.md) | Project Setup | M | complete |
 | [FF-010](../stories/01-frontend-foundation/FF-010.md) | Routing Setup | S | not-started |
 
 ### Phase 2: Design Tokens (After FF-001)
