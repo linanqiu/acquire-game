@@ -391,6 +391,7 @@ TURN ENDS --> Next Player
 - Trade response modal appears immediately when proposal received
 - Trading UI hidden once tile placement begins
 - "VIEW PENDING" shows your outstanding proposal (if any) and its status
+- **Defunct stock**: Can be traded (you still own it) but show as "DEFUNCT - $0 value" in UI. Recipient would need to hope the chain is re-founded.
 
 ---
 
@@ -672,10 +673,17 @@ If you have playable tiles, play one normally. At END of turn (after drawing), y
 ```
 
 **Notes on disposition order:**
-- Players with 0 shares in defunct chain are skipped
+- Players with 0 shares in defunct chain are skipped automatically
+- If NO players own stock in defunct chain, skip directly to merger completion
 - After ALL players dispose, merger completes
+- **Stock availability updates in real-time**: As players trade 2:1, available stock decreases. Later players may find trade option disabled if stock runs out.
 - **If you're the mergemaker**: After merger completes, you continue to Phase 3 (buy stocks)
 - **If you're not the mergemaker**: You return to watching the active player's turn
+
+**Important: Surviving chain price may change after merger!**
+- After merger, surviving chain has MORE tiles
+- This may push it into a higher price bracket
+- Phase 3 stock purchases use the NEW price (post-merger size)
 
 ### Multi-Chain Merger (3+ Chains)
 ```
@@ -704,6 +712,15 @@ If you have playable tiles, play one normally. At END of turn (after drawing), y
    - ALL players dispose CONTINENTAL stock (in order)
 4. Merger complete
 5. Active player continues to Phase 3
+
+**Tie-breaker for defunct chain resolution order:**
+If multiple defunct chains have the same size (including one that tied with the survivor), resolve them in this order:
+1. The chain that LOST the survivor tie (if applicable)
+2. Then alphabetically by chain name (or let mergemaker choose)
+
+Example: American (5), Luxor (5), Tower (3) merge. Mergemaker picks American to survive.
+- Resolve Luxor first (5 tiles, lost the tie)
+- Resolve Tower second (3 tiles)
 
 ---
 
@@ -1015,6 +1032,67 @@ If "DECLARE GAME OVER":
 
 ---
 
+## Dynamic State Updates & Notifications
+
+The UI must update in real-time as the game state changes. Key scenarios:
+
+### Tile Playability Updates
+When the board changes (due to another player's action), your tile playability must recalculate:
+```
++------------------------------------------+
+| TILE STATUS CHANGED                      |
++------------------------------------------+
+| Board state has changed.                 |
+|                                          |
+| Tile 5C is now PERMANENTLY UNPLAYABLE    |
+| (Would merge AMERICAN + IMPERIAL,        |
+|  both now safe chains)                   |
+|                                          |
+| [DISMISS]                                |
++------------------------------------------+
+```
+
+### End Conditions Met Mid-Turn
+When end conditions are met during someone else's turn:
+```
++------------------------------------------+
+| END CONDITIONS MET                       |
++------------------------------------------+
+| AMERICAN has reached 41 tiles!           |
+|                                          |
+| The game may now be ended.               |
+| Next player can choose to declare.       |
+|                                          |
+| [OK]                                     |
++------------------------------------------+
+```
+
+### Defunct Stock Re-Activated
+When a chain you held defunct stock in is re-founded:
+```
++------------------------------------------+
+| TOWER RE-FOUNDED!                        |
++------------------------------------------+
+| Bob has founded TOWER.                   |
+|                                          |
+| Your 3 held TOWER shares are now         |
+| ACTIVE again! Current value: $600        |
+|                                          |
+| [OK]                                     |
++------------------------------------------+
+```
+
+### Stock Availability During Disposition
+As other players trade during merger disposition, available stock updates:
+```
+Before: "AMERICAN (survivor) stock available: 15"
+After Bob trades 6->3: "AMERICAN (survivor) stock available: 12"
+After Carol trades 4->2: "AMERICAN (survivor) stock available: 10"
+```
+If it reaches 0, the TRADE slider becomes disabled for remaining players.
+
+---
+
 ## Error States
 
 ### Connection Error
@@ -1087,11 +1165,431 @@ If "DECLARE GAME OVER":
 | 2c | Chain Founding | Choose chain name, get free stock |
 | 2d | Merger Resolution | Survivor choice, bonus display, stock disposition |
 | 2e | Stock Buying | Purchase 0-3 stocks cart interface |
-| 2f | End Game Declaration | Option to declare game over |
+| 2f | End Game Declaration | Option to declare game over (two variants) |
 | 3 | Host View | TV display with board, trades, scoreboard |
-| 4 | Game Over | Final scores and breakdown |
+| 4 | Game Over | Final scores and breakdown (includes tie variant) |
 | 5 | Reconnection | Reconnect flow |
+| - | Dynamic Notifications | Tile status changes, end conditions, re-founding |
 | - | Error States | Various error modals |
+| - | Edge Cases | Bot behavior, timers, disconnections, stock exhaustion |
+| - | Accessibility | Color blindness, keyboard, screen readers |
+| - | Mobile UX | Touch targets, gestures, orientation |
+| - | Activity Log | Event format and display specifications |
+
+---
+
+## Additional Scenarios & Edge Cases
+
+### Bot Behavior Indicators
+
+When bots are in the game, their actions should be clearly indicated:
+
+```
++------------------------------------------+
+| BOT (CAROL) IS DECIDING...               |
++------------------------------------------+
+|                                          |
+|          [Thinking animation]            |
+|                                          |
+| Bot is calculating optimal move...       |
+|                                          |
++------------------------------------------+
+```
+
+Bot actions in the activity log should be marked:
+```
+LOG: [bot] CAROL placed 5D - [bot] CAROL bought 2xAME
+```
+
+### Turn Timer (Optional Feature)
+
+If enabled, players have a time limit per turn:
+
+**Player View (Your Turn):**
+```
++------------------------------------------+
+| PHASE 2: PLACE TILE          [01:23]     |
++------------------------------------------+
+```
+
+**Timer States:**
+| Time Remaining | Visual |
+|----------------|--------|
+| > 30 seconds | Normal display |
+| 10-30 seconds | Yellow/warning color |
+| < 10 seconds | Red, pulsing animation |
+| 0 seconds | Auto-skip or random action |
+
+**Timer runs out:**
+```
++------------------------------------------+
+| TIME'S UP!                               |
++------------------------------------------+
+| Your turn has been auto-completed:       |
+|                                          |
+| - Random playable tile placed            |
+| - No stocks purchased                    |
+|                                          |
+| [OK]                                     |
++------------------------------------------+
+```
+
+### Player Disconnection (Mid-Game)
+
+When a player disconnects during their turn:
+```
++------------------------------------------+
+| ALICE DISCONNECTED                       |
++------------------------------------------+
+| Waiting for ALICE to reconnect...        |
+|                                          |
+|          [30 seconds remaining]          |
+|                                          |
+| If timeout expires, ALICE will be        |
+| replaced by a bot.                       |
++------------------------------------------+
+```
+
+**Host View during disconnection:**
+```
+SCOREBOARD
+  > ALICE  $4,000  [DISCONNECTED]
+    AME:3 LUX:1 CON:2
+```
+
+**Replacement by bot:**
+```
++------------------------------------------+
+| PLAYER REPLACED                          |
++------------------------------------------+
+| ALICE did not reconnect in time.         |
+|                                          |
+| ALICE's position is now controlled       |
+| by a bot. They can rejoin to reclaim     |
+| their seat.                              |
+|                                          |
+| [OK]                                     |
++------------------------------------------+
+```
+
+### Kicked Player (Host Action)
+
+Host can remove problematic players from the lobby:
+```
++------------------------------------------+
+| KICK PLAYER?                             |
++------------------------------------------+
+| Remove BOB from the game?                |
+|                                          |
+| This cannot be undone during this game.  |
+|                                          |
+| [CANCEL]              [KICK]             |
++------------------------------------------+
+```
+
+**Kicked player sees:**
+```
++------------------------------------------+
+| YOU WERE REMOVED                         |
++------------------------------------------+
+| The host has removed you from room ABCD. |
+|                                          |
+| [BACK TO LOBBY]                          |
++------------------------------------------+
+```
+
+### Stock Exhaustion Scenarios
+
+**All stock of a chain sold out:**
+```
++------------------------------------------+
+| AMERICAN SOLD OUT                        |
++------------------------------------------+
+| All 25 AMERICAN shares are now owned.    |
+|                                          |
+| No more AMERICAN stock can be purchased  |
+| until shares return to the bank          |
+| (via merger sell-off).                   |
+|                                          |
+| [OK]                                     |
++------------------------------------------+
+```
+
+In stock buying UI, sold-out chains show:
+```
+| [B] AMERICAN [SOLD OUT]                 |
+| 8 tiles - $700/share - 0 available      |
+| You own: 3                              |
+|                                         |
+| [Cannot purchase - no stock available]  |
+```
+
+### Edge Case: 7 Chains Already Active
+
+When attempting to found an 8th chain:
+```
++------------------------------------------+
+| CANNOT FOUND CHAIN                       |
++------------------------------------------+
+| Your tile would create a new chain,      |
+| but all 7 chains are already active.     |
+|                                          |
+| This tile is temporarily unplayable.     |
+| Select a different tile.                 |
+|                                          |
+| [OK]                                     |
++------------------------------------------+
+```
+
+### Edge Case: Merge Would Create 8th Chain
+
+Rare scenario where a merge frees up a chain, enabling a blocked tile:
+```
++------------------------------------------+
+| TILE NOW PLAYABLE                        |
++------------------------------------------+
+| After the LUXOR merger, tile 7G is now   |
+| playable (would found new chain, and     |
+| only 6 chains are now active).           |
+|                                          |
+| [OK]                                     |
++------------------------------------------+
+```
+
+### Edge Case: Chain Founded with Size > 2
+
+When a tile connects multiple orphans:
+```
++------------------------------------------+
+| FOUND A NEW CHAIN!                       |
++------------------------------------------+
+| Your tile connected 4 orphan tiles.      |
+| New chain will start with 5 tiles!       |
+|                                          |
+| Choose which hotel chain to establish:   |
+| [Chain selection UI...]                  |
++------------------------------------------+
+```
+
+The founding confirmation reflects the actual size:
+```
++------------------------------------------+
+| [ok] LUXOR FOUNDED!                      |
++------------------------------------------+
+| Chain size: 5 tiles                      |
+| Starting stock price: $500/share         |
+|                                          |
+| You received: 1 FREE LUXOR share         |
++------------------------------------------+
+```
+
+### Edge Case: Merger During Stock Disposition
+
+If a player's disposition somehow triggers another merger (shouldn't happen per rules, but defensive UI):
+```
++------------------------------------------+
+| ERROR: INVALID GAME STATE                |
++------------------------------------------+
+| An unexpected game state was detected.   |
+| Please report this to the game admin.    |
+|                                          |
+| Game ID: ABCD-12345                       |
+| State: MERGER_DURING_DISPOSITION         |
+|                                          |
+| [CONTINUE ANYWAY]  [REPORT BUG]          |
++------------------------------------------+
+```
+
+### Undo/Confirmation for Critical Actions
+
+For irreversible actions, require confirmation:
+
+**Before tile placement:**
+```
++------------------------------------------+
+| CONFIRM PLACEMENT                        |
++------------------------------------------+
+| Place tile 5C?                           |
+|                                          |
+| This will trigger a merger:              |
+| AMERICAN absorbs LUXOR                   |
+|                                          |
+| [CANCEL]              [PLACE TILE]       |
++------------------------------------------+
+```
+
+**Before ending game:**
+```
++------------------------------------------+
+| CONFIRM END GAME                         |
++------------------------------------------+
+| Are you sure you want to end the game?   |
+|                                          |
+| This will trigger final scoring.         |
+| This cannot be undone.                   |
+|                                          |
+| [CANCEL]              [END GAME]         |
++------------------------------------------+
+```
+
+---
+
+## Accessibility Considerations
+
+### Color Blindness Support
+
+Chain identification must not rely solely on color:
+
+| Chain | Color | Symbol | Pattern |
+|-------|-------|--------|---------|
+| Luxor | Gold | L | Solid |
+| Tower | Brown | T | Diagonal stripes |
+| American | Blue | A | Solid |
+| Festival | Purple | F | Dots |
+| Worldwide | Green | W | Horizontal stripes |
+| Continental | Red | C | Solid |
+| Imperial | Navy | I | Crosshatch |
+
+Board display with symbols:
+```
+|  C  .  .  .  A  A  .  .  .  .  .  .  . |
+|  D  .  .  .  .  A  L  .  .  .  .  .  . |
+```
+
+### Keyboard Navigation
+
+All actions accessible via keyboard:
+
+| Key | Action |
+|-----|--------|
+| Tab | Move between interactive elements |
+| Enter/Space | Activate selected element |
+| Arrow keys | Navigate tile rack, chain selection, stock +/- |
+| Escape | Close modal, cancel action |
+| 1-6 | Quick-select tile from rack |
+| T | Open trade dialog |
+| S | Skip to next phase |
+
+### Screen Reader Support
+
+All UI elements must have proper ARIA labels:
+- Board state announced as "Row A, Column 1, empty" or "Row C, Column 4, American chain"
+- Tile rack: "Tile 1 of 6, position 5C, playable, would expand American"
+- Stock counts: "American, 3 shares, worth $2,100"
+- Turn indicator: "Your turn, Phase 2, Place a tile"
+
+---
+
+## Mobile UX Specifics
+
+### Touch Targets
+
+Minimum touch target size: 44x44 pixels
+
+Tile rack tiles should be large enough for easy tapping:
+```
++--------+ +--------+ +--------+ +--------+ +--------+ +--------+
+|   1A   | |   3C   | |   5E   | |   7G   | |   9B   | |  12I   |
+|        | |   !!   | |   *    | |        | |   X    | |   XX   |
++--------+ +--------+ +--------+ +--------+ +--------+ +--------+
+   60px      60px       60px       60px       60px       60px
+```
+
+### Gestures
+
+| Gesture | Action |
+|---------|--------|
+| Tap | Select/activate |
+| Long press | Show tooltip/details |
+| Swipe left | Skip phase (with confirmation) |
+| Pinch | Zoom board (if needed) |
+| Double tap | Confirm action |
+
+### Orientation
+
+- **Player View**: Portrait preferred, landscape supported
+- **Host View**: Landscape preferred, portrait discouraged
+
+Orientation lock warning:
+```
++------------------------------------------+
+| ROTATE YOUR DEVICE                       |
++------------------------------------------+
+|                                          |
+|    [Rotation icon]                       |
+|                                          |
+| Host view works best in landscape mode.  |
+|                                          |
++------------------------------------------+
+```
+
+### Pull-to-Refresh
+
+Player view supports pull-to-refresh to sync state:
+```
+[Pull down to refresh...]
+       |
+       v
+[Refreshing...]
+       |
+       v
+[Game state updated]
+```
+
+---
+
+## Activity Log Format
+
+The activity log on Host View uses a consistent format:
+
+### Log Entry Types
+
+| Event | Format |
+|-------|--------|
+| Trade proposed | "ALICE -> BOB: 2xLUX for 1xAME" |
+| Trade accepted | "[ok] ALICE <-> BOB: traded" |
+| Trade declined | "[x] ALICE -> BOB: declined" |
+| Tile placed | "ALICE placed 5C" |
+| Chain founded | "ALICE founded AMERICAN (3 tiles)" |
+| Chain expanded | "AMERICAN grows to 8 tiles" |
+| Merger started | "MERGER: AMERICAN absorbs LUXOR" |
+| Bonus paid | "BOB: +$5,000 (majority)" |
+| Stock sold | "CAROL sold 3xLUX (+$1,500)" |
+| Stock traded | "DAN traded 4xLUX -> 2xAME" |
+| Stock held | "ALICE holds 2xLUX" |
+| Stock bought | "ALICE bought 2xAME, 1xLUX" |
+| Turn ended | "ALICE's turn ended" |
+| Game ended | "BOB declared game over" |
+| Player joined | "EVE joined the game" |
+| Player left | "FRANK disconnected" |
+| Bot takeover | "[bot] FRANK replaced by bot" |
+
+### Log Display
+
+Show last 5 entries, scrollable:
+```
++------------------------------------------------------------------+
+| LOG (tap to expand)                                              |
+| [ok] ALICE <-> BOB traded - ALICE placed 6E - ALICE bought 2xAME |
++------------------------------------------------------------------+
+```
+
+Expanded view:
+```
++------------------------------------------------------------------+
+| ACTIVITY LOG                                             [close] |
++------------------------------------------------------------------+
+| 14:32:01  ALICE's turn started                                   |
+| 14:32:15  ALICE -> BOB: 2xLUX + $500 for 1xAME                   |
+| 14:32:28  [ok] ALICE <-> BOB: traded                             |
+| 14:32:45  ALICE placed 6E                                        |
+| 14:32:45  AMERICAN grows to 8 tiles                              |
+| 14:33:02  ALICE bought 2xAME ($1,400)                            |
+| 14:33:05  ALICE's turn ended                                     |
+| 14:33:05  BOB's turn started                                     |
+| ...                                                              |
++------------------------------------------------------------------+
+```
 
 ---
 
@@ -1138,7 +1636,37 @@ If "DECLARE GAME OVER":
 - [x] Declaration ends turn immediately (no tile, no buy, no draw)
 - [x] Final scoring: bonuses for all active chains, sell all stock
 - [x] Defunct held stock = worthless at game end
+- [x] Tie game handling (multiple winners with same cash)
 
 ### Information Visibility
 - [x] Public info: cash, stocks, tile count, board state, chain sizes, stock availability
 - [x] Private info: specific tiles in hand
+
+### Multiplayer & Connectivity
+- [x] Bot player support with visual indicators
+- [x] Player disconnection and reconnection handling
+- [x] Bot takeover for disconnected players
+- [x] Host can kick players (pre-game only)
+- [x] Turn timer (optional feature)
+
+### Edge Cases
+- [x] Stock exhaustion (chain sold out)
+- [x] 7 chains already active (8th chain blocked)
+- [x] Merger frees chain slot (tiles become playable)
+- [x] Chain founded with size > 2 (multiple orphans)
+- [x] Invalid game state detection
+- [x] Confirmation dialogs for critical actions
+
+### Accessibility & UX
+- [x] Color blindness support (symbols + patterns)
+- [x] Keyboard navigation
+- [x] Screen reader support (ARIA labels)
+- [x] Mobile touch targets (44px minimum)
+- [x] Gesture support
+- [x] Device orientation handling
+
+### Activity Logging
+- [x] Comprehensive event log format
+- [x] Trade, placement, merger, bonus, stock events
+- [x] Player join/leave/disconnect events
+- [x] Expandable log view
