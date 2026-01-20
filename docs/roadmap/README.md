@@ -15,7 +15,7 @@
 | Epic | Progress | Available Stories |
 |------|----------|-------------------|
 | [Backend Hardening](epics/00-backend-hardening.md) | 13/13 ✅ | Complete |
-| [Frontend Foundation](epics/01-frontend-foundation.md) | 1/11 | FF-002, FF-003, FF-010, FF-011 |
+| [Frontend Foundation](epics/01-frontend-foundation.md) | 2/11 | FF-003, FF-004, FF-010, FF-011 |
 | [Game UI](epics/02-game-ui.md) | 0/15 | (blocked by FF) |
 | [Real-time Integration](epics/03-realtime-integration.md) | 0/6 | (blocked by FF) |
 | [AI Training](epics/04-ai-training.md) | 0/9 | AI-001, AI-003 |
@@ -44,10 +44,11 @@ BH-002,003,004,005,006         AI-002, AI-004, AI-005        ↓
 BH-008,011,012 (Tests)             ↓                     DP-003, DP-005
     ↓                          AI-006, AI-007, AI-008
 FF-001 (Project Setup) ✓           ↓
-    ↓                          AI-009
-FF-002, FF-003, FF-010, FF-011
+FF-002 (Design Tokens) ✓       AI-009
     ↓
-FF-004, FF-005, FF-006
+FF-003, FF-004, FF-010, FF-011
+    ↓
+FF-005, FF-006, FF-007
     ↓
 GU-001, GU-002, GU-003
     ↓
@@ -57,9 +58,9 @@ GU-001, GU-002, GU-003
 ### Critical Path
 
 ```
-[DONE] BH-001 → BH-002/003/004 → [DONE] FF-001 → FF-002/FF-003 → FF-005/FF-006 → GU-002/GU-003 → RT Integration → Deploy
-                                                       ↑
-                                                 YOU ARE HERE
+[DONE] BH-001 → BH-002/003/004 → [DONE] FF-001 → [DONE] FF-002 → FF-003/FF-004 → FF-005/FF-006 → GU-002/GU-003 → RT → Deploy
+                                                                        ↑
+                                                                  YOU ARE HERE
 ```
 
 ## How to Claim a Story
@@ -158,7 +159,7 @@ Fixed critical architecture issues and added comprehensive tests.
 ### Epic 1: Frontend Foundation (11 stories)
 Setup React + TypeScript project with design system components.
 - **Tech**: Vite, React 18, TypeScript, CSS Variables
-- **Start**: FF-001 ✓ complete, FF-002/FF-003/FF-010/FF-011 now available
+- **Start**: FF-001 ✓, FF-002 ✓ complete; FF-003/FF-004/FF-010/FF-011 now available
 
 ### Epic 2: Game UI (15 stories)
 Build all game-specific UI components and pages.

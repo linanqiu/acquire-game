@@ -13,6 +13,11 @@ When deviating from story suggestions:
 - Note the deviation and reasoning in the commit message or story doc
 - Ensure acceptance criteria are still met (or update them with justification)
 
+After completing a story:
+1. Mark acceptance criteria as checked in the story doc
+2. Update story status to `completed`
+3. Update `docs/roadmap/README.md`: progress count, available stories, critical path
+
 ## Setup (Claude on Mobile/Fresh Sessions)
 On fresh sessions (e.g., Claude on mobile), install dependencies first:
 ```bash
