@@ -66,6 +66,59 @@ class Game:
         # Player-to-player trading state
         self.pending_trades: Dict[str, TradeOffer] = {}  # trade_id -> TradeOffer
 
+    # Convenience properties for backward compatibility with WebSocket handlers
+
+    @property
+    def turn_order(self) -> list[str]:
+        """Get list of player IDs in turn order."""
+        return [p.player_id for p in self.players]
+
+    @property
+    def current_turn_index(self) -> int:
+        """Get current turn index (alias for current_player_index)."""
+        return self.current_player_index
+
+    @current_turn_index.setter
+    def current_turn_index(self, value: int) -> None:
+        """Set current turn index."""
+        self.current_player_index = value
+
+    @property
+    def tile_pool(self) -> list[Tile]:
+        """Get tile pool (alias for tile_bag)."""
+        return self.tile_bag
+
+    @property
+    def turn_phase(self) -> str:
+        """Get the current turn phase as a string for WebSocket compatibility."""
+        # Map GamePhase to turn phase strings used by WebSocket handlers
+        phase_map = {
+            GamePhase.LOBBY: "lobby",
+            GamePhase.PLAYING: "place_tile",
+            GamePhase.FOUNDING_CHAIN: "found_chain",
+            GamePhase.MERGING: "merger",
+            GamePhase.BUYING_STOCKS: "buy_stocks",
+            GamePhase.GAME_OVER: "game_over",
+        }
+        # Check pending_action for stock_disposition
+        if self.phase == GamePhase.MERGING and self.pending_action:
+            if self.pending_action.get("type") == "stock_disposition":
+                return "stock_disposition"
+        return phase_map.get(self.phase, "unknown")
+
+    @turn_phase.setter
+    def turn_phase(self, value: str) -> None:
+        """Set turn phase from string (for test compatibility)."""
+        phase_map = {
+            "place_tile": GamePhase.PLAYING,
+            "found_chain": GamePhase.FOUNDING_CHAIN,
+            "merger": GamePhase.MERGING,
+            "buy_stocks": GamePhase.BUYING_STOCKS,
+            "game_over": GamePhase.GAME_OVER,
+        }
+        if value in phase_map:
+            self.phase = phase_map[value]
+
     def add_player(
         self,
         player_id: str,

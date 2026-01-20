@@ -4,9 +4,12 @@ import random
 import string
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Optional, TYPE_CHECKING
 
 from fastapi import WebSocket
+
+if TYPE_CHECKING:
+    from game.game import Game
 
 
 @dataclass
@@ -28,7 +31,7 @@ class GameRoom:
     room_code: str
     host_websocket: Optional[WebSocket] = None
     players: dict[str, PlayerConnection] = field(default_factory=dict)
-    game: Optional[Any] = None  # Will be Game instance
+    game: Optional["Game"] = None  # Game instance, not dict
     started: bool = False
     max_players: int = 6
     min_players: int = 2

@@ -31,6 +31,7 @@ Analysis of the backend revealed:
 | [BH-010](../stories/00-backend-hardening/BH-010.md) | Action Module Tests | medium | M | None |
 | [BH-011](../stories/00-backend-hardening/BH-011.md) | WebSocket Reconnection Tests | medium | M | BH-001 |
 | [BH-012](../stories/00-backend-hardening/BH-012.md) | Phase Transition Tests | high | M | BH-001 |
+| [BH-013](../stories/00-backend-hardening/BH-013.md) | Add Typed API Response Classes | high | M | BH-001 |
 
 ## Parallelization
 
@@ -83,9 +84,9 @@ Analysis of the backend revealed:
 | Effort | Count | Hours |
 |--------|-------|-------|
 | L (2-4h) | 3 | 6-12 |
-| M (1-2h) | 7 | 7-14 |
+| M (1-2h) | 8 | 8-16 |
 | S (30-60m) | 2 | 1-2 |
-| **Total** | **12** | **14-28** |
+| **Total** | **13** | **15-30** |
 
 ## Key Files
 

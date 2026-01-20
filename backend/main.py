@@ -16,10 +16,8 @@ from fastapi import (
 from pydantic import BaseModel, field_validator, ValidationError
 
 from session.manager import SessionManager
-from game.board import Board, Tile
-from game.hotel import Hotel
-from game.player import Player
-from game.rules import Rules
+from game.board import Tile
+from game.game import Game, GamePhase
 from game.action import TradeOffer
 
 
@@ -614,66 +612,47 @@ async def handle_player_action(room_code: str, player_id: str, data: dict) -> No
 
 
 async def initialize_game(room_code: str):
-    """Initialize game state for a room."""
+    """Initialize game state for a room using Game class."""
     room = session_manager.get_room(room_code)
     if room is None:
         return
 
-    # Create game objects
-    board = Board()
-    hotel = Hotel()
+    # Create Game instance
+    game = Game()
 
-    # Create tile pool and shuffle
-    import random
-
-    tile_pool = Board.all_tiles()
-    random.shuffle(tile_pool)
-
-    # Create Player objects
-    players = {}
+    # Add all players to the game
     for player_id, connection in room.players.items():
-        players[player_id] = Player(player_id, connection.name)
+        game.add_player(player_id, connection.name, is_bot=connection.is_bot)
 
-    # Deal initial tiles (6 per player)
-    for player in players.values():
-        for _ in range(6):
-            if tile_pool:
-                player.add_tile(tile_pool.pop())
+    # Start the game (shuffles tiles, deals to players)
+    game.start_game()
 
-    # Determine turn order (random)
-    turn_order = list(players.keys())
-    random.shuffle(turn_order)
-
-    # Store game state in room
-    room.game = {
-        "board": board,
-        "hotel": hotel,
-        "players": players,
-        "tile_pool": tile_pool,
-        "turn_order": turn_order,
-        "current_turn_index": 0,
-        "phase": "place_tile",  # place_tile, found_chain, merger, buy_stocks
-        "pending_action": None,  # For tracking multi-step actions
-        "pending_trades": {},  # trade_id -> TradeOffer for player-to-player trading
-    }
+    # Store Game instance in room
+    room.game = game
 
     # Process bot turns if the first player is a bot
     await process_bot_turns(room_code)
 
 
 async def handle_place_tile(room_code: str, player_id: str, tile_str: str):
-    """Handle tile placement action."""
+    """Handle tile placement action using Game class."""
     room = session_manager.get_room(room_code)
     if room is None or room.game is None:
         return
 
     game = room.game
 
-    # Verify it's this player's turn
-    current_player_id = game["turn_order"][game["current_turn_index"]]
-    if player_id != current_player_id:
+    # Check if it's this player's turn
+    if game.get_current_player_id() != player_id:
         await session_manager.send_to_player(
             room_code, player_id, {"type": "error", "message": "Not your turn"}
+        )
+        return
+
+    # Check phase
+    if game.phase != GamePhase.PLAYING:
+        await session_manager.send_to_player(
+            room_code, player_id, {"type": "error", "message": "Not in playing phase"}
         )
         return
 
@@ -686,31 +665,13 @@ async def handle_place_tile(room_code: str, player_id: str, tile_str: str):
         )
         return
 
-    player = game["players"][player_id]
-    board = game["board"]
-    hotel = game["hotel"]
-    tile_pool = game["tile_pool"]
+    player = game.get_player(player_id)
+    if player is None:
+        return
 
     # Check if all tiles in hand are unplayable (special rule)
-    # If so, reveal hand, remove unplayable tiles from game, and draw new ones
-    if Rules.are_all_tiles_unplayable(board, player.hand, hotel):
-        # Reveal hand to all players
-        revealed_hand = [str(t) for t in player.hand]
-        removed_tiles = []
-
-        # Remove all tiles from hand (they're removed from game, not back to pool)
-        tiles_to_remove = list(player.hand)
-        for t in tiles_to_remove:
-            player.remove_tile(t)
-            removed_tiles.append(str(t))
-
-        # Draw new tiles up to hand limit
-        new_tiles = []
-        while player.hand_size < 6 and tile_pool:
-            new_tile = tile_pool.pop()
-            player.add_tile(new_tile)
-            new_tiles.append(str(new_tile))
-
+    unplayable_result = game.handle_all_tiles_unplayable(player)
+    if unplayable_result is not None:
         # Broadcast the all-unplayable event to all players
         await session_manager.broadcast_to_room(
             room_code,
@@ -718,9 +679,9 @@ async def handle_place_tile(room_code: str, player_id: str, tile_str: str):
                 "type": "all_tiles_unplayable",
                 "player_id": player_id,
                 "player_name": player.name,
-                "revealed_hand": revealed_hand,
-                "removed_tiles": removed_tiles,
-                "new_tiles_count": len(new_tiles),
+                "revealed_hand": unplayable_result["revealed_hand"],
+                "removed_tiles": unplayable_result["removed_tiles"],
+                "new_tiles_count": len(unplayable_result["new_tiles"]),
             },
         )
 
@@ -730,7 +691,7 @@ async def handle_place_tile(room_code: str, player_id: str, tile_str: str):
             player_id,
             {
                 "type": "tiles_replaced",
-                "removed_tiles": removed_tiles,
+                "removed_tiles": unplayable_result["removed_tiles"],
                 "new_hand": [str(t) for t in player.hand],
             },
         )
@@ -749,199 +710,115 @@ async def handle_place_tile(room_code: str, player_id: str, tile_str: str):
         )
         return
 
-    # Verify player has this tile
-    if not player.has_tile(tile):
+    # Play the tile using Game class
+    result = game.play_tile(player_id, tile)
+
+    if not result.get("success"):
         await session_manager.send_to_player(
             room_code,
             player_id,
-            {"type": "error", "message": "You don't have this tile"},
+            {"type": "error", "message": result.get("error", "Unknown error")},
         )
         return
 
-    # Check if tile can be placed
-    if not Rules.can_place_tile(board, tile, hotel):
-        await session_manager.send_to_player(
-            room_code, player_id, {"type": "error", "message": "Cannot place this tile"}
-        )
-        return
-
-    # Place the tile
-    player.remove_tile(tile)
-    board.place_tile(tile)
-
-    # Determine what happens
-    result = Rules.get_placement_result(board, tile)
-
-    if result.result_type == "nothing":
-        # Just placed, move to buy phase
-        game["phase"] = "buy_stocks"
-
-    elif result.result_type == "expand":
-        # Expand existing chain
-        connected = board.get_connected_tiles(tile)
-        for t in connected:
-            board.set_chain(t, result.chain)
-        game["phase"] = "buy_stocks"
-
-    elif result.result_type == "found":
-        # Need player to choose which chain to found
-        game["phase"] = "found_chain"
-        game["pending_action"] = {
-            "tile": tile,
-            "connected_tiles": board.get_connected_tiles(tile),
-        }
+    # Handle different results
+    if result.get("next_action") == "found_chain":
+        # Player needs to choose which chain to found
         await session_manager.send_to_player(
             room_code,
             player_id,
-            {"type": "choose_chain", "available_chains": hotel.get_inactive_chains()},
+            {
+                "type": "choose_chain",
+                "available_chains": result.get("available_chains", []),
+            },
         )
 
-    elif result.result_type == "merge":
-        # Handle merger
-        survivor = Rules.get_merger_survivor(board, result.chains)
+    elif result.get("next_action") == "choose_merger_survivor":
+        # Tie - player must choose survivor
+        await session_manager.send_to_player(
+            room_code,
+            player_id,
+            {
+                "type": "choose_merger_survivor",
+                "tied_chains": result.get("tied_chains", []),
+            },
+        )
 
-        if isinstance(survivor, list):
-            # Tie - player must choose
-            game["phase"] = "merger"
-            game["pending_action"] = {
-                "type": "choose_survivor",
-                "chains": result.chains,
-                "tied_chains": survivor,
-                "tile": tile,
-            }
+    elif result.get("next_action") == "stock_disposition":
+        # Someone needs to handle stock disposition during merger
+        pending = game.pending_action
+        if pending and pending.get("type") == "stock_disposition":
             await session_manager.send_to_player(
                 room_code,
-                player_id,
-                {"type": "choose_merger_survivor", "tied_chains": survivor},
+                pending.get("player_id"),
+                {
+                    "type": "stock_disposition_required",
+                    "defunct_chain": pending.get("defunct_chain"),
+                    "surviving_chain": pending.get("surviving_chain"),
+                    "stock_count": pending.get("stock_count"),
+                    "available_to_trade": pending.get("available_to_trade"),
+                },
             )
-        else:
-            # Clear winner - process merger
-            game["pending_action"] = {
-                "type": "process_merger",
-                "surviving_chain": survivor,
-                "defunct_chains": [c for c in result.chains if c != survivor],
-                "tile": tile,
-            }
-            await process_merger(room_code)
 
     await broadcast_game_state(room_code)
 
 
 async def handle_found_chain(room_code: str, player_id: str, chain_name: str):
-    """Handle chain founding."""
+    """Handle chain founding using Game class."""
     room = session_manager.get_room(room_code)
     if room is None or room.game is None:
         return
 
     game = room.game
-    hotel = game["hotel"]
-    board = game["board"]
-    player = game["players"][player_id]
 
-    # Verify phase
-    if game["phase"] != "found_chain":
-        return
+    # Use Game.found_chain() method
+    result = game.found_chain(player_id, chain_name)
 
-    # Verify chain is available
-    if chain_name not in hotel.get_inactive_chains():
+    if not result.get("success"):
         await session_manager.send_to_player(
-            room_code, player_id, {"type": "error", "message": "Chain not available"}
+            room_code,
+            player_id,
+            {"type": "error", "message": result.get("error", "Unknown error")},
         )
         return
-
-    # Found the chain
-    hotel.activate_chain(chain_name)
-    connected_tiles = game["pending_action"]["connected_tiles"]
-    for t in connected_tiles:
-        board.set_chain(t, chain_name)
-
-    # Give founder a free stock if available, otherwise cash equivalent
-    chain_size = board.get_chain_size(chain_name)
-    stock_price = hotel.get_stock_price(chain_name, chain_size)
-
-    if hotel.get_available_stocks(chain_name) > 0:
-        hotel.buy_stock(chain_name)
-        player.add_stocks(chain_name, 1)
-    else:
-        # No stock available - give cash equivalent
-        player.add_money(stock_price)
-
-    game["pending_action"] = None
-    game["phase"] = "buy_stocks"
 
     await broadcast_game_state(room_code)
 
 
 async def handle_merger_choice(room_code: str, player_id: str, surviving_chain: str):
-    """Handle player choosing merger survivor in case of tie."""
+    """Handle player choosing merger survivor in case of tie using Game class."""
     room = session_manager.get_room(room_code)
     if room is None or room.game is None:
         return
 
     game = room.game
-    pending = game.get("pending_action")
 
-    if not pending or pending.get("type") != "choose_survivor":
-        return
+    # Use Game.choose_merger_survivor() method
+    result = game.choose_merger_survivor(player_id, surviving_chain)
 
-    if surviving_chain not in pending["tied_chains"]:
-        return
-
-    # Set up merger processing
-    game["pending_action"] = {
-        "type": "process_merger",
-        "surviving_chain": surviving_chain,
-        "defunct_chains": [c for c in pending["chains"] if c != surviving_chain],
-        "tile": pending["tile"],
-    }
-
-    await process_merger(room_code)
-
-
-async def process_merger(room_code: str):
-    """Process a merger after survivor is determined."""
-    room = session_manager.get_room(room_code)
-    if room is None or room.game is None:
-        return
-
-    game = room.game
-    pending = game["pending_action"]
-    board = game["board"]
-    hotel = game["hotel"]
-    players = game["players"]
-
-    surviving_chain = pending["surviving_chain"]
-    defunct_chains = pending["defunct_chains"]
-    tile = pending["tile"]
-
-    # Process each defunct chain (largest first)
-    defunct_chains_sorted = sorted(
-        defunct_chains, key=lambda c: board.get_chain_size(c), reverse=True
-    )
-
-    for defunct_chain in defunct_chains_sorted:
-        chain_size = board.get_chain_size(defunct_chain)
-
-        # Calculate and pay bonuses
-        bonuses = Rules.calculate_bonuses(
-            list(players.values()), defunct_chain, chain_size, hotel
+    if not result.get("success"):
+        await session_manager.send_to_player(
+            room_code,
+            player_id,
+            {"type": "error", "message": result.get("error", "Unknown error")},
         )
+        return
 
-        for pid, bonus_info in bonuses.items():
-            total_bonus = bonus_info["majority"] + bonus_info["minority"]
-            players[pid].add_money(total_bonus)
-
-        # Merge the chains on the board
-        board.merge_chains(surviving_chain, defunct_chain)
-        hotel.deactivate_chain(defunct_chain)
-
-    # Include the placed tile in the surviving chain
-    connected = board.get_connected_tiles(tile)
-    for t in connected:
-        board.set_chain(t, surviving_chain)
-
-    game["pending_action"] = None
-    game["phase"] = "buy_stocks"
+    # Check if stock disposition is needed
+    if result.get("next_action") == "stock_disposition":
+        pending = game.pending_action
+        if pending and pending.get("type") == "stock_disposition":
+            await session_manager.send_to_player(
+                room_code,
+                pending.get("player_id"),
+                {
+                    "type": "stock_disposition_required",
+                    "defunct_chain": pending.get("defunct_chain"),
+                    "surviving_chain": pending.get("surviving_chain"),
+                    "stock_count": pending.get("stock_count"),
+                    "available_to_trade": pending.get("available_to_trade"),
+                },
+            )
 
     await broadcast_game_state(room_code)
 
@@ -949,134 +826,104 @@ async def process_merger(room_code: str):
 async def handle_merger_disposition(
     room_code: str, player_id: str, defunct_chain: str, disposition: dict
 ):
-    """Handle player's sell/trade/hold decision during merger."""
+    """Handle player's sell/trade/hold decision during merger using Game class."""
     room = session_manager.get_room(room_code)
     if room is None or room.game is None:
         return
 
     game = room.game
-    player = game["players"][player_id]
-    board = game["board"]
-    hotel = game["hotel"]
 
-    # Get surviving chain from pending action
-    pending = game.get("pending_action")
-    if not pending:
+    # Use Game.handle_stock_disposition() method
+    # Note: "hold" in WebSocket message maps to "keep" in Game method
+    result = game.handle_stock_disposition(
+        player_id,
+        sell=disposition.get("sell", 0),
+        trade=disposition.get("trade", 0),
+        keep=disposition.get("hold", 0),
+    )
+
+    if not result.get("success"):
+        await session_manager.send_to_player(
+            room_code,
+            player_id,
+            {"type": "error", "message": result.get("error", "Unknown error")},
+        )
         return
 
-    surviving_chain = pending.get("surviving_chain")
-    if not surviving_chain:
-        return
-
-    chain_size = board.get_chain_size(defunct_chain)
-    stock_price = hotel.get_stock_price(defunct_chain, chain_size)
-
-    sell_count = disposition.get("sell", 0)
-    trade_count = disposition.get("trade", 0)
-
-    # Sell stocks
-    if sell_count > 0:
-        player.sell_stock(defunct_chain, sell_count, stock_price)
-        hotel.return_stock(defunct_chain, sell_count)
-
-    # Trade stocks (2:1)
-    if trade_count > 0:
-        player.trade_stock(defunct_chain, surviving_chain, trade_count)
+    # Check if another player needs to handle stock disposition
+    if result.get("next_action") == "stock_disposition":
+        pending = game.pending_action
+        if pending and pending.get("type") == "stock_disposition":
+            await session_manager.send_to_player(
+                room_code,
+                pending.get("player_id"),
+                {
+                    "type": "stock_disposition_required",
+                    "defunct_chain": pending.get("defunct_chain"),
+                    "surviving_chain": pending.get("surviving_chain"),
+                    "stock_count": pending.get("stock_count"),
+                    "available_to_trade": pending.get("available_to_trade"),
+                },
+            )
 
     await broadcast_game_state(room_code)
 
 
 async def handle_buy_stocks(room_code: str, player_id: str, purchases: dict):
-    """Handle stock purchase action."""
+    """Handle stock purchase action using Game class."""
     room = session_manager.get_room(room_code)
     if room is None or room.game is None:
         return
 
     game = room.game
-    player = game["players"][player_id]
-    board = game["board"]
-    hotel = game["hotel"]
 
-    # Verify phase
-    if game["phase"] != "buy_stocks":
-        return
+    # Convert purchases dict to list of chain names
+    # e.g., {"Luxor": 2, "Tower": 1} -> ["Luxor", "Luxor", "Tower"]
+    purchase_list = []
+    for chain_name, quantity in purchases.items():
+        purchase_list.extend([chain_name] * quantity)
 
-    # Verify it's this player's turn
-    current_player_id = game["turn_order"][game["current_turn_index"]]
-    if player_id != current_player_id:
-        return
+    # Use Game.buy_stocks() method
+    result = game.buy_stocks(player_id, purchase_list)
 
-    # Maximum 3 stocks per turn
-    total_stocks = sum(purchases.values())
-    if total_stocks > 3:
+    if not result.get("success"):
         await session_manager.send_to_player(
             room_code,
             player_id,
-            {"type": "error", "message": "Cannot buy more than 3 stocks per turn"},
+            {"type": "error", "message": result.get("error", "Unknown error")},
         )
         return
 
-    # Process each purchase
-    for chain_name, quantity in purchases.items():
-        if quantity <= 0:
-            continue
-
-        if not hotel.is_chain_active(chain_name):
-            continue
-
-        if hotel.get_available_stocks(chain_name) < quantity:
-            continue
-
-        chain_size = board.get_chain_size(chain_name)
-        price = hotel.get_stock_price(chain_name, chain_size)
-
-        if player.buy_stock(chain_name, quantity, price):
-            hotel.buy_stock(chain_name, quantity)
-
-    # Move to end of turn
+    # Move to end of turn (buy_stocks doesn't automatically advance)
     await handle_end_turn(room_code, player_id)
 
 
 async def handle_end_turn(room_code: str, player_id: str):
-    """Handle end of turn - draw tile and advance to next player."""
+    """Handle end of turn using Game class."""
     room = session_manager.get_room(room_code)
     if room is None or room.game is None:
         return
 
     game = room.game
-    player = game["players"][player_id]
-    tile_pool = game["tile_pool"]
 
-    # Draw a tile if pool is not empty
-    if tile_pool:
-        new_tile = tile_pool.pop()
-        player.add_tile(new_tile)
+    # Use Game.end_turn() method
+    result = game.end_turn(player_id)
 
-    # Replace unplayable tiles
-    board = game["board"]
-    hotel = game["hotel"]
-    unplayable = Rules.get_unplayable_tiles(board, player.hand, hotel)
+    if not result.get("success"):
+        await session_manager.send_to_player(
+            room_code,
+            player_id,
+            {"type": "error", "message": result.get("error", "Unknown error")},
+        )
+        return
 
-    for bad_tile in unplayable:
-        if Rules.is_tile_permanently_unplayable(board, bad_tile, hotel):
-            player.remove_tile(bad_tile)
-            if tile_pool:
-                player.add_tile(tile_pool.pop())
-
-    # Check for game end
-    if Rules.check_end_game(board, hotel):
-        # A player can choose to end the game
+    # Check for game end condition
+    if result.get("can_end_game"):
         await session_manager.send_to_player(
             room_code,
             player_id,
             {"type": "can_end_game", "message": "You may choose to end the game"},
         )
-
-    # Advance to next player
-    game["current_turn_index"] = (game["current_turn_index"] + 1) % len(
-        game["turn_order"]
-    )
-    game["phase"] = "place_tile"
 
     await broadcast_game_state(room_code)
 
@@ -1088,8 +935,6 @@ async def handle_end_turn(room_code: str, player_id: str):
 # Player-to-Player Trading Handlers
 # =============================================================================
 
-MAX_PENDING_TRADES_PER_PLAYER = 5
-
 
 async def handle_propose_trade(
     room_code: str,
@@ -1100,52 +945,12 @@ async def handle_propose_trade(
     requesting_stocks: dict,
     requesting_money: int,
 ):
-    """Handle a player proposing a trade to another player."""
+    """Handle a player proposing a trade using Game class."""
     room = session_manager.get_room(room_code)
     if room is None or room.game is None:
         return
 
     game = room.game
-    players = game["players"]
-    pending_trades = game.get("pending_trades", {})
-
-    # Validate players exist
-    if player_id not in players:
-        await session_manager.send_to_player(
-            room_code, player_id, {"type": "error", "message": "Player not found"}
-        )
-        return
-
-    if to_player_id not in players:
-        await session_manager.send_to_player(
-            room_code,
-            player_id,
-            {"type": "error", "message": "Target player not found"},
-        )
-        return
-
-    if player_id == to_player_id:
-        await session_manager.send_to_player(
-            room_code,
-            player_id,
-            {"type": "error", "message": "Cannot trade with yourself"},
-        )
-        return
-
-    # Check pending trade limit
-    player_pending_count = sum(
-        1 for t in pending_trades.values() if t.from_player_id == player_id
-    )
-    if player_pending_count >= MAX_PENDING_TRADES_PER_PLAYER:
-        await session_manager.send_to_player(
-            room_code,
-            player_id,
-            {
-                "type": "error",
-                "message": f"Maximum {MAX_PENDING_TRADES_PER_PLAYER} pending trades allowed",
-            },
-        )
-        return
 
     # Create trade offer
     trade = TradeOffer(
@@ -1157,50 +962,16 @@ async def handle_propose_trade(
         requesting_money=requesting_money,
     )
 
-    # Validate the trade
-    from_player = players[player_id]
-    to_player = players[to_player_id]
+    # Use Game.propose_trade() method
+    result = game.propose_trade(trade)
 
-    # Check that at least one thing is being exchanged
-    has_offering = offering_money > 0 or any(
-        qty > 0 for qty in offering_stocks.values()
-    )
-    has_requesting = requesting_money > 0 or any(
-        qty > 0 for qty in requesting_stocks.values()
-    )
-
-    if not has_offering and not has_requesting:
+    if not result.get("success"):
         await session_manager.send_to_player(
             room_code,
             player_id,
-            {"type": "error", "message": "Trade must include at least one item"},
+            {"type": "error", "message": result.get("error", "Unknown error")},
         )
         return
-
-    # Check offering player has the resources
-    if not from_player.can_afford_trade(offering_stocks, offering_money):
-        await session_manager.send_to_player(
-            room_code,
-            player_id,
-            {"type": "error", "message": "You don't have the offered resources"},
-        )
-        return
-
-    # Check receiving player has the requested resources
-    if not to_player.can_afford_trade(requesting_stocks, requesting_money):
-        await session_manager.send_to_player(
-            room_code,
-            player_id,
-            {
-                "type": "error",
-                "message": "Target player doesn't have the requested resources",
-            },
-        )
-        return
-
-    # Add to pending trades
-    pending_trades[trade.trade_id] = trade
-    game["pending_trades"] = pending_trades
 
     # Notify both players
     trade_notification = {
@@ -1212,115 +983,78 @@ async def handle_propose_trade(
 
 
 async def handle_accept_trade(room_code: str, player_id: str, trade_id: str):
-    """Handle a player accepting a trade offer."""
+    """Handle a player accepting a trade using Game class."""
     room = session_manager.get_room(room_code)
     if room is None or room.game is None:
         return
 
     game = room.game
-    players = game["players"]
-    pending_trades = game.get("pending_trades", {})
 
-    if trade_id not in pending_trades:
+    # Get trade info before accepting (for notifications)
+    trade = game.pending_trades.get(trade_id)
+    if trade is None:
         await session_manager.send_to_player(
             room_code, player_id, {"type": "error", "message": "Trade not found"}
         )
         return
 
-    trade = pending_trades[trade_id]
+    from_player_id = trade.from_player_id
+    to_player_id = trade.to_player_id
 
-    # Only the recipient can accept
-    if trade.to_player_id != player_id:
+    # Use Game.accept_trade() method
+    result = game.accept_trade(player_id, trade_id)
+
+    if not result.get("success"):
         await session_manager.send_to_player(
             room_code,
             player_id,
-            {"type": "error", "message": "Only the trade recipient can accept"},
+            {"type": "error", "message": result.get("error", "Unknown error")},
         )
         return
-
-    from_player = players[trade.from_player_id]
-    to_player = players[trade.to_player_id]
-
-    # Re-validate the trade (resources may have changed)
-    if not from_player.can_afford_trade(trade.offering_stocks, trade.offering_money):
-        del pending_trades[trade_id]
-        await session_manager.send_to_player(
-            room_code,
-            player_id,
-            {
-                "type": "error",
-                "message": "Trade is no longer valid - proposer lacks resources",
-            },
-        )
-        return
-
-    if not to_player.can_afford_trade(trade.requesting_stocks, trade.requesting_money):
-        del pending_trades[trade_id]
-        await session_manager.send_to_player(
-            room_code,
-            player_id,
-            {
-                "type": "error",
-                "message": "Trade is no longer valid - you lack requested resources",
-            },
-        )
-        return
-
-    # Execute the trade
-    from_player.execute_trade_give(trade.offering_stocks, trade.offering_money)
-    to_player.execute_trade_give(trade.requesting_stocks, trade.requesting_money)
-    to_player.execute_trade_receive(trade.offering_stocks, trade.offering_money)
-    from_player.execute_trade_receive(trade.requesting_stocks, trade.requesting_money)
-
-    # Remove the trade
-    del pending_trades[trade_id]
 
     # Notify both players
     trade_notification = {
         "type": "trade_accepted",
         "trade_id": trade_id,
-        "from_player": trade.from_player_id,
-        "to_player": trade.to_player_id,
+        "from_player": from_player_id,
+        "to_player": to_player_id,
     }
-    await session_manager.send_to_player(
-        room_code, trade.from_player_id, trade_notification
-    )
-    await session_manager.send_to_player(
-        room_code, trade.to_player_id, trade_notification
-    )
+    await session_manager.send_to_player(room_code, from_player_id, trade_notification)
+    await session_manager.send_to_player(room_code, to_player_id, trade_notification)
 
     # Broadcast updated game state
     await broadcast_game_state(room_code)
 
 
 async def handle_reject_trade(room_code: str, player_id: str, trade_id: str):
-    """Handle a player rejecting a trade offer."""
+    """Handle a player rejecting a trade using Game class."""
     room = session_manager.get_room(room_code)
     if room is None or room.game is None:
         return
 
     game = room.game
-    pending_trades = game.get("pending_trades", {})
 
-    if trade_id not in pending_trades:
+    # Get trade info before rejecting (for notifications)
+    trade = game.pending_trades.get(trade_id)
+    if trade is None:
         await session_manager.send_to_player(
             room_code, player_id, {"type": "error", "message": "Trade not found"}
         )
         return
 
-    trade = pending_trades[trade_id]
+    from_player_id = trade.from_player_id
+    to_player_id = trade.to_player_id
 
-    # Only the recipient can reject
-    if trade.to_player_id != player_id:
+    # Use Game.reject_trade() method
+    result = game.reject_trade(player_id, trade_id)
+
+    if not result.get("success"):
         await session_manager.send_to_player(
             room_code,
             player_id,
-            {"type": "error", "message": "Only the trade recipient can reject"},
+            {"type": "error", "message": result.get("error", "Unknown error")},
         )
         return
-
-    # Remove the trade
-    del pending_trades[trade_id]
 
     # Notify both players
     trade_notification = {
@@ -1328,42 +1062,39 @@ async def handle_reject_trade(room_code: str, player_id: str, trade_id: str):
         "trade_id": trade_id,
         "rejected_by": player_id,
     }
-    await session_manager.send_to_player(
-        room_code, trade.from_player_id, trade_notification
-    )
-    await session_manager.send_to_player(
-        room_code, trade.to_player_id, trade_notification
-    )
+    await session_manager.send_to_player(room_code, from_player_id, trade_notification)
+    await session_manager.send_to_player(room_code, to_player_id, trade_notification)
 
 
 async def handle_cancel_trade(room_code: str, player_id: str, trade_id: str):
-    """Handle a player canceling their own trade offer."""
+    """Handle a player canceling a trade using Game class."""
     room = session_manager.get_room(room_code)
     if room is None or room.game is None:
         return
 
     game = room.game
-    pending_trades = game.get("pending_trades", {})
 
-    if trade_id not in pending_trades:
+    # Get trade info before canceling (for notifications)
+    trade = game.pending_trades.get(trade_id)
+    if trade is None:
         await session_manager.send_to_player(
             room_code, player_id, {"type": "error", "message": "Trade not found"}
         )
         return
 
-    trade = pending_trades[trade_id]
+    from_player_id = trade.from_player_id
+    to_player_id = trade.to_player_id
 
-    # Only the proposer can cancel
-    if trade.from_player_id != player_id:
+    # Use Game.cancel_trade() method
+    result = game.cancel_trade(player_id, trade_id)
+
+    if not result.get("success"):
         await session_manager.send_to_player(
             room_code,
             player_id,
-            {"type": "error", "message": "Only the trade proposer can cancel"},
+            {"type": "error", "message": result.get("error", "Unknown error")},
         )
         return
-
-    # Remove the trade
-    del pending_trades[trade_id]
 
     # Notify both players
     trade_notification = {
@@ -1371,50 +1102,35 @@ async def handle_cancel_trade(room_code: str, player_id: str, trade_id: str):
         "trade_id": trade_id,
         "canceled_by": player_id,
     }
-    await session_manager.send_to_player(
-        room_code, trade.from_player_id, trade_notification
-    )
-    await session_manager.send_to_player(
-        room_code, trade.to_player_id, trade_notification
-    )
+    await session_manager.send_to_player(room_code, from_player_id, trade_notification)
+    await session_manager.send_to_player(room_code, to_player_id, trade_notification)
 
 
 async def end_game(room_code: str):
-    """End the game and calculate final scores."""
+    """End the game and calculate final scores using Game class."""
     room = session_manager.get_room(room_code)
     if room is None or room.game is None:
         return
 
     game = room.game
-    board = game["board"]
-    hotel = game["hotel"]
-    players = game["players"]
 
-    # Pay final bonuses for all active chains
-    for chain_name in hotel.get_active_chains():
-        chain_size = board.get_chain_size(chain_name)
-        bonuses = Rules.calculate_bonuses(
-            list(players.values()), chain_name, chain_size, hotel
-        )
+    # Use Game.end_game() method
+    result = game.end_game()
 
-        for pid, bonus_info in bonuses.items():
-            total_bonus = bonus_info["majority"] + bonus_info["minority"]
-            players[pid].add_money(total_bonus)
+    if not result.get("success"):
+        return
 
-        # Sell all stocks at current price
-        stock_price = hotel.get_stock_price(chain_name, chain_size)
-        for player in players.values():
-            stock_count = player.get_stock_count(chain_name)
-            if stock_count > 0:
-                player.sell_stock(chain_name, stock_count, stock_price)
-
-    # Calculate final scores
+    # Build final scores from standings
+    standings = result.get("standings", [])
     final_scores = {}
-    for player in players.values():
-        final_scores[player.player_id] = {"name": player.name, "money": player.money}
+    for entry in standings:
+        final_scores[entry["player_id"]] = {
+            "name": entry["name"],
+            "money": entry["money"],
+        }
 
-    # Determine winner
-    winner_id = max(final_scores.keys(), key=lambda pid: final_scores[pid]["money"])
+    winner = result.get("winner", {})
+    winner_id = winner.get("player_id") if winner else None
 
     # Broadcast final results
     await session_manager.broadcast_to_room(
@@ -1427,20 +1143,17 @@ async def end_game(room_code: str):
 
 
 async def process_bot_turns(room_code: str):
-    """Process bot turns automatically until a connected human player's turn or game ends.
+    """Process bot turns automatically using Game.execute_bot_turn().
 
-    This function handles:
-    1. Bot players - automatically plays their turns
-    2. Disconnected human players - automatically ends their turns (AFK handling)
+    This function handles bot players by using the Game class's bot execution.
     """
+    import asyncio
+
     room = session_manager.get_room(room_code)
     if room is None or room.game is None:
         return
 
     game = room.game
-    board = game["board"]
-    hotel = game["hotel"]
-    players = game["players"]
 
     # Safety counter to prevent infinite loops
     max_iterations = 100
@@ -1449,7 +1162,14 @@ async def process_bot_turns(room_code: str):
     while iterations < max_iterations:
         iterations += 1
 
-        current_player_id = game["turn_order"][game["current_turn_index"]]
+        # Check if game is over
+        if game.phase == GamePhase.GAME_OVER:
+            break
+
+        current_player_id = game.get_current_player_id()
+        if current_player_id is None:
+            break
+
         player_conn = room.players.get(current_player_id)
 
         # Check if current player is a bot
@@ -1457,125 +1177,18 @@ async def process_bot_turns(room_code: str):
             # Human player's turn - stop and wait for their input
             break
 
-        # This is a bot's turn - process it
-        player = players[current_player_id]
-        phase = game["phase"]
+        # This is a bot's turn - use Game.execute_bot_turn()
+        game.execute_bot_turn(current_player_id)
 
-        if phase == "place_tile":
-            # Bot chooses and places a tile
-            playable_tiles = [
-                t for t in player.hand if Rules.can_place_tile(board, t, hotel)
-            ]
+        # Broadcast the state after bot's turn
+        await broadcast_game_state(room_code)
 
-            if playable_tiles:
-                # Simple strategy: pick a random playable tile
-                import random
-
-                tile = random.choice(playable_tiles)
-                player.remove_tile(tile)
-                board.place_tile(tile)
-
-                # Determine what happens
-                result = Rules.get_placement_result(board, tile)
-
-                if result.result_type == "nothing":
-                    game["phase"] = "buy_stocks"
-
-                elif result.result_type == "expand":
-                    connected = board.get_connected_tiles(tile)
-                    for t in connected:
-                        board.set_chain(t, result.chain)
-                    game["phase"] = "buy_stocks"
-
-                elif result.result_type == "found":
-                    # Bot picks first available chain
-                    available_chains = hotel.get_inactive_chains()
-                    if available_chains:
-                        chain_name = available_chains[0]
-                        hotel.activate_chain(chain_name)
-                        connected_tiles = board.get_connected_tiles(tile)
-                        for t in connected_tiles:
-                            board.set_chain(t, chain_name)
-                        # Give founder a free stock
-                        if hotel.get_available_stocks(chain_name) > 0:
-                            hotel.buy_stock(chain_name)
-                            player.add_stocks(chain_name, 1)
-                    game["phase"] = "buy_stocks"
-
-                elif result.result_type == "merge":
-                    # Handle merger - pick survivor (largest chain)
-                    survivor = Rules.get_merger_survivor(board, result.chains)
-
-                    if isinstance(survivor, list):
-                        # Tie - pick first one
-                        survivor = survivor[0]
-
-                    defunct_chains = [c for c in result.chains if c != survivor]
-
-                    # Pay bonuses and process merger
-                    for defunct_chain in defunct_chains:
-                        chain_size = board.get_chain_size(defunct_chain)
-                        bonuses = Rules.calculate_bonuses(
-                            list(players.values()), defunct_chain, chain_size, hotel
-                        )
-                        for pid, bonus_info in bonuses.items():
-                            total_bonus = (
-                                bonus_info["majority"] + bonus_info["minority"]
-                            )
-                            players[pid].add_money(total_bonus)
-
-                        # Merge on board
-                        board.merge_chains(survivor, defunct_chain)
-                        hotel.deactivate_chain(defunct_chain)
-
-                    # Include placed tile in surviving chain
-                    connected = board.get_connected_tiles(tile)
-                    for t in connected:
-                        board.set_chain(t, survivor)
-
-                    game["phase"] = "buy_stocks"
-
-                # Broadcast the tile placement
-                await broadcast_game_state(room_code)
-            else:
-                # No playable tiles - skip to buy phase
-                game["phase"] = "buy_stocks"
-
-        if phase == "buy_stocks" or game["phase"] == "buy_stocks":
-            # Bot buys stocks (simple: buy nothing for now, just end turn)
-            # More sophisticated bots can be added later
-
-            # Draw a tile
-            tile_pool = game["tile_pool"]
-            if tile_pool:
-                new_tile = tile_pool.pop()
-                player.add_tile(new_tile)
-
-            # Replace unplayable tiles
-            unplayable = Rules.get_unplayable_tiles(board, player.hand, hotel)
-            for bad_tile in unplayable:
-                if Rules.is_tile_permanently_unplayable(board, bad_tile, hotel):
-                    player.remove_tile(bad_tile)
-                    if tile_pool:
-                        player.add_tile(tile_pool.pop())
-
-            # Advance to next player
-            game["current_turn_index"] = (game["current_turn_index"] + 1) % len(
-                game["turn_order"]
-            )
-            game["phase"] = "place_tile"
-
-            # Broadcast the end of turn
-            await broadcast_game_state(room_code)
-
-            # Small delay to prevent overwhelming clients
-            import asyncio
-
-            await asyncio.sleep(0.1)
+        # Small delay to prevent overwhelming clients
+        await asyncio.sleep(0.1)
 
 
 async def broadcast_game_state(room_code: str):
-    """Send updated state to all clients."""
+    """Send updated state to all clients using Game.get_public_state()."""
     room = session_manager.get_room(room_code)
     if room is None:
         return
@@ -1585,58 +1198,66 @@ async def broadcast_game_state(room_code: str):
     if game is None:
         return
 
-    board = game["board"]
-    hotel = game["hotel"]
-    players = game["players"]
+    # Get public state from Game class
+    game_state = game.get_public_state()
 
-    # Build public game state
-    current_player_id = game["turn_order"][game["current_turn_index"]]
-
-    # Build chain info with sizes and prices
-    hotel_state = hotel.get_state()
+    # Build chain info in the format expected by WebSocket clients
     chains_info = []
-    for chain_name in hotel.get_all_chain_names():
-        size = board.get_chain_size(chain_name)
-        price = hotel.get_stock_price(chain_name, size)
+    for chain_name, chain_data in game_state["chains"].items():
         chains_info.append(
             {
                 "name": chain_name,
-                "size": size,
-                "price": price,
-                "stocks_available": hotel_state["available_stocks"].get(chain_name, 25),
+                "size": chain_data["size"],
+                "price": chain_data["stock_price"],
+                "stocks_available": chain_data["available_stocks"],
             }
         )
-    hotel_state["chains"] = chains_info
+
+    hotel_state = {
+        "chains": chains_info,
+        "available_stocks": {
+            name: data["available_stocks"]
+            for name, data in game_state["chains"].items()
+        },
+        "active_chains": [
+            name for name, data in game_state["chains"].items() if data["active"]
+        ],
+    }
+
+    # Build turn order from players list
+    turn_order = [p["player_id"] for p in game_state["players"]]
 
     public_state = {
         "type": "game_state",
-        "board": board.get_state(),
+        "board": game_state["board"],
         "hotel": hotel_state,
-        "turn_order": game["turn_order"],
-        "current_player": current_player_id,
-        "phase": game["phase"],
+        "turn_order": turn_order,
+        "current_player": game_state["current_player"],
+        "phase": game_state["phase"],
         "players": {
-            pid: {
-                "name": p.name,
-                "money": p.money,
-                "stocks": p.stocks,
-                "hand_size": p.hand_size,
+            p["player_id"]: {
+                "name": p["name"],
+                "money": p["money"],
+                "stocks": p["stocks"],
+                "hand_size": p["tile_count"],
             }
-            for pid, p in players.items()
+            for p in game_state["players"]
         },
-        "tiles_remaining": len(game["tile_pool"]),
+        "tiles_remaining": game_state["tiles_remaining"],
     }
 
     # Send to host
     await session_manager.send_to_host(room_code, public_state)
 
     # Send to each player with their private hand info
-    for player_id, player in players.items():
-        player_state = {
+    for player_info in game_state["players"]:
+        player_id = player_info["player_id"]
+        player_state = game.get_player_state(player_id)
+        ws_state = {
             **public_state,
-            "your_hand": [str(tile) for tile in player.hand],
+            "your_hand": player_state.get("hand", []),
         }
-        await session_manager.send_to_player(room_code, player_id, player_state)
+        await session_manager.send_to_player(room_code, player_id, ws_state)
 
 
 async def broadcast_lobby_update(room_code: str):

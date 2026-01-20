@@ -8,6 +8,7 @@ from session.manager import SessionManager
 from game.board import Board, Tile
 from game.hotel import Hotel
 from game.player import Player
+from game.game import Game
 
 
 @pytest.fixture
@@ -119,9 +120,7 @@ def started_room(clean_session_manager):
 
 @pytest.fixture
 def game_room(clean_session_manager):
-    """Create a room with players and fully initialized game state."""
-    import random
-
+    """Create a room with players and fully initialized game state using Game class."""
     code = clean_session_manager.create_room()
     clean_session_manager.join_room(code, "player_1", "Alice")
     clean_session_manager.join_room(code, "player_2", "Bob")
@@ -130,35 +129,13 @@ def game_room(clean_session_manager):
 
     room = clean_session_manager.get_room(code)
 
-    # Initialize game state (same as main.initialize_game)
-    board = Board()
-    hotel = Hotel()
-
-    tile_pool = Board.all_tiles()
-    random.shuffle(tile_pool)
-
-    players = {}
+    # Initialize game state using Game class (same as main.initialize_game)
+    game = Game()
     for player_id, connection in room.players.items():
-        players[player_id] = Player(player_id, connection.name)
+        game.add_player(player_id, connection.name, is_bot=connection.is_bot)
+    game.start_game()
 
-    for player in players.values():
-        for _ in range(6):
-            if tile_pool:
-                player.add_tile(tile_pool.pop())
-
-    turn_order = list(players.keys())
-    random.shuffle(turn_order)
-
-    room.game = {
-        "board": board,
-        "hotel": hotel,
-        "players": players,
-        "tile_pool": tile_pool,
-        "turn_order": turn_order,
-        "current_turn_index": 0,
-        "phase": "place_tile",
-        "pending_action": None,
-    }
+    room.game = game
 
     return code
 
