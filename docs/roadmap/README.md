@@ -15,7 +15,7 @@
 | Epic | Progress | Available Stories |
 |------|----------|-------------------|
 | [Backend Hardening](epics/00-backend-hardening.md) | 13/13 ✅ | Complete |
-| [Frontend Foundation](epics/01-frontend-foundation.md) | 0/10 | FF-001, FF-002, FF-003, FF-010 |
+| [Frontend Foundation](epics/01-frontend-foundation.md) | 1/11 | FF-002, FF-003, FF-010, FF-011 |
 | [Game UI](epics/02-game-ui.md) | 0/15 | (blocked by FF) |
 | [Real-time Integration](epics/03-realtime-integration.md) | 0/6 | (blocked by FF) |
 | [AI Training](epics/04-ai-training.md) | 0/9 | AI-001, AI-003 |
@@ -43,9 +43,9 @@ BH-007,009,010 (Tests)         AI-003 (State Encoder)         ↓
 BH-002,003,004,005,006         AI-002, AI-004, AI-005        ↓
 BH-008,011,012 (Tests)             ↓                     DP-003, DP-005
     ↓                          AI-006, AI-007, AI-008
-FF-001 (Project Setup)             ↓
+FF-001 (Project Setup) ✓           ↓
     ↓                          AI-009
-FF-002, FF-003, FF-010
+FF-002, FF-003, FF-010, FF-011
     ↓
 FF-004, FF-005, FF-006
     ↓
@@ -57,9 +57,9 @@ GU-001, GU-002, GU-003
 ### Critical Path
 
 ```
-[DONE] BH-001 → BH-002/003/004 → FF-001 → FF-002/FF-003 → FF-005/FF-006 → GU-002/GU-003 → RT Integration → Deploy
-                                  ↑
-                            YOU ARE HERE
+[DONE] BH-001 → BH-002/003/004 → [DONE] FF-001 → FF-002/FF-003 → FF-005/FF-006 → GU-002/GU-003 → RT Integration → Deploy
+                                                       ↑
+                                                 YOU ARE HERE
 ```
 
 ## How to Claim a Story
@@ -94,6 +94,19 @@ git add .
 git commit -m "<STORY-ID>: <description of what was implemented>"
 git push
 ```
+
+### Post-Completion Review (IMPORTANT)
+
+After completing each story, perform a brief review to identify gaps:
+
+1. **Code Review**: Does the implementation actually meet the spirit of the requirements, not just the letter?
+2. **Integration Gaps**: Will this work with the real backend/frontend? Are types aligned?
+3. **Testing Gaps**: Are there realistic E2E scenarios that weren't covered? Can we test with bots?
+4. **Future Work**: Should a follow-up story be created to address identified gaps?
+
+**Example**: FF-001 set up Playwright but didn't configure it to start the backend, making real E2E tests impossible. This led to creating FF-011 (E2E Testing Infrastructure) to address the gap.
+
+> **Rule**: If a gap is found, create a new story immediately rather than letting technical debt accumulate.
 
 ## Story File Structure
 
@@ -142,10 +155,10 @@ Fixed critical architecture issues and added comprehensive tests.
 - **Result**: 645 tests (up from 365), unified state management, frontend-ready APIs
 - **Next**: Frontend Foundation is now unblocked
 
-### Epic 1: Frontend Foundation (10 stories)
+### Epic 1: Frontend Foundation (11 stories)
 Setup React + TypeScript project with design system components.
 - **Tech**: Vite, React 18, TypeScript, CSS Variables
-- **Start**: FF-001 (after BH epic complete)
+- **Start**: FF-001 ✓ complete, FF-002/FF-003/FF-010/FF-011 now available
 
 ### Epic 2: Game UI (15 stories)
 Build all game-specific UI components and pages.

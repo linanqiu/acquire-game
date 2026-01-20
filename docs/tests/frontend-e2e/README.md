@@ -78,6 +78,7 @@ Each scenario follows this structure:
 | [lobby-flow.md](lobby-flow.md) | Room creation, joining, player setup | Critical |
 | [gameplay-flow.md](gameplay-flow.md) | Tile placement, stock buying, turn flow | Critical |
 | [merger-flow.md](merger-flow.md) | Merger resolution, stock disposition | High |
+| [trading-flow.md](trading-flow.md) | Player-to-player stock/money trades | High |
 | [reconnection-flow.md](reconnection-flow.md) | Disconnect/reconnect scenarios | High |
 | [error-handling.md](error-handling.md) | Error messages, recovery flows | Medium |
 
@@ -92,6 +93,7 @@ Scenarios are numbered by category:
 | E2E-3.x | Merger Flow |
 | E2E-4.x | Reconnection Flow |
 | E2E-5.x | Error Handling |
+| E2E-6.x | Trading Flow |
 
 ## Implementation Notes
 

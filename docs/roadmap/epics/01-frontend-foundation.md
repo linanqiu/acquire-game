@@ -25,8 +25,9 @@ Establish the React + TypeScript project with a complete design system based on 
 
 | ID | Title | Effort | Status |
 |----|-------|--------|--------|
-| [FF-001](../stories/01-frontend-foundation/FF-001.md) | Project Setup | M | not-started |
+| [FF-001](../stories/01-frontend-foundation/FF-001.md) | Project Setup | M | complete |
 | [FF-010](../stories/01-frontend-foundation/FF-010.md) | Routing Setup | S | not-started |
+| [FF-011](../stories/01-frontend-foundation/FF-011.md) | E2E Testing Infrastructure | M | not-started |
 
 ### Phase 2: Design Tokens (After FF-001)
 
@@ -61,21 +62,22 @@ Establish the React + TypeScript project with a complete design system based on 
 ```
 FF-001 (Project Setup)
    ├── FF-002 (Design Tokens)
-   │      └── FF-004 (Color System)
+   │      ├── FF-004 (Color System)
+   │      ├── FF-006 (Button)
+   │      └── FF-007 (Inputs)    ← Can run parallel with FF-006
    ├── FF-003 (Typography)
-   └── FF-010 (Routing)
+   ├── FF-010 (Routing)
+   └── FF-011 (E2E Testing Infrastructure)
 
 FF-002 + FF-003
    └── FF-005 (Layout Components)
-
-FF-002 + FF-004
-   └── FF-006 (Button)
-         └── FF-007 (Inputs)
 
 FF-005 + FF-006
    ├── FF-008 (Modal)
    └── FF-009 (Toast)
 ```
+
+> **Note**: FF-006 and FF-007 can now be developed in parallel since both only depend on FF-002.
 
 ## Success Criteria
 
