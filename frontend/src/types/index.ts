@@ -1,18 +1,18 @@
 // Re-export API types for WebSocket integration
+// Note: ChainName uses Title Case to match backend API ('Luxor', 'Tower', etc.)
 export * from './api'
 
-// Chain names in Acquire
-export type ChainName =
-  | 'luxor'
-  | 'tower'
-  | 'american'
-  | 'festival'
-  | 'worldwide'
-  | 'continental'
-  | 'imperial'
-
-// Player's stock holdings
+// Player's stock holdings (uses ChainName from api.ts)
+import type { ChainName } from './api'
 export type Stocks = Record<ChainName, number>
+
+/**
+ * Convert a ChainName to lowercase for CSS class usage.
+ * Example: 'Luxor' -> 'luxor' for use with .bg-luxor, .text-luxor classes
+ */
+export function chainToCssClass(chain: ChainName): string {
+  return chain.toLowerCase()
+}
 
 // Tile identifier (e.g., "1A", "12L")
 export type TileId = string

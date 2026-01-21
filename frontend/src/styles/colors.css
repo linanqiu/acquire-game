@@ -160,13 +160,13 @@ body {
    ========================================================================== */
 
 .bg-orphan {
-  background-color: #4a4a5a;
+  background-color: var(--chain-orphan);
 }
 
 .text-orphan {
-  color: #4a4a5a;
+  color: var(--chain-orphan);
 }
 
 .border-orphan {
-  border-color: #4a4a5a;
+  border-color: var(--chain-orphan);
 }

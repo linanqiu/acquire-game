@@ -48,7 +48,7 @@
 }
 
 .primary:hover:not(:disabled) {
-  background-color: #1e2a4a;
+  background-color: var(--primary-hover);
 }
 
 .secondary {
@@ -79,7 +79,7 @@
 }
 
 .danger:hover:not(:disabled) {
-  background-color: #ff5252;
+  background-color: var(--danger-hover);
 }
 
 /* Full width */

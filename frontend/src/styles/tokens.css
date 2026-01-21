@@ -31,6 +31,13 @@
   --chain-worldwide: #5e8a6a; /* Standard tier */
   --chain-continental: #8a3d3d; /* Premium tier */
   --chain-imperial: #3d5e8a; /* Premium tier */
+  --chain-orphan: #4a4a5a; /* Orphan/unincorporated tiles */
+
+  /* ==========================================================================
+     Colors - Interactive States
+     ========================================================================== */
+  --primary-hover: #1e2a4a;
+  --danger-hover: #ff5252;
 
   /* ==========================================================================
      Typography
