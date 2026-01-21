@@ -86,7 +86,7 @@ Scenarios covering merger resolution in Acquire, including survivor determinatio
 
 ---
 
-### Scenario 5.4: Safe Chain Absorbs Unsafe Chain
+### Scenario 5.4: Safe Chain Absorbs Unsafe Chain (Safe is Larger)
 
 **Initial State:**
 - Continental chain: 12 tiles (SAFE)
@@ -105,6 +105,37 @@ Scenarios covering merger resolution in Acquire, including survivor determinatio
 - Continental chain active: true
 - Continental was safe, automatically survives
 - Even if Festival were larger, Continental would still survive
+
+---
+
+### Scenario 5.4a: Safe Chain Wins Multi-Way Merger
+
+**Initial State:**
+- Imperial chain: 11 tiles (SAFE - minimum safe size)
+- American chain: 10 tiles (unsafe - maximum unsafe size)
+- Tower chain: 10 tiles (unsafe)
+- Player A has tile that connects all three chains
+
+**Actions:**
+1. Player A places merger tile connecting all three chains
+
+**Expected Outcomes:**
+- Imperial survives (it's safe)
+- American and Tower become defunct
+- Safe chain survives in multi-way merger
+
+**Key Assertions:**
+- Imperial chain active: true (safe chain survives)
+- American chain active: false
+- Tower chain active: false
+- Imperial size after merger: 32 tiles (11 + 10 + 10 + 1)
+- Safe chain priority is explicit in multi-chain scenarios
+
+**Design Note:**
+By Acquire rules, safe = 11+ tiles, unsafe = < 11 tiles. This means a
+single unsafe chain can never be larger than a safe chain. The "regardless
+of size" rule ensures the safe chain survives in multi-chain mergers and
+makes the priority explicit in the implementation.
 
 ---
 

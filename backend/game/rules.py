@@ -160,8 +160,13 @@ class Rules:
     ) -> Union[str, list[str]]:
         """Determine which chain survives a merger.
 
-        The largest chain survives. If there's a tie, returns a list
-        of tied chains for the player to choose from.
+        Rules for survivor determination (in priority order):
+        1. If exactly one chain is safe (11+ tiles), it survives regardless of size
+        2. Otherwise, the largest chain survives
+        3. If there's a tie for largest, returns a list of tied chains for player choice
+
+        Note: Merging two safe chains is illegal and should be prevented at tile
+        placement time (can_place_tile). This method assumes valid mergers only.
 
         Args:
             board: The game board
@@ -178,6 +183,18 @@ class Rules:
         chain_sizes = {}
         for chain_name in chains:
             chain_sizes[chain_name] = board.get_chain_size(chain_name)
+
+        # Check for safe chains - a safe chain always survives
+        safe_chains = [
+            name for name, size in chain_sizes.items() if size >= cls.SAFE_SIZE
+        ]
+
+        # If exactly one chain is safe, it survives regardless of size
+        if len(safe_chains) == 1:
+            return safe_chains[0]
+
+        # Note: len(safe_chains) >= 2 should not happen (illegal merger)
+        # But if it does, fall through to size comparison
 
         # Find the maximum size
         max_size = max(chain_sizes.values())
