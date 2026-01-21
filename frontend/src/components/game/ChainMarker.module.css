@@ -1,0 +1,84 @@
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  flex-shrink: 0;
+}
+
+/* Chain colors */
+.luxor {
+  background-color: var(--chain-luxor);
+  color: var(--bg-primary);
+}
+
+.tower {
+  background-color: var(--chain-tower);
+  color: var(--text-primary);
+}
+
+.american {
+  background-color: var(--chain-american);
+  color: var(--text-primary);
+}
+
+.festival {
+  background-color: var(--chain-festival);
+  color: var(--text-primary);
+}
+
+.worldwide {
+  background-color: var(--chain-worldwide);
+  color: var(--text-primary);
+}
+
+.continental {
+  background-color: var(--chain-continental);
+  color: var(--text-primary);
+}
+
+.imperial {
+  background-color: var(--chain-imperial);
+  color: var(--text-primary);
+}
+
+.compact {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.abbrev {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+}
+
+.full {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.name {
+  font-weight: var(--font-medium);
+  min-width: 100px;
+}
+
+.size,
+.price,
+.available {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.available {
+  font-weight: var(--font-medium);
+}

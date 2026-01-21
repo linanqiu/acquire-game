@@ -1,0 +1,16 @@
+.rack {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+}
+
+/* Responsive: ensure tiles fit on small screens */
+@media (max-width: 400px) {
+  .rack {
+    gap: var(--space-1);
+    padding: var(--space-2);
+  }
+}
