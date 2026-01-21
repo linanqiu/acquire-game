@@ -18,6 +18,34 @@ After completing a story:
 2. Update story status to `completed`
 3. Update `docs/roadmap/README.md`: progress count, available stories, critical path
 
+## Post-Implementation Review (MANDATORY)
+Before committing any feature implementation, perform this review:
+
+1. **API Integration Check**:
+   - Verify API endpoints match actual backend routes (not just what docs say)
+   - Check request/response formats align with backend expectations
+   - Confirm proxy configuration handles URL rewriting correctly
+
+2. **Type Alignment**:
+   - Verify TypeScript types match actual backend data structures
+   - Document any transformation logic needed between backend and frontend formats
+   - Check for case sensitivity mismatches (e.g., backend 'American' vs frontend 'american')
+
+3. **Test Coverage Reality Check**:
+   - Tests should cover real user scenarios, not just code paths
+   - Include edge cases that users will actually encounter
+   - Avoid testing implementation details that could change
+
+4. **Integration Gap Analysis**:
+   - Will this work when connected to the real backend?
+   - Are there missing error handling scenarios?
+   - Do loading/error states handle real network conditions?
+
+5. **If gaps found**:
+   - Fix critical issues before committing
+   - Document known limitations in code comments or story doc
+   - Create follow-up stories for non-blocking issues
+
 ## Setup (Claude on Mobile/Fresh Sessions)
 On fresh sessions (e.g., Claude on mobile), install dependencies first:
 ```bash
