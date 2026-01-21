@@ -16,32 +16,11 @@ import { GameOver, type FinalScore } from '../components/game/GameOver'
 import { StockStepper } from '../components/game/StockStepper'
 import { ChainMarker } from '../components/game/ChainMarker'
 import { useGameStore } from '../store/gameStore'
-import type { ChainName, GamePhase, BoardCell } from '../types/api'
-import type { TileState, Coordinate } from '../types/game'
+import { useToast } from '../components/ui/useToast'
+import { transformBoardToTileStates, transformHandToRackTiles } from '../utils/transforms'
+import type { ChainName, GamePhase } from '../types/api'
+import type { Coordinate } from '../types/game'
 import styles from './PlayerPage.module.css'
-
-// Transform backend board cells to UI tile states
-function transformBoardToTileStates(
-  cells: Record<string, BoardCell>
-): Record<string, TileState> {
-  const result: Record<string, TileState> = {}
-  for (const [coord, cell] of Object.entries(cells)) {
-    if (cell.state === 'played' && cell.chain === null) {
-      result[coord] = { state: 'orphan' }
-    } else if (cell.state === 'in_chain' && cell.chain !== null) {
-      result[coord] = { state: 'chain', chain: cell.chain }
-    }
-  }
-  return result
-}
-
-// Transform player hand strings to RackTile format
-function transformHandToRackTiles(hand: string[]): RackTile[] {
-  return hand.map((tile) => ({
-    coordinate: tile as Coordinate,
-    playability: 'playable' as const,
-  }))
-}
 
 // Phase display text
 function getPhaseText(
@@ -77,6 +56,7 @@ export function PlayerPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const isHost = searchParams.get('is_host') === '1'
+  const { toast } = useToast()
 
   // Game store state
   const {
@@ -168,12 +148,14 @@ export function PlayerPage() {
       if (!res.ok) {
         throw new Error('Failed to add bot')
       }
+      toast('Bot added successfully', 'success')
     } catch (err) {
       console.error('Failed to add bot:', err)
+      toast('Failed to add bot', 'error')
     } finally {
       setActionLoading(false)
     }
-  }, [room])
+  }, [room, toast])
 
   const handlePlaceTile = useCallback(() => {
     if (!selectedTile) return
@@ -432,15 +414,18 @@ export function PlayerPage() {
 
   // Render game over content
   const renderGameOverContent = () => {
-    // Create mock scores from game state
+    // TODO: Backend should provide final scores with bonus breakdown in game_over phase.
+    // Currently we only show cash. The actual breakdown (bonuses, stockSales) needs to
+    // come from the game_over message or be calculated from the final game state.
+    // See: RT-002 for WebSocket message handling
     const scores: FinalScore[] = gameState
       ? Object.entries(gameState.players).map(([id, p]) => ({
           playerId: id,
           name: p.name,
           cash: p.money,
-          bonuses: 0,
-          stockSales: 0,
-          total: p.money,
+          bonuses: 0, // TODO: Get from backend game_over message
+          stockSales: 0, // TODO: Get from backend game_over message
+          total: p.money, // TODO: Should be cash + bonuses + stockSales
         }))
       : []
 

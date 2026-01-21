@@ -10,27 +10,13 @@ import { ChainMarker } from '../components/game/ChainMarker'
 import { PlayerCard, type StockHolding } from '../components/game/PlayerCard'
 import { GameOver, type FinalScore } from '../components/game/GameOver'
 import { useGameStore } from '../store/gameStore'
-import type { ChainName, BoardCell } from '../types/api'
-import type { TileState } from '../types/game'
+import { useToast } from '../components/ui/useToast'
+import { transformBoardToTileStates } from '../utils/transforms'
+import type { ChainName, GamePhase } from '../types/api'
 import styles from './HostPage.module.css'
 
-// Transform backend board cells to UI tile states
-function transformBoardToTileStates(
-  cells: Record<string, BoardCell>
-): Record<string, TileState> {
-  const result: Record<string, TileState> = {}
-  for (const [coord, cell] of Object.entries(cells)) {
-    if (cell.state === 'played' && cell.chain === null) {
-      result[coord] = { state: 'orphan' }
-    } else if (cell.state === 'in_chain' && cell.chain !== null) {
-      result[coord] = { state: 'chain', chain: cell.chain }
-    }
-  }
-  return result
-}
-
 // Phase display text for host view
-function getHostPhaseText(phase: string, currentPlayerName: string): string {
+function getHostPhaseText(phase: GamePhase, currentPlayerName: string): string {
   if (phase === 'lobby') return 'WAITING FOR PLAYERS'
   if (phase === 'game_over') return 'GAME OVER'
 
@@ -46,8 +32,11 @@ function getHostPhaseText(phase: string, currentPlayerName: string): string {
         return 'STOCK DISPOSITION'
       case 'buy_stocks':
         return 'BUY STOCKS'
-      default:
-        return phase.toUpperCase()
+      default: {
+        // Exhaustive check - phase is constrained by GamePhase type
+        const _exhaustiveCheck: never = phase
+        return String(_exhaustiveCheck).toUpperCase()
+      }
     }
   })()
 
@@ -57,6 +46,7 @@ function getHostPhaseText(phase: string, currentPlayerName: string): string {
 export function HostPage() {
   const room = useRoom()
   const navigate = useNavigate()
+  const { toast } = useToast()
 
   // Game store state
   const {
@@ -68,10 +58,18 @@ export function HostPage() {
 
   // Local UI state
   const [actionLoading, setActionLoading] = useState(false)
-  const [activityLog, setActivityLog] = useState<string[]>([
-    'Game started',
-    'Waiting for players...',
+  // TODO (RT-002): Activity log should be populated from WebSocket game events
+  // (tile placements, chain foundings, mergers, stock purchases, etc.)
+  const [activityLog, setActivityLog] = useState<{ id: number; text: string }[]>([
+    { id: 0, text: 'Waiting for players...' },
   ])
+  const [nextLogId, setNextLogId] = useState(1)
+
+  // Helper to add activity log entries with unique IDs
+  const addActivityLog = useCallback((text: string) => {
+    setActivityLog((prev) => [...prev, { id: nextLogId, text }])
+    setNextLogId((id) => id + 1)
+  }, [nextLogId])
 
   // Derived state
   const phase = gameState?.phase ?? 'lobby'
@@ -110,7 +108,9 @@ export function HostPage() {
         cash: player.money,
         stocks,
         isCurrentTurn: playerId === currentTurnPlayerId,
-        isBot: false, // TODO: track bot status in game state
+        // TODO (RT-002): Backend GameStateMessage should include is_bot per player.
+        // Currently lost when transitioning from lobby to game state.
+        isBot: false,
       }
     })
   }, [gameState, currentTurnPlayerId])
@@ -130,13 +130,15 @@ export function HostPage() {
       if (!res.ok) {
         throw new Error('Failed to start game')
       }
-      setActivityLog((prev) => [...prev, 'Game started!'])
+      addActivityLog('Game started!')
+      toast('Game started!', 'success')
     } catch (err) {
       console.error('Failed to start game:', err)
+      toast('Failed to start game', 'error')
     } finally {
       setActionLoading(false)
     }
-  }, [room])
+  }, [room, toast, addActivityLog])
 
   const handleAddBot = useCallback(async () => {
     setActionLoading(true)
@@ -149,13 +151,15 @@ export function HostPage() {
         throw new Error('Failed to add bot')
       }
       const data = await res.json()
-      setActivityLog((prev) => [...prev, `Bot added: ${data.bot_id}`])
+      addActivityLog(`Bot added: ${data.bot_id}`)
+      toast('Bot added successfully', 'success')
     } catch (err) {
       console.error('Failed to add bot:', err)
+      toast('Failed to add bot', 'error')
     } finally {
       setActionLoading(false)
     }
-  }, [room])
+  }, [room, toast, addActivityLog])
 
   const handlePlayAgain = useCallback(() => {
     navigate('/')
@@ -178,7 +182,10 @@ export function HostPage() {
       <div className={styles.joinInfo}>
         <div className={styles.qrSection}>
           <div className={styles.qrPlaceholder}>
-            <div className={styles.qrBox}>QR</div>
+            {/* TODO: Replace with actual QR code component pointing to joinUrl */}
+            <div className={styles.qrBox} role="img" aria-label={`QR code to join room ${room}`}>
+              QR
+            </div>
             <p className={styles.scanText}>SCAN TO JOIN</p>
           </div>
           <div className={styles.roomCodeDisplay}>
@@ -238,14 +245,16 @@ export function HostPage() {
 
   // Render game over view
   const renderGameOverView = () => {
+    // TODO: Backend should provide final scores with bonus breakdown in game_over phase.
+    // Currently we only show cash. See PlayerPage.tsx for detailed TODO.
     const scores: FinalScore[] = gameState
       ? Object.entries(gameState.players).map(([id, p]) => ({
           playerId: id,
           name: p.name,
           cash: p.money,
-          bonuses: 0,
-          stockSales: 0,
-          total: p.money,
+          bonuses: 0, // TODO: Get from backend game_over message
+          stockSales: 0, // TODO: Get from backend game_over message
+          total: p.money, // TODO: Should be cash + bonuses + stockSales
         }))
       : []
 
@@ -306,11 +315,11 @@ export function HostPage() {
         </Panel>
       </div>
 
-      <div className={styles.activityLog}>
+      <div className={styles.activityLog} role="log" aria-live="polite" aria-label="Game activity">
         <span className={styles.logLabel}>ACTIVITY:</span>
-        {activityLog.slice(-5).map((entry, i) => (
-          <span key={i} className={styles.logEntry}>
-            {entry}
+        {activityLog.slice(-5).map((entry) => (
+          <span key={entry.id} className={styles.logEntry}>
+            {entry.text}
           </span>
         ))}
       </div>
