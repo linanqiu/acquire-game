@@ -7,9 +7,14 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
+  timeout: 30000,
+  expect: {
+    timeout: 10000,
+  },
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://127.0.0.1:5173',
     trace: 'on-first-retry',
+    actionTimeout: 10000,
   },
   projects: [
     {
@@ -23,15 +28,15 @@ export default defineConfig({
       cwd: '../backend',
       url: 'http://127.0.0.1:8000/docs',
       reuseExistingServer: !process.env.CI,
-      timeout: 60000,
+      timeout: 120000,
       stdout: 'pipe',
       stderr: 'pipe',
     },
     {
-      command: 'npm run dev',
-      url: 'http://localhost:5173',
+      command: 'npm run dev -- --host 127.0.0.1',
+      url: 'http://127.0.0.1:5173',
       reuseExistingServer: !process.env.CI,
-      timeout: 60000,
+      timeout: 120000,
       stdout: 'pipe',
       stderr: 'pipe',
     },
