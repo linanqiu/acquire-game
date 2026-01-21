@@ -16,8 +16,8 @@
 |------|----------|-------------------|
 | [Backend Hardening](epics/00-backend-hardening.md) | 13/13 ✅ | Complete |
 | [Frontend Foundation](epics/01-frontend-foundation.md) | 11/11 ✅ | Complete |
-| [Game UI](epics/02-game-ui.md) | 15/16 | GU-016 (unblocked, E2E tests) |
-| [Real-time Integration](epics/03-realtime-integration.md) | 0/6 | RT-001, RT-002 (unblocked) |
+| [Game UI](epics/02-game-ui.md) | 15/16 | GU-016 (requires RT-002) |
+| [Real-time Integration](epics/03-realtime-integration.md) | 0/6 | RT-001, RT-002 ← **PRIORITY** |
 | [AI Training](epics/04-ai-training.md) | 0/9 | AI-001, AI-003 |
 | [Deployment](epics/05-deployment.md) | 0/5 | DP-001 |
 | [Security Hardening](epics/06-security-hardening.md) | 0/5 | SH-002, SH-003, SH-004, SH-005 (after E2E: SH-001) |
@@ -66,9 +66,11 @@ GU-007, GU-009, GU-010 ✓
     ↓
 GU-011, GU-014, GU-015 ✓
     ↓
-GU-012, GU-013 ✓
+GU-012, GU-013 ✓ (with placeholder handlers)
     ↓
-GU-016 (E2E Tests) ← NEXT
+RT-001, RT-002 ← NEXT (makes GU-012/GU-013 fully functional)
+    ↓
+GU-016 (E2E Tests with real backend)
     ↓
 SH-001 ──────────────────────  Track 4: SECURITY (after E2E)
 SH-002, SH-003, SH-004, SH-005 ← can start anytime
@@ -79,10 +81,16 @@ Production Deploy
 ### Critical Path
 
 ```
-[DONE] BH-001 → BH-002/003/004 → [DONE] FF-001 → [DONE] FF-002 through FF-011 → [DONE] GU-001/GU-002/GU-003 → [DONE] GU-004/GU-005 → [DONE] GU-006/GU-008 → [DONE] GU-007/GU-009/GU-010 → [DONE] GU-011/GU-014/GU-015 → [DONE] GU-012/GU-013 → RT Integration → GU-016 (E2E) → Security Hardening → Deploy
-                                                                                                                                                                                                                                             ↑
-                                                                                                                                                                                                                                       YOU ARE HERE
+[DONE] Backend Hardening → [DONE] Frontend Foundation → [DONE] Game UI (GU-001 to GU-015)
+                                                                    ↓
+                                                  RT-001/RT-002 (WebSocket) ← YOU ARE HERE
+                                                                    ↓
+                                                  GU-016 (E2E Tests)
+                                                                    ↓
+                                                  Security → Deploy
 ```
+
+> **Note**: GU-012/GU-013 are complete but use placeholder action handlers. They become fully functional after RT-002 integration.
 
 ## How to Claim a Story
 
