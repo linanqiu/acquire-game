@@ -16,7 +16,7 @@
 |------|----------|-------------------|
 | [Backend Hardening](epics/00-backend-hardening.md) | 13/13 ✅ | Complete |
 | [Frontend Foundation](epics/01-frontend-foundation.md) | 11/11 ✅ | Complete |
-| [Game UI](epics/02-game-ui.md) | 15/22 | GU-016 ← **START HERE** (then GU-017-022 after RT-001/RT-002) |
+| [Game UI](epics/02-game-ui.md) | 16/22 | GU-017 (after GU-016 ✅), GU-018-022 (after RT-001/RT-002) |
 | [Real-time Integration](epics/03-realtime-integration.md) | 0/6 | RT-001, RT-002 ← **PRIORITY** |
 | [AI Training](epics/04-ai-training.md) | 0/9 | AI-001, AI-003 |
 | [Deployment](epics/05-deployment.md) | 0/5 | DP-001 |
@@ -68,9 +68,9 @@ GU-011, GU-014, GU-015 ✓
     ↓
 GU-012, GU-013 ✓ (with placeholder handlers)
     ↓
-GU-016 (E2E Infrastructure Validation) ← START HERE
+GU-016 (E2E Infrastructure Validation) ✓
     ↓
-RT-001, RT-002 (WebSocket integration)
+RT-001, RT-002 (WebSocket integration) ← NEXT
     ↓
 GU-017 (Lobby E2E) → GU-018 (Gameplay E2E) → GU-019 (Merger E2E)
     ↓
@@ -87,9 +87,9 @@ Production Deploy
 ```
 [DONE] Backend Hardening → [DONE] Frontend Foundation → [DONE] Game UI (GU-001 to GU-015)
                                                                     ↓
-                                                  GU-016 (E2E Infrastructure Validation) ← YOU ARE HERE
+                                                  [DONE] GU-016 (E2E Infrastructure Validation)
                                                                     ↓
-                                                  RT-001/RT-002 (WebSocket)
+                                                  RT-001/RT-002 (WebSocket) ← YOU ARE HERE
                                                                     ↓
                                                   GU-017-022 (Comprehensive E2E Tests)
                                                                     ↓
