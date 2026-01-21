@@ -97,7 +97,6 @@ describe('ChainSelector', () => {
 
       const luxorButton = screen.getByTestId('chain-button-luxor')
       expect(luxorButton).toHaveAttribute('aria-checked', 'true')
-      expect(luxorButton).toHaveAttribute('aria-pressed', 'true')
     })
 
     it('shows unselected state for non-selected chains', () => {
@@ -105,7 +104,6 @@ describe('ChainSelector', () => {
 
       const towerButton = screen.getByTestId('chain-button-tower')
       expect(towerButton).toHaveAttribute('aria-checked', 'false')
-      expect(towerButton).toHaveAttribute('aria-pressed', 'false')
     })
   })
 

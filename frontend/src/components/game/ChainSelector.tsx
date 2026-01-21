@@ -78,7 +78,6 @@ export function ChainSelector({
                   className={`${styles.chainButton} ${isAvailable ? styles.available : styles.unavailable} ${isSelected ? styles.selected : ''}`}
                   onClick={() => isAvailable && onSelect(chain)}
                   disabled={!isAvailable}
-                  aria-pressed={isSelected}
                   aria-label={`${chain}${isAvailable ? `, ${stockCount} stock available` : ', already active'}`}
                   onKeyDown={(e) => handleKeyDown(e, chain)}
                   data-testid={`chain-button-${chain.toLowerCase()}`}
