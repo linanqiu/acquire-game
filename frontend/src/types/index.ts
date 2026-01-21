@@ -1,5 +1,12 @@
 // Re-export API types for WebSocket integration
 // Note: ChainName uses Title Case to match backend API ('Luxor', 'Tower', etc.)
+//
+// Type hierarchy:
+//   - api.ts: Wire format types (what backend sends over WebSocket)
+//   - index.ts: Client-side game state types (for store/state management)
+//   - game.ts: UI-specific types (for component rendering)
+//
+// Transformation from api.ts types to these types happens in RT-002 (Real-time Integration)
 export * from './api'
 
 // Player's stock holdings (uses ChainName from api.ts)

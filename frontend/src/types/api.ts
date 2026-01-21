@@ -26,9 +26,27 @@ export const VALID_CHAINS: ChainName[] = [
 // WebSocket Message Types (Server -> Client)
 // =============================================================================
 
+// Game phases as sent by backend
+export type GamePhase =
+  | 'lobby'
+  | 'place_tile'
+  | 'found_chain'
+  | 'merger'
+  | 'stock_disposition'
+  | 'buy_stocks'
+  | 'game_over'
+
+// Board cell state as sent by backend
+export interface BoardCell {
+  state: 'empty' | 'played' | 'in_chain'
+  chain: ChainName | null
+}
+
 export interface GameStateMessage {
   type: 'game_state'
-  board: Record<string, string | null>
+  board: {
+    cells: Record<string, BoardCell>
+  }
   hotel: {
     chains: Array<{
       name: ChainName
@@ -41,7 +59,7 @@ export interface GameStateMessage {
   }
   turn_order: string[]
   current_player: string
-  phase: 'waiting' | 'playing' | 'game_over'
+  phase: GamePhase
   players: Record<
     string,
     {
@@ -264,12 +282,13 @@ export interface RoomStateResponse {
 // =============================================================================
 
 export interface TradeOffer {
-  id: string
+  trade_id: string
   from_player_id: string
   to_player_id: string
   offering_stocks: Partial<Record<ChainName, number>>
   offering_money: number
   requesting_stocks: Partial<Record<ChainName, number>>
   requesting_money: number
-  status: 'pending' | 'accepted' | 'rejected' | 'canceled'
+  // Note: status is tracked client-side based on WebSocket messages
+  // Backend doesn't send a status field in the trade object
 }

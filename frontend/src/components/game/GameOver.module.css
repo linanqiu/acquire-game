@@ -1,0 +1,171 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.winner {
+  text-align: center;
+  padding: var(--space-4);
+  background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-elevated));
+  border-radius: var(--radius-md);
+}
+
+.crown {
+  display: block;
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+  color: var(--chain-luxor);
+  letter-spacing: 0.1em;
+}
+
+.winnerNames {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-lg);
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+}
+
+.winnerTotal {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-md);
+  color: var(--text-secondary);
+}
+
+.rankings {
+  padding: var(--space-3);
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+}
+
+.sectionTitle {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.rankList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.rankRow {
+  display: flex;
+  align-items: center;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.rankRow.you {
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--text-accent);
+}
+
+.rankRow.winner .rank {
+  color: var(--chain-luxor);
+}
+
+.rank {
+  min-width: 3em;
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+}
+
+.crownIcon {
+  margin-right: var(--space-1);
+}
+
+.name {
+  flex: 1;
+  color: var(--text-primary);
+}
+
+.total {
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.breakdown {
+  padding: var(--space-3);
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+}
+
+.breakdownTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.breakdownTable td {
+  padding: var(--space-1) 0;
+  color: var(--text-secondary);
+}
+
+.breakdownTable .amount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.totalRow td {
+  padding-top: var(--space-2);
+  border-top: var(--border-default);
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+}
+
+.fullBreakdown {
+  padding: var(--space-3);
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+}
+
+.fullTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.fullTable th,
+.fullTable td {
+  padding: var(--space-2);
+  text-align: left;
+}
+
+.fullTable th {
+  color: var(--text-secondary);
+  font-weight: var(--font-medium);
+  border-bottom: var(--border-default);
+}
+
+.fullTable td {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.fullTable .winnerRow {
+  background-color: var(--bg-elevated);
+}
+
+.totalCell {
+  font-weight: var(--font-medium);
+}
+
+.note {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+}
