@@ -16,7 +16,7 @@
 |------|----------|-------------------|
 | [Backend Hardening](epics/00-backend-hardening.md) | 13/13 ✅ | Complete |
 | [Frontend Foundation](epics/01-frontend-foundation.md) | 11/11 ✅ | Complete |
-| [Game UI](epics/02-game-ui.md) | 15/16 | GU-016 (requires RT-002) |
+| [Game UI](epics/02-game-ui.md) | 15/22 | GU-016 ← **START HERE** (then GU-017-022 after RT-001/RT-002) |
 | [Real-time Integration](epics/03-realtime-integration.md) | 0/6 | RT-001, RT-002 ← **PRIORITY** |
 | [AI Training](epics/04-ai-training.md) | 0/9 | AI-001, AI-003 |
 | [Deployment](epics/05-deployment.md) | 0/5 | DP-001 |
@@ -68,9 +68,13 @@ GU-011, GU-014, GU-015 ✓
     ↓
 GU-012, GU-013 ✓ (with placeholder handlers)
     ↓
-RT-001, RT-002 ← NEXT (makes GU-012/GU-013 fully functional)
+GU-016 (E2E Infrastructure Validation) ← START HERE
     ↓
-GU-016 (E2E Tests with real backend)
+RT-001, RT-002 (WebSocket integration)
+    ↓
+GU-017 (Lobby E2E) → GU-018 (Gameplay E2E) → GU-019 (Merger E2E)
+    ↓
+GU-020 (Reconnection E2E), GU-021 (Error E2E), GU-022 (Trading E2E)
     ↓
 SH-001 ──────────────────────  Track 4: SECURITY (after E2E)
 SH-002, SH-003, SH-004, SH-005 ← can start anytime
@@ -83,14 +87,18 @@ Production Deploy
 ```
 [DONE] Backend Hardening → [DONE] Frontend Foundation → [DONE] Game UI (GU-001 to GU-015)
                                                                     ↓
-                                                  RT-001/RT-002 (WebSocket) ← YOU ARE HERE
+                                                  GU-016 (E2E Infrastructure Validation) ← YOU ARE HERE
                                                                     ↓
-                                                  GU-016 (E2E Tests)
+                                                  RT-001/RT-002 (WebSocket)
+                                                                    ↓
+                                                  GU-017-022 (Comprehensive E2E Tests)
                                                                     ↓
                                                   Security → Deploy
 ```
 
 > **Note**: GU-012/GU-013 are complete but use placeholder action handlers. They become fully functional after RT-002 integration.
+>
+> **E2E Testing Strategy**: GU-016 validates E2E infrastructure works. After RT-001/RT-002 enable real game actions, GU-017-022 implement comprehensive test scenarios incrementally.
 
 ## How to Claim a Story
 
@@ -191,11 +199,18 @@ Setup React + TypeScript project with design system components.
 - **Result**: Complete design system with typography, colors, layout components, forms, modals, toasts
 - **Next**: Game UI is now unblocked
 
-### Epic 2: Game UI (16 stories) - 15 COMPLETE
+### Epic 2: Game UI (22 stories) - 15 COMPLETE
 Build all game-specific UI components and pages.
-- **Tech**: React components, game state integration
+- **Tech**: React components, game state integration, Playwright E2E tests
 - **Complete**: GU-001 (Lobby Page), GU-002 (Board), GU-003 (Tile), GU-004 (Tile Rack), GU-005 (Chain Marker), GU-006 (Player Card), GU-007 (Portfolio Display), GU-008 (Stock Stepper), GU-009 (Chain Selector), GU-010 (Merger Disposition), GU-011 (Trade Builder), GU-012 (Player View Shell), GU-013 (Host View Layout), GU-014 (Game Over Screen), GU-015 (Reconnection UI)
-- **Final**: GU-016 (Comprehensive E2E Tests) - implements all test scenarios from `docs/tests/frontend-e2e/`
+- **E2E Testing** (incremental approach):
+  - GU-016: E2E Infrastructure Validation (smoke test - no RT dependency)
+  - GU-017: Lobby E2E Tests (after GU-016)
+  - GU-018: Gameplay E2E Tests (after RT-001, RT-002)
+  - GU-019: Merger E2E Tests (after GU-018)
+  - GU-020: Reconnection E2E Tests (after GU-018)
+  - GU-021: Error Handling E2E Tests (after GU-018)
+  - GU-022: Trading E2E Tests (after GU-018)
 
 ### Epic 3: Real-time Integration (6 stories)
 WebSocket client and state synchronization.
