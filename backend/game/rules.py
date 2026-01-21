@@ -431,6 +431,7 @@ class Rules:
                 - playable: bool - whether the tile can be played
                 - reason: str | None - why it can't be played (if not playable)
                 - permanent: bool | None - whether the unplayability is permanent
+                - would_trigger_merger: bool - whether playing this tile would trigger a merger
         """
         # Check if cell is already occupied
         cell = board.get_cell(tile.column, tile.row)
@@ -440,18 +441,23 @@ class Rules:
                 "playable": True,
                 "reason": None,
                 "permanent": None,
+                "would_trigger_merger": False,
             }
 
         # Get adjacent chains
         adjacent_chains = board.get_adjacent_chains(tile)
 
+        # Determine if this tile would trigger a merger (2+ adjacent chains)
+        would_trigger_merger = len(adjacent_chains) >= 2
+
         # Check for safe chain merger (would merge 2+ safe chains)
-        if len(adjacent_chains) >= 2:
+        if would_trigger_merger:
             if cls._count_safe_chains(board, adjacent_chains) >= 2:
                 return {
                     "playable": False,
                     "reason": UnplayableReason.MERGE_SAFE_CHAINS.value,
                     "permanent": False,  # Could become playable if a chain is merged
+                    "would_trigger_merger": True,
                 }
 
         # Check if this would create an 8th chain
@@ -465,12 +471,14 @@ class Rules:
                         "playable": False,
                         "reason": UnplayableReason.EIGHTH_CHAIN.value,
                         "permanent": True,  # Can never be played while all 7 chains exist
+                        "would_trigger_merger": False,
                     }
 
         return {
             "playable": True,
             "reason": None,
             "permanent": None,
+            "would_trigger_merger": would_trigger_merger,
         }
 
     @classmethod

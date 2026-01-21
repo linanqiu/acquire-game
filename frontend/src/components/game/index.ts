@@ -1,2 +1,6 @@
 export { Tile } from './Tile'
 export { Board } from './Board'
+export { TileRack } from './TileRack'
+export type { TileRackProps, RackTile, Playability } from './TileRack'
+export { ChainMarker } from './ChainMarker'
+export type { ChainMarkerProps } from './ChainMarker'

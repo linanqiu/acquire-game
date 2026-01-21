@@ -216,6 +216,7 @@ class TestTilePlayability:
         assert result["playable"] is True
         assert result["reason"] is None
         assert result["permanent"] is None
+        assert result["would_trigger_merger"] is False
 
     def test_tile_between_safe_chains_returns_merge_reason(self, game_with_two_players):
         """A tile between two safe chains should show merge reason."""
@@ -234,6 +235,7 @@ class TestTilePlayability:
         assert result["playable"] is False
         assert result["reason"] == UnplayableReason.MERGE_SAFE_CHAINS.value
         assert result["permanent"] is False  # Could become playable if chains merge
+        assert result["would_trigger_merger"] is True
 
     def test_tile_creating_8th_chain_returns_eighth_chain_reason(
         self, game_with_two_players
@@ -269,6 +271,7 @@ class TestTilePlayability:
         assert (
             result["permanent"] is True
         )  # Permanently unplayable while 7 chains exist
+        assert result["would_trigger_merger"] is False
 
     def test_get_tiles_playability_returns_dict_for_all_tiles(
         self, game_with_two_players
@@ -287,6 +290,7 @@ class TestTilePlayability:
             assert "playable" in info
             assert "reason" in info
             assert "permanent" in info
+            assert "would_trigger_merger" in info
 
     def test_player_state_includes_tile_playability(self, game_with_two_players):
         """get_player_state should include tile_playability field."""
@@ -362,3 +366,39 @@ class TestTilePlayability:
         result = Rules.get_tile_playability(game.board, tile, game.hotel)
 
         assert result["playable"] is True
+        assert result["would_trigger_merger"] is True  # Would merge safe and unsafe
+
+    def test_tile_between_two_unsafe_chains_triggers_merger(
+        self, game_with_two_players
+    ):
+        """A tile between two unsafe chains should be playable and flag merger."""
+        game = game_with_two_players
+        builder = ChainBuilder(game)
+
+        # Set up two small (unsafe) chains
+        builder.setup_chain("Luxor", 3, start_col=1, row="A")  # Unsafe
+        builder.setup_chain("Tower", 3, start_col=1, row="C")  # Unsafe
+
+        # Tile between them
+        tile = Tile(1, "B")
+
+        result = Rules.get_tile_playability(game.board, tile, game.hotel)
+
+        assert result["playable"] is True
+        assert result["would_trigger_merger"] is True
+
+    def test_tile_adjacent_to_single_chain_no_merger(self, game_with_two_players):
+        """A tile adjacent to only one chain should not trigger merger."""
+        game = game_with_two_players
+        builder = ChainBuilder(game)
+
+        # Set up one chain
+        builder.setup_chain("Luxor", 5, start_col=1, row="A")
+
+        # Tile adjacent to only Luxor (extends the chain, no merger)
+        tile = Tile(6, "A")
+
+        result = Rules.get_tile_playability(game.board, tile, game.hotel)
+
+        assert result["playable"] is True
+        assert result["would_trigger_merger"] is False

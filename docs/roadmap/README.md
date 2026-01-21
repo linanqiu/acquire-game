@@ -16,7 +16,7 @@
 |------|----------|-------------------|
 | [Backend Hardening](epics/00-backend-hardening.md) | 13/13 ✅ | Complete |
 | [Frontend Foundation](epics/01-frontend-foundation.md) | 11/11 ✅ | Complete |
-| [Game UI](epics/02-game-ui.md) | 3/16 | GU-004, GU-005 (unblocked) |
+| [Game UI](epics/02-game-ui.md) | 5/16 | GU-006, GU-008 (unblocked) |
 | [Real-time Integration](epics/03-realtime-integration.md) | 0/6 | RT-001, RT-002 (unblocked) |
 | [AI Training](epics/04-ai-training.md) | 0/9 | AI-001, AI-003 |
 | [Deployment](epics/05-deployment.md) | 0/5 | DP-001 |
@@ -58,7 +58,9 @@ FF-009 (Toast) ✓
     ↓
 GU-001, GU-002, GU-003 ✓
     ↓
-GU-004, GU-005 (now unblocked)
+GU-004, GU-005 ✓
+    ↓
+GU-006, GU-008 (now unblocked)
     ↓
   ...etc
     ↓
@@ -73,9 +75,9 @@ Production Deploy
 ### Critical Path
 
 ```
-[DONE] BH-001 → BH-002/003/004 → [DONE] FF-001 → [DONE] FF-002 through FF-011 → [DONE] GU-001/GU-002/GU-003 → GU-004 through GU-015 → RT Integration → GU-016 (E2E) → Security Hardening → Deploy
-                                                                                        ↑
-                                                                                  YOU ARE HERE
+[DONE] BH-001 → BH-002/003/004 → [DONE] FF-001 → [DONE] FF-002 through FF-011 → [DONE] GU-001/GU-002/GU-003 → [DONE] GU-004/GU-005 → GU-006 through GU-015 → RT Integration → GU-016 (E2E) → Security Hardening → Deploy
+                                                                                                                        ↑
+                                                                                                                  YOU ARE HERE
 ```
 
 ## How to Claim a Story
@@ -177,11 +179,11 @@ Setup React + TypeScript project with design system components.
 - **Result**: Complete design system with typography, colors, layout components, forms, modals, toasts
 - **Next**: Game UI is now unblocked
 
-### Epic 2: Game UI (16 stories) - 3 COMPLETE
+### Epic 2: Game UI (16 stories) - 5 COMPLETE
 Build all game-specific UI components and pages.
 - **Tech**: React components, game state integration
-- **Complete**: GU-001 (Lobby Page), GU-002 (Board), GU-003 (Tile)
-- **Available**: GU-004 (Tile Rack), GU-005 (Stock Price Table)
+- **Complete**: GU-001 (Lobby Page), GU-002 (Board), GU-003 (Tile), GU-004 (Tile Rack), GU-005 (Chain Marker)
+- **Available**: GU-006 (Player Card), GU-008 (Stock Stepper)
 - **Final**: GU-016 (Comprehensive E2E Tests) - implements all test scenarios from `docs/tests/frontend-e2e/`
 
 ### Epic 3: Real-time Integration (6 stories)

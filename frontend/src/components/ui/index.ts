@@ -1,3 +1,5 @@
+export { Badge } from './Badge'
+export type { BadgeProps, BadgeVariant } from './Badge'
 export { Button } from './Button'
 export { Spinner } from './Spinner'
 export { Header } from './Header'
