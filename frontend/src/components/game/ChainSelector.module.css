@@ -1,0 +1,62 @@
+.selector {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.tier {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.tierLabel {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-weight: var(--font-medium);
+}
+
+.chains {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chainButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background-color: var(--bg-tertiary);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  min-width: 100px;
+  transition: all var(--duration-fast) var(--ease-default);
+}
+
+.chainButton:focus-visible {
+  outline: 2px solid var(--text-accent);
+  outline-offset: 2px;
+}
+
+.available:hover {
+  background-color: var(--bg-secondary);
+  border-color: var(--text-secondary);
+}
+
+.unavailable {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.selected {
+  border-color: var(--text-accent);
+  background-color: var(--bg-secondary);
+}
+
+.stock {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}

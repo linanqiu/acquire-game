@@ -1,0 +1,54 @@
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table td {
+  padding: var(--space-1) var(--space-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.chain {
+  text-align: left;
+}
+
+.quantity,
+.price,
+.value {
+  text-align: right;
+}
+
+.times,
+.equals {
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.value {
+  color: var(--text-positive);
+  font-weight: var(--font-medium);
+}
+
+.totalRow {
+  border-top: 1px solid var(--border);
+}
+
+.totalLabel {
+  text-align: right;
+  padding-top: var(--space-2);
+  color: var(--text-secondary);
+}
+
+.totalValue {
+  text-align: right;
+  padding-top: var(--space-2);
+  font-weight: var(--font-bold);
+  color: var(--text-positive);
+}
+
+.empty {
+  color: var(--text-secondary);
+  font-style: italic;
+  text-align: center;
+  padding: var(--space-4);
+}

@@ -24,31 +24,31 @@ Build all game-specific UI components and pages, from the lobby through game ove
 
 | ID | Title | Effort | Dependencies | Status |
 |----|-------|--------|--------------|--------|
-| [GU-001](../stories/02-game-ui/GU-001.md) | Lobby Page | M | FF-005, FF-006, FF-007, FF-010 | not-started |
+| [GU-001](../stories/02-game-ui/GU-001.md) | Lobby Page | M | FF-005, FF-006, FF-007, FF-010 | complete |
 
 ### Phase 2: Board Components
 
 | ID | Title | Effort | Dependencies | Status |
 |----|-------|--------|--------------|--------|
-| [GU-002](../stories/02-game-ui/GU-002.md) | Board Component | L | FF-002, FF-004 | not-started |
-| [GU-003](../stories/02-game-ui/GU-003.md) | Tile Component | M | FF-002, FF-004 | not-started |
-| [GU-005](../stories/02-game-ui/GU-005.md) | Chain Marker | S | FF-004 | not-started |
+| [GU-002](../stories/02-game-ui/GU-002.md) | Board Component | L | FF-002, FF-004 | complete |
+| [GU-003](../stories/02-game-ui/GU-003.md) | Tile Component | M | FF-002, FF-004 | complete |
+| [GU-005](../stories/02-game-ui/GU-005.md) | Chain Marker | S | FF-004 | complete |
 
 ### Phase 3: Player Components
 
 | ID | Title | Effort | Dependencies | Status |
 |----|-------|--------|--------------|--------|
-| [GU-004](../stories/02-game-ui/GU-004.md) | Tile Rack | M | GU-003 | not-started |
-| [GU-006](../stories/02-game-ui/GU-006.md) | Player Card | M | FF-005, GU-005 | not-started |
-| [GU-007](../stories/02-game-ui/GU-007.md) | Portfolio Display | M | GU-005, GU-006 | not-started |
+| [GU-004](../stories/02-game-ui/GU-004.md) | Tile Rack | M | GU-003 | complete |
+| [GU-006](../stories/02-game-ui/GU-006.md) | Player Card | M | FF-005, GU-005 | complete |
+| [GU-007](../stories/02-game-ui/GU-007.md) | Portfolio Display | M | GU-005, GU-006 | complete |
 
 ### Phase 4: Action Components
 
 | ID | Title | Effort | Dependencies | Status |
 |----|-------|--------|--------------|--------|
-| [GU-008](../stories/02-game-ui/GU-008.md) | Stock Stepper | S | FF-006 | not-started |
-| [GU-009](../stories/02-game-ui/GU-009.md) | Chain Selector | M | GU-005, FF-008 | not-started |
-| [GU-010](../stories/02-game-ui/GU-010.md) | Merger Disposition | L | GU-008, FF-008 | not-started |
+| [GU-008](../stories/02-game-ui/GU-008.md) | Stock Stepper | S | FF-006 | complete |
+| [GU-009](../stories/02-game-ui/GU-009.md) | Chain Selector | M | GU-005, FF-008 | complete |
+| [GU-010](../stories/02-game-ui/GU-010.md) | Merger Disposition | L | GU-008, FF-008 | complete |
 | [GU-011](../stories/02-game-ui/GU-011.md) | Trade Builder | L | GU-008, GU-009, FF-008 | not-started |
 
 ### Phase 5: Page Shells
