@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { Toast, ToastType } from './Toast'
+import { Toast, type ToastType } from './Toast'
 import { ToastContext } from './ToastContext'
 import styles from './Toast.module.css'
 

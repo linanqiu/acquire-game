@@ -29,14 +29,16 @@ describe('App Routing', () => {
 
   it('renders player view at /play/:room', () => {
     renderWithRoute('/play/ABCD')
-    expect(screen.getByText(/Player View/i)).toBeInTheDocument()
-    expect(screen.getByText(/ABCD/i)).toBeInTheDocument()
+    // Player page shows "WAITING FOR PLAYERS" in lobby state and room code
+    expect(screen.getByText(/WAITING FOR PLAYERS/i)).toBeInTheDocument()
+    expect(screen.getByText('ABCD')).toBeInTheDocument()
   })
 
   it('renders host view at /host/:room', () => {
     renderWithRoute('/host/WXYZ')
-    expect(screen.getByText(/Host View/i)).toBeInTheDocument()
-    expect(screen.getByText(/WXYZ/i)).toBeInTheDocument()
+    // Host page shows ACQUIRE title and room code in lobby state
+    expect(screen.getByText('ACQUIRE')).toBeInTheDocument()
+    expect(screen.getByText('WXYZ')).toBeInTheDocument()
   })
 
   it('renders 404 for unknown routes', () => {
@@ -46,8 +48,8 @@ describe('App Routing', () => {
 
   it('extracts room code from URL in uppercase', () => {
     renderWithRoute('/play/abcd')
-    // Room code should be uppercased
-    expect(screen.getByText(/ABCD/i)).toBeInTheDocument()
+    // Room code should be uppercased - check the specific room code element
+    expect(screen.getByText('ABCD')).toBeInTheDocument()
   })
 })
 
