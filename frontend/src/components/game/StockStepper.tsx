@@ -1,7 +1,7 @@
 import { Button } from '../ui/Button'
 import styles from './StockStepper.module.css'
 
-interface StockStepperProps {
+export interface StockStepperProps {
   value: number
   min?: number
   max: number
