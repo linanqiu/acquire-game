@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useReducer, useRef, useCallback } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { Spinner } from '../ui/Spinner'
@@ -15,6 +15,54 @@ export interface ReconnectionOverlayProps {
   retryDelayMs?: number
 }
 
+// State machine for reconnection flow
+type ReconnectionState = {
+  phase: 'idle' | 'attempting' | 'waiting' | 'manual'
+  attempts: number
+}
+
+type ReconnectionAction =
+  | { type: 'START_ATTEMPT' }
+  | { type: 'ATTEMPT_SUCCESS' }
+  | { type: 'ATTEMPT_FAILED'; maxAttempts: number }
+  | { type: 'SCHEDULE_RETRY' }
+  | { type: 'RESET' }
+  | { type: 'MANUAL_RETRY' }
+
+function reconnectionReducer(
+  state: ReconnectionState,
+  action: ReconnectionAction
+): ReconnectionState {
+  switch (action.type) {
+    case 'START_ATTEMPT':
+      return { ...state, phase: 'attempting' }
+
+    case 'ATTEMPT_SUCCESS':
+      return { phase: 'idle', attempts: 0 }
+
+    case 'ATTEMPT_FAILED': {
+      const newAttempts = state.attempts + 1
+      if (newAttempts >= action.maxAttempts) {
+        return { phase: 'manual', attempts: newAttempts }
+      }
+      return { phase: 'waiting', attempts: newAttempts }
+    }
+
+    case 'SCHEDULE_RETRY':
+      // Transition from waiting to idle to trigger next attempt
+      return { ...state, phase: 'idle' }
+
+    case 'RESET':
+      return { phase: 'idle', attempts: 0 }
+
+    case 'MANUAL_RETRY':
+      return { phase: 'idle', attempts: 0 }
+
+    default:
+      return state
+  }
+}
+
 export function ReconnectionOverlay({
   connectionStatus,
   playerName = 'Player',
@@ -23,41 +71,45 @@ export function ReconnectionOverlay({
   maxAttempts = 3,
   retryDelayMs = 2000,
 }: ReconnectionOverlayProps) {
-  const [attempts, setAttempts] = useState(0)
-  const [showManual, setShowManual] = useState(false)
-  const [isReconnecting, setIsReconnecting] = useState(false)
+  const [state, dispatch] = useReducer(reconnectionReducer, {
+    phase: 'idle',
+    attempts: 0,
+  })
+
   const mountedRef = useRef(true)
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Use key to reset component state when connection status changes
-  const [resetKey, setResetKey] = useState(0)
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Clear timeout helper
+  const clearRetryTimeout = useCallback(() => {
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current)
+      retryTimeoutRef.current = null
+    }
+  }, [])
 
   // Cleanup on unmount
   useEffect(() => {
     mountedRef.current = true
     return () => {
       mountedRef.current = false
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current)
-      }
+      clearRetryTimeout()
     }
-  }, [])
+  }, [clearRetryTimeout])
 
-  // Reset state when connection status changes to disconnected
+  // Reset when connection status changes to disconnected
   useEffect(() => {
     if (connectionStatus === 'disconnected') {
-      setResetKey((k) => k + 1)
+      clearRetryTimeout()
+      dispatch({ type: 'RESET' })
     }
-  }, [connectionStatus])
+  }, [connectionStatus, clearRetryTimeout])
 
-  // The actual reconnection logic, triggered by resetKey or manual retry
+  // Handle the reconnection attempt
   useEffect(() => {
     if (connectionStatus !== 'disconnected') return
-
-    // Don't auto-reconnect if already showing manual or reconnecting
-    if (showManual || isReconnecting) return
-    // Don't auto-reconnect if we've hit max attempts
-    if (attempts >= maxAttempts) {
-      setShowManual(true)
+    if (state.phase !== 'idle') return
+    if (state.attempts >= maxAttempts) {
+      dispatch({ type: 'ATTEMPT_FAILED', maxAttempts })
       return
     }
 
@@ -66,7 +118,7 @@ export function ReconnectionOverlay({
     const doReconnect = async () => {
       if (cancelled || !mountedRef.current) return
 
-      setIsReconnecting(true)
+      dispatch({ type: 'START_ATTEMPT' })
 
       try {
         const success = await onReconnect()
@@ -74,18 +126,13 @@ export function ReconnectionOverlay({
         if (cancelled || !mountedRef.current) return
 
         if (success) {
-          setAttempts(0)
-          setShowManual(false)
+          dispatch({ type: 'ATTEMPT_SUCCESS' })
         } else {
-          setAttempts((a) => a + 1)
+          dispatch({ type: 'ATTEMPT_FAILED', maxAttempts })
         }
       } catch {
         if (cancelled || !mountedRef.current) return
-        setAttempts((a) => a + 1)
-      } finally {
-        if (!cancelled && mountedRef.current) {
-          setIsReconnecting(false)
-        }
+        dispatch({ type: 'ATTEMPT_FAILED', maxAttempts })
       }
     }
 
@@ -94,51 +141,39 @@ export function ReconnectionOverlay({
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resetKey, connectionStatus])
+  }, [connectionStatus, state.phase, state.attempts, maxAttempts, onReconnect])
 
-  // Handle retry after failed attempt
+  // Handle retry scheduling
   useEffect(() => {
     if (connectionStatus !== 'disconnected') return
-    if (isReconnecting || showManual) return
-    if (attempts === 0 || attempts >= maxAttempts) {
-      if (attempts >= maxAttempts) {
-        setShowManual(true)
-      }
-      return
-    }
+    if (state.phase !== 'waiting') return
 
-    // Schedule retry
-    reconnectTimeoutRef.current = setTimeout(() => {
+    retryTimeoutRef.current = setTimeout(() => {
       if (mountedRef.current) {
-        setResetKey((k) => k + 1)
+        dispatch({ type: 'SCHEDULE_RETRY' })
       }
     }, retryDelayMs)
 
-    return () => {
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current)
-      }
-    }
-  }, [attempts, connectionStatus, isReconnecting, maxAttempts, retryDelayMs, showManual])
+    return clearRetryTimeout
+  }, [connectionStatus, state.phase, retryDelayMs, clearRetryTimeout])
 
-  const handleManualRejoin = async () => {
-    setShowManual(false)
-    setAttempts(0)
-    setResetKey((k) => k + 1)
-  }
+  const handleManualRejoin = useCallback(() => {
+    clearRetryTimeout()
+    dispatch({ type: 'MANUAL_RETRY' })
+  }, [clearRetryTimeout])
 
   // Don't show anything when connected
   if (connectionStatus === 'connected') {
     return null
   }
 
-  const isOpen = connectionStatus !== 'connected'
+  const showManual = state.phase === 'manual'
   const title = showManual ? 'CONNECTION LOST' : 'RECONNECTING...'
+  const displayAttempt = Math.min(state.attempts + 1, maxAttempts)
 
   return (
     <Modal
-      open={isOpen}
+      open={true}
       onClose={() => {}}
       title={title}
       dismissible={false}
@@ -148,7 +183,7 @@ export function ReconnectionOverlay({
           <Spinner size="lg" />
           <p className={styles.message}>Re-establishing connection to room...</p>
           <p className={styles.attempts} data-testid="attempt-count">
-            Attempt {Math.min(attempts + 1, maxAttempts)}/{maxAttempts}
+            Attempt {displayAttempt}/{maxAttempts}
           </p>
         </div>
       ) : (
