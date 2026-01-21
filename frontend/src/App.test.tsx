@@ -3,17 +3,20 @@ import { describe, it, expect } from 'vitest'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { App } from './App'
 import { LobbyPage, PlayerPage, HostPage, NotFoundPage } from './pages'
+import { ToastProvider } from './components/ui/ToastProvider'
 
 // Helper to render App with specific route using MemoryRouter
 function renderWithRoute(route: string) {
   return render(
     <MemoryRouter initialEntries={[route]}>
-      <Routes>
-        <Route path="/" element={<LobbyPage />} />
-        <Route path="/play/:room" element={<PlayerPage />} />
-        <Route path="/host/:room" element={<HostPage />} />
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
+      <ToastProvider>
+        <Routes>
+          <Route path="/" element={<LobbyPage />} />
+          <Route path="/play/:room" element={<PlayerPage />} />
+          <Route path="/host/:room" element={<HostPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </ToastProvider>
     </MemoryRouter>
   )
 }
@@ -21,7 +24,7 @@ function renderWithRoute(route: string) {
 describe('App Routing', () => {
   it('renders lobby page at /', () => {
     renderWithRoute('/')
-    expect(screen.getByText(/Lobby/i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /ACQUIRE/i })).toBeInTheDocument()
   })
 
   it('renders player view at /play/:room', () => {

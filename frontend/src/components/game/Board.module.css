@@ -1,0 +1,83 @@
+.board {
+  display: inline-block;
+  background-color: var(--bg-tertiary);
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+}
+
+.header,
+.row {
+  display: flex;
+  gap: 2px;
+}
+
+.header {
+  margin-bottom: 2px;
+}
+
+.corner,
+.rowLabel,
+.colLabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-family: var(--font-primary);
+  flex-shrink: 0;
+}
+
+/* Size variants for labels */
+.sm .corner,
+.sm .rowLabel {
+  width: 16px;
+  height: 20px;
+  font-size: var(--text-xs);
+}
+
+.sm .colLabel {
+  width: 20px;
+  height: 16px;
+  font-size: var(--text-xs);
+}
+
+.sm .row {
+  gap: 2px;
+}
+
+.md .corner,
+.md .rowLabel {
+  width: 20px;
+  height: 28px;
+  font-size: var(--text-xs);
+}
+
+.md .colLabel {
+  width: 28px;
+  height: 20px;
+  font-size: var(--text-xs);
+}
+
+.lg .corner,
+.lg .rowLabel {
+  width: 28px;
+  height: 40px;
+  font-size: var(--text-sm);
+}
+
+.lg .colLabel {
+  width: 40px;
+  height: 28px;
+  font-size: var(--text-sm);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .board {
+    padding: var(--space-1);
+  }
+
+  .header,
+  .row {
+    gap: 1px;
+  }
+}
