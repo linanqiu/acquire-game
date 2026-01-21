@@ -19,15 +19,21 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'cd ../backend && python -m uvicorn main:app --port 8000',
-      url: 'http://localhost:8000/docs',
+      command: 'python -m uvicorn main:app --host 127.0.0.1 --port 8000',
+      cwd: '../backend',
+      url: 'http://127.0.0.1:8000/docs',
       reuseExistingServer: !process.env.CI,
-      timeout: 30000,
+      timeout: 60000,
+      stdout: 'pipe',
+      stderr: 'pipe',
     },
     {
       command: 'npm run dev',
       url: 'http://localhost:5173',
       reuseExistingServer: !process.env.CI,
+      timeout: 60000,
+      stdout: 'pipe',
+      stderr: 'pipe',
     },
   ],
 })
