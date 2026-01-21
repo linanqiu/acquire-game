@@ -30,7 +30,11 @@ export function PageShell({
       ) : (
         <Header roomCode={roomCode} cash={cash} playerName={playerName} tilePool={tilePool} />
       )}
-      {phase && <div className={styles.phase}>{phase}</div>}
+      {phase && (
+        <div className={styles.phase} role="status" aria-live="polite" aria-atomic="true">
+          {phase}
+        </div>
+      )}
       <main className={styles.main}>{children}</main>
       {footer && <footer className={styles.footer}>{footer}</footer>}
     </div>

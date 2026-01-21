@@ -49,70 +49,74 @@ Build all game-specific UI components and pages, from the lobby through game ove
 | [GU-008](../stories/02-game-ui/GU-008.md) | Stock Stepper | S | FF-006 | complete |
 | [GU-009](../stories/02-game-ui/GU-009.md) | Chain Selector | M | GU-005, FF-008 | complete |
 | [GU-010](../stories/02-game-ui/GU-010.md) | Merger Disposition | L | GU-008, FF-008 | complete |
-| [GU-011](../stories/02-game-ui/GU-011.md) | Trade Builder | L | GU-008, GU-009, FF-008 | not-started |
+| [GU-011](../stories/02-game-ui/GU-011.md) | Trade Builder | L | GU-008, GU-009, FF-008 | complete |
 
 ### Phase 5: Page Shells
 
 | ID | Title | Effort | Dependencies | Status |
 |----|-------|--------|--------------|--------|
-| [GU-012](../stories/02-game-ui/GU-012.md) | Player View Shell | L | GU-004, GU-007, FF-005, RT-002 | not-started |
-| [GU-013](../stories/02-game-ui/GU-013.md) | Host View Layout | L | GU-002, GU-006, FF-005, RT-002 | not-started |
+| [GU-012](../stories/02-game-ui/GU-012.md) | Player View Shell | L | GU-004, GU-007, FF-005 | complete |
+| [GU-013](../stories/02-game-ui/GU-013.md) | Host View Layout | L | GU-002, GU-006, FF-005 | complete |
+
+> **Note**: GU-012 and GU-013 use placeholder action handlers. Full functionality requires RT-002 (WebSocket integration).
 
 ### Phase 6: Terminal States
 
 | ID | Title | Effort | Dependencies | Status |
 |----|-------|--------|--------------|--------|
-| [GU-014](../stories/02-game-ui/GU-014.md) | Game Over Screen | M | GU-006, FF-008 | not-started |
-| [GU-015](../stories/02-game-ui/GU-015.md) | Reconnection UI | M | FF-008, FF-009 | not-started |
+| [GU-014](../stories/02-game-ui/GU-014.md) | Game Over Screen | M | GU-006, FF-008 | complete |
+| [GU-015](../stories/02-game-ui/GU-015.md) | Reconnection UI | M | FF-008, FF-009 | complete |
 
 ### Phase 7: Comprehensive Testing
 
 | ID | Title | Effort | Dependencies | Status |
 |----|-------|--------|--------------|--------|
-| [GU-016](../stories/02-game-ui/GU-016.md) | Comprehensive E2E Test Suite | L | GU-001 through GU-015, FF-011 | not-started |
+| [GU-016](../stories/02-game-ui/GU-016.md) | Comprehensive E2E Test Suite | L | GU-001 through GU-015, FF-011, RT-002 | not-started |
+
+> **Note**: GU-016 requires RT-002 for real E2E tests with backend WebSocket integration.
 
 ## Dependency Graph
 
 ```
 FF-005, FF-006, FF-007, FF-010
-   └── GU-001 (Lobby)
+   └── GU-001 (Lobby) ✓
 
 FF-002, FF-004
-   ├── GU-002 (Board)
-   ├── GU-003 (Tile) ──► GU-004 (Tile Rack)
-   └── GU-005 (Chain Marker)
+   ├── GU-002 (Board) ✓
+   ├── GU-003 (Tile) ✓ ──► GU-004 (Tile Rack) ✓
+   └── GU-005 (Chain Marker) ✓
 
 GU-005
-   ├── GU-006 (Player Card) ──► GU-007 (Portfolio)
-   └── GU-009 (Chain Selector)
+   ├── GU-006 (Player Card) ✓ ──► GU-007 (Portfolio) ✓
+   └── GU-009 (Chain Selector) ✓
 
 FF-006
-   └── GU-008 (Stock Stepper)
+   └── GU-008 (Stock Stepper) ✓
 
 GU-008 + FF-008
-   └── GU-010 (Merger Disposition)
+   └── GU-010 (Merger Disposition) ✓
 
 GU-008 + GU-009 + FF-008
-   └── GU-011 (Trade Builder)
+   └── GU-011 (Trade Builder) ✓
 
-GU-004 + GU-007 + RT-002
-   └── GU-012 (Player View)
+GU-004 + GU-007 + FF-005
+   └── GU-012 (Player View) ✓ [needs RT-002 for full functionality]
 
-GU-002 + GU-006 + RT-002
-   └── GU-013 (Host View)
+GU-002 + GU-006 + FF-005
+   └── GU-013 (Host View) ✓ [needs RT-002 for full functionality]
 
-GU-001..GU-015 + FF-011
+GU-001..GU-015 + FF-011 + RT-002
    └── GU-016 (Comprehensive E2E Tests)
 ```
 
 ## Success Criteria
 
-- [ ] All screens from storyboard are implemented
-- [ ] Components handle all documented states
-- [ ] Mobile view works on 375px+ screens
-- [ ] Host view readable from 10ft distance
-- [ ] E2E tests cover complete game flows
-- [ ] Accessibility: keyboard navigation, screen reader support
+- [x] All screens from storyboard are implemented
+- [x] Components handle all documented states
+- [x] Mobile view works on 375px+ screens
+- [x] Host view readable from 10ft distance
+- [ ] E2E tests cover complete game flows (pending GU-016)
+- [x] Accessibility: keyboard navigation, screen reader support
 
 ## Reference
 
