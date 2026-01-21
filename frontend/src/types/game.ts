@@ -1,5 +1,16 @@
 /**
  * Game-specific types for UI components
+ *
+ * Note: The backend sends board state as:
+ *   { cells: { "1A": { state: "placed", chain: "American" | null }, ... } }
+ *
+ * TileState here uses semantic states ('empty'/'orphan'/'chain') for UI rendering.
+ * Transformation from backend format should happen in the game store (RT-002).
+ *
+ * Transformation logic:
+ *   - If tile not in cells → { state: 'empty' }
+ *   - If tile has chain === null → { state: 'orphan' }
+ *   - If tile has chain !== null → { state: 'chain', chain: ChainName }
  */
 
 import type { ChainName } from './api'
