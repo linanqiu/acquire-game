@@ -9,40 +9,45 @@ describe('Badge', () => {
       expect(screen.getByText('SAFE')).toBeInTheDocument()
     })
 
-    it('has data-testid', () => {
+    it('has variant-specific data-testid', () => {
       render(<Badge label="TEST" />)
-      expect(screen.getByTestId('badge')).toBeInTheDocument()
+      expect(screen.getByTestId('badge-default')).toBeInTheDocument()
+    })
+
+    it('includes variant in data-testid', () => {
+      render(<Badge label="SAFE" variant="safe" />)
+      expect(screen.getByTestId('badge-safe')).toBeInTheDocument()
     })
   })
 
   describe('variants', () => {
     it('applies default variant by default', () => {
       render(<Badge label="Default" />)
-      const badge = screen.getByTestId('badge')
+      const badge = screen.getByTestId('badge-default')
       expect(badge.className).toContain('default')
     })
 
     it('applies safe variant', () => {
       render(<Badge label="SAFE" variant="safe" />)
-      const badge = screen.getByTestId('badge')
+      const badge = screen.getByTestId('badge-safe')
       expect(badge.className).toContain('safe')
     })
 
     it('applies warning variant', () => {
       render(<Badge label="Warning" variant="warning" />)
-      const badge = screen.getByTestId('badge')
+      const badge = screen.getByTestId('badge-warning')
       expect(badge.className).toContain('warning')
     })
 
     it('applies danger variant', () => {
       render(<Badge label="Danger" variant="danger" />)
-      const badge = screen.getByTestId('badge')
+      const badge = screen.getByTestId('badge-danger')
       expect(badge.className).toContain('danger')
     })
 
     it('applies info variant', () => {
       render(<Badge label="Info" variant="info" />)
-      const badge = screen.getByTestId('badge')
+      const badge = screen.getByTestId('badge-info')
       expect(badge.className).toContain('info')
     })
   })
@@ -50,13 +55,13 @@ describe('Badge', () => {
   describe('sizes', () => {
     it('applies sm size by default', () => {
       render(<Badge label="Small" />)
-      const badge = screen.getByTestId('badge')
+      const badge = screen.getByTestId('badge-default')
       expect(badge.className).toContain('sm')
     })
 
     it('applies md size when specified', () => {
       render(<Badge label="Medium" size="md" />)
-      const badge = screen.getByTestId('badge')
+      const badge = screen.getByTestId('badge-default')
       expect(badge.className).toContain('md')
     })
   })

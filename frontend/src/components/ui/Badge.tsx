@@ -10,7 +10,10 @@ export interface BadgeProps {
 
 export function Badge({ label, variant = 'default', size = 'sm' }: BadgeProps) {
   return (
-    <span className={`${styles.badge} ${styles[variant]} ${styles[size]}`} data-testid="badge">
+    <span
+      className={`${styles.badge} ${styles[variant]} ${styles[size]}`}
+      data-testid={`badge-${variant}`}
+    >
       {label}
     </span>
   )
