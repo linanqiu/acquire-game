@@ -20,6 +20,7 @@
 | [Real-time Integration](epics/03-realtime-integration.md) | 0/6 | RT-001, RT-002 (unblocked) |
 | [AI Training](epics/04-ai-training.md) | 0/9 | AI-001, AI-003 |
 | [Deployment](epics/05-deployment.md) | 0/5 | DP-001 |
+| [Security Hardening](epics/06-security-hardening.md) | 0/5 | SH-002, SH-003, SH-004, SH-005 (after E2E: SH-001) |
 
 ## Story Status Key
 
@@ -58,12 +59,19 @@ FF-009 (Toast) ✓
 GU-001, GU-002, GU-003 (now unblocked)
     ↓
   ...etc
+    ↓
+GU-016 (E2E Tests)
+    ↓
+SH-001 ──────────────────────  Track 4: SECURITY (after E2E)
+SH-002, SH-003, SH-004, SH-005 ← can start anytime
+    ↓
+Production Deploy
 ```
 
 ### Critical Path
 
 ```
-[DONE] BH-001 → BH-002/003/004 → [DONE] FF-001 → [DONE] FF-002 through FF-011 → GU-001/GU-002/GU-003 → RT Integration → Deploy
+[DONE] BH-001 → BH-002/003/004 → [DONE] FF-001 → [DONE] FF-002 through FF-011 → GU-001/GU-002/GU-003 → RT Integration → GU-016 (E2E) → Security Hardening → Deploy
                                                                                         ↑
                                                                                   YOU ARE HERE
 ```
@@ -187,6 +195,12 @@ Neural network bots and training pipeline.
 Production deployment and monitoring.
 - **Tech**: Railway, Docker, logging
 - **Start**: DP-001 (fully independent)
+
+### Epic 6: Security Hardening (5 stories)
+Harden API security before production.
+- **Tech**: CORS, rate limiting, input validation, session tokens
+- **Start**: SH-002, SH-003, SH-004, SH-005 (independent); SH-001 after GU-016
+- **Note**: Must complete before production deployment
 
 ## Reference Documentation
 
