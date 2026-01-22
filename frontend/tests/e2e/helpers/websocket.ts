@@ -71,8 +71,8 @@ export async function waitForMessage<T = unknown>(
           return false
         if (matchCriteria.phase && msg.phase !== matchCriteria.phase) return false
         if (matchCriteria.boardHasTile) {
-          const board = msg.board as Record<string, unknown> | undefined
-          if (!board || board[matchCriteria.boardHasTile] === undefined) return false
+          const board = msg.board as { cells?: Record<string, unknown> } | undefined
+          if (!board?.cells || board.cells[matchCriteria.boardHasTile] === undefined) return false
         }
         return true
       }

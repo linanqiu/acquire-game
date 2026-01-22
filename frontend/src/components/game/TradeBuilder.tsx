@@ -217,7 +217,9 @@ export function TradeBuilder({
 
         {partner && (
           <div className={styles.section}>
-            <label className={styles.sectionLabel}>YOU WANT FROM {partner.name.toUpperCase()}:</label>
+            <label className={styles.sectionLabel}>
+              YOU WANT FROM {partner.name.toUpperCase()}:
+            </label>
             {partnerHoldings.length > 0 ? (
               <div className={styles.stockList}>
                 {partnerHoldings.map((h) => (

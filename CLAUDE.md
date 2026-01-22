@@ -65,6 +65,43 @@ Exception: For brainstorming or documentation updates, skip steps 1-2.
 - Always run tests after writing new tests or modifying existing ones
 - Don't just write tests - verify they pass
 
+### E2E Testing (CRITICAL)
+**Tests that don't actually run against real servers are LIES.** Follow this protocol:
+
+1. **Always start real servers before E2E tests:**
+   ```bash
+   # Start backend
+   cd backend && python3 -m uvicorn main:app --host 127.0.0.1 --port 8000 &
+
+   # Start frontend
+   cd frontend && npm run dev -- --host 127.0.0.1 &
+
+   # Verify both are running
+   curl -s http://127.0.0.1:8000/docs > /dev/null && echo "Backend: OK"
+   curl -s http://127.0.0.1:5173 > /dev/null && echo "Frontend: OK"
+   ```
+
+2. **Capture screenshots as evidence at every step:**
+   - Screenshots prove the test actually ran against real UI
+   - No screenshot = no proof = didn't happen
+   - Save to `test-results/` with descriptive names
+
+3. **Check browser console for errors:**
+   ```typescript
+   page.on('console', msg => console.log('[' + msg.type() + ']', msg.text()))
+   page.on('pageerror', err => console.log('Page error:', err.message))
+   ```
+
+4. **Test the full user flow, not just API calls:**
+   - Create game via UI → verify redirect → verify page renders
+   - Check WebSocket connects successfully
+   - Verify game state displays correctly
+
+5. **If tests "pass" but page is blank/broken:**
+   - The tests are wrong, not the code
+   - Add screenshot assertions to catch render failures
+   - Check for JavaScript errors in console
+
 ### Avoiding Flaky Tests
 - **Never assume specific tiles in player hands** when using `game_room` fixture - tiles are randomly distributed
 - When testing invalid tile scenarios, dynamically find a tile NOT in the player's hand:

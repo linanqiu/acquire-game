@@ -21,10 +21,15 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
+    {
+      name: 'scenarios',
+      testDir: './tests/e2e/scenarios',
+      use: { ...devices['Desktop Chrome'] },
+    },
   ],
   webServer: [
     {
-      command: 'python -m uvicorn main:app --host 127.0.0.1 --port 8000',
+      command: 'python3 -m uvicorn main:app --host 127.0.0.1 --port 8000',
       cwd: '../backend',
       url: 'http://127.0.0.1:8000/docs',
       reuseExistingServer: !process.env.CI,

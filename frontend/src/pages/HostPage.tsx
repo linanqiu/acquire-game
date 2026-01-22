@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useRoom } from '../hooks/useRoom'
 import { useWebSocket } from '../hooks/useWebSocket'
@@ -49,21 +49,33 @@ export function HostPage() {
   const navigate = useNavigate()
   const { toast } = useToast()
 
+  // Stable callback for WebSocket to prevent infinite re-renders
+  const handleWsError = useCallback((error: string) => toast(error, 'error'), [toast])
+
   // WebSocket connection for receiving game state updates
   useWebSocket({
     roomCode: room,
     playerId: sessionStorage.getItem('player_id') || '',
     token: sessionStorage.getItem('session_token') || '',
-    onError: (error) => toast(error, 'error'),
+    onError: handleWsError,
   })
 
   // Game store state
-  const {
-    connectionStatus,
-    lobbyPlayers,
-    canStart,
-    gameState,
-  } = useGameStore()
+  const { connectionStatus, lobbyPlayers, canStart, gameState, currentPlayer, setCurrentPlayer } =
+    useGameStore()
+
+  // Initialize currentPlayer from sessionStorage on mount
+  useEffect(() => {
+    const playerId = sessionStorage.getItem('player_id')
+    const playerName = sessionStorage.getItem('player_name')
+    const token = sessionStorage.getItem('session_token')
+
+    console.log('[HostPage] Initializing currentPlayer:', { playerId, playerName, hasToken: !!token })
+
+    if (playerId && playerName && token) {
+      setCurrentPlayer({ id: playerId, name: playerName, token, isHost: true })
+    }
+  }, [setCurrentPlayer])
 
   // Local UI state
   const [actionLoading, setActionLoading] = useState(false)
@@ -75,10 +87,13 @@ export function HostPage() {
   const [nextLogId, setNextLogId] = useState(1)
 
   // Helper to add activity log entries with unique IDs
-  const addActivityLog = useCallback((text: string) => {
-    setActivityLog((prev) => [...prev, { id: nextLogId, text }])
-    setNextLogId((id) => id + 1)
-  }, [nextLogId])
+  const addActivityLog = useCallback(
+    (text: string) => {
+      setActivityLog((prev) => [...prev, { id: nextLogId, text }])
+      setNextLogId((id) => id + 1)
+    },
+    [nextLogId]
+  )
 
   // Derived state
   const phase = gameState?.phase ?? 'lobby'
@@ -152,7 +167,7 @@ export function HostPage() {
   const handleAddBot = useCallback(async () => {
     setActionLoading(true)
     try {
-      const res = await fetch(`/api/room/${room}/bot`, {
+      const res = await fetch(`/api/room/${room}/add-bot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       })
@@ -359,19 +374,12 @@ export function HostPage() {
   }
 
   if (phase === 'lobby') {
-    return (
-      <PageShell header={null}>
-        {renderLobbyView()}
-      </PageShell>
-    )
+    return <PageShell header={null}>{renderLobbyView()}</PageShell>
   }
 
   if (phase === 'game_over') {
     return (
-      <PageShell
-        header={<HostHeader roomCode={room} />}
-        phase="GAME OVER"
-      >
+      <PageShell header={<HostHeader roomCode={room} />} phase="GAME OVER">
         {renderGameOverView()}
       </PageShell>
     )

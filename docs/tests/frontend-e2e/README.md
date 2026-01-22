@@ -95,6 +95,52 @@ Scenarios are numbered by category:
 | E2E-5.x | Error Handling |
 | E2E-6.x | Trading Flow |
 
+## CRITICAL: Screenshot Evidence Required
+
+**Tests without screenshots are not proof of anything.** A test can "pass" while the page is completely blank if it only checks for URL changes or element existence without visual verification.
+
+### Required for Every E2E Test
+
+1. **Capture screenshots at key moments:**
+   ```typescript
+   // After navigation
+   await page.screenshot({ path: 'test-results/1-after-navigation.png', fullPage: true })
+
+   // After state changes
+   await page.screenshot({ path: 'test-results/2-game-started.png', fullPage: true })
+
+   // Final state
+   await page.screenshot({ path: 'test-results/3-final-state.png', fullPage: true })
+   ```
+
+2. **Check browser console for errors:**
+   ```typescript
+   const errors: string[] = []
+   page.on('pageerror', err => errors.push(err.message))
+   // ... test actions ...
+   expect(errors).toHaveLength(0) // Fail if any JS errors
+   ```
+
+3. **Verify actual content renders:**
+   ```typescript
+   // BAD - just checks existence
+   await expect(page.locator('.game-board')).toBeVisible()
+
+   // GOOD - verifies actual content
+   await expect(page.locator('.game-board')).toContainText('1A')
+   const screenshot = await page.screenshot()
+   // Visual inspection proves it rendered
+   ```
+
+### Why This Matters
+
+In January 2026, we had tests "passing" that:
+- Never actually connected to WebSocket (proxy misconfigured)
+- Rendered blank pages (React infinite loop)
+- Claimed success while the app was completely broken
+
+Screenshots would have caught this immediately.
+
 ## Implementation Notes
 
 When implementing tests from these specifications:
@@ -104,6 +150,7 @@ When implementing tests from these specifications:
 3. **Selectors**: Prefer `data-testid` attributes over CSS selectors
 4. **Cleanup**: Tests should not leave orphaned rooms or connections
 5. **Parallelization**: Tests can run in parallel (different rooms)
+6. **Screenshots**: Capture at every significant step as evidence
 
 ## Test Data Conventions
 

@@ -78,13 +78,7 @@ describe('ReconnectionOverlay', () => {
   describe('manual rejoin', () => {
     it('shows manual rejoin UI when maxAttempts is 0', async () => {
       const onReconnect = vi.fn().mockResolvedValue(false)
-      render(
-        <ReconnectionOverlay
-          {...defaultProps}
-          onReconnect={onReconnect}
-          maxAttempts={0}
-        />
-      )
+      render(<ReconnectionOverlay {...defaultProps} onReconnect={onReconnect} maxAttempts={0} />)
 
       // With 0 max attempts, should immediately show manual rejoin
       await waitFor(() => {
@@ -96,13 +90,7 @@ describe('ReconnectionOverlay', () => {
     })
 
     it('shows player name in rejoin button', async () => {
-      render(
-        <ReconnectionOverlay
-          {...defaultProps}
-          playerName="Bob"
-          maxAttempts={0}
-        />
-      )
+      render(<ReconnectionOverlay {...defaultProps} playerName="Bob" maxAttempts={0} />)
 
       await waitFor(() => {
         expect(screen.getByTestId('rejoin-button')).toHaveTextContent('REJOIN AS BOB')
@@ -112,11 +100,7 @@ describe('ReconnectionOverlay', () => {
     it('calls onBackToLobby when back button clicked', async () => {
       const onBackToLobby = vi.fn()
       render(
-        <ReconnectionOverlay
-          {...defaultProps}
-          onBackToLobby={onBackToLobby}
-          maxAttempts={0}
-        />
+        <ReconnectionOverlay {...defaultProps} onBackToLobby={onBackToLobby} maxAttempts={0} />
       )
 
       await waitFor(() => {
@@ -129,12 +113,7 @@ describe('ReconnectionOverlay', () => {
     })
 
     it('hides manual rejoin UI when rejoin button clicked', async () => {
-      render(
-        <ReconnectionOverlay
-          {...defaultProps}
-          maxAttempts={0}
-        />
-      )
+      render(<ReconnectionOverlay {...defaultProps} maxAttempts={0} />)
 
       // Wait for manual rejoin to appear
       await waitFor(() => {
@@ -161,12 +140,7 @@ describe('ReconnectionOverlay', () => {
     })
 
     it('shows CONNECTION LOST title for manual rejoin', async () => {
-      render(
-        <ReconnectionOverlay
-          {...defaultProps}
-          maxAttempts={0}
-        />
-      )
+      render(<ReconnectionOverlay {...defaultProps} maxAttempts={0} />)
 
       await waitFor(() => {
         expect(screen.getByText('CONNECTION LOST')).toBeInTheDocument()

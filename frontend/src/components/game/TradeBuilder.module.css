@@ -42,7 +42,8 @@
   border: 2px solid transparent;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: border-color var(--duration-fast) var(--ease-default),
+  transition:
+    border-color var(--duration-fast) var(--ease-default),
     background-color var(--duration-fast) var(--ease-default);
 }
 

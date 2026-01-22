@@ -7,7 +7,17 @@ import { useEffect, useRef, useCallback } from 'react'
 import { useGameStore } from '../store'
 import type { GameAction, WebSocketMessage } from '../types/api'
 
-const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
+// Helper to build WebSocket URL
+// Use relative path to go through Vite proxy in dev, works in prod too
+function getWebSocketUrl(roomCode: string, playerId: string, token: string): string {
+  // If explicit WS URL is configured, use it
+  if (import.meta.env.VITE_WS_URL) {
+    return `${import.meta.env.VITE_WS_URL}/ws/player/${roomCode}/${playerId}?token=${token}`
+  }
+  // Otherwise, use relative URL (goes through Vite proxy in dev)
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${protocol}//${window.location.host}/ws/player/${roomCode}/${playerId}?token=${token}`
+}
 
 interface UseWebSocketOptions {
   roomCode: string
@@ -33,6 +43,7 @@ export function useWebSocket({
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const reconnectAttemptsRef = useRef(0)
+  const intentionalCloseRef = useRef(false)
   const maxReconnectAttempts = 5
 
   const { connectionStatus, setConnectionStatus, handleMessage } = useGameStore()
@@ -42,6 +53,7 @@ export function useWebSocket({
       clearTimeout(reconnectTimeoutRef.current)
       reconnectTimeoutRef.current = null
     }
+    intentionalCloseRef.current = true
     reconnectAttemptsRef.current = maxReconnectAttempts // Prevent reconnect
     wsRef.current?.close()
     wsRef.current = null
@@ -65,7 +77,7 @@ export function useWebSocket({
 
       setConnectionStatus('connecting')
 
-      const wsUrl = `${WS_BASE_URL}/ws/player/${roomCode}/${playerId}?token=${token}`
+      const wsUrl = getWebSocketUrl(roomCode, playerId, token)
       const ws = new WebSocket(wsUrl)
 
       ws.onopen = () => {
@@ -83,16 +95,20 @@ export function useWebSocket({
       }
 
       ws.onerror = () => {
+        // Don't show error toast for transient errors - wait for reconnection to fail
         setConnectionStatus('error', 'WebSocket connection error')
-        onError?.('Connection error')
       }
 
       ws.onclose = (event) => {
         wsRef.current = null
 
-        // Don't reconnect if it was a clean close or we've exceeded attempts
-        if (event.wasClean || reconnectAttemptsRef.current >= maxReconnectAttempts) {
+        // Don't reconnect if it was intentional, clean close, or we've exceeded attempts
+        if (intentionalCloseRef.current || event.wasClean || reconnectAttemptsRef.current >= maxReconnectAttempts) {
           setConnectionStatus('disconnected')
+          // Only show error if we exhausted all reconnection attempts (not intentional or clean close)
+          if (!intentionalCloseRef.current && !event.wasClean && reconnectAttemptsRef.current >= maxReconnectAttempts) {
+            onError?.('Connection failed after multiple attempts')
+          }
           onClose?.()
           return
         }
@@ -114,7 +130,8 @@ export function useWebSocket({
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)
       }
-      // Clean close on unmount
+      // Mark as intentional close to prevent error toast on unmount
+      intentionalCloseRef.current = true
       reconnectAttemptsRef.current = maxReconnectAttempts
       wsRef.current?.close()
     }

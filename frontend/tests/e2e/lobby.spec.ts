@@ -99,7 +99,9 @@ test.describe('Lobby Page', () => {
       await page.getByTestId('join-button').click()
 
       // Should show error message - use first() to handle multiple matching elements
-      await expect(page.getByText(/not found|Room not found/i).first()).toBeVisible({ timeout: 5000 })
+      await expect(page.getByText(/not found|Room not found/i).first()).toBeVisible({
+        timeout: 5000,
+      })
     })
 
     test('joins existing room and redirects', async ({ page, request }) => {

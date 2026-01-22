@@ -167,9 +167,7 @@ describe('PlayerPage', () => {
           hotel: {
             ...mockGameState.hotel,
             active_chains: ['Luxor'],
-            chains: [
-              { name: 'Luxor', size: 3, price: 300, stocks_available: 22 },
-            ],
+            chains: [{ name: 'Luxor', size: 3, price: 300, stocks_available: 22 }],
           },
         },
         currentPlayer: { id: 'player1', name: 'Alice', token: 'tok', isHost: true },

@@ -43,10 +43,7 @@ export function GameOver({
   variant = 'player',
 }: GameOverProps) {
   const ranks = useMemo(() => calculateRanks(scores), [scores])
-  const sortedScores = useMemo(
-    () => [...scores].sort((a, b) => b.total - a.total),
-    [scores]
-  )
+  const sortedScores = useMemo(() => [...scores].sort((a, b) => b.total - a.total), [scores])
 
   const winners = useMemo(
     () => sortedScores.filter((s) => ranks.get(s.playerId) === 1),
@@ -63,9 +60,7 @@ export function GameOver({
           {isTie ? (
             <>
               <span className={styles.crown}>TIE GAME!</span>
-              <p className={styles.winnerNames}>
-                {winners.map((w) => w.name).join(' & ')}
-              </p>
+              <p className={styles.winnerNames}>{winners.map((w) => w.name).join(' & ')}</p>
               <p className={styles.winnerTotal}>${winners[0].total.toLocaleString()} each</p>
             </>
           ) : (
@@ -92,7 +87,11 @@ export function GameOver({
                   data-testid={`rank-${score.playerId}`}
                 >
                   <span className={styles.rank}>
-                    {isWinner && <span className={styles.crownIcon} aria-label="Winner">&#x1F451;</span>}
+                    {isWinner && (
+                      <span className={styles.crownIcon} aria-label="Winner">
+                        &#x1F451;
+                      </span>
+                    )}
                     {rank}.
                   </span>
                   <span className={styles.name}>{score.name}</span>

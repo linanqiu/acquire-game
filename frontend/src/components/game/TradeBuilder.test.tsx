@@ -83,7 +83,7 @@ describe('TradeBuilder', () => {
       fireEvent.click(bobButton)
 
       expect(bobButton).toHaveAttribute('aria-pressed', 'true')
-      expect(screen.getByText("YOU WANT FROM BOB:")).toBeInTheDocument()
+      expect(screen.getByText('YOU WANT FROM BOB:')).toBeInTheDocument()
     })
 
     it('shows partner holdings after selection', () => {
@@ -106,7 +106,7 @@ describe('TradeBuilder', () => {
       fireEvent.click(screen.getByTestId('player-select-player-3'))
 
       // Carol's holdings should be shown
-      expect(screen.getByText("YOU WANT FROM CAROL:")).toBeInTheDocument()
+      expect(screen.getByText('YOU WANT FROM CAROL:')).toBeInTheDocument()
       expect(screen.getByText('(they have 5)')).toBeInTheDocument()
     })
   })
@@ -257,9 +257,7 @@ describe('TradeBuilder', () => {
 
   describe('edge cases', () => {
     it('handles player with no stocks', () => {
-      const playersWithNoStocks = [
-        { id: 'player-2', name: 'Bob', cash: 5000, stocks: {} },
-      ]
+      const playersWithNoStocks = [{ id: 'player-2', name: 'Bob', cash: 5000, stocks: {} }]
       render(<TradeBuilder {...defaultProps} players={playersWithNoStocks} />)
 
       fireEvent.click(screen.getByTestId('player-select-player-2'))

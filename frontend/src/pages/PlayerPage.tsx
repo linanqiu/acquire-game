@@ -24,11 +24,7 @@ import type { Coordinate } from '../types/game'
 import styles from './PlayerPage.module.css'
 
 // Phase display text
-function getPhaseText(
-  phase: GamePhase,
-  isMyTurn: boolean,
-  currentPlayerName: string
-): string {
+function getPhaseText(phase: GamePhase, isMyTurn: boolean, currentPlayerName: string): string {
   if (phase === 'lobby') return 'WAITING FOR HOST'
   if (phase === 'game_over') return 'GAME OVER'
   if (!isMyTurn) return `${currentPlayerName}'s TURN`
@@ -59,12 +55,15 @@ export function PlayerPage() {
   const isHost = searchParams.get('is_host') === '1'
   const { toast } = useToast()
 
+  // Stable callbacks for WebSocket to prevent infinite re-renders
+  const handleWsError = useCallback((error: string) => toast(error, 'error'), [toast])
+
   // WebSocket connection for game actions
   const { sendAction } = useWebSocket({
     roomCode: room,
     playerId: sessionStorage.getItem('player_id') || '',
     token: sessionStorage.getItem('session_token') || '',
-    onError: (error) => toast(error, 'error'),
+    onError: handleWsError,
   })
 
   // Game store state
@@ -77,7 +76,21 @@ export function PlayerPage() {
     yourHand,
     pendingChainChoice,
     pendingStockDisposition,
+    setCurrentPlayer,
   } = useGameStore()
+
+  // Initialize currentPlayer from sessionStorage on mount
+  useEffect(() => {
+    const playerId = sessionStorage.getItem('player_id')
+    const playerName = sessionStorage.getItem('player_name')
+    const token = sessionStorage.getItem('session_token')
+
+    console.log('[PlayerPage] Initializing currentPlayer:', { playerId, playerName, hasToken: !!token, isHost })
+
+    if (playerId && playerName && token) {
+      setCurrentPlayer({ id: playerId, name: playerName, token, isHost })
+    }
+  }, [setCurrentPlayer, isHost])
 
   // Local UI state
   const [selectedTile, setSelectedTile] = useState<Coordinate | undefined>()
@@ -172,7 +185,7 @@ export function PlayerPage() {
   const handleAddBot = useCallback(async () => {
     setActionLoading(true)
     try {
-      const res = await fetch(`/api/room/${room}/bot`, {
+      const res = await fetch(`/api/room/${room}/add-bot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       })
@@ -195,10 +208,13 @@ export function PlayerPage() {
     setSelectedTile(undefined)
   }, [selectedTile, sendAction])
 
-  const handleFoundChain = useCallback((chain: ChainName) => {
-    setActionLoading(true)
-    sendAction({ action: 'found_chain', chain })
-  }, [sendAction])
+  const handleFoundChain = useCallback(
+    (chain: ChainName) => {
+      setActionLoading(true)
+      sendAction({ action: 'found_chain', chain })
+    },
+    [sendAction]
+  )
 
   const handleMergerDisposition = useCallback(
     (sell: number, trade: number, hold: number) => {
@@ -220,7 +236,11 @@ export function PlayerPage() {
   }, [stockPurchases, sendAction])
 
   const handleProposeTrade = useCallback(
-    (partnerId: string, offer: { stocks: { chain: ChainName; quantity: number }[]; cash: number }, want: { stocks: { chain: ChainName; quantity: number }[]; cash: number }) => {
+    (
+      partnerId: string,
+      offer: { stocks: { chain: ChainName; quantity: number }[]; cash: number },
+      want: { stocks: { chain: ChainName; quantity: number }[]; cash: number }
+    ) => {
       setActionLoading(true)
       // Transform array format to record format expected by API
       const offeringStocks: Partial<Record<ChainName, number>> = {}
@@ -294,7 +314,9 @@ export function PlayerPage() {
   const renderLobbyContent = () => (
     <div className={styles.lobbyContent}>
       <h2 className={styles.lobbyTitle}>WAITING FOR PLAYERS</h2>
-      <p className={styles.roomInfo}>Room Code: <span className={styles.roomCode}>{room}</span></p>
+      <p className={styles.roomInfo}>
+        Room Code: <span className={styles.roomCode}>{room}</span>
+      </p>
       <div className={styles.playerList}>
         {lobbyPlayers.map((p) => (
           <div key={p.player_id} className={styles.lobbyPlayer}>
@@ -344,15 +366,15 @@ export function PlayerPage() {
       </div>
       {isMyTurn && selectedTile && (
         <div className={styles.placementActions}>
-          <p>Selected: <strong>{selectedTile}</strong></p>
+          <p>
+            Selected: <strong>{selectedTile}</strong>
+          </p>
           <Button onClick={handlePlaceTile} loading={actionLoading}>
             PLACE TILE
           </Button>
         </div>
       )}
-      {!isMyTurn && (
-        <p className={styles.waitingMessage}>Waiting for {currentPlayerName}...</p>
-      )}
+      {!isMyTurn && <p className={styles.waitingMessage}>Waiting for {currentPlayerName}...</p>}
     </div>
   )
 
@@ -485,7 +507,8 @@ export function PlayerPage() {
         <Board tiles={boardTileStates} size="md" />
       </div>
       <p className={styles.waitingMessage}>
-        Waiting for {currentPlayerName} to {phase === 'place_tile' ? 'place a tile' : 'take action'}...
+        Waiting for {currentPlayerName} to {phase === 'place_tile' ? 'place a tile' : 'take action'}
+        ...
       </p>
     </div>
   )
@@ -559,9 +582,7 @@ export function PlayerPage() {
         )
       }
     >
-      <div className={styles.content}>
-        {renderMainContent()}
-      </div>
+      <div className={styles.content}>{renderMainContent()}</div>
 
       {showPortfolio && (
         <div className={styles.portfolioStrip}>

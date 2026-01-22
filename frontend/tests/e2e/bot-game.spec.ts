@@ -14,7 +14,7 @@ import { getMessages, waitForMessage } from './helpers/websocket'
 import type { GameStateMessage } from '../../src/types/api'
 
 // Skip bot game tests until RT-001/RT-002 WebSocket integration is complete
-test.describe.skip('Bot Game', () => {
+test.describe('Bot Game', () => {
   test('can create a game with bots and receive game state', async ({ page, request }) => {
     // Setup game with 2 bots
     const { roomCode, humanPlayer, botIds } = await setupGameWithBots(request, page, 'TestHuman', 2)
@@ -31,7 +31,7 @@ test.describe.skip('Bot Game', () => {
     ) as GameStateMessage
 
     expect(gameState).toBeDefined()
-    expect(gameState.phase).toBe('playing')
+    expect(gameState.phase).toBe('place_tile')
     expect(Object.keys(gameState.players)).toHaveLength(3) // 1 human + 2 bots
   })
 
@@ -66,7 +66,7 @@ test.describe.skip('Bot Game', () => {
     })
 
     // Verify tile was placed on board
-    expect(newState.board[tileToPlay]).not.toBeNull()
+    expect(newState.board.cells[tileToPlay]).not.toBeNull()
   })
 
   test('bots take turns automatically', async ({ page, request }) => {
@@ -91,7 +91,7 @@ test.describe.skip('Bot Game', () => {
 
     // Check that the game is progressing (tiles on board or it's eventually our turn)
     const lastState = gameStates[gameStates.length - 1]
-    const tilesOnBoard = Object.values(lastState.board).filter((v) => v !== null).length
+    const tilesOnBoard = Object.values(lastState.board.cells).filter((v) => v !== null).length
 
     // Either tiles have been placed, or it's our turn with 0 tiles (we're first)
     const isOurTurn = lastState.current_player === humanPlayer.id
@@ -118,13 +118,15 @@ test.describe.skip('Bot Game', () => {
     // Wait for turn to pass (or for us to get our turn again in a 3-player game)
     const nextState = await waitForMessage<GameStateMessage>(page, { type: 'game_state' }, 10000)
 
-    // Game should still be playing
-    expect(nextState.phase).toBe('playing')
+    // Game should still be in an active phase (not lobby or game_over)
+    expect(['place_tile', 'found_chain', 'merger', 'stock_disposition', 'buy_stocks']).toContain(
+      nextState.phase
+    )
   })
 })
 
 // Skip game state tests until RT-001/RT-002 WebSocket integration is complete
-test.describe.skip('Game State', () => {
+test.describe('Game State', () => {
   test('game state includes all required fields', async ({ page, request }) => {
     // Setup game
     await setupGameWithBots(request, page, 'TestHuman', 2)
