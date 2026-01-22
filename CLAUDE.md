@@ -65,6 +65,38 @@ Exception: For brainstorming or documentation updates, skip steps 1-2.
 - Always run tests after writing new tests or modifying existing ones
 - Don't just write tests - verify they pass
 
+### Scenario Tests vs API Tests (CRITICAL DISTINCTION)
+
+**Scenario tests ARE user journey tests.** They exercise the app exactly as users would:
+
+1. **Scenario tests (E2E user flows):**
+   - MUST use UI interactions: `page.click()`, `page.fill()`, `page.getByRole()`
+   - NO API shortcuts - don't call `/api/create-game` directly
+   - NO database seeding - if a user can't do it through the UI, neither should the test
+   - Screenshots at every step prove the UI actually works
+   - These tests answer: "Can a user accomplish this task?"
+
+2. **API tests (backend/isolated):**
+   - Direct API calls are appropriate here
+   - Test business logic, validation, error handling
+   - These tests answer: "Does the API behave correctly?"
+
+3. **Why this matters:**
+   - API tests can pass while the UI is completely broken
+   - Scenario tests catch integration failures that API tests miss
+   - If you're testing a "user journey" but calling APIs directly, you're lying about coverage
+
+**Example - Creating a game:**
+```typescript
+// WRONG for scenario tests - this is an API shortcut
+const response = await fetch('/api/create-game', { method: 'POST' })
+
+// RIGHT for scenario tests - this is what users do
+await page.getByTestId('create-name-input').fill('Player1')
+await page.getByTestId('create-button').click()
+await page.waitForURL(/\/play\/[A-Z]{4}/)
+```
+
 ### E2E Testing (CRITICAL)
 **Tests that don't actually run against real servers are LIES.** Follow this protocol:
 
@@ -84,7 +116,9 @@ Exception: For brainstorming or documentation updates, skip steps 1-2.
 2. **Capture screenshots as evidence at every step:**
    - Screenshots prove the test actually ran against real UI
    - No screenshot = no proof = didn't happen
-   - Save to `test-results/` with descriptive names
+   - Save to `frontend/test-results/scenarios/<test-name>/` with numbered names
+   - Use the `takeScreenshot()` helper from `helpers/screenshot.ts`
+   - Example: `01-lobby-before-create.png`, `02-game-created.png`
 
 3. **Check browser console for errors:**
    ```typescript
@@ -101,6 +135,13 @@ Exception: For brainstorming or documentation updates, skip steps 1-2.
    - The tests are wrong, not the code
    - Add screenshot assertions to catch render failures
    - Check for JavaScript errors in console
+
+### WebSocket Reliability Pattern
+When building real-time features:
+- **WebSocket for receiving state updates** - game state changes, player joins, etc.
+- **HTTP for sending actions** - add bot, start game, place tile, etc.
+- Why: WebSocket connections can close unexpectedly; HTTP is more reliable for critical actions
+- The Vite proxy handles `/api/*` routes to the backend automatically
 
 ### Avoiding Flaky Tests
 - **Never assume specific tiles in player hands** when using `game_room` fixture - tiles are randomly distributed
