@@ -14,18 +14,20 @@ test.describe('Home Page', () => {
 })
 
 test.describe('Routing', () => {
-  test('player route shows room code', async ({ page }) => {
+  test('player route shows room code and waiting state', async ({ page }) => {
     await page.goto('/play/ABCD')
     // Room code appears in header, use first() to avoid strict mode violation
     await expect(page.getByText('ABCD').first()).toBeVisible()
-    await expect(page.getByText(/player view/i)).toBeVisible()
+    // Player view shows waiting for host status
+    await expect(page.getByText(/waiting for host/i)).toBeVisible()
   })
 
-  test('host route shows room code', async ({ page }) => {
+  test('host route shows room code and host controls', async ({ page }) => {
     await page.goto('/host/WXYZ')
     // Room code appears in header, use first() to avoid strict mode violation
     await expect(page.getByText('WXYZ').first()).toBeVisible()
-    await expect(page.getByText(/host view/i)).toBeVisible()
+    // Host view shows player count and control buttons
+    await expect(page.getByText(/players/i)).toBeVisible()
   })
 
   test('unknown route shows 404', async ({ page }) => {
