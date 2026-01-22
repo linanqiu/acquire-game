@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { captureStep, resetStepCounter } from './helpers/screenshot'
+import { createGame, startGame, getGameState } from './helpers/game-setup'
 
 /**
  * Smoke tests to verify the E2E scenario test infrastructure is working.
@@ -7,6 +8,7 @@ import { captureStep, resetStepCounter } from './helpers/screenshot'
  * - Screenshots can be captured and saved
  * - Console errors are detected
  * - Basic page navigation works
+ * - Game seeding API works
  */
 test.describe('Scenario Test Infrastructure Smoke Test', () => {
   test.beforeEach(() => {
@@ -42,9 +44,13 @@ test.describe('Scenario Test Infrastructure Smoke Test', () => {
     await page.goto('/')
     await page.waitForTimeout(1000) // Allow any errors to surface
 
-    // Filter out expected errors (favicon, etc)
+    // Filter out expected errors (favicon, network errors in test env, etc)
     const criticalErrors = consoleErrors.filter(
-      (e) => !e.includes('favicon') && !e.includes('404')
+      (e) =>
+        !e.includes('favicon') &&
+        !e.includes('404') &&
+        !e.includes('net::ERR_NAME_NOT_RESOLVED') &&
+        !e.includes('net::ERR_CONNECTION_REFUSED')
     )
     expect(criticalErrors).toHaveLength(0)
   })
@@ -67,6 +73,39 @@ test.describe('Scenario Test Infrastructure Smoke Test', () => {
     await captureStep(page, 'lobby-structure-verified', {
       category: 'smoke',
       testName: 'lobby-structure',
+    })
+  })
+
+  test('should create and start game via API', async ({ request, page }) => {
+    // Create game with host and 2 additional players
+    const game = await createGame(request, {
+      hostName: 'TestHost',
+      playerNames: ['Player2', 'Player3'],
+    })
+
+    expect(game.roomCode).toBeTruthy()
+    expect(game.hostPlayerId).toBeTruthy()
+    expect(game.hostSessionToken).toBeTruthy()
+    expect(game.players).toHaveLength(2)
+
+    // Start the game
+    await startGame(request, game.roomCode, game.hostSessionToken)
+
+    // Verify room state is available
+    const state = (await getGameState(request, game.roomCode)) as {
+      started: boolean
+      players: unknown[]
+    }
+    expect(state).toBeTruthy()
+    expect(state.started).toBe(true)
+    expect(state.players).toHaveLength(3)
+
+    // Navigate to game page and capture screenshot
+    await page.goto(`/game/${game.roomCode}?playerId=${game.hostPlayerId}`)
+    await page.waitForLoadState('networkidle')
+    await captureStep(page, 'game-created-and-started', {
+      category: 'smoke',
+      testName: 'game-seeding-api',
     })
   })
 })

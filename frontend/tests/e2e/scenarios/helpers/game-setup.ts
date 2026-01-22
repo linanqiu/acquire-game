@@ -1,5 +1,7 @@
 import { APIRequestContext } from '@playwright/test'
 
+const API_URL = 'http://127.0.0.1:8000'
+
 export interface GameConfig {
   hostName: string
   playerNames?: string[]
@@ -28,7 +30,7 @@ export async function createGame(
   config: GameConfig
 ): Promise<GameSetupResult> {
   // Create game
-  const createRes = await request.post('/create', {
+  const createRes = await request.post(`${API_URL}/create`, {
     form: { player_name: config.hostName },
   })
 
@@ -47,7 +49,7 @@ export async function createGame(
 
   // Join additional players
   for (const name of config.playerNames || []) {
-    const joinRes = await request.post('/join', {
+    const joinRes = await request.post(`${API_URL}/join`, {
       form: { player_name: name, room_code: result.roomCode },
     })
 
@@ -76,11 +78,9 @@ export async function createGame(
 export async function startGame(
   request: APIRequestContext,
   roomCode: string,
-  hostSessionToken: string
+  _hostSessionToken?: string
 ): Promise<void> {
-  const res = await request.post(`/games/${roomCode}/start`, {
-    headers: { 'X-Session-Token': hostSessionToken },
-  })
+  const res = await request.post(`${API_URL}/room/${roomCode}/start`)
 
   if (!res.ok()) {
     throw new Error(`Failed to start game: ${await res.text()}`)
@@ -88,21 +88,41 @@ export async function startGame(
 }
 
 /**
- * Get current game state via the API.
+ * Add a bot to a room via the API.
  *
  * @param request - Playwright APIRequestContext
  * @param roomCode - Room code of the game
- * @returns Game state object
+ * @returns Bot ID
  */
-export async function getGameState(
-  request: APIRequestContext,
-  roomCode: string
-): Promise<unknown> {
-  const res = await request.get(`/games/${roomCode}/state`)
+export async function addBot(request: APIRequestContext, roomCode: string): Promise<string> {
+  const res = await request.post(`${API_URL}/room/${roomCode}/add-bot`)
 
   if (!res.ok()) {
-    throw new Error(`Failed to get game state: ${await res.text()}`)
+    throw new Error(`Failed to add bot: ${await res.text()}`)
+  }
+
+  const data = await res.json()
+  return data.bot_id
+}
+
+/**
+ * Get current room state via the API.
+ * Note: This returns room metadata (started, players, etc.), not game state.
+ * Full game state is obtained via WebSocket.
+ *
+ * @param request - Playwright APIRequestContext
+ * @param roomCode - Room code of the game
+ * @returns Room state object
+ */
+export async function getRoomState(request: APIRequestContext, roomCode: string): Promise<unknown> {
+  const res = await request.get(`${API_URL}/room/${roomCode}/state`)
+
+  if (!res.ok()) {
+    throw new Error(`Failed to get room state: ${await res.text()}`)
   }
 
   return res.json()
 }
+
+// Alias for backward compatibility
+export const getGameState = getRoomState
