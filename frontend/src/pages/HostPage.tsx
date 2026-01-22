@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useRoom } from '../hooks/useRoom'
+import { useWebSocket } from '../hooks/useWebSocket'
 import { PageShell } from '../components/ui/PageShell'
 import { Panel } from '../components/ui/Panel'
 import { Button } from '../components/ui/Button'
@@ -47,6 +48,14 @@ export function HostPage() {
   const room = useRoom()
   const navigate = useNavigate()
   const { toast } = useToast()
+
+  // WebSocket connection for receiving game state updates
+  useWebSocket({
+    roomCode: room,
+    playerId: sessionStorage.getItem('player_id') || '',
+    token: sessionStorage.getItem('session_token') || '',
+    onError: (error) => toast(error, 'error'),
+  })
 
   // Game store state
   const {
