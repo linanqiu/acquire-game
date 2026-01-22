@@ -13,14 +13,9 @@ export async function assertBoardVisible(page: Page): Promise<void> {
  * @param page - Playwright Page object
  * @param expectedAmount - Expected money amount (without $ sign)
  */
-export async function assertPlayerMoney(
-  page: Page,
-  expectedAmount: number
-): Promise<void> {
+export async function assertPlayerMoney(page: Page, expectedAmount: number): Promise<void> {
   const moneyDisplay = page.locator('[data-testid="player-money"]')
-  await expect(moneyDisplay).toContainText(
-    `$${expectedAmount.toLocaleString()}`
-  )
+  await expect(moneyDisplay).toContainText(`$${expectedAmount.toLocaleString()}`)
 }
 
 /**
@@ -29,10 +24,7 @@ export async function assertPlayerMoney(
  * @param page - Playwright Page object
  * @param chainName - Name of the chain (e.g., "tower", "american")
  */
-export async function assertChainOnBoard(
-  page: Page,
-  chainName: string
-): Promise<void> {
+export async function assertChainOnBoard(page: Page, chainName: string): Promise<void> {
   const chainTiles = page.locator(`[data-chain="${chainName.toLowerCase()}"]`)
   await expect(chainTiles.first()).toBeVisible()
 }
@@ -49,22 +41,24 @@ export async function assertChainSize(
   chainName: string,
   expectedSize: number
 ): Promise<void> {
-  const chainInfo = page.locator(
-    `[data-testid="chain-info-${chainName.toLowerCase()}"]`
-  )
+  const chainInfo = page.locator(`[data-testid="chain-info-${chainName.toLowerCase()}"]`)
   const sizeDisplay = chainInfo.locator('[data-testid="chain-size"]')
   await expect(sizeDisplay).toContainText(String(expectedSize))
 }
 
 /**
  * Assert that there are no critical console errors.
- * Filters out expected errors like favicon 404s.
+ * Filters out expected errors like favicon 404s and network errors in test environments.
  *
  * @param errors - Array of console error messages
  */
 export function assertNoConsoleErrors(errors: string[]): void {
   const criticalErrors = errors.filter(
-    (e) => !e.includes('favicon') && !e.includes('404')
+    (e) =>
+      !e.includes('favicon') &&
+      !e.includes('404') &&
+      !e.includes('net::ERR_NAME_NOT_RESOLVED') &&
+      !e.includes('net::ERR_CONNECTION_REFUSED')
   )
   expect(criticalErrors).toHaveLength(0)
 }
@@ -81,9 +75,7 @@ export async function assertStockHolding(
   chainName: string,
   expectedCount: number
 ): Promise<void> {
-  const holding = page.locator(
-    `[data-testid="stock-holding-${chainName.toLowerCase()}"]`
-  )
+  const holding = page.locator(`[data-testid="stock-holding-${chainName.toLowerCase()}"]`)
   await expect(holding).toContainText(String(expectedCount))
 }
 
@@ -93,10 +85,7 @@ export async function assertStockHolding(
  * @param page - Playwright Page object
  * @param tileCoord - Tile coordinate (e.g., "1A", "5D")
  */
-export async function assertTileInHand(
-  page: Page,
-  tileCoord: string
-): Promise<void> {
+export async function assertTileInHand(page: Page, tileCoord: string): Promise<void> {
   const tile = page.locator(`[data-testid="hand-tile-${tileCoord}"]`)
   await expect(tile).toBeVisible()
 }
@@ -107,10 +96,7 @@ export async function assertTileInHand(
  * @param page - Playwright Page object
  * @param phase - Expected phase name
  */
-export async function assertGamePhase(
-  page: Page,
-  phase: string
-): Promise<void> {
+export async function assertGamePhase(page: Page, phase: string): Promise<void> {
   const phaseIndicator = page.locator('[data-testid="game-phase"]')
   await expect(phaseIndicator).toContainText(phase)
 }

@@ -21,7 +21,7 @@
 | [AI Training](epics/04-ai-training.md) | 0/9 | AI-001, AI-003 |
 | [Deployment](epics/05-deployment.md) | 0/5 | DP-001 |
 | [Security Hardening](epics/06-security-hardening.md) | 0/5 | SH-002, SH-003, SH-004, SH-005 (after E2E: SH-001) |
-| [Scenario Tests](epics/07-scenario-tests.md) | 0/10 | ST-001 (after RT-001/RT-002) |
+| [Scenario Tests](epics/07-scenario-tests.md) | 1/10 | ST-002 through ST-008 (parallel) |
 
 ## Story Status Key
 
@@ -73,9 +73,9 @@ GU-016 (E2E Infrastructure Validation) ✓
     ↓
 RT-001, RT-002, RT-003, RT-005 (WebSocket core) ✓
     ↓
-ST-001 (Scenario Test Infrastructure) ← NEXT
+ST-001 (Scenario Test Infrastructure) ✓
     ↓
-ST-002 to ST-008 (Core Scenario Tests - parallel)
+ST-002 to ST-008 (Core Scenario Tests - parallel) ← NEXT
     ↓
 ST-009 (Edge Cases) → ST-010 (Coverage Report)
     ↓
@@ -92,7 +92,9 @@ Production Deploy
                                                                     ↓
                                                   [DONE] RT-001/RT-002/RT-003/RT-005 (WebSocket core)
                                                                     ↓
-                                                  ST-001 to ST-010 (Scenario Tests) ← YOU ARE HERE
+                                                  [DONE] ST-001 (Scenario Test Infrastructure)
+                                                                    ↓
+                                                  ST-002 to ST-010 (Scenario Tests) ← YOU ARE HERE
                                                                     ↓
                                                   Security → Deploy
 ```

@@ -22,6 +22,9 @@ export function LobbyPage() {
   const [joinLoading, setJoinLoading] = useState(false)
   const [joinError, setJoinError] = useState('')
 
+  // Spectator mode state
+  const [spectatorLoading, setSpectatorLoading] = useState(false)
+
   const validateName = (name: string): string | null => {
     if (!name.trim()) {
       return 'Name is required'
@@ -135,6 +138,34 @@ export function LobbyPage() {
     }
   }
 
+  const handleWatchBots = async () => {
+    setSpectatorLoading(true)
+    try {
+      const res = await fetch('/api/create-spectator', {
+        method: 'POST',
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.detail || 'Failed to create spectator room')
+      }
+
+      // Clear any existing player credentials (we're not a player)
+      sessionStorage.removeItem('player_id')
+      sessionStorage.removeItem('session_token')
+      sessionStorage.removeItem('player_name')
+
+      toast('Spectator room created!', 'success')
+      navigate(`/host/${data.room_code}`)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      toast(message, 'error')
+    } finally {
+      setSpectatorLoading(false)
+    }
+  }
+
   return (
     <PageShell header={null}>
       <div className={styles.lobby}>
@@ -200,6 +231,18 @@ export function LobbyPage() {
         </div>
 
         <p className={styles.meta}>3-6 players &middot; ~60 min</p>
+
+        <div className={styles.spectatorSection}>
+          <Button
+            variant="secondary"
+            loading={spectatorLoading}
+            onClick={handleWatchBots}
+            data-testid="watch-bots-button"
+          >
+            WATCH BOTS PLAY
+          </Button>
+          <p className={styles.spectatorHint}>Create a game with only AI players and watch</p>
+        </div>
       </div>
     </PageShell>
   )

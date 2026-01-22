@@ -33,7 +33,7 @@ WebSocket integration must be complete for E2E gameplay tests.
 
 | ID | Title | Effort | Dependencies | Status |
 |----|-------|--------|--------------|--------|
-| [ST-001](../stories/07-scenario-tests/ST-001.md) | E2E Scenario Test Infrastructure | M | None | not-started |
+| [ST-001](../stories/07-scenario-tests/ST-001.md) | E2E Scenario Test Infrastructure | M | None | complete |
 
 ### Phase 2: Core Scenarios (Parallel)
 
