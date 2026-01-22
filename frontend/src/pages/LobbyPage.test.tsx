@@ -1,10 +1,10 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { BrowserRouter } from 'react-router-dom'
 import { LobbyPage } from './LobbyPage'
 import { ToastProvider } from '../components/ui/ToastProvider'
 
-// Mock useNavigate
+// Mock useNavigate - must be at module level for vi.mock hoisting
 const mockNavigate = vi.fn()
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
@@ -16,7 +16,6 @@ vi.mock('react-router-dom', async () => {
 
 // Mock fetch
 const mockFetch = vi.fn()
-global.fetch = mockFetch
 
 // Helper to render with providers
 function renderLobbyPage() {
@@ -31,8 +30,18 @@ function renderLobbyPage() {
 
 describe('LobbyPage', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    // Reset mocks before each test
+    mockNavigate.mockClear()
+    mockFetch.mockReset()
     sessionStorage.clear()
+    // Use stubGlobal for proper isolation
+    vi.stubGlobal('fetch', mockFetch)
+  })
+
+  afterEach(async () => {
+    vi.unstubAllGlobals()
+    // Wait for any pending microtasks/promises to flush
+    await new Promise((resolve) => setTimeout(resolve, 0))
   })
 
   describe('rendering', () => {
@@ -194,23 +203,22 @@ describe('LobbyPage', () => {
     })
 
     it('shows loading state during submission', async () => {
-      mockFetch.mockImplementation(
-        () =>
-          new Promise((resolve) =>
-            setTimeout(
-              () =>
-                resolve({
-                  ok: true,
-                  json: () =>
-                    Promise.resolve({
-                      room_code: 'WXYZ',
-                      player_id: 'player-123',
-                      session_token: 'token-abc',
-                    }),
-                }),
-              100
-            )
-          )
+      // Use a promise we can control to avoid async leakage
+      let resolvePromise: () => void
+      const fetchPromise = new Promise<void>((resolve) => {
+        resolvePromise = resolve
+      })
+
+      mockFetch.mockImplementation(() =>
+        fetchPromise.then(() => ({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              room_code: 'WXYZ',
+              player_id: 'player-123',
+              session_token: 'token-abc',
+            }),
+        }))
       )
 
       renderLobbyPage()
@@ -222,6 +230,12 @@ describe('LobbyPage', () => {
 
       // Button should be disabled during loading
       expect(createButton).toBeDisabled()
+
+      // Resolve and wait to prevent async leakage into subsequent tests
+      resolvePromise!()
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalled()
+      })
     })
   })
 

@@ -1,9 +1,19 @@
 import { render, screen } from '@testing-library/react'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { App } from './App'
 import { LobbyPage, PlayerPage, HostPage, NotFoundPage } from './pages'
 import { ToastProvider } from './components/ui/ToastProvider'
+import { useGameStore } from './store/gameStore'
+
+// Mock useWebSocket to prevent it from changing connectionStatus during tests
+vi.mock('./hooks/useWebSocket', () => ({
+  useWebSocket: () => ({
+    sendAction: vi.fn(),
+    disconnect: vi.fn(),
+    isConnected: true,
+  }),
+}))
 
 // Helper to render App with specific route using MemoryRouter
 function renderWithRoute(route: string) {
@@ -22,6 +32,12 @@ function renderWithRoute(route: string) {
 }
 
 describe('App Routing', () => {
+  beforeEach(() => {
+    // Reset the store and set connected state before each test
+    useGameStore.getState().reset()
+    useGameStore.setState({ connectionStatus: 'connected' })
+  })
+
   it('renders lobby page at /', () => {
     renderWithRoute('/')
     expect(screen.getByRole('heading', { name: /ACQUIRE/i })).toBeInTheDocument()
