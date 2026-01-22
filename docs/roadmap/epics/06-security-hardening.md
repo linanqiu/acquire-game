@@ -10,11 +10,11 @@ This epic addresses security gaps identified during code review that must be res
 
 | ID | Title | Effort | Dependencies | Status |
 |----|-------|--------|--------------|--------|
-| SH-001 | Enforce Session Token Validation | S | GU-016 | `not-started` |
-| SH-002 | Rate Limit REST Endpoints | S | None | `not-started` |
-| SH-003 | Configure CORS | XS | None | `not-started` |
-| SH-004 | Sanitize Player Name Input | XS | None | `not-started` |
-| SH-005 | Room Cleanup and Memory Management | M | None | `not-started` |
+| [SH-001](../stories/06-security-hardening/SH-001.md) | Enforce Session Token Validation | S | GU-016 | `not-started` |
+| [SH-002](../stories/06-security-hardening/SH-002.md) | Rate Limit REST Endpoints | S | None | `not-started` |
+| [SH-003](../stories/06-security-hardening/SH-003.md) | Configure CORS | XS | None | `not-started` |
+| [SH-004](../stories/06-security-hardening/SH-004.md) | Sanitize Player Name Input | XS | None | `not-started` |
+| [SH-005](../stories/06-security-hardening/SH-005.md) | Room Cleanup and Memory Management | M | None | `not-started` |
 
 ## Context
 

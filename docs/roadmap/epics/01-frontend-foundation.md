@@ -26,8 +26,8 @@ Establish the React + TypeScript project with a complete design system based on 
 | ID | Title | Effort | Status |
 |----|-------|--------|--------|
 | [FF-001](../stories/01-frontend-foundation/FF-001.md) | Project Setup | M | complete |
-| [FF-010](../stories/01-frontend-foundation/FF-010.md) | Routing Setup | S | not-started |
-| [FF-011](../stories/01-frontend-foundation/FF-011.md) | E2E Testing Infrastructure | M | not-started |
+| [FF-010](../stories/01-frontend-foundation/FF-010.md) | Routing Setup | S | complete |
+| [FF-011](../stories/01-frontend-foundation/FF-011.md) | E2E Testing Infrastructure | M | complete |
 
 ### Phase 2: Design Tokens (After FF-001)
 
@@ -40,22 +40,22 @@ Establish the React + TypeScript project with a complete design system based on 
 
 | ID | Title | Effort | Status |
 |----|-------|--------|--------|
-| [FF-004](../stories/01-frontend-foundation/FF-004.md) | Color System | S | not-started |
+| [FF-004](../stories/01-frontend-foundation/FF-004.md) | Color System | S | complete |
 
 ### Phase 4: Layout Components (After FF-002, FF-003)
 
 | ID | Title | Effort | Status |
 |----|-------|--------|--------|
-| [FF-005](../stories/01-frontend-foundation/FF-005.md) | Layout Components | M | not-started |
-| [FF-006](../stories/01-frontend-foundation/FF-006.md) | Button Component | S | not-started |
+| [FF-005](../stories/01-frontend-foundation/FF-005.md) | Layout Components | M | complete |
+| [FF-006](../stories/01-frontend-foundation/FF-006.md) | Button Component | S | complete |
 
 ### Phase 5: Interactive Components (After FF-006)
 
 | ID | Title | Effort | Status |
 |----|-------|--------|--------|
-| [FF-007](../stories/01-frontend-foundation/FF-007.md) | Input Components | S | not-started |
-| [FF-008](../stories/01-frontend-foundation/FF-008.md) | Modal Component | M | not-started |
-| [FF-009](../stories/01-frontend-foundation/FF-009.md) | Toast System | S | not-started |
+| [FF-007](../stories/01-frontend-foundation/FF-007.md) | Input Components | S | complete |
+| [FF-008](../stories/01-frontend-foundation/FF-008.md) | Modal Component | M | complete |
+| [FF-009](../stories/01-frontend-foundation/FF-009.md) | Toast System | S | complete |
 
 ## Dependency Graph
 
