@@ -27,7 +27,7 @@ Connect the React frontend to the FastAPI backend via WebSocket. Handle state sy
 | [RT-003](../stories/03-realtime-integration/RT-003.md) | Message Handlers | M | RT-001, RT-002 | complete |
 | [RT-004](../stories/03-realtime-integration/RT-004.md) | Optimistic Updates | M | RT-002, RT-003 | not-started |
 | [RT-005](../stories/03-realtime-integration/RT-005.md) | Reconnection Logic | M | RT-001, RT-003 | complete |
-| [RT-006](../stories/03-realtime-integration/RT-006.md) | Error Handling | S | RT-003, FF-009 | not-started |
+| [RT-006](../stories/03-realtime-integration/RT-006.md) | Error Handling | S | RT-003, FF-009 | complete |
 
 ## Dependency Graph
 

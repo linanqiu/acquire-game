@@ -18,6 +18,7 @@ import { StockStepper } from '../components/game/StockStepper'
 import { ChainMarker } from '../components/game/ChainMarker'
 import { useGameStore } from '../store/gameStore'
 import { useToast } from '../components/ui/useToast'
+import { useErrorHandler } from '../hooks/useErrorHandler'
 import { transformBoardToTileStates, transformHandToRackTiles } from '../utils/transforms'
 import type { ChainName, GamePhase } from '../types/api'
 import type { Coordinate } from '../types/game'
@@ -54,9 +55,13 @@ export function PlayerPage() {
   const [searchParams] = useSearchParams()
   const isHost = searchParams.get('is_host') === '1'
   const { toast } = useToast()
+  const { handleServerError } = useErrorHandler()
 
   // Stable callbacks for WebSocket to prevent infinite re-renders
-  const handleWsError = useCallback((error: string) => toast(error, 'error'), [toast])
+  const handleWsError = useCallback(
+    (error: string) => handleServerError(error),
+    [handleServerError]
+  )
 
   // WebSocket connection for game actions
   const { sendAction } = useWebSocket({
@@ -85,7 +90,12 @@ export function PlayerPage() {
     const playerName = sessionStorage.getItem('player_name')
     const token = sessionStorage.getItem('session_token')
 
-    console.log('[PlayerPage] Initializing currentPlayer:', { playerId, playerName, hasToken: !!token, isHost })
+    console.log('[PlayerPage] Initializing currentPlayer:', {
+      playerId,
+      playerName,
+      hasToken: !!token,
+      isHost,
+    })
 
     if (playerId && playerName && token) {
       setCurrentPlayer({ id: playerId, name: playerName, token, isHost })

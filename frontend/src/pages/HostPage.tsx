@@ -12,6 +12,7 @@ import { PlayerCard, type StockHolding } from '../components/game/PlayerCard'
 import { GameOver, type FinalScore } from '../components/game/GameOver'
 import { useGameStore } from '../store/gameStore'
 import { useToast } from '../components/ui/useToast'
+import { useErrorHandler } from '../hooks/useErrorHandler'
 import { transformBoardToTileStates } from '../utils/transforms'
 import type { ChainName, GamePhase } from '../types/api'
 import styles from './HostPage.module.css'
@@ -48,9 +49,13 @@ export function HostPage() {
   const room = useRoom()
   const navigate = useNavigate()
   const { toast } = useToast()
+  const { handleServerError } = useErrorHandler()
 
   // Stable callback for WebSocket to prevent infinite re-renders
-  const handleWsError = useCallback((error: string) => toast(error, 'error'), [toast])
+  const handleWsError = useCallback(
+    (error: string) => handleServerError(error),
+    [handleServerError]
+  )
 
   // WebSocket connection for receiving game state updates
   useWebSocket({
@@ -61,8 +66,7 @@ export function HostPage() {
   })
 
   // Game store state
-  const { connectionStatus, lobbyPlayers, canStart, gameState, currentPlayer, setCurrentPlayer } =
-    useGameStore()
+  const { connectionStatus, lobbyPlayers, canStart, gameState, setCurrentPlayer } = useGameStore()
 
   // Initialize currentPlayer from sessionStorage on mount
   useEffect(() => {
@@ -70,7 +74,11 @@ export function HostPage() {
     const playerName = sessionStorage.getItem('player_name')
     const token = sessionStorage.getItem('session_token')
 
-    console.log('[HostPage] Initializing currentPlayer:', { playerId, playerName, hasToken: !!token })
+    console.log('[HostPage] Initializing currentPlayer:', {
+      playerId,
+      playerName,
+      hasToken: !!token,
+    })
 
     if (playerId && playerName && token) {
       setCurrentPlayer({ id: playerId, name: playerName, token, isHost: true })

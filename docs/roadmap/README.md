@@ -17,7 +17,7 @@
 | [Backend Hardening](epics/00-backend-hardening.md) | 13/13 ✅ | Complete |
 | [Frontend Foundation](epics/01-frontend-foundation.md) | 11/11 ✅ | Complete |
 | [Game UI](epics/02-game-ui.md) | 16/16 ✅ | Complete |
-| [Real-time Integration](epics/03-realtime-integration.md) | 4/6 | RT-004, RT-006 (optional enhancements) |
+| [Real-time Integration](epics/03-realtime-integration.md) | 5/6 | RT-004 (optional enhancement) |
 | [AI Training](epics/04-ai-training.md) | 0/9 | AI-001, AI-003 |
 | [Deployment](epics/05-deployment.md) | 0/5 | DP-001 |
 | [Security Hardening](epics/06-security-hardening.md) | 0/5 | SH-002, SH-003, SH-004, SH-005 (after E2E: SH-001) |

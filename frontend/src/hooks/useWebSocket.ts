@@ -103,10 +103,18 @@ export function useWebSocket({
         wsRef.current = null
 
         // Don't reconnect if it was intentional, clean close, or we've exceeded attempts
-        if (intentionalCloseRef.current || event.wasClean || reconnectAttemptsRef.current >= maxReconnectAttempts) {
+        if (
+          intentionalCloseRef.current ||
+          event.wasClean ||
+          reconnectAttemptsRef.current >= maxReconnectAttempts
+        ) {
           setConnectionStatus('disconnected')
           // Only show error if we exhausted all reconnection attempts (not intentional or clean close)
-          if (!intentionalCloseRef.current && !event.wasClean && reconnectAttemptsRef.current >= maxReconnectAttempts) {
+          if (
+            !intentionalCloseRef.current &&
+            !event.wasClean &&
+            reconnectAttemptsRef.current >= maxReconnectAttempts
+          ) {
             onError?.('Connection failed after multiple attempts')
           }
           onClose?.()
