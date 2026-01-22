@@ -7,27 +7,43 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
+  timeout: 30000,
+  expect: {
+    timeout: 10000,
+  },
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://127.0.0.1:5173',
     trace: 'on-first-retry',
+    actionTimeout: 10000,
   },
   projects: [
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
+    {
+      name: 'scenarios',
+      testDir: './tests/e2e/scenarios',
+      use: { ...devices['Desktop Chrome'] },
+    },
   ],
   webServer: [
     {
-      command: 'cd ../backend && python -m uvicorn main:app --port 8000',
-      url: 'http://localhost:8000/docs',
+      command: 'python3 -m uvicorn main:app --host 127.0.0.1 --port 8000',
+      cwd: '../backend',
+      url: 'http://127.0.0.1:8000/docs',
       reuseExistingServer: !process.env.CI,
-      timeout: 30000,
+      timeout: 120000,
+      stdout: 'pipe',
+      stderr: 'pipe',
     },
     {
-      command: 'npm run dev',
-      url: 'http://localhost:5173',
+      command: 'npm run dev -- --host 127.0.0.1',
+      url: 'http://127.0.0.1:5173',
       reuseExistingServer: !process.env.CI,
+      timeout: 120000,
+      stdout: 'pipe',
+      stderr: 'pipe',
     },
   ],
 })

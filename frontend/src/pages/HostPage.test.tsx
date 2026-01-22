@@ -1,10 +1,19 @@
 import { render, screen } from '@testing-library/react'
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { HostPage } from './HostPage'
 import { ToastProvider } from '../components/ui/ToastProvider'
 import { useGameStore } from '../store/gameStore'
 import type { GameStateMessage } from '../types/api'
+
+// Mock useWebSocket to prevent it from changing connectionStatus during tests
+vi.mock('../hooks/useWebSocket', () => ({
+  useWebSocket: () => ({
+    sendAction: vi.fn(),
+    disconnect: vi.fn(),
+    isConnected: true,
+  }),
+}))
 
 // Helper to render HostPage with routing
 function renderHostPage(room = 'TEST') {
@@ -23,6 +32,8 @@ describe('HostPage', () => {
   beforeEach(() => {
     // Reset the store before each test
     useGameStore.getState().reset()
+    // Set default connected state for most tests
+    useGameStore.setState({ connectionStatus: 'connected' })
   })
 
   describe('Lobby state', () => {

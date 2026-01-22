@@ -54,9 +54,30 @@ describe('GameOver', () => {
   describe('tie game handling', () => {
     it('handles tie game correctly', () => {
       const tieScores: FinalScore[] = [
-        { playerId: 'p1', name: 'Alice', cash: 5000, bonuses: 15000, stockSales: 12000, total: 32000 },
-        { playerId: 'p2', name: 'Bob', cash: 4000, bonuses: 10000, stockSales: 18000, total: 32000 },
-        { playerId: 'p3', name: 'Carol', cash: 6000, bonuses: 5000, stockSales: 8000, total: 19000 },
+        {
+          playerId: 'p1',
+          name: 'Alice',
+          cash: 5000,
+          bonuses: 15000,
+          stockSales: 12000,
+          total: 32000,
+        },
+        {
+          playerId: 'p2',
+          name: 'Bob',
+          cash: 4000,
+          bonuses: 10000,
+          stockSales: 18000,
+          total: 32000,
+        },
+        {
+          playerId: 'p3',
+          name: 'Carol',
+          cash: 6000,
+          bonuses: 5000,
+          stockSales: 8000,
+          total: 19000,
+        },
       ]
 
       render(<GameOver {...defaultProps} scores={tieScores} />)
@@ -68,9 +89,30 @@ describe('GameOver', () => {
 
     it('handles three-way tie correctly', () => {
       const threeWayTie: FinalScore[] = [
-        { playerId: 'p1', name: 'Alice', cash: 5000, bonuses: 15000, stockSales: 12000, total: 32000 },
-        { playerId: 'p2', name: 'Bob', cash: 4000, bonuses: 10000, stockSales: 18000, total: 32000 },
-        { playerId: 'p3', name: 'Carol', cash: 6000, bonuses: 14000, stockSales: 12000, total: 32000 },
+        {
+          playerId: 'p1',
+          name: 'Alice',
+          cash: 5000,
+          bonuses: 15000,
+          stockSales: 12000,
+          total: 32000,
+        },
+        {
+          playerId: 'p2',
+          name: 'Bob',
+          cash: 4000,
+          bonuses: 10000,
+          stockSales: 18000,
+          total: 32000,
+        },
+        {
+          playerId: 'p3',
+          name: 'Carol',
+          cash: 6000,
+          bonuses: 14000,
+          stockSales: 12000,
+          total: 32000,
+        },
       ]
 
       render(<GameOver {...defaultProps} scores={threeWayTie} />)
@@ -83,9 +125,30 @@ describe('GameOver', () => {
   describe('ranking calculation', () => {
     it('assigns correct ranks with ties', () => {
       const scoresWithTie: FinalScore[] = [
-        { playerId: 'p1', name: 'Alice', cash: 5000, bonuses: 15000, stockSales: 12000, total: 32000 },
-        { playerId: 'p2', name: 'Bob', cash: 4000, bonuses: 10000, stockSales: 18000, total: 32000 },
-        { playerId: 'p3', name: 'Carol', cash: 6000, bonuses: 5000, stockSales: 8000, total: 19000 },
+        {
+          playerId: 'p1',
+          name: 'Alice',
+          cash: 5000,
+          bonuses: 15000,
+          stockSales: 12000,
+          total: 32000,
+        },
+        {
+          playerId: 'p2',
+          name: 'Bob',
+          cash: 4000,
+          bonuses: 10000,
+          stockSales: 18000,
+          total: 32000,
+        },
+        {
+          playerId: 'p3',
+          name: 'Carol',
+          cash: 6000,
+          bonuses: 5000,
+          stockSales: 8000,
+          total: 19000,
+        },
       ]
 
       render(<GameOver {...defaultProps} scores={scoresWithTie} />)
@@ -197,7 +260,14 @@ describe('GameOver', () => {
   describe('edge cases', () => {
     it('handles single player', () => {
       const singlePlayer: FinalScore[] = [
-        { playerId: 'p1', name: 'Alice', cash: 5000, bonuses: 8000, stockSales: 12000, total: 25000 },
+        {
+          playerId: 'p1',
+          name: 'Alice',
+          cash: 5000,
+          bonuses: 8000,
+          stockSales: 12000,
+          total: 25000,
+        },
       ]
 
       render(<GameOver {...defaultProps} scores={singlePlayer} />)
@@ -222,7 +292,14 @@ describe('GameOver', () => {
 
     it('handles large numbers correctly', () => {
       const bigScores: FinalScore[] = [
-        { playerId: 'p1', name: 'Alice', cash: 150000, bonuses: 80000, stockSales: 220000, total: 450000 },
+        {
+          playerId: 'p1',
+          name: 'Alice',
+          cash: 150000,
+          bonuses: 80000,
+          stockSales: 220000,
+          total: 450000,
+        },
       ]
 
       render(<GameOver {...defaultProps} scores={bigScores} myPlayerId="p1" />)

@@ -925,7 +925,7 @@ class TestGameState:
 
         state = game.get_public_state()
 
-        assert state["phase"] == "playing"
+        assert state["phase"] == "place_tile"
         assert state["current_player"] == "p1"
         assert "board" in state
         assert "chains" in state

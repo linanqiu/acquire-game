@@ -1,7 +1,10 @@
 import { forwardRef } from 'react'
 import styles from './inputs.module.css'
 
-interface TextInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size' | 'autoCapitalize'> {
+interface TextInputProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  'size' | 'autoCapitalize'
+> {
   label?: string
   error?: string
   /** Custom autoCapitalize: when true, forces uppercase; otherwise uses native HTML attribute behavior */

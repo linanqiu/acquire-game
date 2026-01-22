@@ -172,12 +172,7 @@ export function ReconnectionOverlay({
   const displayAttempt = Math.min(state.attempts + 1, maxAttempts)
 
   return (
-    <Modal
-      open={true}
-      onClose={() => {}}
-      title={title}
-      dismissible={false}
-    >
+    <Modal open={true} onClose={() => {}} title={title} dismissible={false}>
       {!showManual ? (
         <div className={styles.reconnecting} data-testid="reconnecting-status">
           <Spinner size="lg" />

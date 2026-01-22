@@ -12,7 +12,7 @@ Trading in Acquire allows players to negotiate stock/money exchanges outside of 
 
 ## Scenarios
 
-### Scenario 6.1: Propose and Accept Trade
+### E2E-6.1: Propose and Accept Trade
 
 **Preconditions:**
 - Game in progress with at least 2 human players
@@ -66,7 +66,7 @@ await expect(page.locator('[data-testid="luxor-count"]')).toHaveText('2')
 
 ---
 
-### Scenario 6.2: Reject Trade Offer
+### E2E-6.2: Reject Trade Offer
 
 **Preconditions:**
 - Game in progress
@@ -96,7 +96,7 @@ await expect(page.locator('[data-testid="luxor-count"]')).toHaveText('2')
 
 ---
 
-### Scenario 6.3: Cancel Trade Offer
+### E2E-6.3: Cancel Trade Offer
 
 **Preconditions:**
 - Player A has an outstanding trade proposal
@@ -124,7 +124,7 @@ await expect(page.locator('[data-testid="luxor-count"]')).toHaveText('2')
 
 ---
 
-### Scenario 6.4: Trade Validation - Insufficient Stocks
+### E2E-6.4: Trade Validation - Insufficient Stocks
 
 **Preconditions:**
 - Game in progress
@@ -142,7 +142,7 @@ await expect(page.locator('[data-testid="luxor-count"]')).toHaveText('2')
 
 ---
 
-### Scenario 6.5: Trade Validation - Insufficient Funds
+### E2E-6.5: Trade Validation - Insufficient Funds
 
 **Preconditions:**
 - Game in progress
@@ -159,7 +159,7 @@ await expect(page.locator('[data-testid="luxor-count"]')).toHaveText('2')
 
 ---
 
-### Scenario 6.6: Multiple Pending Trades
+### E2E-6.6: Multiple Pending Trades
 
 **Preconditions:**
 - 3+ players in game
@@ -180,7 +180,7 @@ await expect(page.locator('[data-testid="luxor-count"]')).toHaveText('2')
 
 ---
 
-### Scenario 6.7: Trade During Bot Turn
+### E2E-6.7: Trade During Bot Turn
 
 **Preconditions:**
 - Game with human players and bots

@@ -1686,7 +1686,7 @@ class Game:
         merger_state = self._get_merger_state()
 
         state = {
-            "phase": self.phase.value,
+            "phase": _PHASE_TO_STRING.get(self.phase, self.phase.value),
             "current_player": self.get_current_player().player_id
             if self.players
             else None,

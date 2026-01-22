@@ -67,13 +67,13 @@ Build all game-specific UI components and pages, from the lobby through game ove
 | [GU-014](../stories/02-game-ui/GU-014.md) | Game Over Screen | M | GU-006, FF-008 | complete |
 | [GU-015](../stories/02-game-ui/GU-015.md) | Reconnection UI | M | FF-008, FF-009 | complete |
 
-### Phase 7: Comprehensive Testing
+### Phase 7: E2E Validation
 
 | ID | Title | Effort | Dependencies | Status |
 |----|-------|--------|--------------|--------|
-| [GU-016](../stories/02-game-ui/GU-016.md) | Comprehensive E2E Test Suite | L | GU-001 through GU-015, FF-011, RT-002 | not-started |
+| [GU-016](../stories/02-game-ui/GU-016.md) | E2E Infrastructure Validation | L | GU-001 through GU-015, FF-011 | complete |
 
-> **Note**: GU-016 requires RT-002 for real E2E tests with backend WebSocket integration.
+> **Note**: Comprehensive E2E scenario testing is now covered by [Epic 7: Scenario Tests](07-scenario-tests.md) after RT-001/RT-002 WebSocket integration.
 
 ## Dependency Graph
 
@@ -105,8 +105,11 @@ GU-004 + GU-007 + FF-005
 GU-002 + GU-006 + FF-005
    └── GU-013 (Host View) ✓ [needs RT-002 for full functionality]
 
-GU-001..GU-015 + FF-011 + RT-002
-   └── GU-016 (Comprehensive E2E Tests)
+GU-001..GU-015 + FF-011
+   └── GU-016 (E2E Validation) ✓
+
+RT-001 + RT-002 (WebSocket)
+   └── Epic 7: Scenario Tests (ST-001 to ST-010)
 ```
 
 ## Success Criteria
@@ -115,8 +118,10 @@ GU-001..GU-015 + FF-011 + RT-002
 - [x] Components handle all documented states
 - [x] Mobile view works on 375px+ screens
 - [x] Host view readable from 10ft distance
-- [ ] E2E tests cover complete game flows (pending GU-016)
+- [x] E2E infrastructure validated (GU-016)
 - [x] Accessibility: keyboard navigation, screen reader support
+
+> **Note**: Complete E2E game flow tests are covered by [Epic 7: Scenario Tests](07-scenario-tests.md).
 
 ## Reference
 

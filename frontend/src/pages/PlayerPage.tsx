@@ -1,6 +1,7 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useRoom } from '../hooks/useRoom'
+import { useWebSocket } from '../hooks/useWebSocket'
 import { PageShell } from '../components/ui/PageShell'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
@@ -17,17 +18,14 @@ import { StockStepper } from '../components/game/StockStepper'
 import { ChainMarker } from '../components/game/ChainMarker'
 import { useGameStore } from '../store/gameStore'
 import { useToast } from '../components/ui/useToast'
+import { useErrorHandler } from '../hooks/useErrorHandler'
 import { transformBoardToTileStates, transformHandToRackTiles } from '../utils/transforms'
 import type { ChainName, GamePhase } from '../types/api'
 import type { Coordinate } from '../types/game'
 import styles from './PlayerPage.module.css'
 
 // Phase display text
-function getPhaseText(
-  phase: GamePhase,
-  isMyTurn: boolean,
-  currentPlayerName: string
-): string {
+function getPhaseText(phase: GamePhase, isMyTurn: boolean, currentPlayerName: string): string {
   if (phase === 'lobby') return 'WAITING FOR HOST'
   if (phase === 'game_over') return 'GAME OVER'
   if (!isMyTurn) return `${currentPlayerName}'s TURN`
@@ -57,6 +55,21 @@ export function PlayerPage() {
   const [searchParams] = useSearchParams()
   const isHost = searchParams.get('is_host') === '1'
   const { toast } = useToast()
+  const { handleServerError } = useErrorHandler()
+
+  // Stable callbacks for WebSocket to prevent infinite re-renders
+  const handleWsError = useCallback(
+    (error: string) => handleServerError(error),
+    [handleServerError]
+  )
+
+  // WebSocket connection for game actions
+  const { sendAction } = useWebSocket({
+    roomCode: room,
+    playerId: sessionStorage.getItem('player_id') || '',
+    token: sessionStorage.getItem('session_token') || '',
+    onError: handleWsError,
+  })
 
   // Game store state
   const {
@@ -68,7 +81,26 @@ export function PlayerPage() {
     yourHand,
     pendingChainChoice,
     pendingStockDisposition,
+    setCurrentPlayer,
   } = useGameStore()
+
+  // Initialize currentPlayer from sessionStorage on mount
+  useEffect(() => {
+    const playerId = sessionStorage.getItem('player_id')
+    const playerName = sessionStorage.getItem('player_name')
+    const token = sessionStorage.getItem('session_token')
+
+    console.log('[PlayerPage] Initializing currentPlayer:', {
+      playerId,
+      playerName,
+      hasToken: !!token,
+      isHost,
+    })
+
+    if (playerId && playerName && token) {
+      setCurrentPlayer({ id: playerId, name: playerName, token, isHost })
+    }
+  }, [setCurrentPlayer, isHost])
 
   // Local UI state
   const [selectedTile, setSelectedTile] = useState<Coordinate | undefined>()
@@ -130,18 +162,40 @@ export function PlayerPage() {
     return gameState.hotel.available_stocks
   }, [gameState])
 
-  // Placeholder action handlers (these will be connected to WebSocket in RT-002)
+  // Reset loading state when game state updates (action completed)
+  useEffect(() => {
+    if (gameState) {
+      setActionLoading(false)
+    }
+  }, [gameState])
+
+  // Action handlers
   const handleStartGame = useCallback(async () => {
     setActionLoading(true)
-    // TODO: Send start_game action via WebSocket
-    console.log('Start game')
-    setTimeout(() => setActionLoading(false), 500)
-  }, [])
+    try {
+      const sessionToken = sessionStorage.getItem('session_token')
+      const res = await fetch(`/api/room/${room}/start`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        },
+      })
+      if (!res.ok) {
+        throw new Error('Failed to start game')
+      }
+      toast('Game started!', 'success')
+    } catch (err) {
+      console.error('Failed to start game:', err)
+      toast('Failed to start game', 'error')
+      setActionLoading(false)
+    }
+  }, [room, toast])
 
   const handleAddBot = useCallback(async () => {
     setActionLoading(true)
     try {
-      const res = await fetch(`/api/room/${room}/bot`, {
+      const res = await fetch(`/api/room/${room}/add-bot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       })
@@ -160,50 +214,64 @@ export function PlayerPage() {
   const handlePlaceTile = useCallback(() => {
     if (!selectedTile) return
     setActionLoading(true)
-    // TODO: Send place_tile action via WebSocket
-    console.log('Place tile:', selectedTile)
-    setTimeout(() => {
-      setSelectedTile(undefined)
-      setActionLoading(false)
-    }, 500)
-  }, [selectedTile])
+    sendAction({ action: 'place_tile', tile: selectedTile })
+    setSelectedTile(undefined)
+  }, [selectedTile, sendAction])
 
-  const handleFoundChain = useCallback((chain: ChainName) => {
-    setActionLoading(true)
-    // TODO: Send found_chain action via WebSocket
-    console.log('Found chain:', chain)
-    setTimeout(() => setActionLoading(false), 500)
-  }, [])
+  const handleFoundChain = useCallback(
+    (chain: ChainName) => {
+      setActionLoading(true)
+      sendAction({ action: 'found_chain', chain })
+    },
+    [sendAction]
+  )
 
   const handleMergerDisposition = useCallback(
     (sell: number, trade: number, hold: number) => {
+      if (!pendingStockDisposition) return
       setActionLoading(true)
-      // TODO: Send merger_disposition action via WebSocket
-      console.log('Merger disposition:', { sell, trade, hold })
-      setTimeout(() => setActionLoading(false), 500)
+      sendAction({
+        action: 'merger_disposition',
+        defunct_chain: pendingStockDisposition.defunctChain,
+        disposition: { sell, trade, hold },
+      })
     },
-    []
+    [sendAction, pendingStockDisposition]
   )
 
   const handleBuyStocks = useCallback(() => {
     setActionLoading(true)
-    // TODO: Send buy_stocks action via WebSocket
-    console.log('Buy stocks:', stockPurchases)
-    setTimeout(() => {
-      setStockPurchases({})
-      setActionLoading(false)
-    }, 500)
-  }, [stockPurchases])
+    sendAction({ action: 'buy_stocks', purchases: stockPurchases })
+    setStockPurchases({})
+  }, [stockPurchases, sendAction])
 
   const handleProposeTrade = useCallback(
-    (partnerId: string, offer: { stocks: { chain: ChainName; quantity: number }[]; cash: number }, want: { stocks: { chain: ChainName; quantity: number }[]; cash: number }) => {
+    (
+      partnerId: string,
+      offer: { stocks: { chain: ChainName; quantity: number }[]; cash: number },
+      want: { stocks: { chain: ChainName; quantity: number }[]; cash: number }
+    ) => {
       setActionLoading(true)
-      // TODO: Send propose_trade action via WebSocket
-      console.log('Propose trade:', { partnerId, offer, want })
+      // Transform array format to record format expected by API
+      const offeringStocks: Partial<Record<ChainName, number>> = {}
+      for (const { chain, quantity } of offer.stocks) {
+        offeringStocks[chain] = quantity
+      }
+      const requestingStocks: Partial<Record<ChainName, number>> = {}
+      for (const { chain, quantity } of want.stocks) {
+        requestingStocks[chain] = quantity
+      }
+      sendAction({
+        action: 'propose_trade',
+        to_player_id: partnerId,
+        offering_stocks: offeringStocks,
+        offering_money: offer.cash,
+        requesting_stocks: requestingStocks,
+        requesting_money: want.cash,
+      })
       setShowTradeBuilder(false)
-      setTimeout(() => setActionLoading(false), 500)
     },
-    []
+    [sendAction]
   )
 
   const handlePlayAgain = useCallback(() => {
@@ -256,7 +324,9 @@ export function PlayerPage() {
   const renderLobbyContent = () => (
     <div className={styles.lobbyContent}>
       <h2 className={styles.lobbyTitle}>WAITING FOR PLAYERS</h2>
-      <p className={styles.roomInfo}>Room Code: <span className={styles.roomCode}>{room}</span></p>
+      <p className={styles.roomInfo}>
+        Room Code: <span className={styles.roomCode}>{room}</span>
+      </p>
       <div className={styles.playerList}>
         {lobbyPlayers.map((p) => (
           <div key={p.player_id} className={styles.lobbyPlayer}>
@@ -306,15 +376,15 @@ export function PlayerPage() {
       </div>
       {isMyTurn && selectedTile && (
         <div className={styles.placementActions}>
-          <p>Selected: <strong>{selectedTile}</strong></p>
+          <p>
+            Selected: <strong>{selectedTile}</strong>
+          </p>
           <Button onClick={handlePlaceTile} loading={actionLoading}>
             PLACE TILE
           </Button>
         </div>
       )}
-      {!isMyTurn && (
-        <p className={styles.waitingMessage}>Waiting for {currentPlayerName}...</p>
-      )}
+      {!isMyTurn && <p className={styles.waitingMessage}>Waiting for {currentPlayerName}...</p>}
     </div>
   )
 
@@ -447,7 +517,8 @@ export function PlayerPage() {
         <Board tiles={boardTileStates} size="md" />
       </div>
       <p className={styles.waitingMessage}>
-        Waiting for {currentPlayerName} to {phase === 'place_tile' ? 'place a tile' : 'take action'}...
+        Waiting for {currentPlayerName} to {phase === 'place_tile' ? 'place a tile' : 'take action'}
+        ...
       </p>
     </div>
   )
@@ -521,9 +592,7 @@ export function PlayerPage() {
         )
       }
     >
-      <div className={styles.content}>
-        {renderMainContent()}
-      </div>
+      <div className={styles.content}>{renderMainContent()}</div>
 
       {showPortfolio && (
         <div className={styles.portfolioStrip}>
