@@ -1,7 +1,7 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useRoom } from '../hooks/useRoom'
-import { useWebSocket } from '../hooks/useWebSocket'
+import { useHostWebSocket } from '../hooks/useHostWebSocket'
 import { PageShell } from '../components/ui/PageShell'
 import { Panel } from '../components/ui/Panel'
 import { Button } from '../components/ui/Button'
@@ -57,38 +57,17 @@ export function HostPage() {
     [handleServerError]
   )
 
-  // WebSocket connection for receiving game state updates
-  useWebSocket({
+  // Use host WebSocket for receiving state updates
+  useHostWebSocket({
     roomCode: room,
-    playerId: sessionStorage.getItem('player_id') || '',
-    token: sessionStorage.getItem('session_token') || '',
     onError: handleWsError,
   })
 
   // Game store state
-  const { connectionStatus, lobbyPlayers, canStart, gameState, setCurrentPlayer } = useGameStore()
-
-  // Initialize currentPlayer from sessionStorage on mount
-  useEffect(() => {
-    const playerId = sessionStorage.getItem('player_id')
-    const playerName = sessionStorage.getItem('player_name')
-    const token = sessionStorage.getItem('session_token')
-
-    console.log('[HostPage] Initializing currentPlayer:', {
-      playerId,
-      playerName,
-      hasToken: !!token,
-    })
-
-    if (playerId && playerName && token) {
-      setCurrentPlayer({ id: playerId, name: playerName, token, isHost: true })
-    }
-  }, [setCurrentPlayer])
+  const { connectionStatus, lobbyPlayers, canStart, gameState } = useGameStore()
 
   // Local UI state
   const [actionLoading, setActionLoading] = useState(false)
-  // TODO (RT-002): Activity log should be populated from WebSocket game events
-  // (tile placements, chain foundings, mergers, stock purchases, etc.)
   const [activityLog, setActivityLog] = useState<{ id: number; text: string }[]>([
     { id: 0, text: 'Waiting for players...' },
   ])
@@ -140,24 +119,18 @@ export function HostPage() {
         cash: player.money,
         stocks,
         isCurrentTurn: playerId === currentTurnPlayerId,
-        // TODO (RT-002): Backend GameStateMessage should include is_bot per player.
-        // Currently lost when transitioning from lobby to game state.
-        isBot: false,
+        isBot: false, // TODO: Backend should include is_bot in game state
       }
     })
   }, [gameState, currentTurnPlayerId])
 
-  // Action handlers
+  // Action handlers - use HTTP for reliability
   const handleStartGame = useCallback(async () => {
     setActionLoading(true)
     try {
-      const sessionToken = sessionStorage.getItem('session_token')
       const res = await fetch(`/api/room/${room}/start`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
-        },
+        headers: { 'Content-Type': 'application/json' },
       })
       if (!res.ok) {
         throw new Error('Failed to start game')
@@ -201,7 +174,7 @@ export function HostPage() {
     navigate('/')
   }, [navigate])
 
-  // Generate QR code URL (using a simple QR code API)
+  // Generate join URL for display
   const joinUrl = useMemo(() => {
     if (typeof window === 'undefined') return ''
     return `${window.location.origin}/play/${room}`
@@ -214,7 +187,6 @@ export function HostPage() {
       <div className={styles.joinInfo}>
         <div className={styles.qrSection}>
           <div className={styles.qrPlaceholder}>
-            {/* TODO: Replace with actual QR code component pointing to joinUrl */}
             <div className={styles.qrBox} role="img" aria-label={`QR code to join room ${room}`}>
               QR
             </div>
@@ -277,16 +249,14 @@ export function HostPage() {
 
   // Render game over view
   const renderGameOverView = () => {
-    // TODO: Backend should provide final scores with bonus breakdown in game_over phase.
-    // Currently we only show cash. See PlayerPage.tsx for detailed TODO.
     const scores: FinalScore[] = gameState
       ? Object.entries(gameState.players).map(([id, p]) => ({
           playerId: id,
           name: p.name,
           cash: p.money,
-          bonuses: 0, // TODO: Get from backend game_over message
-          stockSales: 0, // TODO: Get from backend game_over message
-          total: p.money, // TODO: Should be cash + bonuses + stockSales
+          bonuses: 0,
+          stockSales: 0,
+          total: p.money,
         }))
       : []
 

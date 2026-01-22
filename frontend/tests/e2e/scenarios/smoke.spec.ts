@@ -136,4 +136,60 @@ test.describe('Scenario Test Infrastructure Smoke Test', () => {
       testName: 'full-user-journey',
     })
   })
+
+  test('should create spectator game with bots only', async ({ page }) => {
+    // Navigate to lobby
+    await page.goto('/')
+    await captureStep(page, 'lobby-initial', {
+      category: 'smoke',
+      testName: 'spectator-mode',
+    })
+
+    // Click "Watch Bots Play" button
+    await page.getByTestId('watch-bots-button').click()
+
+    // Wait for redirect to host page
+    await page.waitForURL(/\/host\/[A-Z]{4}/)
+
+    // Wait a bit for WebSocket to connect and receive state
+    await page.waitForTimeout(2000)
+    await captureStep(page, 'host-page-loaded', {
+      category: 'smoke',
+      testName: 'spectator-mode',
+    })
+
+    // Verify we're on the host page in lobby phase
+    // Host page shows "PLAYERS (X/6)" in lobby, not "WAITING FOR PLAYERS"
+    await expect(page.getByText('PLAYERS (0/6)')).toBeVisible({ timeout: 10000 })
+
+    // Add 3 bots via UI
+    for (let i = 0; i < 3; i++) {
+      await page.getByRole('button', { name: '+ ADD BOT' }).click()
+      // Wait for bot to be added
+      await page.waitForTimeout(500)
+    }
+
+    await captureStep(page, 'bots-added', {
+      category: 'smoke',
+      testName: 'spectator-mode',
+    })
+
+    // Should now show 3 players
+    await expect(page.getByText('PLAYERS (3/6)')).toBeVisible()
+
+    // Start the game
+    await page.getByRole('button', { name: 'START GAME' }).click()
+
+    // Wait for game to start - lobby disappears when game starts
+    await expect(page.getByText('PLAYERS (3/6)')).not.toBeVisible({ timeout: 10000 })
+
+    await captureStep(page, 'spectator-game-started', {
+      category: 'smoke',
+      testName: 'spectator-mode',
+    })
+
+    // Verify we're watching the game - check for scoreboard and phase indicator
+    await expect(page.getByText('SCOREBOARD')).toBeVisible()
+    await expect(page.getByText(/TURN/)).toBeVisible() // e.g., "BOT 1'S TURN - PLACE TILE"
+  })
 })

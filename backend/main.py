@@ -344,6 +344,21 @@ async def create_room(player_name: str = Form(...)):
     }
 
 
+@app.post("/create-spectator")
+async def create_spectator_room():
+    """Create a new game room for spectator mode (bots only).
+
+    The caller does not join as a player - they can watch via the host WebSocket.
+    Use /room/{room_code}/add-bot to add bots, then start the game.
+    """
+    room_code = session_manager.create_room()
+
+    return {
+        "room_code": room_code,
+        "is_spectator": True,
+    }
+
+
 @app.post("/join")
 async def join_room(room_code: str = Form(...), player_name: str = Form(...)):
     """Join an existing room."""
