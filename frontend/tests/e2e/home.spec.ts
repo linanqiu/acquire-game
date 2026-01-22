@@ -16,13 +16,15 @@ test.describe('Home Page', () => {
 test.describe('Routing', () => {
   test('player route shows room code', async ({ page }) => {
     await page.goto('/play/ABCD')
-    await expect(page.getByText('ABCD')).toBeVisible()
+    // Room code appears in header, use first() to avoid strict mode violation
+    await expect(page.getByText('ABCD').first()).toBeVisible()
     await expect(page.getByText(/player view/i)).toBeVisible()
   })
 
   test('host route shows room code', async ({ page }) => {
     await page.goto('/host/WXYZ')
-    await expect(page.getByText('WXYZ')).toBeVisible()
+    // Room code appears in header, use first() to avoid strict mode violation
+    await expect(page.getByText('WXYZ').first()).toBeVisible()
     await expect(page.getByText(/host view/i)).toBeVisible()
   })
 
@@ -33,7 +35,7 @@ test.describe('Routing', () => {
 
   test('room code is case insensitive (uppercased)', async ({ page }) => {
     await page.goto('/play/abcd')
-    // Should show ABCD in uppercase
-    await expect(page.getByText('ABCD')).toBeVisible()
+    // Room code appears in multiple places, use first() to avoid strict mode violation
+    await expect(page.getByText('ABCD').first()).toBeVisible()
   })
 })

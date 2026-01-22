@@ -48,22 +48,38 @@ export async function connectWebSocket(
 }
 
 /**
- * Wait for a WebSocket message matching a predicate.
+ * Wait for a WebSocket message matching specified criteria.
+ * Uses explicit match criteria instead of closures to avoid serialization issues.
  */
+export interface MessageMatchCriteria {
+  type?: string
+  current_player?: string
+  phase?: string
+  boardHasTile?: string
+}
+
 export async function waitForMessage<T = unknown>(
   page: Page,
-  predicate: (msg: T) => boolean,
+  criteria: MessageMatchCriteria,
   timeout = 5000
 ): Promise<T> {
-  const predicateStr = predicate.toString()
-
   return page.evaluate(
-    async ({ predicateFn, ms }) => {
-      const fn = new Function('msg', `return (${predicateFn})(msg)`) as (msg: unknown) => boolean
+    async ({ matchCriteria, ms }) => {
+      const matchFn = (msg: Record<string, unknown>): boolean => {
+        if (matchCriteria.type && msg.type !== matchCriteria.type) return false
+        if (matchCriteria.current_player && msg.current_player !== matchCriteria.current_player)
+          return false
+        if (matchCriteria.phase && msg.phase !== matchCriteria.phase) return false
+        if (matchCriteria.boardHasTile) {
+          const board = msg.board as Record<string, unknown> | undefined
+          if (!board || board[matchCriteria.boardHasTile] === undefined) return false
+        }
+        return true
+      }
 
       return new Promise<unknown>((resolve, reject) => {
         // Check existing messages first
-        const existing = window.__testMessages.find(fn)
+        const existing = window.__testMessages.find((m) => matchFn(m as Record<string, unknown>))
         if (existing) {
           resolve(existing)
           return
@@ -71,7 +87,7 @@ export async function waitForMessage<T = unknown>(
 
         // Poll for new messages
         const interval = setInterval(() => {
-          const msg = window.__testMessages.find(fn)
+          const msg = window.__testMessages.find((m) => matchFn(m as Record<string, unknown>))
           if (msg) {
             clearInterval(interval)
             resolve(msg)
@@ -85,7 +101,7 @@ export async function waitForMessage<T = unknown>(
         }, ms)
       })
     },
-    { predicateFn: predicateStr, ms: timeout }
+    { matchCriteria: criteria, ms: timeout }
   ) as Promise<T>
 }
 

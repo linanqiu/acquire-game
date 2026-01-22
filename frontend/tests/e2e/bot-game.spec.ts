@@ -56,10 +56,10 @@ test.describe('Bot Game', () => {
     await playTile(page, tileToPlay)
 
     // Wait for updated state
-    const newState = await waitForMessage<GameStateMessage>(
-      page,
-      (msg) => msg.type === 'game_state' && msg.board[tileToPlay] !== undefined
-    )
+    const newState = await waitForMessage<GameStateMessage>(page, {
+      type: 'game_state',
+      boardHasTile: tileToPlay,
+    })
 
     // Verify tile was placed on board
     expect(newState.board[tileToPlay]).not.toBeNull()
@@ -70,7 +70,7 @@ test.describe('Bot Game', () => {
     const { humanPlayer } = await setupGameWithBots(request, page, 'TestHuman', 2)
 
     // Wait for initial state
-    await waitForMessage<GameStateMessage>(page, (msg) => msg.type === 'game_state')
+    await waitForMessage<GameStateMessage>(page, { type: 'game_state' })
 
     // Wait a bit for bots to potentially take turns
     await page.waitForTimeout(3000)
@@ -106,20 +106,13 @@ test.describe('Bot Game', () => {
     await playTile(page, tile)
 
     // Wait for state update after placing tile
-    await waitForMessage<GameStateMessage>(
-      page,
-      (msg) => msg.type === 'game_state' && msg.board[tile] !== undefined
-    )
+    await waitForMessage<GameStateMessage>(page, { type: 'game_state', boardHasTile: tile })
 
     // End turn (skip buying stocks)
     await endTurn(page)
 
     // Wait for turn to pass (or for us to get our turn again in a 3-player game)
-    const nextState = await waitForMessage<GameStateMessage>(
-      page,
-      (msg) => msg.type === 'game_state',
-      10000
-    )
+    const nextState = await waitForMessage<GameStateMessage>(page, { type: 'game_state' }, 10000)
 
     // Game should still be playing
     expect(nextState.phase).toBe('playing')

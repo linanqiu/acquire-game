@@ -45,7 +45,7 @@ export async function setupGameWithBots(
   await startGame(request, room_code)
 
   // Wait for initial game state
-  await waitForMessage<GameStateMessage>(page, (msg) => msg.type === 'game_state')
+  await waitForMessage<GameStateMessage>(page, { type: 'game_state' })
 
   return {
     roomCode: room_code,
@@ -64,7 +64,7 @@ export async function waitForHumanTurn(
 ): Promise<GameStateMessage> {
   return waitForMessage<GameStateMessage>(
     page,
-    (msg) => msg.type === 'game_state' && msg.current_player === playerId,
+    { type: 'game_state', current_player: playerId },
     timeout
   )
 }
@@ -77,11 +77,7 @@ export async function waitForPhase(
   phase: 'waiting' | 'playing' | 'game_over',
   timeout = 10000
 ): Promise<GameStateMessage> {
-  return waitForMessage<GameStateMessage>(
-    page,
-    (msg) => msg.type === 'game_state' && msg.phase === phase,
-    timeout
-  )
+  return waitForMessage<GameStateMessage>(page, { type: 'game_state', phase }, timeout)
 }
 
 /**
