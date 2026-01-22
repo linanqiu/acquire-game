@@ -133,7 +133,7 @@ WebSocket integration must be complete for E2E gameplay tests.
 
 | ID | Title | Effort | Dependencies | Status |
 |----|-------|--------|--------------|--------|
-| [ST-002](../stories/07-scenario-tests/ST-002.md) | Turn Flow E2E Tests | M | ST-001 | not-started |
+| [ST-002](../stories/07-scenario-tests/ST-002.md) | Turn Flow E2E Tests | M | ST-001 | complete |
 | [ST-003](../stories/07-scenario-tests/ST-003.md) | Trading E2E Tests | L | ST-001 | not-started |
 | [ST-004](../stories/07-scenario-tests/ST-004.md) | Chain Founding E2E Tests | M | ST-001 | not-started |
 | [ST-005](../stories/07-scenario-tests/ST-005.md) | Chain Expansion E2E Tests | M | ST-001 | not-started |

@@ -15,6 +15,10 @@ export default defineConfig({
     baseURL: 'http://127.0.0.1:5173',
     trace: 'on-first-retry',
     actionTimeout: 10000,
+    headless: true,
+    launchOptions: {
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--disable-dev-shm-usage'],
+    },
   },
   projects: [
     {
@@ -22,9 +26,18 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
     {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
       name: 'scenarios',
       testDir: './tests/e2e/scenarios',
       use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'scenarios-firefox',
+      testDir: './tests/e2e/scenarios',
+      use: { ...devices['Desktop Firefox'] },
     },
   ],
   webServer: [
