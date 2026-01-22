@@ -1,128 +1,182 @@
-import { APIRequestContext } from '@playwright/test'
+import { Page, expect } from '@playwright/test'
 
-const API_URL = 'http://127.0.0.1:8000'
+/**
+ * UI-based game setup helpers for E2E scenario testing.
+ *
+ * These helpers interact with the application through the UI,
+ * exactly as a real user would. No API shortcuts.
+ */
 
-export interface GameConfig {
-  hostName: string
-  playerNames?: string[]
-}
-
-export interface GameSetupResult {
+export interface GameContext {
+  page: Page
   roomCode: string
-  hostPlayerId: string
-  hostSessionToken: string
-  players: Array<{
-    name: string
-    playerId: string
-    sessionToken: string
-  }>
+  playerName: string
 }
 
 /**
- * Create a new game via the API.
+ * Create a new game via the UI.
+ * Navigates to lobby, enters name, clicks CREATE, waits for redirect to game page.
  *
- * @param request - Playwright APIRequestContext
- * @param config - Game configuration with host name and optional player names
- * @returns Game setup result with room code and player credentials
+ * @param page - Playwright Page
+ * @param playerName - Name to enter for the host player
+ * @returns GameContext with room code extracted from URL
  */
-export async function createGame(
-  request: APIRequestContext,
-  config: GameConfig
-): Promise<GameSetupResult> {
-  // Create game
-  const createRes = await request.post(`${API_URL}/create`, {
-    form: { player_name: config.hostName },
-  })
+export async function createGameViaUI(page: Page, playerName: string): Promise<GameContext> {
+  // Navigate to lobby
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'ACQUIRE' })).toBeVisible()
 
-  if (!createRes.ok()) {
-    throw new Error(`Failed to create game: ${await createRes.text()}`)
+  // Enter player name
+  await page.getByTestId('create-name-input').fill(playerName)
+
+  // Click CREATE button and wait for navigation
+  await page.getByTestId('create-button').click()
+
+  // Wait for redirect to player page (URL pattern: /play/XXXX)
+  await page.waitForURL(/\/play\/[A-Z]{4}/)
+
+  // Extract room code from URL
+  const url = page.url()
+  const roomCodeMatch = url.match(/\/play\/([A-Z]{4})/)
+  if (!roomCodeMatch) {
+    throw new Error(`Could not extract room code from URL: ${url}`)
   }
 
-  const createData = await createRes.json()
+  const roomCode = roomCodeMatch[1]
 
-  const result: GameSetupResult = {
-    roomCode: createData.room_code,
-    hostPlayerId: createData.player_id,
-    hostSessionToken: createData.session_token,
-    players: [],
-  }
+  // Verify we're in the waiting room
+  await expect(page.getByText('WAITING FOR PLAYERS')).toBeVisible()
+  await expect(page.getByText(`Room Code:`)).toBeVisible()
 
-  // Join additional players
-  for (const name of config.playerNames || []) {
-    const joinRes = await request.post(`${API_URL}/join`, {
-      form: { player_name: name, room_code: result.roomCode },
-    })
-
-    if (!joinRes.ok()) {
-      throw new Error(`Failed to join game as ${name}: ${await joinRes.text()}`)
-    }
-
-    const joinData = await joinRes.json()
-    result.players.push({
-      name,
-      playerId: joinData.player_id,
-      sessionToken: joinData.session_token,
-    })
-  }
-
-  return result
+  return { page, roomCode, playerName }
 }
 
 /**
- * Start a game via the API.
+ * Join an existing game via the UI.
+ * Navigates to lobby, enters name and room code, clicks JOIN, waits for redirect.
  *
- * @param request - Playwright APIRequestContext
- * @param roomCode - Room code of the game to start
- * @param hostSessionToken - Session token of the host
+ * @param page - Playwright Page
+ * @param playerName - Name to enter
+ * @param roomCode - Room code to join
+ * @returns GameContext
  */
-export async function startGame(
-  request: APIRequestContext,
-  roomCode: string,
-  _hostSessionToken?: string
-): Promise<void> {
-  const res = await request.post(`${API_URL}/room/${roomCode}/start`)
+export async function joinGameViaUI(
+  page: Page,
+  playerName: string,
+  roomCode: string
+): Promise<GameContext> {
+  // Navigate to lobby
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'ACQUIRE' })).toBeVisible()
 
-  if (!res.ok()) {
-    throw new Error(`Failed to start game: ${await res.text()}`)
-  }
+  // Enter player name
+  await page.getByTestId('join-name-input').fill(playerName)
+
+  // Enter room code
+  await page.getByTestId('join-room-input').fill(roomCode)
+
+  // Click JOIN button and wait for navigation
+  await page.getByTestId('join-button').click()
+
+  // Wait for redirect to player page
+  await page.waitForURL(`/play/${roomCode}`)
+
+  // Verify we're in the waiting room
+  await expect(page.getByText('WAITING FOR PLAYERS')).toBeVisible()
+
+  return { page, roomCode, playerName }
 }
 
 /**
- * Add a bot to a room via the API.
+ * Add a bot via the UI (host only).
+ * Clicks the "ADD BOT" button and waits for the bot to appear in the player list.
  *
- * @param request - Playwright APIRequestContext
- * @param roomCode - Room code of the game
- * @returns Bot ID
+ * @param page - Playwright Page (must be on the player page as host)
  */
-export async function addBot(request: APIRequestContext, roomCode: string): Promise<string> {
-  const res = await request.post(`${API_URL}/room/${roomCode}/add-bot`)
+export async function addBotViaUI(page: Page): Promise<void> {
+  // Get current player count before adding bot
+  const playerCountText = await page.locator('text=/\\d+\\/6 players/').textContent()
+  const currentCount = parseInt(playerCountText?.match(/(\d+)\/6/)?.[1] || '0', 10)
 
-  if (!res.ok()) {
-    throw new Error(`Failed to add bot: ${await res.text()}`)
-  }
+  // Click the Add Bot button
+  await page.getByRole('button', { name: '+ ADD BOT' }).click()
 
-  const data = await res.json()
-  return data.bot_id
+  // Wait for player count to increase
+  const expectedCount = currentCount + 1
+  await expect(page.locator(`text=${expectedCount}/6 players`)).toBeVisible({ timeout: 5000 })
 }
 
 /**
- * Get current room state via the API.
- * Note: This returns room metadata (started, players, etc.), not game state.
- * Full game state is obtained via WebSocket.
+ * Start the game via the UI (host only).
+ * Clicks the "START GAME" button and waits for the game to begin.
  *
- * @param request - Playwright APIRequestContext
- * @param roomCode - Room code of the game
- * @returns Room state object
+ * @param page - Playwright Page (must be on the player page as host with enough players)
  */
-export async function getRoomState(request: APIRequestContext, roomCode: string): Promise<unknown> {
-  const res = await request.get(`${API_URL}/room/${roomCode}/state`)
+export async function startGameViaUI(page: Page): Promise<void> {
+  // Click the Start Game button
+  await page.getByRole('button', { name: 'START GAME' }).click()
 
-  if (!res.ok()) {
-    throw new Error(`Failed to get room state: ${await res.text()}`)
-  }
-
-  return res.json()
+  // Wait for the game to start (lobby view disappears, game view appears)
+  // The "WAITING FOR PLAYERS" text should disappear
+  await expect(page.getByText('WAITING FOR PLAYERS')).not.toBeVisible({ timeout: 10000 })
 }
 
-// Alias for backward compatibility
-export const getGameState = getRoomState
+/**
+ * Wait for the game board to be visible, indicating the game has started.
+ *
+ * @param page - Playwright Page
+ */
+export async function waitForGameToStart(page: Page): Promise<void> {
+  // Wait for the board to appear (indicates game has started)
+  await expect(page.locator('[data-testid="game-board"]')).toBeVisible({ timeout: 15000 })
+}
+
+/**
+ * Get the room code displayed on the player page.
+ *
+ * @param page - Playwright Page (must be on the player page)
+ * @returns The room code
+ */
+export async function getRoomCodeFromUI(page: Page): Promise<string> {
+  const roomInfo = page.locator('text=/Room Code:/')
+  await expect(roomInfo).toBeVisible()
+  const text = await roomInfo.locator('..').textContent()
+  const match = text?.match(/Room Code:\s*([A-Z]{4})/)
+  if (!match) {
+    throw new Error(`Could not extract room code from: ${text}`)
+  }
+  return match[1]
+}
+
+/**
+ * Get the count of players currently in the lobby.
+ *
+ * @param page - Playwright Page (must be on the player page in lobby phase)
+ * @returns Number of players
+ */
+export async function getPlayerCountFromUI(page: Page): Promise<number> {
+  const countText = await page.locator('text=/\\d+\\/6 players/').textContent()
+  const match = countText?.match(/(\d+)\/6/)
+  return parseInt(match?.[1] || '0', 10)
+}
+
+/**
+ * Verify that a player with the given name is visible in the lobby player list.
+ *
+ * @param page - Playwright Page
+ * @param playerName - Name to look for
+ */
+export async function assertPlayerInLobby(page: Page, playerName: string): Promise<void> {
+  // Look specifically in the main content area (player list), not the header
+  await expect(page.getByRole('main').locator(`text=${playerName}`)).toBeVisible()
+}
+
+/**
+ * Verify that a bot is visible in the lobby (player with BOT badge).
+ *
+ * @param page - Playwright Page
+ */
+export async function assertBotInLobby(page: Page): Promise<void> {
+  // Look specifically for the BOT badge element (exact match)
+  await expect(page.getByText('BOT', { exact: true })).toBeVisible()
+}

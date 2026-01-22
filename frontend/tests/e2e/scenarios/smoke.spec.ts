@@ -1,6 +1,13 @@
 import { test, expect } from '@playwright/test'
 import { captureStep, resetStepCounter } from './helpers/screenshot'
-import { createGame, startGame, getGameState } from './helpers/game-setup'
+import {
+  createGameViaUI,
+  addBotViaUI,
+  startGameViaUI,
+  assertPlayerInLobby,
+  assertBotInLobby,
+  getPlayerCountFromUI,
+} from './helpers/game-setup'
 
 /**
  * Smoke tests to verify the E2E scenario test infrastructure is working.
@@ -8,7 +15,7 @@ import { createGame, startGame, getGameState } from './helpers/game-setup'
  * - Screenshots can be captured and saved
  * - Console errors are detected
  * - Basic page navigation works
- * - Game seeding API works
+ * - Full user journey: create game, add bots, start game via UI
  */
 test.describe('Scenario Test Infrastructure Smoke Test', () => {
   test.beforeEach(() => {
@@ -76,36 +83,57 @@ test.describe('Scenario Test Infrastructure Smoke Test', () => {
     })
   })
 
-  test('should create and start game via API', async ({ request, page }) => {
-    // Create game with host and 2 additional players
-    const game = await createGame(request, {
-      hostName: 'TestHost',
-      playerNames: ['Player2', 'Player3'],
+  test('should create game, add bots, and start via UI', async ({ page }) => {
+    // Step 1: Create game via UI
+    await captureStep(page, 'lobby-before-create', {
+      category: 'smoke',
+      testName: 'full-user-journey',
     })
 
-    expect(game.roomCode).toBeTruthy()
-    expect(game.hostPlayerId).toBeTruthy()
-    expect(game.hostSessionToken).toBeTruthy()
-    expect(game.players).toHaveLength(2)
-
-    // Start the game
-    await startGame(request, game.roomCode, game.hostSessionToken)
-
-    // Verify room state is available
-    const state = (await getGameState(request, game.roomCode)) as {
-      started: boolean
-      players: unknown[]
-    }
-    expect(state).toBeTruthy()
-    expect(state.started).toBe(true)
-    expect(state.players).toHaveLength(3)
-
-    // Navigate to game page and capture screenshot
-    await page.goto(`/game/${game.roomCode}?playerId=${game.hostPlayerId}`)
-    await page.waitForLoadState('networkidle')
-    await captureStep(page, 'game-created-and-started', {
+    const gameContext = await createGameViaUI(page, 'TestHost')
+    await captureStep(page, 'game-created-waiting-room', {
       category: 'smoke',
-      testName: 'game-seeding-api',
+      testName: 'full-user-journey',
+    })
+
+    // Verify host is in the lobby
+    await assertPlayerInLobby(page, 'TestHost')
+    expect(gameContext.roomCode).toMatch(/^[A-Z]{4}$/)
+
+    // Step 2: Add bots via UI (need at least 3 players to start)
+    let playerCount = await getPlayerCountFromUI(page)
+    expect(playerCount).toBe(1) // Just the host
+
+    await addBotViaUI(page)
+    await captureStep(page, 'first-bot-added', {
+      category: 'smoke',
+      testName: 'full-user-journey',
+    })
+    await assertBotInLobby(page)
+
+    await addBotViaUI(page)
+    await captureStep(page, 'second-bot-added', {
+      category: 'smoke',
+      testName: 'full-user-journey',
+    })
+
+    playerCount = await getPlayerCountFromUI(page)
+    expect(playerCount).toBe(3) // Host + 2 bots
+
+    // Step 3: Start game via UI
+    await startGameViaUI(page)
+    await captureStep(page, 'game-started', {
+      category: 'smoke',
+      testName: 'full-user-journey',
+    })
+
+    // Verify game has started - should see phase indicator (not lobby)
+    // After game starts, we should not see "WAITING FOR PLAYERS"
+    await expect(page.getByText('WAITING FOR PLAYERS')).not.toBeVisible()
+
+    await captureStep(page, 'game-in-progress', {
+      category: 'smoke',
+      testName: 'full-user-journey',
     })
   })
 })
