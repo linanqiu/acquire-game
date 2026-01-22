@@ -19,6 +19,100 @@ Full E2E scenario testing using Playwright with screenshots as test artifacts. T
 - **Artifacts**: Screenshots saved to `test-results/scenarios/`
 - **Servers**: Real backend + frontend (no mocks)
 
+## Testing Standards (MANDATORY)
+
+### Scenario Tests Are User Journey Tests
+
+Scenario tests exercise the app **exactly as users would**. They are NOT API tests with a browser wrapper.
+
+**REQUIRED for all scenario tests:**
+- Use UI interactions only: `page.click()`, `page.fill()`, `page.getByRole()`, `page.getByTestId()`
+- Wait for navigation: `page.waitForURL()`, `page.waitForSelector()`
+- Assert visible state: `expect(page.getByText('...')).toBeVisible()`
+
+**PROHIBITED in scenario tests:**
+- Direct API calls: `fetch('/api/...')`
+- Database seeding or manipulation
+- Bypassing UI to set up state
+- Mocking WebSocket or HTTP responses
+
+**The test must fail if:**
+- A button doesn't exist or isn't clickable
+- Navigation doesn't occur after user action
+- Expected text/elements don't render
+- Console errors occur (filtered for network noise)
+
+### Why This Matters
+
+```
+API tests can pass          Scenario tests catch
+while UI is broken    →     real integration failures
+```
+
+If you call an API directly instead of clicking a button, you're testing the API, not the user journey. A user cannot call `/api/create-game` - they click "CREATE GAME". Test what users do.
+
+### Example: Creating a Game
+
+```typescript
+// ❌ WRONG - This is an API test disguised as E2E
+const response = await fetch('/api/create-game', {
+  method: 'POST',
+  body: JSON.stringify({ player_name: 'TestPlayer' })
+})
+const { room_code } = await response.json()
+await page.goto(`/play/${room_code}`)
+
+// ✅ RIGHT - This is a real user journey test
+await page.goto('/')
+await page.getByTestId('create-name-input').fill('TestPlayer')
+await page.getByTestId('create-button').click()
+await page.waitForURL(/\/play\/[A-Z]{4}/)
+await expect(page.getByText('WAITING FOR PLAYERS')).toBeVisible()
+```
+
+### Example: Adding a Bot
+
+```typescript
+// ❌ WRONG - API shortcut
+await fetch(`/api/room/${roomCode}/add-bot`, { method: 'POST' })
+
+// ✅ RIGHT - User interaction
+await page.getByRole('button', { name: '+ ADD BOT' }).click()
+await expect(page.getByText('PLAYERS (2/6)')).toBeVisible()
+```
+
+### Example: Starting a Game
+
+```typescript
+// ❌ WRONG - API shortcut
+await fetch(`/api/room/${roomCode}/start`, { method: 'POST' })
+
+// ✅ RIGHT - User interaction
+await page.getByRole('button', { name: 'START GAME' }).click()
+await expect(page.getByText('PLACE TILE')).toBeVisible({ timeout: 10000 })
+```
+
+### WebSocket vs HTTP Pattern
+
+When building test helpers that interact with real-time features:
+- **WebSocket**: For receiving state updates (game state, player joins)
+- **HTTP**: For sending actions through the UI (which internally may use HTTP or WebSocket)
+
+Tests should not directly send WebSocket messages. Users interact through buttons and forms, not raw WebSocket frames.
+
+### Screenshot Requirements
+
+Every scenario test MUST capture screenshots:
+1. **Before each action**: Proves the UI was in expected state
+2. **After each action**: Proves the action had visible effect
+3. **On failure**: Automatic via Playwright, but also capture intermediate states
+
+Screenshots are saved to: `frontend/test-results/scenarios/<test-suite>/<test-name>/`
+
+Naming convention: `NN-description.png` (e.g., `01-lobby-initial.png`, `02-game-created.png`)
+
+Use the helper: `await takeScreenshot(page, testInfo, 'description')`
+
 ## Dependencies
 
 **Required before starting:**
