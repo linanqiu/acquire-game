@@ -17,7 +17,7 @@
 | [Backend Hardening](epics/00-backend-hardening.md) | 13/13 ✅ | Complete |
 | [Frontend Foundation](epics/01-frontend-foundation.md) | 11/11 ✅ | Complete |
 | [Game UI](epics/02-game-ui.md) | 16/16 ✅ | Complete |
-| [Real-time Integration](epics/03-realtime-integration.md) | 0/6 | RT-001, RT-002 ← **PRIORITY** |
+| [Real-time Integration](epics/03-realtime-integration.md) | 4/6 | RT-004, RT-006 (optional enhancements) |
 | [AI Training](epics/04-ai-training.md) | 0/9 | AI-001, AI-003 |
 | [Deployment](epics/05-deployment.md) | 0/5 | DP-001 |
 | [Security Hardening](epics/06-security-hardening.md) | 0/5 | SH-002, SH-003, SH-004, SH-005 (after E2E: SH-001) |
@@ -71,9 +71,9 @@ GU-012, GU-013 ✓ (with placeholder handlers)
     ↓
 GU-016 (E2E Infrastructure Validation) ✓
     ↓
-RT-001, RT-002 (WebSocket integration) ← NEXT
+RT-001, RT-002, RT-003, RT-005 (WebSocket core) ✓
     ↓
-ST-001 (Scenario Test Infrastructure)
+ST-001 (Scenario Test Infrastructure) ← NEXT
     ↓
 ST-002 to ST-008 (Core Scenario Tests - parallel)
     ↓
@@ -90,9 +90,9 @@ Production Deploy
 ```
 [DONE] Backend Hardening → [DONE] Frontend Foundation → [DONE] Game UI (GU-001 to GU-016)
                                                                     ↓
-                                                  RT-001/RT-002 (WebSocket) ← YOU ARE HERE
+                                                  [DONE] RT-001/RT-002/RT-003/RT-005 (WebSocket core)
                                                                     ↓
-                                                  ST-001 to ST-010 (Scenario Tests)
+                                                  ST-001 to ST-010 (Scenario Tests) ← YOU ARE HERE
                                                                     ↓
                                                   Security → Deploy
 ```

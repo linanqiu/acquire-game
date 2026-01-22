@@ -22,11 +22,11 @@ Connect the React frontend to the FastAPI backend via WebSocket. Handle state sy
 
 | ID | Title | Effort | Dependencies | Status |
 |----|-------|--------|--------------|--------|
-| [RT-001](../stories/03-realtime-integration/RT-001.md) | WebSocket Client | M | FF-001 | not-started |
-| [RT-002](../stories/03-realtime-integration/RT-002.md) | State Store | M | FF-001 | not-started |
-| [RT-003](../stories/03-realtime-integration/RT-003.md) | Message Handlers | M | RT-001, RT-002 | not-started |
+| [RT-001](../stories/03-realtime-integration/RT-001.md) | WebSocket Client | M | FF-001 | complete |
+| [RT-002](../stories/03-realtime-integration/RT-002.md) | State Store | M | FF-001 | complete |
+| [RT-003](../stories/03-realtime-integration/RT-003.md) | Message Handlers | M | RT-001, RT-002 | complete |
 | [RT-004](../stories/03-realtime-integration/RT-004.md) | Optimistic Updates | M | RT-002, RT-003 | not-started |
-| [RT-005](../stories/03-realtime-integration/RT-005.md) | Reconnection Logic | M | RT-001, RT-003 | not-started |
+| [RT-005](../stories/03-realtime-integration/RT-005.md) | Reconnection Logic | M | RT-001, RT-003 | complete |
 | [RT-006](../stories/03-realtime-integration/RT-006.md) | Error Handling | S | RT-003, FF-009 | not-started |
 
 ## Dependency Graph
