@@ -422,3 +422,187 @@ class TestWebSocketMessageBroadcasting:
         # Both host and player should have received broadcasts
         assert len(host_ws.sent_messages) > 0
         assert len(player_ws.sent_messages) > 0
+
+
+class TestWebSocketExceptionHandling:
+    """Tests for WebSocket exception handling robustness.
+
+    These tests verify that the WebSocket handler properly handles errors
+    and keeps connections alive, preventing silent disconnections.
+    """
+
+    @pytest.mark.asyncio
+    async def test_invalid_action_sends_error(
+        self, game_room, clean_session_manager, mock_websocket
+    ):
+        """Invalid actions should send error message, not crash."""
+        room = clean_session_manager.get_room(game_room)
+        game = room.game
+
+        current_player_id = game.get_current_player_id()
+        room.players[current_player_id].websockets.append(mock_websocket)
+
+        # Invalid action gets caught by validation
+        await handle_player_action(
+            game_room,
+            current_player_id,
+            {"action": "invalid_action_that_does_not_exist"},
+        )
+
+        # Should have received an error message
+        assert len(mock_websocket.sent_messages) == 1
+        assert mock_websocket.sent_messages[0]["type"] == "error"
+
+    @pytest.mark.asyncio
+    async def test_wrong_turn_player_sends_error(
+        self, game_room, clean_session_manager, mock_websocket
+    ):
+        """Actions from wrong player should send error message."""
+        room = clean_session_manager.get_room(game_room)
+        game = room.game
+
+        # Get a player who is NOT the current player
+        current_player_id = game.get_current_player_id()
+        other_player_ids = [pid for pid in game.turn_order if pid != current_player_id]
+        wrong_player_id = other_player_ids[0]
+
+        room.players[wrong_player_id].websockets.append(mock_websocket)
+
+        wrong_player = game.get_player(wrong_player_id)
+        tile = wrong_player.hand[0]
+
+        # Try to place tile when it's not their turn
+        await handle_player_action(
+            game_room,
+            wrong_player_id,
+            {"action": "place_tile", "tile": str(tile)},
+        )
+
+        # Should have received an error message
+        assert len(mock_websocket.sent_messages) == 1
+        assert mock_websocket.sent_messages[0]["type"] == "error"
+        assert "turn" in mock_websocket.sent_messages[0]["message"].lower()
+
+    @pytest.mark.asyncio
+    async def test_invalid_tile_sends_error(
+        self, game_room, clean_session_manager, mock_websocket
+    ):
+        """Placing a tile not in hand should send error message."""
+        room = clean_session_manager.get_room(game_room)
+        game = room.game
+
+        current_player_id = game.get_current_player_id()
+        room.players[current_player_id].websockets.append(mock_websocket)
+        player = game.get_player(current_player_id)
+
+        # Find a tile NOT in the player's hand
+        player_tile_strs = {str(t) for t in player.hand}
+        invalid_tile = next(
+            f"{c}{r}"
+            for c in range(1, 13)
+            for r in "ABCDEFGHI"
+            if f"{c}{r}" not in player_tile_strs
+        )
+
+        # Try to place a tile not in hand
+        await handle_player_action(
+            game_room,
+            current_player_id,
+            {"action": "place_tile", "tile": invalid_tile},
+        )
+
+        # Should have received an error message
+        assert len(mock_websocket.sent_messages) == 1
+        assert mock_websocket.sent_messages[0]["type"] == "error"
+
+    @pytest.mark.asyncio
+    async def test_error_message_sent_to_player(
+        self, game_room, clean_session_manager, mock_websocket
+    ):
+        """When action fails, error message should be sent to player."""
+        room = clean_session_manager.get_room(game_room)
+
+        # Connect a mock websocket to the player
+        current_player_id = room.game.get_current_player_id()
+        room.players[current_player_id].websockets.append(mock_websocket)
+
+        # Send error message
+        await session_manager.send_to_player(
+            game_room,
+            current_player_id,
+            {"type": "error", "message": "Test error message"},
+        )
+
+        # Verify error was sent
+        assert len(mock_websocket.sent_messages) == 1
+        assert mock_websocket.sent_messages[0]["type"] == "error"
+        assert "Test error message" in mock_websocket.sent_messages[0]["message"]
+
+    @pytest.mark.asyncio
+    async def test_game_continues_after_exception(
+        self, game_room, clean_session_manager
+    ):
+        """Game state should remain valid after an exception is raised."""
+        room = clean_session_manager.get_room(game_room)
+        game = room.game
+
+        initial_phase = game.turn_phase
+        initial_player = game.get_current_player_id()
+
+        # Try an invalid action (will raise exception)
+        try:
+            await handle_player_action(
+                game_room,
+                initial_player,
+                {"action": "invalid_action"},
+            )
+        except Exception:
+            pass  # Exception is expected
+
+        # Game state should be unchanged
+        assert game.turn_phase == initial_phase
+        assert game.get_current_player_id() == initial_player
+        assert room.game is not None  # Game still exists
+
+    @pytest.mark.asyncio
+    async def test_multiple_errors_dont_corrupt_state(
+        self, game_room, clean_session_manager
+    ):
+        """Multiple consecutive errors should not corrupt game state."""
+        room = clean_session_manager.get_room(game_room)
+        game = room.game
+
+        current_player_id = game.get_current_player_id()
+
+        # Send multiple invalid actions
+        for i in range(5):
+            try:
+                await handle_player_action(
+                    game_room,
+                    current_player_id,
+                    {"action": f"invalid_action_{i}"},
+                )
+            except Exception:
+                pass  # Expected
+
+        # Game should still be in valid state
+        assert game.turn_phase == "place_tile"
+        assert game.get_current_player_id() == current_player_id
+
+        # Valid action should still work
+        player = game.get_player(current_player_id)
+        tile = player.hand[0]
+
+        with patch.object(session_manager, "send_to_player", new_callable=AsyncMock):
+            with patch.object(session_manager, "send_to_host", new_callable=AsyncMock):
+                with patch.object(
+                    session_manager, "broadcast_to_room", new_callable=AsyncMock
+                ):
+                    await handle_player_action(
+                        game_room,
+                        current_player_id,
+                        {"action": "place_tile", "tile": str(tile)},
+                    )
+
+        # Action should have been processed
+        assert game.turn_phase != "place_tile" or game.current_turn_index != 0

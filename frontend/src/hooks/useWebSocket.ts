@@ -10,7 +10,7 @@ import type { GameAction, WebSocketMessage } from '../types/api'
 // Helper to build WebSocket URL
 // Use relative path to go through Vite proxy in dev, works in prod too
 function getWebSocketUrl(roomCode: string, playerId: string, token: string): string {
-  // If explicit WS URL is configured, use it
+  // If explicit WS URL is configured, use it (bypasses Vite proxy)
   if (import.meta.env.VITE_WS_URL) {
     return `${import.meta.env.VITE_WS_URL}/ws/player/${roomCode}/${playerId}?token=${token}`
   }
@@ -100,6 +100,12 @@ export function useWebSocket({
       }
 
       ws.onclose = (event) => {
+        // Only handle close if this is still the current WebSocket
+        // (prevents race condition with React StrictMode double-mount)
+        if (wsRef.current !== ws) {
+          return
+        }
+
         wsRef.current = null
 
         // Don't reconnect if it was intentional, clean close, or we've exceeded attempts

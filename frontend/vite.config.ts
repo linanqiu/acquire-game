@@ -37,9 +37,22 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
       '/ws': {
-        target: 'http://127.0.0.1:8000',
+        target: 'ws://127.0.0.1:8000',
         ws: true,
         changeOrigin: true,
+        rewrite: (path) => path,
+        configure: (proxy) => {
+          // Handle proxy errors gracefully to prevent crashes
+          proxy.on('error', (err) => {
+            console.log('[vite] ws proxy error:', err.message)
+          })
+          // Handle WebSocket-specific socket errors
+          proxy.on('proxyReqWs', (_proxyReq, _req, socket) => {
+            socket.on('error', (err) => {
+              console.log('[vite] ws socket error:', err.message)
+            })
+          })
+        },
       },
     },
   },

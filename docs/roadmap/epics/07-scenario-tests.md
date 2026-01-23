@@ -111,7 +111,117 @@ Screenshots are saved to: `frontend/test-results/scenarios/<test-suite>/<test-na
 
 Naming convention: `NN-description.png` (e.g., `01-lobby-initial.png`, `02-game-created.png`)
 
-Use the helper: `await takeScreenshot(page, testInfo, 'description')`
+Use the helper: `await captureStep(page, 'description', { category, testName })`
+
+### Test Rigor Standards (MANDATORY)
+
+These standards ensure scenario tests actually test gameplay, not just UI existence.
+
+#### 1. Play Real Turns
+
+Tests must actually play through game scenarios, not just verify buttons exist:
+
+```typescript
+// ❌ WRONG - just checks UI exists
+await expect(page.getByTestId('tile-rack')).toBeVisible()
+// Test passes even if placing tiles is completely broken
+
+// ✅ RIGHT - actually plays the game
+for (let turn = 1; turn <= 10; turn++) {
+  await waitForMyTurn(page)
+  const tile = await selectTileFromRack(page)
+  await placeTile(page)
+  if (await hasChainSelector(page)) {
+    await selectFirstAvailableChain(page)
+  }
+  await endTurn(page)
+}
+```
+
+#### 2. Minimum Turn Requirements
+
+| Test Type | Minimum Turns | Rationale |
+|-----------|---------------|-----------|
+| Basic turn tests | 10+ turns | Ensures turn cycle works repeatedly |
+| Multi-feature tests | 20+ turns | Covers chains, expansions, potential mergers |
+| Feature-specific | Until feature occurs | Don't assume turn N triggers the feature |
+
+#### 3. Never Terminate Early on Bugs
+
+When a scenario test surfaces a bug, **fix the root cause**:
+
+```typescript
+// ❌ WRONG - hides the bug
+if (mergerGotStuck) {
+  console.log('Merger stuck at turn 11, but 10 turns passed, calling it success')
+  return
+}
+
+// ✅ RIGHT - surfaces the bug for fixing
+if (!mergerCompleted) {
+  throw new Error('Merger stuck - bot stock disposition not working')
+}
+```
+
+Scenario tests exist to find integration bugs. A test that works around bugs is lying about coverage.
+
+#### 4. Screenshots at Every Action
+
+For turn-based tests, capture:
+- `turn-N-before-place` - Board state before action
+- `turn-N-tile-selected-{coord}` - Tile selection confirmed
+- `turn-N-after-place` - Result of placement
+- `turn-N-chain-selector` - When founding triggered
+- `turn-N-founded-{chain}` - Chain founded
+- `turn-N-buy-phase` - Stock purchase phase
+- `turn-N-merger-{num}` - Merger in progress
+- `turn-N-merger-done` - Merger completed
+- `final-state` - End of test
+
+#### 5. Determinism Through Seeding
+
+Use `ACQUIRE_GAME_SEED` environment variable for reproducible tests:
+
+```typescript
+// playwright.config.ts
+webServer: [{
+  command: 'python3 -m uvicorn main:app --host 127.0.0.1 --port 8000',
+  env: {
+    ACQUIRE_GAME_SEED: '2',  // Same seed = same tile distribution
+  },
+}]
+```
+
+#### 6. Unified Bot/Human Code Paths
+
+Backend must use the same code path for bot and human actions to prevent divergent bugs:
+
+```python
+# ❌ WRONG - separate paths that can have different bugs
+if player.is_bot:
+    handle_bot_disposition(...)  # Broken
+else:
+    send_websocket_to_human(...)  # Works
+
+# ✅ RIGHT - same execution, different decision source
+if player.is_bot:
+    decision = bot.choose_stock_disposition(...)
+else:
+    decision = await get_human_decision_via_websocket(...)
+game.handle_stock_disposition(player_id, **decision)  # Same for both
+```
+
+#### 7. Detailed Logging
+
+Every test should log actions for debugging:
+
+```typescript
+console.log(`[Turn ${turn}] === MY TURN ===`)
+console.log(`  Cash: ${info.cash}`)
+console.log(`  Placing tile: ${tileCoord}`)
+console.log(`  Phase after place: ${phase}`)
+console.log(`  Founded chain: ${chainName}`)
+```
 
 ## Dependencies
 
@@ -133,7 +243,7 @@ WebSocket integration must be complete for E2E gameplay tests.
 
 | ID | Title | Effort | Dependencies | Status |
 |----|-------|--------|--------------|--------|
-| [ST-002](../stories/07-scenario-tests/ST-002.md) | Turn Flow E2E Tests | M | ST-001 | not-started |
+| [ST-002](../stories/07-scenario-tests/ST-002.md) | Turn Flow E2E Tests | M | ST-001 | complete |
 | [ST-003](../stories/07-scenario-tests/ST-003.md) | Trading E2E Tests | L | ST-001 | not-started |
 | [ST-004](../stories/07-scenario-tests/ST-004.md) | Chain Founding E2E Tests | M | ST-001 | not-started |
 | [ST-005](../stories/07-scenario-tests/ST-005.md) | Chain Expansion E2E Tests | M | ST-001 | not-started |
