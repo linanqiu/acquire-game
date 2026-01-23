@@ -36,6 +36,12 @@ export default defineConfig({
       timeout: 120000,
       stdout: 'pipe',
       stderr: 'pipe',
+      // Seed games for deterministic E2E tests
+      // Seed 2: Human player triggers chain founding on turn 7
+      env: {
+        ...process.env,
+        ACQUIRE_GAME_SEED: '2',
+      },
     },
     {
       command: 'npm run dev -- --host 127.0.0.1',

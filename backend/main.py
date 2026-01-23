@@ -1,5 +1,7 @@
 """FastAPI application for Acquire board game."""
 
+import json
+import os
 import re
 import time
 import uuid
@@ -535,7 +537,16 @@ async def player_websocket(websocket: WebSocket, room_code: str, player_id: str)
 
     try:
         while True:
-            data = await websocket.receive_json()
+            try:
+                data = await websocket.receive_json()
+            except json.JSONDecodeError as e:
+                # Malformed JSON - send error but keep connection alive
+                await session_manager.send_to_player(
+                    room_code,
+                    player_id,
+                    {"type": "error", "message": f"Invalid JSON: {e}"},
+                )
+                continue
 
             # Apply rate limiting
             client_key = f"{room_code}:{player_id}"
@@ -550,11 +561,25 @@ async def player_websocket(websocket: WebSocket, room_code: str, player_id: str)
                 )
                 continue
 
-            await handle_player_action(room_code, player_id, data)
+            try:
+                await handle_player_action(room_code, player_id, data)
+            except Exception as e:
+                # Log error but keep connection alive
+                print(f"Error handling player action: {e}")
+                await session_manager.send_to_player(
+                    room_code,
+                    player_id,
+                    {"type": "error", "message": f"Action failed: {e}"},
+                )
 
     except WebSocketDisconnect:
+        pass  # Normal disconnect, cleanup happens in finally
+    except Exception as e:
+        # Unexpected error - log it
+        print(f"WebSocket error for {room_code}/{player_id}: {e}")
+    finally:
+        # Always cleanup, regardless of how we exit the loop
         session_manager.disconnect(room_code, player_id, websocket)
-        # Clean up rate limiter data for this client
         rate_limiter.cleanup_client(f"{room_code}:{player_id}")
 
 
@@ -644,8 +669,10 @@ async def initialize_game(room_code: str):
     if room is None:
         return
 
-    # Create Game instance
-    game = Game()
+    # Create Game instance with optional seed for deterministic testing
+    seed_str = os.environ.get("ACQUIRE_GAME_SEED")
+    seed = int(seed_str) if seed_str else None
+    game = Game(seed=seed)
 
     # Add all players to the game
     for player_id, connection in room.players.items():

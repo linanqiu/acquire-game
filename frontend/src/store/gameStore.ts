@@ -127,12 +127,15 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
       case 'game_state':
         store.updateGameState(message)
-        // Clear pending actions when we get new game state
-        set({
-          pendingChainChoice: null,
-          pendingMergerChoice: null,
-          pendingStockDisposition: null,
-        })
+        // Clear pending actions when we get new game state,
+        // BUT preserve them if the phase indicates we're still waiting for that action.
+        // This handles the race condition where choose_chain arrives before game_state.
+        if (message.phase !== 'found_chain') {
+          set({ pendingChainChoice: null })
+        }
+        if (message.phase !== 'merger' && message.phase !== 'stock_disposition') {
+          set({ pendingMergerChoice: null, pendingStockDisposition: null })
+        }
         break
 
       case 'choose_chain':
