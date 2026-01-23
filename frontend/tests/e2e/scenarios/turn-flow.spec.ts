@@ -103,26 +103,38 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
         console.log(`\n[Turn ${totalTurnCount}] === MY TURN #${humanTurnCount} ===`)
         console.log(`  Cash: ${info.cash}`)
 
+        // Screenshot before placing
+        await captureStep(page, `turn-${humanTurnCount}-before-place`, { category: CATEGORY, testName })
+
         const tileCoord = await selectTileFromRack(page)
         tilesPlaced.push(tileCoord)
         console.log(`  Placing tile: ${tileCoord}`)
+
+        // Screenshot with tile selected
+        await captureStep(page, `turn-${humanTurnCount}-tile-selected-${tileCoord}`, { category: CATEGORY, testName })
 
         await placeTile(page)
 
         const afterPlace = await getGameInfo()
         console.log(`  Phase after place: "${afterPlace.phase}"`)
 
+        // Screenshot after placing
+        await captureStep(page, `turn-${humanTurnCount}-after-place`, { category: CATEGORY, testName })
+
         // Handle chain founding
         if (await hasChainSelector(page)) {
+          await captureStep(page, `turn-${humanTurnCount}-chain-selector`, { category: CATEGORY, testName })
           const chainName = await selectFirstAvailableChain(page)
           chainsFoundedByMe.push(chainName)
           console.log(`  *** FOUNDED CHAIN: ${chainName.toUpperCase()} ***`)
+          await captureStep(page, `turn-${humanTurnCount}-founded-${chainName}`, { category: CATEGORY, testName })
           await page.waitForTimeout(500)
         }
 
         // End turn
         const phase = await getPhaseText(page)
         if (phase.includes('BUY')) {
+          await captureStep(page, `turn-${humanTurnCount}-buy-phase`, { category: CATEGORY, testName })
           await endTurn(page)
           console.log(`  Ended turn`)
         }
@@ -132,6 +144,9 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
         await page.waitForTimeout(300)
       }
     }
+
+    // Final screenshot
+    await captureStep(page, 'final-state', { category: CATEGORY, testName })
 
     console.log('\n' + '='.repeat(60))
     console.log(`SUMMARY: ${humanTurnCount} human turns, ${totalTurnCount} total turns`)
@@ -202,19 +217,30 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
         console.log(`\n[Turn ${totalTurnCount}] === MY TURN #${humanTurnCount} ===`)
         console.log(`  Cash: ${info.cash}`)
 
+        // Screenshot before placing
+        await captureStep(page, `turn-${humanTurnCount}-before-place`, { category: CATEGORY, testName })
+
         const tileCoord = await selectTileFromRack(page)
         tilesPlaced.push(tileCoord)
         console.log(`  Placing tile: ${tileCoord}`)
+
+        // Screenshot with tile selected
+        await captureStep(page, `turn-${humanTurnCount}-tile-${tileCoord}`, { category: CATEGORY, testName })
 
         await placeTile(page)
 
         const afterPlace = await getGameInfo()
         console.log(`  Phase after place: "${afterPlace.phase}"`)
 
+        // Screenshot after placing
+        await captureStep(page, `turn-${humanTurnCount}-placed`, { category: CATEGORY, testName })
+
         if (await hasChainSelector(page)) {
+          await captureStep(page, `turn-${humanTurnCount}-founding`, { category: CATEGORY, testName })
           const chainName = await selectFirstAvailableChain(page)
           chainsFoundedByMe.push(chainName)
           console.log(`  *** FOUNDED CHAIN: ${chainName.toUpperCase()} ***`)
+          await captureStep(page, `turn-${humanTurnCount}-founded-${chainName}`, { category: CATEGORY, testName })
           await page.waitForTimeout(500)
         }
 
@@ -225,6 +251,7 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
             skipsCount++
             console.log(`  Button shows: "${btnInfo.buttonText}" - Skipping purchase`)
           }
+          await captureStep(page, `turn-${humanTurnCount}-skip-buy`, { category: CATEGORY, testName })
           await endTurn(page)
           console.log(`  Ended turn (no purchase)`)
         }
@@ -234,6 +261,9 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
         await page.waitForTimeout(300)
       }
     }
+
+    // Final screenshot
+    await captureStep(page, 'final-state', { category: CATEGORY, testName })
 
     console.log('\n' + '='.repeat(60))
     console.log(`SUMMARY: ${humanTurnCount} human turns, ${totalTurnCount} total turns`)
@@ -317,9 +347,15 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
         humanTurnCount++
         console.log(`\n[Turn ${totalTurnCount}] === MY TURN #${humanTurnCount} ===`)
 
+        // Screenshot before action
+        await captureStep(page, `turn-${humanTurnCount}-my-turn`, { category: CATEGORY, testName })
+
         // Select and place a tile
         const tileCoord = await selectTileFromRack(page)
         console.log(`  Placing tile: ${tileCoord}`)
+
+        // Screenshot with tile selected
+        await captureStep(page, `turn-${humanTurnCount}-tile-${tileCoord}`, { category: CATEGORY, testName })
 
         await placeTile(page)
 
@@ -328,12 +364,16 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
         console.log(`  Phase after place: "${afterPlace.phase}"`)
         console.log(`  Active chains: [${afterPlace.activeChains.join(', ')}]`)
 
+        // Screenshot after placing
+        await captureStep(page, `turn-${humanTurnCount}-placed`, { category: CATEGORY, testName })
+
         // Check if chain founding was triggered
         if (await hasChainSelector(page)) {
+          await captureStep(page, `turn-${humanTurnCount}-chain-selector`, { category: CATEGORY, testName })
           const chainName = await selectFirstAvailableChain(page)
           chainsFoundedByMe.push(chainName)
           console.log(`  *** FOUNDED CHAIN: ${chainName.toUpperCase()} ***`)
-          await captureStep(page, `chain-founded-${chainName}`, { category: CATEGORY, testName })
+          await captureStep(page, `turn-${humanTurnCount}-founded-${chainName}`, { category: CATEGORY, testName })
 
           // Wait for phase to update
           await page.waitForTimeout(500)
@@ -342,6 +382,7 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
         // Complete the turn if in buy phase
         const phase = await getPhaseText(page)
         if (phase.includes('BUY')) {
+          await captureStep(page, `turn-${humanTurnCount}-buy-phase`, { category: CATEGORY, testName })
           await endTurn(page)
           console.log(`  Ended turn (skipped buying)`)
         }
@@ -350,6 +391,9 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
         await page.waitForTimeout(500)
       }
     }
+
+    // Final screenshot
+    await captureStep(page, 'final-state', { category: CATEGORY, testName })
 
     console.log('\n' + '='.repeat(60))
     console.log(`SUMMARY: ${humanTurnCount} human turns, ${totalTurnCount} total turns`)
@@ -501,20 +545,31 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
         console.log(`\n[Turn ${totalTurnCount}] === MY TURN #${humanTurnCount} ===`)
         console.log(`  Cash: ${info.cash} | Tile Pool: ${info.tilePool}`)
 
+        // Screenshot before action
+        await captureStep(page, `turn-${humanTurnCount}-my-turn`, { category: CATEGORY, testName })
+
         const tileCoord = await selectTileFromRack(page)
         tilesPlaced.push(tileCoord)
         console.log(`  Placing tile: ${tileCoord}`)
+
+        // Screenshot with tile selected
+        await captureStep(page, `turn-${humanTurnCount}-tile-${tileCoord}`, { category: CATEGORY, testName })
 
         await placeTile(page)
 
         const afterPlace = await getGameInfo()
         console.log(`  Phase after place: "${afterPlace.phase}"`)
 
+        // Screenshot after placing
+        await captureStep(page, `turn-${humanTurnCount}-placed`, { category: CATEGORY, testName })
+
         if (await hasChainSelector(page)) {
+          await captureStep(page, `turn-${humanTurnCount}-chain-selector`, { category: CATEGORY, testName })
           const chainName = await selectFirstAvailableChain(page)
           chainsFoundedByMe.push(chainName)
           gameEvents.push(`Turn ${humanTurnCount}: Founded ${chainName}`)
           console.log(`  *** FOUNDED CHAIN: ${chainName.toUpperCase()} ***`)
+          await captureStep(page, `turn-${humanTurnCount}-founded-${chainName}`, { category: CATEGORY, testName })
           await page.waitForTimeout(500)
         }
 
@@ -524,26 +579,25 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
           mergerCount++
           gameEvents.push(`Turn ${humanTurnCount}: Merger #${mergerCount} triggered`)
           console.log(`  *** MERGER #${mergerCount} IN PROGRESS ***`)
+          await captureStep(page, `turn-${humanTurnCount}-merger-${mergerCount}`, { category: CATEGORY, testName })
           // Wait for merger to complete (shorter timeout)
           const completed = await waitForMergerEnd(15000)
           if (!completed) {
             console.log(`  Merger stuck - ending test early`)
+            await captureStep(page, `turn-${humanTurnCount}-merger-stuck`, { category: CATEGORY, testName })
             break // Exit the turn loop
           }
           console.log(`  Merger completed`)
+          await captureStep(page, `turn-${humanTurnCount}-merger-done`, { category: CATEGORY, testName })
         }
 
         // Wait for phase to settle after any merger handling
         await page.waitForTimeout(300)
         const phase = await getPhaseText(page)
         if (phase.includes('BUY')) {
+          await captureStep(page, `turn-${humanTurnCount}-buy-phase`, { category: CATEGORY, testName })
           await endTurn(page)
           console.log(`  Ended turn`)
-        }
-
-        // Capture screenshot every 5 turns
-        if (humanTurnCount % 5 === 0) {
-          await captureStep(page, `turn-${humanTurnCount}`, { category: CATEGORY, testName })
         }
 
         lastPhase = ''
@@ -551,6 +605,9 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
         await page.waitForTimeout(300)
       }
     }
+
+    // Final screenshot
+    await captureStep(page, 'final-state', { category: CATEGORY, testName })
 
     console.log('\n' + '='.repeat(70))
     console.log(`SUMMARY: ${humanTurnCount} human turns, ${totalTurnCount} total turns`)

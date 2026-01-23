@@ -31,7 +31,13 @@ export function PageShell({
         <Header roomCode={roomCode} cash={cash} playerName={playerName} tilePool={tilePool} />
       )}
       {phase && (
-        <div className={styles.phase} role="status" aria-live="polite" aria-atomic="true">
+        <div
+          className={styles.phase}
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          data-testid="game-phase"
+        >
           {phase}
         </div>
       )}

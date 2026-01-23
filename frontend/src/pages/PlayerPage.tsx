@@ -379,7 +379,7 @@ export function PlayerPage() {
           <p>
             Selected: <strong>{selectedTile}</strong>
           </p>
-          <Button onClick={handlePlaceTile} loading={actionLoading}>
+          <Button onClick={handlePlaceTile} loading={actionLoading} data-testid="place-tile-button">
             PLACE TILE
           </Button>
         </div>
@@ -474,6 +474,7 @@ export function PlayerPage() {
             onClick={handleBuyStocks}
             disabled={!isMyTurn || !canAfford || !validPurchase || actionLoading}
             loading={actionLoading}
+            data-testid="end-turn-button"
           >
             {totalSharesPurchased > 0 ? 'BUY & END TURN' : 'SKIP & END TURN'}
           </Button>
