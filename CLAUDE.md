@@ -97,6 +97,93 @@ await page.getByTestId('create-button').click()
 await page.waitForURL(/\/play\/[A-Z]{4}/)
 ```
 
+### Scenario Test Rigor Standards (MANDATORY)
+
+Scenario tests must exercise **real gameplay**, not just verify UI elements exist. The purpose is to surface integration bugs that unit tests miss.
+
+**1. Play Real Turns, Don't Just Check UI**
+```typescript
+// WRONG - just checks UI elements exist
+await expect(page.getByTestId('tile-rack')).toBeVisible()
+await expect(page.getByTestId('place-tile-button')).toBeVisible()
+// Test passes even if game is completely broken
+
+// RIGHT - actually plays the game
+for (let turn = 1; turn <= 10; turn++) {
+  await waitForMyTurn(page)
+  await selectTileFromRack(page)
+  await placeTile(page)
+  // Handle chain founding if triggered
+  if (await hasChainSelector(page)) {
+    await selectFirstAvailableChain(page)
+  }
+  await endTurn(page)
+}
+// Test only passes if 10 complete turns work end-to-end
+```
+
+**2. Minimum Turn Requirements**
+- Basic turn tests: **10+ complete turns**
+- Complex multi-feature tests: **20+ turns**
+- Feature-specific tests: **loop until feature occurs** (e.g., loop until a merger happens, don't assume turn 5 will have one)
+
+**3. Never Terminate Early on Bugs**
+```typescript
+// WRONG - works around a bug instead of surfacing it
+if (mergerGotStuck) {
+  console.log('Merger stuck, considering test successful at turn 10')
+  return // Test "passes" but bug is hidden
+}
+
+// RIGHT - test fails, bug gets fixed
+if (mergerGotStuck) {
+  throw new Error('Merger stuck - this is a bug that needs fixing')
+}
+```
+Scenario tests exist to find integration bugs. When a test surfaces a bug, **fix the root cause**. Don't add workarounds that hide real problems.
+
+**4. Screenshots at Every Action**
+Not just "before" and "after", but at EVERY step:
+- Before placing tile
+- After selecting tile (button enabled)
+- After placing tile
+- Chain selector visible (if founding)
+- After selecting chain
+- Buy phase
+- Merger states (in progress, stock disposition, complete)
+- Final state
+
+**5. Determinism Through Seeding**
+Use `ACQUIRE_GAME_SEED` env var for reproducible tests:
+```typescript
+// playwright.config.ts
+env: {
+  ACQUIRE_GAME_SEED: '2',  // Same seed = same tile distribution
+}
+```
+
+**6. Same Code Paths for Bots and Humans**
+If bots and humans have different code paths for the same action (e.g., stock disposition), bugs hide. The backend should use unified handlers:
+```python
+# WRONG - separate paths that can diverge
+if player.is_bot:
+    bot_handle_disposition(...)  # Has bugs
+else:
+    send_websocket_message(...)  # Works fine
+
+# RIGHT - same path for both
+result = game.handle_stock_disposition(player_id, sell, trade, keep)
+# Bot just generates the decision, execution is identical
+```
+
+**7. Detailed Logging**
+Log every action for debugging:
+```typescript
+console.log(`[Turn ${turn}] Placing tile: ${coord}`)
+console.log(`[Turn ${turn}] Phase after place: ${phase}`)
+console.log(`[Turn ${turn}] Founded chain: ${chain}`)
+```
+
 ### E2E Testing (CRITICAL)
 **Tests that don't actually run against real servers are LIES.** Follow this protocol:
 
