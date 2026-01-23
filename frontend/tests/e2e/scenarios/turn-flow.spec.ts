@@ -11,7 +11,6 @@ import {
   selectTileFromRack,
   placeTile,
   endTurn,
-  waitForPhase,
   hasChainSelector,
   selectFirstAvailableChain,
   getPhaseText,
@@ -309,7 +308,6 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
 
         // Get tiles on board by looking at filled cells
         const filledCells = document.querySelectorAll('[data-chain], [data-state="placed"]')
-        const boardTiles = Array.from(filledCells).map((el) => el.getAttribute('data-testid'))
 
         return { phase, activeChains: [...new Set(activeChains)], boardTileCount: filledCells.length }
       })
@@ -333,7 +331,6 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
       // Detect phase changes (indicates turn progression)
       if (info.phase !== lastPhase) {
         totalTurnCount++
-        const isMyTurn = info.phase.includes('PLACE') || info.phase.includes('CHOOSE') || info.phase.includes('BUY')
 
         if (info.phase.includes("'s TURN")) {
           // It's someone else's turn - log it
