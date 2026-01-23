@@ -800,19 +800,7 @@ async def handle_place_tile(room_code: str, player_id: str, tile_str: str):
 
     elif result.next_action == "stock_disposition":
         # Someone needs to handle stock disposition during merger
-        pending = game.pending_action
-        if pending and pending.get("type") == "stock_disposition":
-            await session_manager.send_to_player(
-                room_code,
-                pending.get("player_id"),
-                {
-                    "type": "stock_disposition_required",
-                    "defunct_chain": pending.get("defunct_chain"),
-                    "surviving_chain": pending.get("surviving_chain"),
-                    "stock_count": pending.get("stock_count"),
-                    "available_to_trade": pending.get("available_to_trade"),
-                },
-            )
+        await notify_or_handle_stock_disposition(room_code)
 
     await broadcast_game_state(room_code)
 
@@ -906,19 +894,7 @@ async def handle_merger_disposition(
 
     # Check if another player needs to handle stock disposition
     if result.get("next_action") == "stock_disposition":
-        pending = game.pending_action
-        if pending and pending.get("type") == "stock_disposition":
-            await session_manager.send_to_player(
-                room_code,
-                pending.get("player_id"),
-                {
-                    "type": "stock_disposition_required",
-                    "defunct_chain": pending.get("defunct_chain"),
-                    "surviving_chain": pending.get("surviving_chain"),
-                    "stock_count": pending.get("stock_count"),
-                    "available_to_trade": pending.get("available_to_trade"),
-                },
-            )
+        await notify_or_handle_stock_disposition(room_code)
 
     await broadcast_game_state(room_code)
 
@@ -1251,6 +1227,90 @@ async def end_game(room_code: str):
     await session_manager.send_to_host(
         room_code, {"type": "game_over", "scores": final_scores, "winner": winner_id}
     )
+
+
+async def notify_or_handle_stock_disposition(room_code: str):
+    """Handle stock disposition for the pending player (bot or human).
+
+    If the player is a bot, automatically generates and submits their disposition.
+    If the player is human, sends them the disposition_required message.
+    Continues processing until we reach a human or no more dispositions needed.
+    """
+    import asyncio
+
+    room = session_manager.get_room(room_code)
+    if room is None or room.game is None:
+        return
+
+    game = room.game
+
+    # Safety counter to prevent infinite loops
+    max_iterations = 50
+    iterations = 0
+
+    while iterations < max_iterations:
+        iterations += 1
+
+        # Check if there's a pending stock disposition
+        pending = game.pending_action
+        if not pending or pending.get("type") != "stock_disposition":
+            break
+
+        disposition_player_id = pending.get("player_id")
+        if not disposition_player_id:
+            break
+
+        defunct_chain = pending.get("defunct_chain")
+
+        # Check if this player is a bot
+        player_conn = room.players.get(disposition_player_id)
+        if player_conn is None or not player_conn.is_bot:
+            # Human player needs to dispose - send message and wait
+            await session_manager.send_to_player(
+                room_code,
+                disposition_player_id,
+                {
+                    "type": "stock_disposition_required",
+                    "defunct_chain": defunct_chain,
+                    "surviving_chain": pending.get("surviving_chain"),
+                    "stock_count": pending.get("stock_count"),
+                    "available_to_trade": pending.get("available_to_trade"),
+                },
+            )
+            break
+
+        # Bot needs to dispose - generate decision and execute directly
+        bot = game.bots.get(disposition_player_id)
+        if bot is None:
+            break
+
+        surviving_chain = pending.get("surviving_chain")
+        stock_count = pending.get("stock_count")
+
+        # Get bot's disposition decision
+        decision = bot.choose_stock_disposition(
+            defunct_chain, surviving_chain, stock_count, game.board, game.hotel
+        )
+
+        # Execute the disposition using Game method directly
+        result = game.handle_stock_disposition(
+            disposition_player_id,
+            sell=decision.get("sell", 0),
+            trade=decision.get("trade", 0),
+            keep=decision.get("keep", 0),
+        )
+
+        # Broadcast state after bot's disposition
+        await broadcast_game_state(room_code)
+
+        # Small delay to prevent overwhelming clients
+        await asyncio.sleep(0.1)
+
+        # If disposition failed, break
+        if not result.get("success"):
+            break
+
+        # Loop continues to check if another player needs to dispose
 
 
 async def process_bot_turns(room_code: str):

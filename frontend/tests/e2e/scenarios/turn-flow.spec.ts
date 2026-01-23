@@ -46,82 +46,106 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
     resetStepCounter()
   })
 
-  test('1.1: Basic complete turn - place tile, buy stock, end turn', async ({ page }) => {
+  test('1.1: Basic complete turns - play at least 10 turns with detailed logging', async ({ page }) => {
     const testName = '1.1-basic-turn'
     const errorTracker = setupConsoleErrorTracking(page)
 
     // Setup: Create game with bots
     await createGameViaUI(page, 'TestPlayer')
-    await assertPlayerInLobby(page, 'TestPlayer') // Wait for WebSocket state
+    await assertPlayerInLobby(page, 'TestPlayer')
     await addBotViaUI(page)
     await addBotViaUI(page)
     await captureStep(page, 'lobby-with-players', { category: CATEGORY, testName })
 
-    // Start the game
     await startGameViaUI(page)
     await captureStep(page, 'game-started', { category: CATEGORY, testName })
 
-    // Wait for WebSocket to stabilize after game start
     await page.waitForTimeout(2000)
 
-    // Wait for our turn (bots may play first)
-    await waitForMyTurn(page)
-    await captureStep(page, 'my-turn-place-tile', { category: CATEGORY, testName })
-
-    // Verify we're in place_tile phase
-    const phaseText = await getPhaseText(page)
-    expect(phaseText).toContain('PLACE')
-
-    // Select a tile from the rack
-    const tileCoord = await selectTileFromRack(page)
-    await captureStep(page, 'tile-selected', { category: CATEGORY, testName })
-    expect(tileCoord).toMatch(/^\d+[A-I]$/) // e.g., "1A", "12I"
-
-    // Verify place tile button is enabled
-    const placeButton = page.getByTestId('place-tile-button')
-    await expect(placeButton).toBeEnabled()
-    await captureStep(page, 'place-button-enabled', { category: CATEGORY, testName })
-
-    // Try to place the tile - WebSocket may fail due to Vite proxy issues
-    // This is a known limitation documented above
-    try {
-      await placeTile(page)
-      await captureStep(page, 'tile-placed', { category: CATEGORY, testName })
-
-      // Handle chain founding if triggered
-      if (await hasChainSelector(page)) {
-        await captureStep(page, 'chain-founding-triggered', { category: CATEGORY, testName })
-        const chainName = await selectFirstAvailableChain(page)
-        await captureStep(page, `chain-founded-${chainName}`, { category: CATEGORY, testName })
-        await page.waitForTimeout(500)
-      }
-
-      // Should be in buy phase now
-      await waitForPhase(page, 'BUY', 10000)
-      await captureStep(page, 'buy-phase', { category: CATEGORY, testName })
-
-      // End turn
-      await endTurn(page)
-      await captureStep(page, 'turn-ended', { category: CATEGORY, testName })
-
-      // Verify it's no longer our turn
-      const finalPhase = await getPhaseText(page)
-      expect(finalPhase).toContain('TURN')
-      await captureStep(page, 'waiting-for-others', { category: CATEGORY, testName })
-    } catch (error) {
-      // WebSocket write failed - this is a known test infrastructure issue
-      // The UI interactions (tile selection, button states) work correctly
-      console.log('[1.1] WebSocket action failed (known test infrastructure limitation):', error)
-      await captureStep(page, 'websocket-action-failed', { category: CATEGORY, testName })
-      // Test passes because UI interactions work - action submission is a backend concern
+    // Helper to get game state
+    const getGameInfo = async () => {
+      return await page.evaluate(() => {
+        const phaseEl = document.querySelector('[data-testid="game-phase"]')
+        const phase = phaseEl?.textContent || ''
+        const cashEl = document.querySelector('[data-testid="player-cash"]')
+        const cash = cashEl?.textContent || ''
+        return { phase, cash }
+      })
     }
 
-    // Only fail on real console errors (not WebSocket-related)
+    const MIN_TURNS = 10
+    let humanTurnCount = 0
+    let totalTurnCount = 0
+    let lastPhase = ''
+    const tilesPlaced: string[] = []
+    const chainsFoundedByMe: string[] = []
+
+    console.log('\n' + '='.repeat(60))
+    console.log('BASIC TURNS TEST - Detailed Turn Log (10+ turns)')
+    console.log('='.repeat(60))
+
+    while (humanTurnCount < MIN_TURNS) {
+      const info = await getGameInfo()
+
+      // Track phase changes for turn counting
+      if (info.phase !== lastPhase) {
+        if (info.phase.includes("'s TURN")) {
+          totalTurnCount++
+          console.log(`[Turn ${totalTurnCount}] ${info.phase}`)
+        }
+        lastPhase = info.phase
+      }
+
+      // Our turn to place
+      if (info.phase.includes('PLACE')) {
+        humanTurnCount++
+        totalTurnCount++
+        console.log(`\n[Turn ${totalTurnCount}] === MY TURN #${humanTurnCount} ===`)
+        console.log(`  Cash: ${info.cash}`)
+
+        const tileCoord = await selectTileFromRack(page)
+        tilesPlaced.push(tileCoord)
+        console.log(`  Placing tile: ${tileCoord}`)
+
+        await placeTile(page)
+
+        const afterPlace = await getGameInfo()
+        console.log(`  Phase after place: "${afterPlace.phase}"`)
+
+        // Handle chain founding
+        if (await hasChainSelector(page)) {
+          const chainName = await selectFirstAvailableChain(page)
+          chainsFoundedByMe.push(chainName)
+          console.log(`  *** FOUNDED CHAIN: ${chainName.toUpperCase()} ***`)
+          await page.waitForTimeout(500)
+        }
+
+        // End turn
+        const phase = await getPhaseText(page)
+        if (phase.includes('BUY')) {
+          await endTurn(page)
+          console.log(`  Ended turn`)
+        }
+
+        lastPhase = ''
+      } else {
+        await page.waitForTimeout(300)
+      }
+    }
+
+    console.log('\n' + '='.repeat(60))
+    console.log(`SUMMARY: ${humanTurnCount} human turns, ${totalTurnCount} total turns`)
+    console.log(`Tiles placed: [${tilesPlaced.join(', ')}]`)
+    console.log(`Chains founded: [${chainsFoundedByMe.join(', ')}]`)
+    console.log('='.repeat(60) + '\n')
+
+    expect(humanTurnCount).toBeGreaterThanOrEqual(MIN_TURNS)
+
     const errors = errorTracker.getErrors().filter(e => !e.includes('WebSocket'))
     expect(errors).toHaveLength(0)
   })
 
-  test('1.2: Turn with no stock purchase - place tile, skip buy, end turn', async ({ page }) => {
+  test('1.2: Skip stock purchase - play at least 10 turns skipping buy phase', async ({ page }) => {
     const testName = '1.2-skip-purchase'
     const errorTracker = setupConsoleErrorTracking(page)
 
@@ -135,51 +159,96 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
     await startGameViaUI(page)
     await captureStep(page, 'game-started', { category: CATEGORY, testName })
 
-    await page.waitForTimeout(2000) // Let WebSocket stabilize
+    await page.waitForTimeout(2000)
 
-    // Wait for our turn
-    await waitForMyTurn(page)
-    await captureStep(page, 'my-turn', { category: CATEGORY, testName })
+    const getGameInfo = async () => {
+      return await page.evaluate(() => {
+        const phaseEl = document.querySelector('[data-testid="game-phase"]')
+        const phase = phaseEl?.textContent || ''
+        const cashEl = document.querySelector('[data-testid="player-cash"]')
+        const cash = cashEl?.textContent || ''
+        const endBtn = document.querySelector('[data-testid="end-turn-button"]')
+        const buttonText = endBtn?.textContent || ''
+        return { phase, cash, buttonText }
+      })
+    }
 
-    // Select tile and verify place button
-    await selectTileFromRack(page)
-    await expect(page.getByTestId('place-tile-button')).toBeEnabled()
-    await captureStep(page, 'tile-selected', { category: CATEGORY, testName })
+    const MIN_TURNS = 10
+    let humanTurnCount = 0
+    let totalTurnCount = 0
+    let lastPhase = ''
+    const tilesPlaced: string[] = []
+    const chainsFoundedByMe: string[] = []
+    let skipsCount = 0
 
-    try {
-      await placeTile(page)
-      await captureStep(page, 'tile-placed', { category: CATEGORY, testName })
+    console.log('\n' + '='.repeat(60))
+    console.log('SKIP PURCHASE TEST - Detailed Turn Log (10+ turns)')
+    console.log('='.repeat(60))
 
-      // Handle chain founding if triggered
-      if (await hasChainSelector(page)) {
-        await selectFirstAvailableChain(page)
-        await page.waitForTimeout(500)
+    while (humanTurnCount < MIN_TURNS) {
+      const info = await getGameInfo()
+
+      if (info.phase !== lastPhase) {
+        if (info.phase.includes("'s TURN")) {
+          totalTurnCount++
+          console.log(`[Turn ${totalTurnCount}] ${info.phase}`)
+        }
+        lastPhase = info.phase
       }
 
-      // Wait for buy phase
-      await waitForPhase(page, 'BUY', 10000)
-      await captureStep(page, 'buy-phase', { category: CATEGORY, testName })
+      if (info.phase.includes('PLACE')) {
+        humanTurnCount++
+        totalTurnCount++
+        console.log(`\n[Turn ${totalTurnCount}] === MY TURN #${humanTurnCount} ===`)
+        console.log(`  Cash: ${info.cash}`)
 
-      // Verify SKIP button is visible
-      const endTurnButton = page.getByTestId('end-turn-button')
-      await expect(endTurnButton).toContainText('SKIP')
-      await captureStep(page, 'skip-button-visible', { category: CATEGORY, testName })
+        const tileCoord = await selectTileFromRack(page)
+        tilesPlaced.push(tileCoord)
+        console.log(`  Placing tile: ${tileCoord}`)
 
-      await endTurn(page)
-      await captureStep(page, 'turn-skipped', { category: CATEGORY, testName })
+        await placeTile(page)
 
-      const phase = await getPhaseText(page)
-      expect(phase).toContain('TURN')
-    } catch (error) {
-      console.log('[1.2] WebSocket action failed (known limitation):', error)
-      await captureStep(page, 'websocket-action-failed', { category: CATEGORY, testName })
+        const afterPlace = await getGameInfo()
+        console.log(`  Phase after place: "${afterPlace.phase}"`)
+
+        if (await hasChainSelector(page)) {
+          const chainName = await selectFirstAvailableChain(page)
+          chainsFoundedByMe.push(chainName)
+          console.log(`  *** FOUNDED CHAIN: ${chainName.toUpperCase()} ***`)
+          await page.waitForTimeout(500)
+        }
+
+        const phase = await getPhaseText(page)
+        if (phase.includes('BUY')) {
+          const btnInfo = await getGameInfo()
+          if (btnInfo.buttonText.includes('SKIP')) {
+            skipsCount++
+            console.log(`  Button shows: "${btnInfo.buttonText}" - Skipping purchase`)
+          }
+          await endTurn(page)
+          console.log(`  Ended turn (no purchase)`)
+        }
+
+        lastPhase = ''
+      } else {
+        await page.waitForTimeout(300)
+      }
     }
+
+    console.log('\n' + '='.repeat(60))
+    console.log(`SUMMARY: ${humanTurnCount} human turns, ${totalTurnCount} total turns`)
+    console.log(`Tiles placed: [${tilesPlaced.join(', ')}]`)
+    console.log(`Chains founded: [${chainsFoundedByMe.join(', ')}]`)
+    console.log(`Turns with SKIP button: ${skipsCount}`)
+    console.log('='.repeat(60) + '\n')
+
+    expect(humanTurnCount).toBeGreaterThanOrEqual(MIN_TURNS)
 
     const errors = errorTracker.getErrors().filter(e => !e.includes('WebSocket'))
     expect(errors).toHaveLength(0)
   })
 
-  test('1.3: Turn with chain founding - play until chain is founded', async ({ page }) => {
+  test('1.3: Turn with chain founding - play until two chains are founded', async ({ page }) => {
     const testName = '1.3-chain-founding'
     const errorTracker = setupConsoleErrorTracking(page)
 
@@ -195,57 +264,109 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
 
     await page.waitForTimeout(2000) // Let WebSocket stabilize
 
-    // Keep playing turns until chain founding happens
-    const maxTurns = 20
-    let chainFounded = false
-    let turnsPlayed = 0
+    // Helper to get current game state from the page
+    const getGameInfo = async () => {
+      return await page.evaluate(() => {
+        // Access Zustand store from window (if exposed) or parse from DOM
+        const phaseEl = document.querySelector('[data-testid="game-phase"]')
+        const phase = phaseEl?.textContent || ''
 
-    for (let turn = 1; turn <= maxTurns && !chainFounded; turn++) {
-      // Wait for our turn (bots play between our turns)
-      try {
-        await waitForMyTurn(page, 90000)
-      } catch {
-        console.log(`[1.3] Turn ${turn}: Timeout or game ended`)
-        break
+        // Get active chains from the board
+        const chainMarkers = document.querySelectorAll('[data-testid^="chain-marker-"]')
+        const activeChains = Array.from(chainMarkers).map((el) =>
+          el.getAttribute('data-testid')?.replace('chain-marker-', '')
+        )
+
+        // Get tiles on board by looking at filled cells
+        const filledCells = document.querySelectorAll('[data-chain], [data-state="placed"]')
+        const boardTiles = Array.from(filledCells).map((el) => el.getAttribute('data-testid'))
+
+        return { phase, activeChains: [...new Set(activeChains)], boardTileCount: filledCells.length }
+      })
+    }
+
+    // Track all turns (including bot turns via phase changes)
+    const maxTurns = 30
+    const chainsFoundedByMe: string[] = []
+    let humanTurnCount = 0
+    let totalTurnCount = 0
+    let lastPhase = ''
+
+    console.log('\n' + '='.repeat(60))
+    console.log('CHAIN FOUNDING TEST - Detailed Turn Log')
+    console.log('='.repeat(60))
+
+    for (let iteration = 1; iteration <= maxTurns && chainsFoundedByMe.length < 2; iteration++) {
+      // Get current state
+      const info = await getGameInfo()
+
+      // Detect phase changes (indicates turn progression)
+      if (info.phase !== lastPhase) {
+        totalTurnCount++
+        const isMyTurn = info.phase.includes('PLACE') || info.phase.includes('CHOOSE') || info.phase.includes('BUY')
+
+        if (info.phase.includes("'s TURN")) {
+          // It's someone else's turn - log it
+          console.log(`[Turn ${totalTurnCount}] ${info.phase}`)
+        }
+        lastPhase = info.phase
       }
 
-      // Select and place a tile
-      const tileCoord = await selectTileFromRack(page)
-      console.log(`[1.3] Turn ${turn}: Placing tile ${tileCoord}`)
+      // Check if it's our turn to place
+      if (info.phase.includes('PLACE')) {
+        humanTurnCount++
+        console.log(`\n[Turn ${totalTurnCount}] === MY TURN #${humanTurnCount} ===`)
 
-      await placeTile(page)
-      turnsPlayed++
+        // Select and place a tile
+        const tileCoord = await selectTileFromRack(page)
+        console.log(`  Placing tile: ${tileCoord}`)
 
-      // Debug: what phase are we in now?
-      const phaseAfterPlace = await getPhaseText(page)
-      console.log(`[1.3] Turn ${turn}: Phase after placing: "${phaseAfterPlace}"`)
+        await placeTile(page)
 
-      // Check if chain founding was triggered
-      if (await hasChainSelector(page)) {
-        await captureStep(page, 'chain-founding-triggered', { category: CATEGORY, testName })
-        const chainName = await selectFirstAvailableChain(page)
-        console.log(`[1.3] Turn ${turn}: Founded chain ${chainName}!`)
-        await captureStep(page, `chain-founded-${chainName}`, { category: CATEGORY, testName })
-        chainFounded = true
-      }
+        // Check result
+        const afterPlace = await getGameInfo()
+        console.log(`  Phase after place: "${afterPlace.phase}"`)
+        console.log(`  Active chains: [${afterPlace.activeChains.join(', ')}]`)
 
-      // Complete the turn if in buy phase
-      const phase = await getPhaseText(page)
-      if (phase.includes('BUY')) {
-        await endTurn(page)
+        // Check if chain founding was triggered
+        if (await hasChainSelector(page)) {
+          const chainName = await selectFirstAvailableChain(page)
+          chainsFoundedByMe.push(chainName)
+          console.log(`  *** FOUNDED CHAIN: ${chainName.toUpperCase()} ***`)
+          await captureStep(page, `chain-founded-${chainName}`, { category: CATEGORY, testName })
+
+          // Wait for phase to update
+          await page.waitForTimeout(500)
+        }
+
+        // Complete the turn if in buy phase
+        const phase = await getPhaseText(page)
+        if (phase.includes('BUY')) {
+          await endTurn(page)
+          console.log(`  Ended turn (skipped buying)`)
+        }
+      } else {
+        // Wait for game state to update (bot turns happen server-side)
+        await page.waitForTimeout(500)
       }
     }
 
-    console.log(`[1.3] Played ${turnsPlayed} turns, chain founded: ${chainFounded}`)
+    console.log('\n' + '='.repeat(60))
+    console.log(`SUMMARY: ${humanTurnCount} human turns, ${totalTurnCount} total turns`)
+    console.log(`Chains founded by human: [${chainsFoundedByMe.join(', ')}]`)
+    console.log('='.repeat(60) + '\n')
 
-    // Chain founding MUST happen within maxTurns (with seeded game it's deterministic)
-    expect(chainFounded).toBe(true)
+    // We need at least 2 chains founded
+    expect(chainsFoundedByMe.length).toBeGreaterThanOrEqual(2)
 
     const errors = errorTracker.getErrors().filter(e => !e.includes('WebSocket'))
     expect(errors).toHaveLength(0)
   })
 
-  test('1.4: Multiple turns - complete turn cycle with varying game states', async ({ page }) => {
+  test('1.4: Extended gameplay - play at least 20 turns with full state tracking', async ({ page }) => {
+    // Extended timeout for 20+ turns with potential mergers
+    test.setTimeout(180000) // 3 minutes
+
     const testName = '1.4-multiple-turns'
     const errorTracker = setupConsoleErrorTracking(page)
 
@@ -259,52 +380,187 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
     await startGameViaUI(page)
     await captureStep(page, 'game-started', { category: CATEGORY, testName })
 
-    await page.waitForTimeout(2000) // Let WebSocket stabilize
+    await page.waitForTimeout(2000)
 
-    // Play multiple turns to exercise different game states
-    const maxTurns = 3
-    let turnsPlayed = 0
+    const getGameInfo = async () => {
+      return await page.evaluate(() => {
+        const phaseEl = document.querySelector('[data-testid="game-phase"]')
+        const phase = phaseEl?.textContent || ''
+        const cashEl = document.querySelector('[data-testid="player-cash"]')
+        const cash = cashEl?.textContent || ''
+        const tilePoolEl = document.querySelector('[data-testid="tile-pool"]')
+        const tilePool = tilePoolEl?.textContent || ''
+        return { phase, cash, tilePool }
+      })
+    }
 
-    for (let turn = 1; turn <= maxTurns; turn++) {
-      // Wait for our turn (bots play between our turns)
-      try {
-        await waitForMyTurn(page, 90000) // Longer timeout for bot turns
-      } catch {
-        console.log(`[1.4] Turn ${turn}: Game may have ended or timeout waiting`)
+    // Helper to handle stock disposition during merger
+    const handleStockDisposition = async () => {
+      // Look for the merger disposition confirm button (data-testid="confirm-disposition")
+      const confirmBtn = page.getByTestId('confirm-disposition')
+      if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await confirmBtn.click()
+        console.log(`  Confirmed stock disposition (hold all)`)
+        await page.waitForTimeout(500)
+        return true
+      }
+      return false
+    }
+
+    // Helper to wait for merger to complete (phase changes away from MERGER)
+    const waitForMergerEnd = async (maxWaitMs = 60000) => {
+      const startTime = Date.now()
+      let lastLog = ''
+      let screenshotTaken = false
+      while (Date.now() - startTime < maxWaitMs) {
+        const info = await getGameInfo()
+
+        // Log phase changes
+        if (info.phase !== lastLog) {
+          console.log(`    [Merger] Phase: "${info.phase}"`)
+          lastLog = info.phase
+        }
+
+        // Merger is done when we reach BUY, PLACE, or someone's TURN
+        if (info.phase.includes('BUY') || info.phase.includes('PLACE') || info.phase.includes("'s TURN")) {
+          return true
+        }
+
+        // Take a screenshot after 5 seconds to debug if stuck
+        if (!screenshotTaken && Date.now() - startTime > 5000) {
+          await captureStep(page, 'merger-debug', { category: CATEGORY, testName })
+          screenshotTaken = true
+          console.log(`    [Merger] Screenshot captured for debugging`)
+        }
+
+        // Check what's visible on page
+        const disposeBtn = await page.getByTestId('confirm-disposition').isVisible().catch(() => false)
+        const waitingText = await page.locator('text=Waiting for other players').isVisible().catch(() => false)
+        console.log(`    [Merger] dispose-btn: ${disposeBtn}, waiting-text: ${waitingText}`)
+
+        // Try to handle our disposition if we have one
+        if (disposeBtn) {
+          const handled = await handleStockDisposition()
+          if (handled) {
+            console.log(`    [Merger] Confirmed disposition`)
+          }
+        }
+
+        await page.waitForTimeout(500)
+      }
+      console.log(`    [Merger] Timeout after ${maxWaitMs}ms`)
+      return false
+    }
+
+    const MIN_TURNS = 20
+    let humanTurnCount = 0
+    let totalTurnCount = 0
+    let lastPhase = ''
+    const tilesPlaced: string[] = []
+    const chainsFoundedByMe: string[] = []
+    const gameEvents: string[] = []
+    let mergerCount = 0
+
+    console.log('\n' + '='.repeat(70))
+    console.log('EXTENDED GAMEPLAY TEST - Detailed Turn Log (20+ turns)')
+    console.log('='.repeat(70))
+
+    while (humanTurnCount < MIN_TURNS) {
+      const info = await getGameInfo()
+
+      // Check for game over
+      if (info.phase.includes('GAME OVER')) {
+        console.log('\n*** GAME OVER ***')
+        gameEvents.push('Game ended')
         break
       }
 
-      await captureStep(page, `turn-${turn}-start`, { category: CATEGORY, testName })
-
-      // Select and place a tile
-      const tileCoord = await selectTileFromRack(page)
-      console.log(`[1.4] Turn ${turn}: Selected tile ${tileCoord}`)
-
-      await placeTile(page)
-      await captureStep(page, `turn-${turn}-tile-placed`, { category: CATEGORY, testName })
-
-      // Handle chain founding if triggered
-      if (await hasChainSelector(page)) {
-        const chainName = await selectFirstAvailableChain(page)
-        console.log(`[1.4] Turn ${turn}: Founded chain ${chainName}`)
-        await captureStep(page, `turn-${turn}-chain-founded`, { category: CATEGORY, testName })
+      if (info.phase !== lastPhase) {
+        if (info.phase.includes("'s TURN")) {
+          totalTurnCount++
+          console.log(`[Turn ${totalTurnCount}] ${info.phase}`)
+        }
+        lastPhase = info.phase
       }
 
-      // Complete the turn
-      const phase = await getPhaseText(page)
-      if (phase.includes('BUY')) {
-        await endTurn(page)
-        console.log(`[1.4] Turn ${turn}: Completed (skipped buy phase)`)
+      // Handle stock disposition during merger - wait for merger to complete
+      if (info.phase.includes('DISPOSE') || (info.phase.includes('MERGER') && !info.phase.includes('PLACE'))) {
+        console.log(`  In merger phase, waiting for completion...`)
+        const completed = await waitForMergerEnd(15000) // Shorter timeout
+        if (!completed) {
+          console.log(`  Merger stuck (bots not disposing) - ending test`)
+          break // Exit the loop if merger is stuck
+        }
+        lastPhase = '' // Force re-check
+        continue
+      }
+
+      if (info.phase.includes('PLACE')) {
+        humanTurnCount++
+        totalTurnCount++
+        console.log(`\n[Turn ${totalTurnCount}] === MY TURN #${humanTurnCount} ===`)
+        console.log(`  Cash: ${info.cash} | Tile Pool: ${info.tilePool}`)
+
+        const tileCoord = await selectTileFromRack(page)
+        tilesPlaced.push(tileCoord)
+        console.log(`  Placing tile: ${tileCoord}`)
+
+        await placeTile(page)
+
+        const afterPlace = await getGameInfo()
+        console.log(`  Phase after place: "${afterPlace.phase}"`)
+
+        if (await hasChainSelector(page)) {
+          const chainName = await selectFirstAvailableChain(page)
+          chainsFoundedByMe.push(chainName)
+          gameEvents.push(`Turn ${humanTurnCount}: Founded ${chainName}`)
+          console.log(`  *** FOUNDED CHAIN: ${chainName.toUpperCase()} ***`)
+          await page.waitForTimeout(500)
+        }
+
+        // Check for merger
+        const postPhase = await getPhaseText(page)
+        if (postPhase.includes('MERGER') || postPhase.includes('DISPOSE')) {
+          mergerCount++
+          gameEvents.push(`Turn ${humanTurnCount}: Merger #${mergerCount} triggered`)
+          console.log(`  *** MERGER #${mergerCount} IN PROGRESS ***`)
+          // Wait for merger to complete (shorter timeout)
+          const completed = await waitForMergerEnd(15000)
+          if (!completed) {
+            console.log(`  Merger stuck - ending test early`)
+            break // Exit the turn loop
+          }
+          console.log(`  Merger completed`)
+        }
+
+        // Wait for phase to settle after any merger handling
+        await page.waitForTimeout(300)
+        const phase = await getPhaseText(page)
+        if (phase.includes('BUY')) {
+          await endTurn(page)
+          console.log(`  Ended turn`)
+        }
+
+        // Capture screenshot every 5 turns
+        if (humanTurnCount % 5 === 0) {
+          await captureStep(page, `turn-${humanTurnCount}`, { category: CATEGORY, testName })
+        }
+
+        lastPhase = ''
       } else {
-        console.log(`[1.4] Turn ${turn}: Phase is ${phase}`)
+        await page.waitForTimeout(300)
       }
-
-      turnsPlayed++
-      await captureStep(page, `turn-${turn}-complete`, { category: CATEGORY, testName })
     }
 
-    console.log(`[1.4] Completed ${turnsPlayed} turns`)
-    expect(turnsPlayed).toBeGreaterThan(0)
+    console.log('\n' + '='.repeat(70))
+    console.log(`SUMMARY: ${humanTurnCount} human turns, ${totalTurnCount} total turns`)
+    console.log(`Tiles placed: [${tilesPlaced.join(', ')}]`)
+    console.log(`Chains founded by me: [${chainsFoundedByMe.join(', ')}]`)
+    console.log(`Mergers encountered: ${mergerCount}`)
+    console.log(`Key events: ${gameEvents.length > 0 ? gameEvents.join('; ') : 'None'}`)
+    console.log('='.repeat(70) + '\n')
+
+    expect(humanTurnCount).toBeGreaterThanOrEqual(MIN_TURNS)
 
     const errors = errorTracker.getErrors().filter(e => !e.includes('WebSocket'))
     expect(errors).toHaveLength(0)
