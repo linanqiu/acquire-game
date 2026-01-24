@@ -127,7 +127,7 @@ test.describe('Lobby Page', () => {
   })
 
   test.describe('Complete Flow', () => {
-    test('host creates game and player joins', async ({ page, browser }) => {
+    test('host creates game and player joins', { tag: '@ci' }, async ({ page, browser }) => {
       // Host creates game via UI
       await page.goto('/')
       await page.getByTestId('create-name-input').fill('HostPlayer')

@@ -11,6 +11,9 @@ import {
   getPhaseText,
   setupConsoleErrorTracking,
   isInBuyPhase,
+  waitForWebSocketConnected,
+  waitForPhaseChange,
+  waitForPhase,
 } from './helpers/turn-actions'
 import { openTradeBuilder, cancelTradeProposal, getTradeError } from './helpers/trading'
 import {
@@ -83,11 +86,11 @@ test.describe('Trading Scenarios (2.x)', () => {
           if (await hasChainSelector(page, 1000)) {
             const chain = await selectFirstAvailableChain(page)
             console.log(`[2.1] Founded chain: ${chain}`)
-            await page.waitForTimeout(500)
+            // Wait for phase to update (condition-based)
+            await waitForPhase(page, 'BUY', 5000).catch(() => {})
           }
 
           // Check if we're in buy phase
-          await page.waitForTimeout(500)
           inBuyPhase = await isInBuyPhase(page)
 
           if (!inBuyPhase) {
@@ -154,10 +157,10 @@ test.describe('Trading Scenarios (2.x)', () => {
 
           if (await hasChainSelector(page, 1000)) {
             await selectFirstAvailableChain(page)
-            await page.waitForTimeout(500)
+            // Wait for phase to update (condition-based)
+            await waitForPhase(page, 'BUY', 5000).catch(() => {})
           }
 
-          await page.waitForTimeout(500)
           if (await isInBuyPhase(page)) {
             foundBuyPhase = true
             break
@@ -230,7 +233,8 @@ test.describe('Trading Scenarios (2.x)', () => {
         await startGameViaUI(proposerPage)
         console.log('[2.3] Game started')
 
-        await proposerPage.waitForTimeout(2000)
+        // Wait for WebSocket to connect (condition-based)
+        await waitForWebSocketConnected(proposerPage)
 
         // Play some turns to acquire stocks
         // This is a simplified test - in real scenario we'd need both players to have stocks
@@ -322,10 +326,10 @@ test.describe('Trading Scenarios (2.x)', () => {
 
           if (await hasChainSelector(page, 1000)) {
             await selectFirstAvailableChain(page)
-            await page.waitForTimeout(500)
+            // Wait for phase to update (condition-based)
+            await waitForPhase(page, 'BUY', 5000).catch(() => {})
           }
 
-          await page.waitForTimeout(500)
           if (await isInBuyPhase(page)) {
             foundBuyPhase = true
             break
@@ -453,7 +457,8 @@ test.describe('Trading Scenarios (2.x)', () => {
       await startGameViaUI(page)
       await captureStep(page, 'game-started', { category: CATEGORY, testName })
 
-      await page.waitForTimeout(2000)
+      // Wait for WebSocket to connect (condition-based)
+      await waitForWebSocketConnected(page)
 
       console.log('[2.10] Playing until merger occurs...')
 
@@ -873,12 +878,12 @@ test.describe('Trading Scenarios (2.x)', () => {
           // Keep all stocks for simplicity
           await submitDisposition(page, 0, 0, stockCount)
 
-          await page.waitForTimeout(1000)
+          // Wait for phase to update after disposition (condition-based)
+          const currentPhase = await getPhaseText(page)
+          await waitForPhaseChange(page, currentPhase, 5000)
 
           // Check if there's another disposition to handle (multi-chain)
-          if (await isInDispositionPhase(page)) {
-            await page.waitForTimeout(1000)
-          } else {
+          if (!(await isInDispositionPhase(page))) {
             break
           }
         }

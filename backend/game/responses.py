@@ -10,12 +10,7 @@ from typing import Optional, List, Dict, Any
 
 @dataclass
 class GameResponse:
-    """Base class for all game responses.
-
-    Supports dict-like access for backward compatibility:
-    - result["success"] works like result.success
-    - result.get("success") works like dict.get()
-    """
+    """Base class for all game responses."""
 
     success: bool
     error: Optional[str] = None
@@ -28,8 +23,7 @@ class GameResponse:
         return result
 
     def __getitem__(self, key: str) -> Any:
-        """Support dict-like access: result['success']."""
-        # Map 'result' key to 'result_type' for PlayTileResult compatibility
+        """Support dict-like access for test compatibility."""
         if key == "result" and hasattr(self, "result_type"):
             return getattr(self, "result_type")
         if hasattr(self, key):
@@ -37,26 +31,16 @@ class GameResponse:
         raise KeyError(key)
 
     def get(self, key: str, default: Any = None) -> Any:
-        """Support dict-like get(): result.get('success', False)."""
-        # Map 'result' key to 'result_type' for PlayTileResult compatibility
+        """Support dict-like get() for test compatibility."""
         if key == "result" and hasattr(self, "result_type"):
             return getattr(self, "result_type", default)
         return getattr(self, key, default)
 
     def __contains__(self, key: str) -> bool:
-        """Support 'in' operator: 'success' in result."""
-        # Map 'result' key to 'result_type' for PlayTileResult compatibility
+        """Support 'in' operator for test compatibility."""
         if key == "result":
             return hasattr(self, "result_type")
         return hasattr(self, key)
-
-    def keys(self):
-        """Support dict-like keys() for ** unpacking."""
-        return self.to_dict().keys()
-
-    def __iter__(self):
-        """Support iteration for ** unpacking."""
-        return iter(self.to_dict())
 
 
 # =============================================================================
@@ -303,26 +287,10 @@ class PlayerStanding:
         }
 
     def __getitem__(self, key: str) -> Any:
-        """Support dict-like access."""
+        """Support dict-like access for test compatibility."""
         if hasattr(self, key):
             return getattr(self, key)
         raise KeyError(key)
-
-    def get(self, key: str, default: Any = None) -> Any:
-        """Support dict-like get()."""
-        return getattr(self, key, default)
-
-    def __contains__(self, key: str) -> bool:
-        """Support 'in' operator."""
-        return hasattr(self, key)
-
-    def keys(self):
-        """Support dict-like keys()."""
-        return self.to_dict().keys()
-
-    def __iter__(self):
-        """Support iteration."""
-        return iter(self.to_dict())
 
 
 @dataclass

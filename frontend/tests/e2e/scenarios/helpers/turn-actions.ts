@@ -289,6 +289,43 @@ export async function getPhaseText(page: Page): Promise<string> {
 }
 
 /**
+ * Wait for the phase to change from its current value.
+ * This is condition-based waiting that avoids arbitrary timeouts.
+ *
+ * @param page - Playwright Page
+ * @param currentPhase - The current phase text to wait to change from
+ * @param timeout - Maximum time to wait
+ * @returns true if phase changed, false if timed out
+ */
+export async function waitForPhaseChange(
+  page: Page,
+  currentPhase: string,
+  timeout = 5000
+): Promise<boolean> {
+  try {
+    // Wait for the phase element to NOT contain the current phase text
+    // This triggers as soon as any change happens
+    await expect(page.getByTestId('game-phase')).not.toContainText(currentPhase, { timeout })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Wait for any game state update by watching the phase indicator.
+ * Polls with short intervals but uses Playwright's built-in waiting.
+ *
+ * @param page - Playwright Page
+ * @param timeout - Maximum time to wait
+ * @returns true if state changed, false if timed out
+ */
+export async function waitForGameStateUpdate(page: Page, timeout = 5000): Promise<boolean> {
+  const startPhase = await getPhaseText(page)
+  return waitForPhaseChange(page, startPhase, timeout)
+}
+
+/**
  * Complete a full basic turn: select tile, place it, optionally handle founding, end turn.
  * This helper handles the common case of placing a tile and ending the turn.
  *
@@ -312,14 +349,9 @@ export async function completeBasicTurn(
   result.tilePlaced = await selectTileFromRack(page)
   await placeTile(page)
 
-  // Wait a moment for phase transition
-  await page.waitForTimeout(500)
-
-  // Check if we triggered chain founding
+  // Check if we triggered chain founding (hasChainSelector has built-in waiting)
   if (options.handleFounding !== false && (await hasChainSelector(page))) {
     result.chainFounded = await selectFirstAvailableChain(page)
-    // Wait for founding to complete
-    await page.waitForTimeout(500)
   }
 
   // Wait for buy phase (if not skipped entirely)

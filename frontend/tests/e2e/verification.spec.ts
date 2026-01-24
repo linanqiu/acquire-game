@@ -4,7 +4,7 @@ import { test, expect } from '@playwright/test'
  * Verification test that captures screenshot evidence of working gameplay flow.
  * This test exists to prove the E2E tests are actually testing real functionality.
  */
-test('complete flow with screenshot evidence', async ({ page }) => {
+test('complete flow with screenshot evidence', { tag: '@ci' }, async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (err) => errors.push(err.message))
 

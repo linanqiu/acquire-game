@@ -8,6 +8,7 @@ import {
   endTurn,
   waitForPhase,
   isInBuyPhase,
+  getPhaseText,
 } from './turn-actions'
 import { captureStep } from './screenshot'
 
@@ -83,11 +84,8 @@ export async function playUntilMerger(
       // Try to continue anyway
     }
 
-    // Wait a moment for phase transition
-    await page.waitForTimeout(500)
-
-    // Check if this triggered a merger
-    const newPhaseText = await page.getByTestId('game-phase').textContent()
+    // Check if this triggered a merger (placeTile already waits for phase change)
+    const newPhaseText = await getPhaseText(page)
     if (newPhaseText?.includes('MERGER') || newPhaseText?.includes('DISPOSE')) {
       console.log(`[playUntilMerger] Merger triggered by tile placement at turn ${turn}`)
       if (captureScreenshots) {
@@ -100,7 +98,8 @@ export async function playUntilMerger(
     if (await hasChainSelector(page)) {
       const chain = await selectFirstAvailableChain(page)
       console.log(`[playUntilMerger] Founded chain ${chain} at turn ${turn}`)
-      await page.waitForTimeout(500)
+      // Wait for phase to update after founding (condition-based)
+      await waitForPhase(page, 'BUY', 5000).catch(() => {})
     }
 
     // Wait for buy phase and end turn
