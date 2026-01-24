@@ -22,6 +22,7 @@
 | [Deployment](epics/05-deployment.md) | 0/5 | DP-001 |
 | [Security Hardening](epics/06-security-hardening.md) | 0/5 | SH-002, SH-003, SH-004, SH-005 (after E2E: SH-001) |
 | [Scenario Tests](epics/07-scenario-tests.md) | 2/10 | ST-003 through ST-008 (parallel) |
+| [Backlog](epics/08-backlog.md) | 0/0 | Feature ideas captured during use |
 
 ## Story Status Key
 
@@ -236,6 +237,12 @@ Full E2E scenario testing with screenshots as proof.
 - **Start**: ST-001 after RT-001/RT-002 (WebSocket integration required)
 - **Parallel**: ST-002 to ST-008 can run simultaneously after ST-001
 - **Coverage**: All 124 documented game scenarios
+
+### Epic 8: Backlog
+Feature ideas and improvements discovered during app use.
+- **Purpose**: Capture ideas that emerge during gameplay or development
+- **Prefix**: BL-XXX
+- **Priority**: Items start as `low`, promote when ready to implement
 
 ## Reference Documentation
 
