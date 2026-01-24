@@ -1,0 +1,41 @@
+# Default deterministic tile sequence for E2E tests
+#
+# Tile dealing in Acquire:
+# - Tiles are popped from the END of the tile_bag (last = first dealt)
+# - 3 players, 6 tiles each = 18 tiles dealt at game start
+# - Round-robin dealing: P0, P1, P2, P0, P1, P2, ...
+#
+# To give Player 0 (human) tiles 1A, 2A, 3A, 4A, 5A, 6A:
+# - These tiles must be at positions 1, 4, 7, 10, 13, 16 in the dealing order
+# - Since we pop from end, they need to be at the end of the CSV
+#
+# Format: List tiles in order from FIRST dealt to LAST dealt
+# (But since tiles are popped from end, put earliest-dealt tiles LAST in CSV)
+
+# Remaining tiles (drawn during gameplay, listed from least to most recent)
+# These will be at the front of tile_bag, drawn last
+1B,2B,3B,4B,5B,6B,7B,8B,9B,10B,11B,12B
+1C,2C,3C,4C,5C,6C,7C,8C,9C,10C,11C,12C
+1D,2D,3D,4D,5D,6D,7D,8D,9D,10D,11D,12D
+1E,2E,3E,4E,5E,6E,7E,8E,9E,10E,11E,12E
+1F,2F,3F,4F,5F,6F,7F,8F,9F,10F,11F,12F
+1G,2G,3G,4G,5G,6G,7G,8G,9G,10G,11G,12G
+1H,2H,3H,4H,5H,6H,7H,8H,9H,10H,11H,12H
+1I,2I,3I,4I,5I,6I,7I,8I,9I,10I,11I,12I
+
+# Initial hands (18 tiles, dealt round-robin P0, P1, P2...)
+# Dealing order: Tile 18 (first in list below) dealt first, Tile 1 (last) dealt last
+# Position in deal -> Player: 1->P0, 2->P1, 3->P2, 4->P0, 5->P1, 6->P2, etc.
+
+# Tile 18 (P2), Tile 17 (P1), Tile 16 (P0 - 6th tile)
+12A,11A,6A
+# Tile 15 (P2), Tile 14 (P1), Tile 13 (P0 - 5th tile)
+10A,9A,5A
+# Tile 12 (P2), Tile 11 (P1), Tile 10 (P0 - 4th tile)
+8A,7A,4A
+# Tile 9 (P2), Tile 8 (P1), Tile 7 (P0 - 3rd tile)
+10B,9B,3A
+# Tile 6 (P2), Tile 5 (P1), Tile 4 (P0 - 2nd tile)
+8B,7B,2A
+# Tile 3 (P2), Tile 2 (P1), Tile 1 (P0 - 1st tile) -- LAST LINE = FIRST DEALT
+6B,5B,1A

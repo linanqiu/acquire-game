@@ -1,0 +1,45 @@
+# Seven chains tile sequence
+# This sequence is designed to create 7 separate chains on the board
+#
+# To found 7 chains without them merging, tiles must be placed in
+# different regions of the board with sufficient gaps between them.
+#
+# Board layout: Columns 1-12, Rows A-I
+# Strategy: Use corners and edges, spaced out
+#
+# Chain locations (2 tiles each, with gaps between regions):
+# Chain 1: 1A, 2A (top-left)
+# Chain 2: 5A, 6A (top-middle-left)
+# Chain 3: 9A, 10A (top-middle-right)
+# Chain 4: 1D, 2D (middle-left)
+# Chain 5: 5D, 6D (middle-middle)
+# Chain 6: 9D, 10D (middle-right)
+# Chain 7: 1G, 2G (bottom-left)
+#
+# After 7 chains are founded, any tile that would create adjacency
+# between non-chained tiles becomes unplayable (8th chain violation)
+#
+# Potential 8th chain tile: 1H adjacent to 1G could expand chain 7
+# But placing a tile like 3G-4G when 3G is isolated would try to found 8th
+
+# Additional tiles for mid-game
+3A,4A,7A,8A,11A,12A
+1B,2B,3B,4B,5B,6B
+7B,8B,9B,10B,11B,12B
+1C,2C,3C,4C,5C,6C
+7C,8C,9C,10C,11C,12C
+3D,4D,7D,8D,11D,12D
+1E,2E,3E,4E,5E,6E
+7E,8E,9E,10E,11E,12E
+1F,2F,3F,4F,5F,6F
+7F,8F,9F,10F,11F,12F
+3G,4G,5G,6G,7G,8G,9G,10G,11G,12G
+
+# Player 2's hand - needs tiles to found chains 5,6,7
+2G,1G,10D,9D,6D,5D
+
+# Player 1's hand - needs tiles to found chains 3,4
+2D,1D,10A,9A,6A,5A
+
+# Player 0's hand - needs tiles to found chains 1,2 (LAST = FIRST)
+2A,1A,7A,8A,3A,4A

@@ -1,0 +1,35 @@
+# Depleted stock tile sequence
+# This sequence is designed to deplete one chain's stock (25 shares)
+#
+# Strategy:
+# 1. Human player (Player 0) founds a chain on turn 1
+# 2. Human buys 3 stocks of that chain each turn
+# 3. After ~8 turns: 1 (bonus) + 3*8 = 25 stocks depleted
+#
+# The chain tiles should be close together so human can keep
+# expanding/buying without triggering mergers with other chains.
+#
+# Tower chain tiles concentrated in columns 1-4, rows A-D
+# Other players get tiles in different areas (columns 8-12)
+
+# Additional mid-game tiles - mostly Tower region for growth
+1C,2C,3C,4C,1D,2D,3D,4D
+1E,2E,3E,4E,5E,6E
+5A,5B,5C,5D,6A,6B,6C,6D
+7A,7B,7C,7D,8A,8B
+9A,9B,10A,10B,11A,11B,12A,12B
+1F,2F,3F,4F,5F,6F,7F,8F,9F,10F,11F,12F
+1G,2G,3G,4G,5G,6G,7G,8G,9G,10G,11G,12G
+1H,2H,3H,4H,5H,6H,7H,8H,9H,10H,11H,12H
+1I,2I,3I,4I,5I,6I,7I,8I,9I,10I,11I,12I
+
+# Player 2's hand - tiles far from Tower region
+12D,11D,10D,12C,11C,10C
+
+# Player 1's hand - tiles far from Tower region
+12B,11B,10B,9B,8B,9C
+
+# Player 0's hand - Tower region tiles (LAST = FIRST dealt)
+# 1A and 2A adjacent -> found Tower chain turn 1
+# Then 3A, 4A, 1B, 2B to expand Tower
+2B,1B,4A,3A,2A,1A
