@@ -24,7 +24,10 @@ When you discover a potential improvement while using the app:
 
 | ID | Title | Priority | Effort | Status |
 |----|-------|----------|--------|--------|
-| — | No stories yet | — | — | — |
+| [BL-001](../stories/08-backlog/BL-001.md) | Display Other Players' Stock Holdings and Cash | low | S | not-started |
+| [BL-002](../stories/08-backlog/BL-002.md) | Highlight Player's Tiles on Board | low | S | not-started |
+| [BL-003](../stories/08-backlog/BL-003.md) | Fix Merger Tile Color Bug | medium | M | not-started |
+| [BL-004](../stories/08-backlog/BL-004.md) | Event Log for Room Replay | low | L | not-started |
 
 ## Promotion Process
 
