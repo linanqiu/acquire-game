@@ -86,7 +86,7 @@ test.describe('Scenario Test Infrastructure Smoke Test', () => {
     })
   })
 
-  test('should create game, add bots, and start via UI', async ({ page }) => {
+  test('should create game, add bots, and start via UI', { tag: '@ci' }, async ({ page }) => {
     // Step 1: Create game via UI
     await captureStep(page, 'lobby-before-create', {
       category: 'smoke',

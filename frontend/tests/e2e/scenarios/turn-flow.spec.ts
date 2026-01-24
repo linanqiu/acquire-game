@@ -41,139 +41,141 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
     resetStepCounter()
   })
 
-  test('1.1: Basic complete turns - play at least 10 turns with detailed logging', async ({
-    page,
-  }) => {
-    const testName = '1.1-basic-turn'
-    const errorTracker = setupConsoleErrorTracking(page)
+  test(
+    '1.1: Basic complete turns - play at least 10 turns with detailed logging',
+    { tag: '@ci' },
+    async ({ page }) => {
+      const testName = '1.1-basic-turn'
+      const errorTracker = setupConsoleErrorTracking(page)
 
-    // Setup: Create game with bots
-    await createGameViaUI(page, 'TestPlayer')
-    await assertPlayerInLobby(page, 'TestPlayer')
-    await addBotViaUI(page)
-    await addBotViaUI(page)
-    await captureStep(page, 'lobby-with-players', { category: CATEGORY, testName })
+      // Setup: Create game with bots
+      await createGameViaUI(page, 'TestPlayer')
+      await assertPlayerInLobby(page, 'TestPlayer')
+      await addBotViaUI(page)
+      await addBotViaUI(page)
+      await captureStep(page, 'lobby-with-players', { category: CATEGORY, testName })
 
-    await startGameViaUI(page)
-    await captureStep(page, 'game-started', { category: CATEGORY, testName })
+      await startGameViaUI(page)
+      await captureStep(page, 'game-started', { category: CATEGORY, testName })
 
-    await page.waitForTimeout(2000)
+      await page.waitForTimeout(2000)
 
-    // Helper to get game state
-    const getGameInfo = async () => {
-      return await page.evaluate(() => {
-        const phaseEl = document.querySelector('[data-testid="game-phase"]')
-        const phase = phaseEl?.textContent || ''
-        const cashEl = document.querySelector('[data-testid="player-cash"]')
-        const cash = cashEl?.textContent || ''
-        return { phase, cash }
-      })
-    }
+      // Helper to get game state
+      const getGameInfo = async () => {
+        return await page.evaluate(() => {
+          const phaseEl = document.querySelector('[data-testid="game-phase"]')
+          const phase = phaseEl?.textContent || ''
+          const cashEl = document.querySelector('[data-testid="player-cash"]')
+          const cash = cashEl?.textContent || ''
+          return { phase, cash }
+        })
+      }
 
-    const MIN_TURNS = 10
-    let humanTurnCount = 0
-    let totalTurnCount = 0
-    let lastPhase = ''
-    const tilesPlaced: string[] = []
-    const chainsFoundedByMe: string[] = []
+      const MIN_TURNS = 10
+      let humanTurnCount = 0
+      let totalTurnCount = 0
+      let lastPhase = ''
+      const tilesPlaced: string[] = []
+      const chainsFoundedByMe: string[] = []
 
-    console.log('\n' + '='.repeat(60))
-    console.log('BASIC TURNS TEST - Detailed Turn Log (10+ turns)')
-    console.log('='.repeat(60))
+      console.log('\n' + '='.repeat(60))
+      console.log('BASIC TURNS TEST - Detailed Turn Log (10+ turns)')
+      console.log('='.repeat(60))
 
-    while (humanTurnCount < MIN_TURNS) {
-      const info = await getGameInfo()
+      while (humanTurnCount < MIN_TURNS) {
+        const info = await getGameInfo()
 
-      // Track phase changes for turn counting
-      if (info.phase !== lastPhase) {
-        if (info.phase.includes("'s TURN")) {
+        // Track phase changes for turn counting
+        if (info.phase !== lastPhase) {
+          if (info.phase.includes("'s TURN")) {
+            totalTurnCount++
+            console.log(`[Turn ${totalTurnCount}] ${info.phase}`)
+          }
+          lastPhase = info.phase
+        }
+
+        // Our turn to place
+        if (info.phase.includes('PLACE')) {
+          humanTurnCount++
           totalTurnCount++
-          console.log(`[Turn ${totalTurnCount}] ${info.phase}`)
+          console.log(`\n[Turn ${totalTurnCount}] === MY TURN #${humanTurnCount} ===`)
+          console.log(`  Cash: ${info.cash}`)
+
+          // Screenshot before placing
+          await captureStep(page, `turn-${humanTurnCount}-before-place`, {
+            category: CATEGORY,
+            testName,
+          })
+
+          const tileCoord = await selectTileFromRack(page)
+          tilesPlaced.push(tileCoord)
+          console.log(`  Placing tile: ${tileCoord}`)
+
+          // Screenshot with tile selected
+          await captureStep(page, `turn-${humanTurnCount}-tile-selected-${tileCoord}`, {
+            category: CATEGORY,
+            testName,
+          })
+
+          await placeTile(page)
+
+          const afterPlace = await getGameInfo()
+          console.log(`  Phase after place: "${afterPlace.phase}"`)
+
+          // Screenshot after placing
+          await captureStep(page, `turn-${humanTurnCount}-after-place`, {
+            category: CATEGORY,
+            testName,
+          })
+
+          // Handle chain founding
+          if (await hasChainSelector(page)) {
+            await captureStep(page, `turn-${humanTurnCount}-chain-selector`, {
+              category: CATEGORY,
+              testName,
+            })
+            const chainName = await selectFirstAvailableChain(page)
+            chainsFoundedByMe.push(chainName)
+            console.log(`  *** FOUNDED CHAIN: ${chainName.toUpperCase()} ***`)
+            await captureStep(page, `turn-${humanTurnCount}-founded-${chainName}`, {
+              category: CATEGORY,
+              testName,
+            })
+            await page.waitForTimeout(500)
+          }
+
+          // End turn
+          const phase = await getPhaseText(page)
+          if (phase.includes('BUY')) {
+            await captureStep(page, `turn-${humanTurnCount}-buy-phase`, {
+              category: CATEGORY,
+              testName,
+            })
+            await endTurn(page)
+            console.log(`  Ended turn`)
+          }
+
+          lastPhase = ''
+        } else {
+          await page.waitForTimeout(300)
         }
-        lastPhase = info.phase
       }
 
-      // Our turn to place
-      if (info.phase.includes('PLACE')) {
-        humanTurnCount++
-        totalTurnCount++
-        console.log(`\n[Turn ${totalTurnCount}] === MY TURN #${humanTurnCount} ===`)
-        console.log(`  Cash: ${info.cash}`)
+      // Final screenshot
+      await captureStep(page, 'final-state', { category: CATEGORY, testName })
 
-        // Screenshot before placing
-        await captureStep(page, `turn-${humanTurnCount}-before-place`, {
-          category: CATEGORY,
-          testName,
-        })
+      console.log('\n' + '='.repeat(60))
+      console.log(`SUMMARY: ${humanTurnCount} human turns, ${totalTurnCount} total turns`)
+      console.log(`Tiles placed: [${tilesPlaced.join(', ')}]`)
+      console.log(`Chains founded: [${chainsFoundedByMe.join(', ')}]`)
+      console.log('='.repeat(60) + '\n')
 
-        const tileCoord = await selectTileFromRack(page)
-        tilesPlaced.push(tileCoord)
-        console.log(`  Placing tile: ${tileCoord}`)
+      expect(humanTurnCount).toBeGreaterThanOrEqual(MIN_TURNS)
 
-        // Screenshot with tile selected
-        await captureStep(page, `turn-${humanTurnCount}-tile-selected-${tileCoord}`, {
-          category: CATEGORY,
-          testName,
-        })
-
-        await placeTile(page)
-
-        const afterPlace = await getGameInfo()
-        console.log(`  Phase after place: "${afterPlace.phase}"`)
-
-        // Screenshot after placing
-        await captureStep(page, `turn-${humanTurnCount}-after-place`, {
-          category: CATEGORY,
-          testName,
-        })
-
-        // Handle chain founding
-        if (await hasChainSelector(page)) {
-          await captureStep(page, `turn-${humanTurnCount}-chain-selector`, {
-            category: CATEGORY,
-            testName,
-          })
-          const chainName = await selectFirstAvailableChain(page)
-          chainsFoundedByMe.push(chainName)
-          console.log(`  *** FOUNDED CHAIN: ${chainName.toUpperCase()} ***`)
-          await captureStep(page, `turn-${humanTurnCount}-founded-${chainName}`, {
-            category: CATEGORY,
-            testName,
-          })
-          await page.waitForTimeout(500)
-        }
-
-        // End turn
-        const phase = await getPhaseText(page)
-        if (phase.includes('BUY')) {
-          await captureStep(page, `turn-${humanTurnCount}-buy-phase`, {
-            category: CATEGORY,
-            testName,
-          })
-          await endTurn(page)
-          console.log(`  Ended turn`)
-        }
-
-        lastPhase = ''
-      } else {
-        await page.waitForTimeout(300)
-      }
+      const errors = errorTracker.getErrors().filter((e) => !e.includes('WebSocket'))
+      expect(errors).toHaveLength(0)
     }
-
-    // Final screenshot
-    await captureStep(page, 'final-state', { category: CATEGORY, testName })
-
-    console.log('\n' + '='.repeat(60))
-    console.log(`SUMMARY: ${humanTurnCount} human turns, ${totalTurnCount} total turns`)
-    console.log(`Tiles placed: [${tilesPlaced.join(', ')}]`)
-    console.log(`Chains founded: [${chainsFoundedByMe.join(', ')}]`)
-    console.log('='.repeat(60) + '\n')
-
-    expect(humanTurnCount).toBeGreaterThanOrEqual(MIN_TURNS)
-
-    const errors = errorTracker.getErrors().filter((e) => !e.includes('WebSocket'))
-    expect(errors).toHaveLength(0)
-  })
+  )
 
   test('1.2: Skip stock purchase - play at least 10 turns skipping buy phase', async ({ page }) => {
     const testName = '1.2-skip-purchase'
