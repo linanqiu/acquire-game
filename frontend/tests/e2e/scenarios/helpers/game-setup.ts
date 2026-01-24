@@ -103,10 +103,7 @@ export async function addBotViaUI(page: Page): Promise<void> {
   // Click the Add Bot button
   await page.getByRole('button', { name: '+ ADD BOT' }).click()
 
-  // Wait briefly for the action to complete
-  await page.waitForTimeout(500)
-
-  // Wait for player count to increase - try different formats
+  // Wait for player count to increase (condition-based, not arbitrary timeout)
   const expectedCount = currentCount + 1
   try {
     await expect(page.locator(`text=${expectedCount}/6 players`)).toBeVisible({ timeout: 10000 })

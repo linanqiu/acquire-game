@@ -76,10 +76,10 @@ test.describe('Bot Game', () => {
     // Wait for initial state
     await waitForMessage<GameStateMessage>(page, { type: 'game_state' })
 
-    // Wait a bit for bots to potentially take turns
-    await page.waitForTimeout(3000)
+    // Wait for our turn - this naturally waits for bots to play their turns first
+    const state = await waitForHumanTurn(page, humanPlayer.id, 30000)
 
-    // Get all messages
+    // Get all messages received up to this point
     const messages = await getMessages(page)
     const gameStates = messages.filter(
       (m) => (m as GameStateMessage).type === 'game_state'
@@ -89,12 +89,11 @@ test.describe('Bot Game', () => {
     // (At minimum: initial state, possibly more if bots went first)
     expect(gameStates.length).toBeGreaterThanOrEqual(1)
 
-    // Check that the game is progressing (tiles on board or it's eventually our turn)
-    const lastState = gameStates[gameStates.length - 1]
-    const tilesOnBoard = Object.values(lastState.board.cells).filter((v) => v !== null).length
+    // Now it's our turn, so check that game has progressed
+    const tilesOnBoard = Object.values(state.board.cells).filter((v) => v !== null).length
 
-    // Either tiles have been placed, or it's our turn with 0 tiles (we're first)
-    const isOurTurn = lastState.current_player === humanPlayer.id
+    // Either tiles have been placed by bots, or it's our turn with 0 tiles (we went first)
+    const isOurTurn = state.current_player === humanPlayer.id
     expect(tilesOnBoard > 0 || isOurTurn).toBe(true)
   })
 

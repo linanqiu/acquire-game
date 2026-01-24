@@ -9,6 +9,7 @@ import {
   getPlayerCountFromUI,
 } from './helpers/game-setup'
 import { useDeterministicBackend } from '../fixtures/deterministic-server'
+import { waitForWebSocketConnected } from './helpers/turn-actions'
 
 /**
  * Smoke tests to verify the E2E scenario test infrastructure is working.
@@ -52,7 +53,8 @@ test.describe('Scenario Test Infrastructure Smoke Test', () => {
     })
 
     await page.goto('/')
-    await page.waitForTimeout(1000) // Allow any errors to surface
+    // Wait for page to fully load (condition-based)
+    await expect(page.getByRole('heading', { name: 'ACQUIRE' })).toBeVisible()
 
     // Filter out expected errors (favicon, network errors in test env, etc)
     const criticalErrors = consoleErrors.filter(
@@ -154,8 +156,8 @@ test.describe('Scenario Test Infrastructure Smoke Test', () => {
     // Wait for redirect to host page
     await page.waitForURL(/\/host\/[A-Z]{4}/)
 
-    // Wait a bit for WebSocket to connect and receive state
-    await page.waitForTimeout(2000)
+    // Wait for WebSocket to connect (condition-based, not arbitrary timeout)
+    await waitForWebSocketConnected(page)
     await captureStep(page, 'host-page-loaded', {
       category: 'smoke',
       testName: 'spectator-mode',
@@ -165,11 +167,11 @@ test.describe('Scenario Test Infrastructure Smoke Test', () => {
     // Host page shows "PLAYERS (X/6)" in lobby, not "WAITING FOR PLAYERS"
     await expect(page.getByText('PLAYERS (0/6)')).toBeVisible({ timeout: 10000 })
 
-    // Add 3 bots via UI
+    // Add 3 bots via UI - wait for player count to update after each
     for (let i = 0; i < 3; i++) {
       await page.getByRole('button', { name: '+ ADD BOT' }).click()
-      // Wait for bot to be added
-      await page.waitForTimeout(500)
+      // Wait for player count to update (condition-based)
+      await expect(page.getByText(`PLAYERS (${i + 1}/6)`)).toBeVisible({ timeout: 5000 })
     }
 
     await captureStep(page, 'bots-added', {

@@ -7,17 +7,21 @@ test.describe('Tile Placement', () => {
     await page.getByLabel(/your name/i).first().fill('TestHost')
     await page.getByRole('button', { name: 'CREATE' }).click()
     await page.waitForURL(/\/play\/[A-Z]{4}/)
-    await page.waitForTimeout(2000)
 
-    // Add 2 bots
+    // Wait for WebSocket to connect (condition-based)
+    await expect(page.getByText('Connecting to game...')).not.toBeVisible({ timeout: 10000 })
+
+    // Add 2 bots - wait for player count to update
     await page.getByRole('button', { name: /ADD BOT/i }).click()
-    await page.waitForTimeout(500)
+    await expect(page.locator('text=/2\\/6 players/')).toBeVisible({ timeout: 5000 })
     await page.getByRole('button', { name: /ADD BOT/i }).click()
-    await page.waitForTimeout(500)
+    await expect(page.locator('text=/3\\/6 players/')).toBeVisible({ timeout: 5000 })
 
     // Start game
     await page.getByRole('button', { name: /START GAME/i }).click()
-    await page.waitForTimeout(2000)
+
+    // Wait for game to start (condition-based)
+    await expect(page.getByText('WAITING FOR PLAYERS')).not.toBeVisible({ timeout: 10000 })
 
     // Screenshot 1: Game started, ready to place tile
     await page.screenshot({ path: 'test-results/tile-1-game-started.png', fullPage: true })
@@ -46,8 +50,8 @@ test.describe('Tile Placement', () => {
     // Click PLACE TILE button
     await placeButton.click()
 
-    // Wait for action to complete and game state to update
-    await page.waitForTimeout(2000)
+    // Wait for phase to change from PLACE A TILE (condition-based)
+    await expect(page.getByTestId('game-phase')).not.toContainText('PLACE A TILE', { timeout: 10000 })
 
     // Screenshot 3: After placing tile
     await page.screenshot({ path: 'test-results/tile-3-tile-placed.png', fullPage: true })

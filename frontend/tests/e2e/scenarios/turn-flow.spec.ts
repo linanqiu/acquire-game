@@ -15,6 +15,9 @@ import {
   selectFirstAvailableChain,
   getPhaseText,
   setupConsoleErrorTracking,
+  waitForWebSocketConnected,
+  waitForPhaseChange,
+  waitForPhase,
 } from './helpers/turn-actions'
 import { useDeterministicBackend } from '../fixtures/deterministic-server'
 
@@ -58,7 +61,8 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
       await startGameViaUI(page)
       await captureStep(page, 'game-started', { category: CATEGORY, testName })
 
-      await page.waitForTimeout(2000)
+      // Wait for WebSocket connection (condition-based, not arbitrary timeout)
+      await waitForWebSocketConnected(page)
 
       // Helper to get game state
       const getGameInfo = async () => {
@@ -141,7 +145,8 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
               category: CATEGORY,
               testName,
             })
-            await page.waitForTimeout(500)
+            // Wait for phase to update after founding (condition-based)
+            await waitForPhase(page, 'BUY', 5000).catch(() => {})
           }
 
           // End turn
@@ -157,7 +162,8 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
 
           lastPhase = ''
         } else {
-          await page.waitForTimeout(300)
+          // Wait for phase to change (condition-based, not arbitrary timeout)
+          await waitForPhaseChange(page, info.phase, 5000)
         }
       }
 
@@ -191,7 +197,8 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
     await startGameViaUI(page)
     await captureStep(page, 'game-started', { category: CATEGORY, testName })
 
-    await page.waitForTimeout(2000)
+    // Wait for WebSocket connection (condition-based, not arbitrary timeout)
+    await waitForWebSocketConnected(page)
 
     const getGameInfo = async () => {
       return await page.evaluate(() => {
@@ -270,7 +277,8 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
             category: CATEGORY,
             testName,
           })
-          await page.waitForTimeout(500)
+          // Wait for phase to update after founding (condition-based)
+          await waitForPhase(page, 'BUY', 5000).catch(() => {})
         }
 
         const phase = await getPhaseText(page)
@@ -290,7 +298,8 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
 
         lastPhase = ''
       } else {
-        await page.waitForTimeout(300)
+        // Wait for phase to change (condition-based, not arbitrary timeout)
+        await waitForPhaseChange(page, info.phase, 5000)
       }
     }
 
@@ -324,7 +333,8 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
     await startGameViaUI(page)
     await captureStep(page, 'game-started', { category: CATEGORY, testName })
 
-    await page.waitForTimeout(2000) // Let WebSocket stabilize
+    // Wait for WebSocket connection (condition-based, not arbitrary timeout)
+    await waitForWebSocketConnected(page)
 
     // Helper to get current game state from the page
     const getGameInfo = async () => {
@@ -418,8 +428,8 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
             testName,
           })
 
-          // Wait for phase to update
-          await page.waitForTimeout(500)
+          // Wait for phase to update after founding (condition-based)
+          await waitForPhase(page, 'BUY', 5000).catch(() => {})
         }
 
         // Complete the turn if in buy phase
@@ -433,8 +443,8 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
           console.log(`  Ended turn (skipped buying)`)
         }
       } else {
-        // Wait for game state to update (bot turns happen server-side)
-        await page.waitForTimeout(500)
+        // Wait for phase to change (condition-based, not arbitrary timeout)
+        await waitForPhaseChange(page, info.phase, 5000)
       }
     }
 
@@ -472,7 +482,8 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
     await startGameViaUI(page)
     await captureStep(page, 'game-started', { category: CATEGORY, testName })
 
-    await page.waitForTimeout(2000)
+    // Wait for WebSocket connection (condition-based, not arbitrary timeout)
+    await waitForWebSocketConnected(page)
 
     const getGameInfo = async () => {
       return await page.evaluate(() => {
@@ -493,7 +504,9 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
       if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
         await confirmBtn.click()
         console.log(`  Confirmed stock disposition (hold all)`)
-        await page.waitForTimeout(500)
+        // Wait for phase to change after disposition (condition-based)
+        const currentPhase = await getPhaseText(page)
+        await waitForPhaseChange(page, currentPhase, 5000)
         return true
       }
       return false
@@ -548,7 +561,8 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
           }
         }
 
-        await page.waitForTimeout(500)
+        // Wait for phase to change (condition-based, not arbitrary timeout)
+        await waitForPhaseChange(page, info.phase, 2000)
       }
       console.log(`    [Merger] Timeout after ${maxWaitMs}ms`)
       return false
@@ -640,7 +654,8 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
             category: CATEGORY,
             testName,
           })
-          await page.waitForTimeout(500)
+          // Wait for phase to update after founding (condition-based)
+          await waitForPhase(page, 'BUY', 5000).catch(() => {})
         }
 
         // Check for merger
@@ -653,8 +668,8 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
             category: CATEGORY,
             testName,
           })
-          // Wait for merger to complete (shorter timeout)
-          const completed = await waitForMergerEnd(15000)
+          // Wait for merger to complete
+          const completed = await waitForMergerEnd(30000)
           if (!completed) {
             console.log(`  Merger stuck - ending test early`)
             await captureStep(page, `turn-${humanTurnCount}-merger-stuck`, {
@@ -670,8 +685,7 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
           })
         }
 
-        // Wait for phase to settle after any merger handling
-        await page.waitForTimeout(300)
+        // Check phase after any merger handling (condition-based)
         const phase = await getPhaseText(page)
         if (phase.includes('BUY')) {
           await captureStep(page, `turn-${humanTurnCount}-buy-phase`, {
@@ -684,7 +698,8 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
 
         lastPhase = ''
       } else {
-        await page.waitForTimeout(300)
+        // Wait for phase to change (condition-based, not arbitrary timeout)
+        await waitForPhaseChange(page, info.phase, 5000)
       }
     }
 
@@ -774,8 +789,12 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
       await playerPage.close()
       await captureStep(hostPage, 'after-player2-disconnect', { category: CATEGORY, testName })
 
-      // Wait a moment for the server to detect disconnect
-      await hostPage.waitForTimeout(3000)
+      // Wait for game state to update after disconnect (condition-based)
+      // The phase should change as the server handles the disconnected player
+      const currentPhase = await getPhaseText(hostPage)
+      await waitForPhaseChange(hostPage, currentPhase, 10000).catch(() => {
+        // Phase might not change if it wasn't the disconnected player's turn
+      })
 
       // The game should continue - either it's another player's turn or the
       // disconnected player's turn gets handled by the server

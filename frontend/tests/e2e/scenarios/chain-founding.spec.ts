@@ -20,6 +20,9 @@ import {
   getActiveChains,
   getAvailableChains,
   forceCloseWebSocket,
+  waitForWebSocketConnected,
+  waitForPhaseChange,
+  waitForPhase,
 } from './helpers/turn-actions'
 import { useDeterministicBackend } from '../fixtures/deterministic-server'
 
@@ -66,7 +69,7 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
       await startGameViaUI(page)
       await captureStep(page, 'game-started', { category: CATEGORY, testName })
 
-      await page.waitForTimeout(2000)
+      await waitForWebSocketConnected(page)
 
       // Helper to get game state
       const getGameInfo = async () => {
@@ -200,8 +203,8 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
               testName,
             })
 
-            // Wait for phase update
-            await page.waitForTimeout(1000)
+            // Wait for phase update (condition-based)
+            await waitForPhase(page, 'BUY', 5000).catch(() => {})
 
             // Verify founder's bonus: portfolio should now show 1 stock of the founded chain
             const holdingsAfter = await getPortfolioHoldingsLocal()
@@ -235,7 +238,8 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
 
           lastPhase = ''
         } else {
-          await page.waitForTimeout(300)
+          // Wait for phase to change (condition-based, not arbitrary timeout)
+          await waitForPhaseChange(page, info.phase, 5000)
         }
       }
 
@@ -272,7 +276,7 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
       await startGameViaUI(page)
       await captureStep(page, 'game-started', { category: CATEGORY, testName })
 
-      await page.waitForTimeout(2000)
+      await waitForWebSocketConnected(page)
 
       // Helper to get game state
       const getGameInfo = async () => {
@@ -423,8 +427,8 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
               testName,
             })
 
-            // Wait for phase update
-            await page.waitForTimeout(1000)
+            // Wait for phase update (condition-based)
+            await waitForPhase(page, 'BUY', 5000).catch(() => {})
 
             // Verify founder's bonus
             const holdingsAfter = await getPortfolioHoldingsLocal()
@@ -454,7 +458,8 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
 
           lastPhase = ''
         } else {
-          await page.waitForTimeout(300)
+          // Wait for phase to change (condition-based, not arbitrary timeout)
+          await waitForPhaseChange(page, info.phase, 5000)
         }
       }
 
@@ -491,7 +496,7 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
       await startGameViaUI(page)
       await captureStep(page, 'game-started', { category: CATEGORY, testName })
 
-      await page.waitForTimeout(2000)
+      await waitForWebSocketConnected(page)
 
       // Helper to get game phase
       const getGameInfo = async () => {
@@ -579,7 +584,7 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
 
             // After ending turn, wait for "waiting content" where board is visible
             if (foundedChain) {
-              await page.waitForTimeout(2000)
+              await waitForWebSocketConnected(page)
               const waitPhase = await getPhaseText(page)
               console.log(`  Waiting phase: "${waitPhase}"`)
 
@@ -635,11 +640,16 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
             break
           }
         } else {
-          await page.waitForTimeout(300)
-          consecutiveWaits++
-          if (consecutiveWaits > 200) {
-            console.log(`  Too many consecutive waits (${consecutiveWaits}), breaking`)
-            break
+          // Wait for phase to change (condition-based, not arbitrary timeout)
+          const changed = await waitForPhaseChange(page, info.phase, 5000)
+          if (!changed) {
+            consecutiveWaits++
+            if (consecutiveWaits > 10) {
+              console.log(`  Too many consecutive waits without phase change, breaking`)
+              break
+            }
+          } else {
+            consecutiveWaits = 0
           }
         }
       }
@@ -685,7 +695,7 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
       await startGameViaUI(page)
       await captureStep(page, 'game-started', { category: CATEGORY, testName })
 
-      await page.waitForTimeout(2000)
+      await waitForWebSocketConnected(page)
 
       // Helper to get game state
       const getGameInfo = async () => {
@@ -768,8 +778,8 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
               console.log(`  Could not force close WebSocket: ${err}`)
             }
 
-            // Wait briefly for disconnect to register
-            await page.waitForTimeout(1000)
+            // Wait for disconnect to register (connection status change)
+            await expect(page.getByText('Connecting to game...')).toBeVisible({ timeout: 5000 }).catch(() => {})
 
             await captureStep(page, `turn-${humanTurnCount}-after-disconnect`, {
               category: CATEGORY,
@@ -827,7 +837,8 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
               // Try page reload as fallback
               console.log(`  Trying page reload...`)
               await page.reload()
-              await page.waitForTimeout(3000)
+              // Wait for WebSocket to reconnect after reload
+              await waitForWebSocketConnected(page)
 
               await captureStep(page, `turn-${humanTurnCount}-after-reload`, {
                 category: CATEGORY,
@@ -858,7 +869,8 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
 
           lastPhase = ''
         } else {
-          await page.waitForTimeout(300)
+          // Wait for phase to change (condition-based, not arbitrary timeout)
+          await waitForPhaseChange(page, info.phase, 5000)
         }
       }
 
@@ -929,7 +941,7 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
       await startGameViaUI(page)
       await captureStep(page, 'game-started', { category: CATEGORY, testName })
 
-      await page.waitForTimeout(2000)
+      await waitForWebSocketConnected(page)
 
       // Helper to get game state
       const getGameInfo = async () => {
@@ -1046,7 +1058,8 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
             // After ending our turn, wait for "waiting content" where board is visible
             if (chainFounded && verifiedChainSize === 0) {
               // Wait for phase to show someone else's turn (board becomes visible)
-              await page.waitForTimeout(1500)
+              const currentPhase = await getPhaseText(page)
+              await waitForPhaseChange(page, currentPhase, 5000)
               const waitPhase = await getPhaseText(page)
               console.log(`  Waiting phase: "${waitPhase}"`)
 
@@ -1084,12 +1097,16 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
             break
           }
         } else {
-          await page.waitForTimeout(300)
-          consecutiveWaits++
-          // Break if we've waited too long without getting a turn (game may have ended)
-          if (consecutiveWaits > 200) {
-            console.log(`  Too many consecutive waits (${consecutiveWaits}), breaking`)
-            break
+          // Wait for phase to change (condition-based, not arbitrary timeout)
+          const changed = await waitForPhaseChange(page, info.phase, 5000)
+          if (!changed) {
+            consecutiveWaits++
+            if (consecutiveWaits > 10) {
+              console.log(`  Too many consecutive waits without phase change, breaking`)
+              break
+            }
+          } else {
+            consecutiveWaits = 0
           }
         }
       }
@@ -1148,7 +1165,7 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
       await startGameViaUI(page)
       await captureStep(page, 'game-started', { category: CATEGORY, testName })
 
-      await page.waitForTimeout(2000)
+      await waitForWebSocketConnected(page)
 
       // Helper to get game state
       const getGameInfo = async () => {
@@ -1243,7 +1260,8 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
               console.log(`  Founder's bonus: 1 stock`)
             }
 
-            await page.waitForTimeout(500)
+            // Wait for phase to update (condition-based)
+            await waitForPhase(page, 'BUY', 5000).catch(() => {})
           }
 
           // Buy phase - try to buy max stocks of target chain
@@ -1291,11 +1309,16 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
           lastPhase = ''
           consecutiveWaits = 0
         } else {
-          await page.waitForTimeout(300)
-          consecutiveWaits++
-          if (consecutiveWaits > 200) {
-            console.log(`  Too many consecutive waits (${consecutiveWaits}), breaking`)
-            break
+          // Wait for phase to change (condition-based, not arbitrary timeout)
+          const changed = await waitForPhaseChange(page, info.phase, 5000)
+          if (!changed) {
+            consecutiveWaits++
+            if (consecutiveWaits > 10) {
+              console.log(`  Too many consecutive waits without phase change, breaking`)
+              break
+            }
+          } else {
+            consecutiveWaits = 0
           }
         }
       }
@@ -1355,7 +1378,7 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
       await startGameViaUI(page)
       await captureStep(page, 'game-started', { category: CATEGORY, testName })
 
-      await page.waitForTimeout(2000)
+      await waitForWebSocketConnected(page)
 
       // Helper to get game state
       const getGameInfo = async () => {
@@ -1468,7 +1491,8 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
               })
             }
 
-            await page.waitForTimeout(500)
+            // Wait for phase to update (condition-based)
+            await waitForPhase(page, 'BUY', 5000).catch(() => {})
           }
 
           // End turn if in buy phase
@@ -1491,11 +1515,16 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
             }
           }
         } else {
-          await page.waitForTimeout(300)
-          consecutiveWaits++
-          if (consecutiveWaits > 200) {
-            console.log(`  Too many consecutive waits (${consecutiveWaits}), breaking`)
-            break
+          // Wait for phase to change (condition-based, not arbitrary timeout)
+          const changed = await waitForPhaseChange(page, info.phase, 5000)
+          if (!changed) {
+            consecutiveWaits++
+            if (consecutiveWaits > 10) {
+              console.log(`  Too many consecutive waits without phase change, breaking`)
+              break
+            }
+          } else {
+            consecutiveWaits = 0
           }
         }
       }
