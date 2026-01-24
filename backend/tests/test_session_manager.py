@@ -66,9 +66,9 @@ class TestPlayerJoining:
         manager = SessionManager()
         code = manager.create_room()
 
-        token = manager.join_room(code, "player_1", "Alice")
+        result = manager.join_room(code, "player_1", "Alice")
 
-        assert token is not None
+        assert result is True
         room = manager.get_room(code)
         assert "player_1" in room.players
         assert room.players["player_1"].name == "Alice"
@@ -98,9 +98,9 @@ class TestPlayerJoining:
         """Joining nonexistent room fails."""
         manager = SessionManager()
 
-        token = manager.join_room("XXXX", "player_1", "Bob")
+        result = manager.join_room("XXXX", "player_1", "Bob")
 
-        assert token is None
+        assert result is False
 
     def test_join_started_game_fails(self):
         """Cannot join room after game started."""
@@ -111,8 +111,8 @@ class TestPlayerJoining:
 
         manager.start_game(code)
 
-        token = manager.join_room(code, "player_3", "Carol")
-        assert token is None
+        result = manager.join_room(code, "player_3", "Carol")
+        assert result is False
 
     def test_duplicate_player_id_fails(self):
         """Same player ID cannot join twice."""
@@ -120,9 +120,9 @@ class TestPlayerJoining:
         code = manager.create_room()
         manager.join_room(code, "player_1", "Alice")
 
-        token = manager.join_room(code, "player_1", "Bob")
+        result = manager.join_room(code, "player_1", "Bob")
 
-        assert token is None
+        assert result is False
 
     def test_duplicate_name_fails(self):
         """Same name cannot join twice (case-insensitive)."""
@@ -130,9 +130,9 @@ class TestPlayerJoining:
         code = manager.create_room()
         manager.join_room(code, "player_1", "Alice")
 
-        token = manager.join_room(code, "player_2", "ALICE")
+        result = manager.join_room(code, "player_2", "ALICE")
 
-        assert token is None
+        assert result is False
 
     def test_max_players_enforced(self):
         """Cannot exceed max players."""
@@ -144,72 +144,8 @@ class TestPlayerJoining:
             manager.join_room(code, f"player_{i}", f"Player{i}")
 
         # 7th should fail
-        token = manager.join_room(code, "player_7", "Player7")
-        assert token is None
-
-
-class TestSessionTokens:
-    """Tests for session token management."""
-
-    def test_join_returns_session_token(self):
-        """Joining returns a session token."""
-        manager = SessionManager()
-        code = manager.create_room()
-
-        token = manager.join_room(code, "player_1", "Alice")
-
-        assert token is not None
-        assert len(token) > 0
-
-    def test_session_token_is_unique(self):
-        """Each player gets a unique session token."""
-        manager = SessionManager()
-        code = manager.create_room()
-
-        token1 = manager.join_room(code, "player_1", "Alice")
-        token2 = manager.join_room(code, "player_2", "Bob")
-
-        assert token1 != token2
-
-    def test_validate_session_token_success(self):
-        """Valid session token passes validation."""
-        manager = SessionManager()
-        code = manager.create_room()
-        token = manager.join_room(code, "player_1", "Alice")
-
-        is_valid = manager.validate_session_token(code, "player_1", token)
-
-        assert is_valid is True
-
-    def test_validate_session_token_wrong_token(self):
-        """Wrong session token fails validation."""
-        manager = SessionManager()
-        code = manager.create_room()
-        manager.join_room(code, "player_1", "Alice")
-
-        is_valid = manager.validate_session_token(code, "player_1", "wrong-token")
-
-        assert is_valid is False
-
-    def test_validate_session_token_wrong_room(self):
-        """Wrong room code fails validation."""
-        manager = SessionManager()
-        code = manager.create_room()
-        token = manager.join_room(code, "player_1", "Alice")
-
-        is_valid = manager.validate_session_token("XXXX", "player_1", token)
-
-        assert is_valid is False
-
-    def test_get_session_token(self):
-        """Can retrieve stored session token."""
-        manager = SessionManager()
-        code = manager.create_room()
-        original_token = manager.join_room(code, "player_1", "Alice")
-
-        retrieved_token = manager.get_session_token(code, "player_1")
-
-        assert retrieved_token == original_token
+        result = manager.join_room(code, "player_7", "Player7")
+        assert result is False
 
 
 class TestPlayerLeaving:

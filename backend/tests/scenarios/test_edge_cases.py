@@ -475,61 +475,6 @@ class TestBonusRounding:
         assert minority == price * 5
 
 
-class TestGameStateSerialization:
-    """Tests for game state serialization (Scenarios 8.20 - 8.21)."""
-
-    def test_scenario_8_20_game_state_can_be_serialized(self, game_with_three_players):
-        """Scenario 8.20: Game State Can Be Cloned
-
-        Game state can be serialized and deserialized.
-        """
-        game = game_with_three_players
-        builder = ChainBuilder(game)
-
-        # Set up some game state
-        builder.setup_chain("American", 3, start_col=1, row="A")
-
-        # Get state
-        state = game.get_full_state()
-
-        # Verify state contains key information
-        assert "players" in state
-        assert "board" in state
-        assert "hotel" in state
-        assert "phase" in state
-
-    def test_scenario_8_21_game_state_cloning_for_ai(self, game_with_three_players):
-        """Scenario 8.21: Game State Cloning for AI
-
-        Game can be cloned for AI simulation.
-        """
-        game = game_with_three_players
-        builder = ChainBuilder(game)
-
-        # Set up some game state
-        builder.setup_chain("American", 3, start_col=1, row="A")
-
-        player = game.get_current_player()
-        original_money = player.money
-
-        # Get a copy of the state
-        original_state = game.get_full_state()
-
-        # Modify the original game
-        tile = player.hand[0]
-        game.play_tile(player.player_id, tile)
-        game.buy_stocks(player.player_id, ["American"])
-        game.end_turn(player.player_id)
-
-        # Original player's money should have changed
-        assert player.money != original_money
-
-        # The original state should still have the old money
-        for p in original_state["players"]:
-            if p["player_id"] == player.player_id:
-                assert p["money"] == original_money
-
-
 class TestConcurrentAccess:
     """Tests for concurrent access handling (Scenario 8.22)."""
 

@@ -3,9 +3,7 @@
 import json
 import os
 import re
-import time
 import uuid
-from collections import defaultdict
 from typing import Optional, Union, Literal
 
 from fastapi import (
@@ -269,56 +267,6 @@ def validate_websocket_message(
         return None, "Validation error"
 
 
-# =============================================================================
-# Rate Limiting
-# =============================================================================
-
-
-class RateLimiter:
-    """Simple rate limiter using sliding window algorithm."""
-
-    def __init__(self, max_requests: int = 10, window_seconds: int = 1):
-        """Initialize rate limiter.
-
-        Args:
-            max_requests: Maximum requests allowed in window
-            window_seconds: Time window in seconds
-        """
-        self.max_requests = max_requests
-        self.window_seconds = window_seconds
-        self.requests: dict[str, list[float]] = defaultdict(list)
-
-    def is_allowed(self, client_id: str) -> bool:
-        """Check if a request from client_id is allowed.
-
-        Args:
-            client_id: Unique identifier for the client
-
-        Returns:
-            True if request is allowed, False if rate limited
-        """
-        now = time.time()
-        # Clean old requests outside the window
-        self.requests[client_id] = [
-            t for t in self.requests[client_id] if now - t < self.window_seconds
-        ]
-
-        if len(self.requests[client_id]) >= self.max_requests:
-            return False
-
-        self.requests[client_id].append(now)
-        return True
-
-    def cleanup_client(self, client_id: str) -> None:
-        """Remove tracking data for a disconnected client."""
-        if client_id in self.requests:
-            del self.requests[client_id]
-
-
-# Global rate limiter: 10 requests per second per player
-rate_limiter = RateLimiter(max_requests=10, window_seconds=1)
-
-
 app = FastAPI(title="Acquire Board Game")
 
 # Global session manager
@@ -333,15 +281,14 @@ async def create_room(player_name: str = Form(...)):
 
     # Add creator as first player
     player_id = str(uuid.uuid4())
-    session_token = session_manager.join_room(room_code, player_id, player_name)
+    success = session_manager.join_room(room_code, player_id, player_name)
 
-    if session_token is None:
+    if not success:
         raise HTTPException(status_code=500, detail="Failed to create room")
 
     return {
         "room_code": room_code,
         "player_id": player_id,
-        "session_token": session_token,
         "is_host": True,
     }
 
@@ -375,9 +322,9 @@ async def join_room(room_code: str = Form(...), player_name: str = Form(...)):
         raise HTTPException(status_code=400, detail="Room is full")
 
     player_id = str(uuid.uuid4())
-    session_token = session_manager.join_room(room_code.upper(), player_id, player_name)
+    success = session_manager.join_room(room_code.upper(), player_id, player_name)
 
-    if session_token is None:
+    if not success:
         # Check if it was a duplicate name
         room = session_manager.get_room(room_code.upper())
         if room and any(
@@ -389,7 +336,6 @@ async def join_room(room_code: str = Form(...), player_name: str = Form(...)):
     return {
         "room_code": room_code.upper(),
         "player_id": player_id,
-        "session_token": session_token,
     }
 
 
@@ -517,18 +463,6 @@ async def player_websocket(websocket: WebSocket, room_code: str, player_id: str)
         await websocket.close(code=4004, reason="Player not found")
         return
 
-    # Validate session token if provided (for authentication)
-    # Token validation is optional for backward compatibility:
-    # - If a token is provided in the query params, it must match
-    # - If no token is provided, the connection is allowed (for legacy clients/tests)
-    player_conn = room.players[player_id]
-    token = websocket.query_params.get("token")
-    if token is not None and player_conn.session_token is not None:
-        # Token was provided - validate it matches
-        if token != player_conn.session_token:
-            await websocket.close(code=4003, reason="Invalid session token")
-            return
-
     await websocket.accept()
     session_manager.connect_player(room_code, player_id, websocket)
 
@@ -545,19 +479,6 @@ async def player_websocket(websocket: WebSocket, room_code: str, player_id: str)
                     room_code,
                     player_id,
                     {"type": "error", "message": f"Invalid JSON: {e}"},
-                )
-                continue
-
-            # Apply rate limiting
-            client_key = f"{room_code}:{player_id}"
-            if not rate_limiter.is_allowed(client_key):
-                await session_manager.send_to_player(
-                    room_code,
-                    player_id,
-                    {
-                        "type": "error",
-                        "message": "Rate limit exceeded. Please slow down.",
-                    },
                 )
                 continue
 
@@ -580,7 +501,6 @@ async def player_websocket(websocket: WebSocket, room_code: str, player_id: str)
     finally:
         # Always cleanup, regardless of how we exit the loop
         session_manager.disconnect(room_code, player_id, websocket)
-        rate_limiter.cleanup_client(f"{room_code}:{player_id}")
 
 
 async def handle_player_action(room_code: str, player_id: str, data: dict) -> None:

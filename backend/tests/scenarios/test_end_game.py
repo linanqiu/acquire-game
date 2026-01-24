@@ -697,23 +697,3 @@ class TestDeclareEndGame:
         assert result["success"] is True
         # Player should have received bonuses/stock sale proceeds
         assert p1.money > initial_money
-
-    def test_declare_end_game_emits_event(self, game_with_three_players):
-        """declare_end_game emits an event to the activity log."""
-        game = game_with_three_players
-        builder = ChainBuilder(game)
-
-        # Create safe chain
-        builder.setup_chain("Luxor", 11, start_col=1, row="A")
-
-        events_before = len(game._events)
-
-        player = game.get_current_player()
-        game.declare_end_game(player.player_id)
-
-        # Should have emitted both end_game and end_game_declared events
-        assert len(game._events) > events_before
-
-        # Check that end_game_declared event was emitted
-        event_types = [e.event_type.value for e in game._events]
-        assert "end_game_declared" in event_types
