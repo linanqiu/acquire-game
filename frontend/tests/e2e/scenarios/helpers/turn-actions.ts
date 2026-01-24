@@ -96,7 +96,11 @@ export async function selectTileFromRack(page: Page, timeout = 10000): Promise<s
  * @param timeout - Maximum time to wait
  * @returns The coordinate of the selected tile
  */
-export async function selectSpecificTile(page: Page, coordinate: string, timeout = 10000): Promise<string> {
+export async function selectSpecificTile(
+  page: Page,
+  coordinate: string,
+  timeout = 10000
+): Promise<string> {
   const rack = page.getByTestId('tile-rack')
   await expect(rack).toBeVisible()
 
@@ -348,11 +352,7 @@ export function setupConsoleErrorTracking(page: Page): {
     if (msg.type() === 'error') {
       const text = msg.text()
       // Filter out expected errors
-      if (
-        !text.includes('favicon') &&
-        !text.includes('404') &&
-        !text.includes('net::ERR_')
-      ) {
+      if (!text.includes('favicon') && !text.includes('404') && !text.includes('net::ERR_')) {
         errors.push(text)
       }
     }
@@ -368,4 +368,124 @@ export function setupConsoleErrorTracking(page: Page): {
       errors.length = 0
     },
   }
+}
+
+/**
+ * Get the size (number of tiles) of a chain on the board.
+ * This counts tiles that have the data-chain attribute set.
+ *
+ * @param page - Playwright Page
+ * @param chainName - Name of the chain (case-insensitive)
+ * @returns Number of tiles in the chain, 0 if chain not on board
+ */
+export async function getChainSize(page: Page, chainName: string): Promise<number> {
+  return await page.evaluate((name) => {
+    const cells = document.querySelectorAll(`[data-chain="${name.toLowerCase()}"]`)
+    return cells.length
+  }, chainName)
+}
+
+/**
+ * Get the available stock count for a chain.
+ * This looks at the stock purchase form where available stock is displayed as [N].
+ *
+ * @param page - Playwright Page
+ * @param chainName - Name of the chain (case-insensitive)
+ * @returns Number of available stocks, or -1 if chain info not found
+ */
+export async function getAvailableStock(page: Page, chainName: string): Promise<number> {
+  return await page.evaluate((name) => {
+    // Look for chain marker in the stock purchase form
+    // The available stock is shown as [N] in a span after the ChainMarker
+    const chainMarker = document.querySelector(
+      `[data-testid="chain-marker-${name.toLowerCase()}"]`
+    )
+    if (!chainMarker) return -1
+
+    // Find the parent purchase row and look for [N] pattern
+    const purchaseRow = chainMarker.closest('div')
+    if (!purchaseRow) return -1
+
+    // The available stock is typically the last span with [N] format
+    const spans = purchaseRow.querySelectorAll('span')
+    for (const span of Array.from(spans)) {
+      const text = span.textContent || ''
+      const match = text.match(/\[(\d+)\]/)
+      if (match) {
+        return parseInt(match[1], 10)
+      }
+    }
+    return -1
+  }, chainName)
+}
+
+/**
+ * Get the portfolio holdings (stocks owned) for the current player.
+ *
+ * @param page - Playwright Page
+ * @returns Record mapping chain names to stock counts
+ */
+export async function getPortfolioHoldings(page: Page): Promise<Record<string, number>> {
+  return await page.evaluate(() => {
+    const holdings: Record<string, number> = {}
+    const rows = document.querySelectorAll('[data-testid^="portfolio-row-"]')
+    rows.forEach((row) => {
+      const testId = row.getAttribute('data-testid') || ''
+      const chain = testId.replace('portfolio-row-', '')
+      const quantityCell = row.querySelector('td:nth-child(2)')
+      const quantity = parseInt(quantityCell?.textContent || '0', 10)
+      holdings[chain] = quantity
+    })
+    return holdings
+  })
+}
+
+/**
+ * Get the list of active chains on the board.
+ *
+ * @param page - Playwright Page
+ * @returns Array of active chain names (lowercase)
+ */
+export async function getActiveChains(page: Page): Promise<string[]> {
+  return await page.evaluate(() => {
+    const chainMarkers = document.querySelectorAll('[data-testid^="chain-marker-"]')
+    const chains = new Set<string>()
+    chainMarkers.forEach((el) => {
+      const testId = el.getAttribute('data-testid') || ''
+      chains.add(testId.replace('chain-marker-', ''))
+    })
+    return Array.from(chains)
+  })
+}
+
+/**
+ * Get the list of available chains from the chain selector.
+ *
+ * @param page - Playwright Page
+ * @returns Array of available chain names (lowercase)
+ */
+export async function getAvailableChains(page: Page): Promise<string[]> {
+  return await page.evaluate(() => {
+    const buttons = document.querySelectorAll('[data-testid^="chain-button-"]:not([disabled])')
+    return Array.from(buttons).map((btn) => {
+      const testId = btn.getAttribute('data-testid') || ''
+      return testId.replace('chain-button-', '')
+    })
+  })
+}
+
+/**
+ * Force close the WebSocket connection (for testing disconnection scenarios).
+ *
+ * @param page - Playwright Page
+ */
+export async function forceCloseWebSocket(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    // Try to find and close any WebSocket connections
+    // The app stores the WebSocket instance on window for debugging
+    const ws = (window as unknown as { __ws?: WebSocket }).__ws
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.close()
+    }
+  })
 }

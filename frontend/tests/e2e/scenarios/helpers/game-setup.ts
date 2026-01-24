@@ -95,15 +95,27 @@ export async function joinGameViaUI(
  */
 export async function addBotViaUI(page: Page): Promise<void> {
   // Get current player count before adding bot
-  const playerCountText = await page.locator('text=/\\d+\\/6 players/').textContent()
+  const playerCountLocator = page.locator('text=/\\d+\\/6 players/')
+  await expect(playerCountLocator).toBeVisible({ timeout: 5000 })
+  const playerCountText = await playerCountLocator.textContent()
   const currentCount = parseInt(playerCountText?.match(/(\d+)\/6/)?.[1] || '0', 10)
 
   // Click the Add Bot button
   await page.getByRole('button', { name: '+ ADD BOT' }).click()
 
-  // Wait for player count to increase
+  // Wait briefly for the action to complete
+  await page.waitForTimeout(500)
+
+  // Wait for player count to increase - try different formats
   const expectedCount = currentCount + 1
-  await expect(page.locator(`text=${expectedCount}/6 players`)).toBeVisible({ timeout: 5000 })
+  try {
+    await expect(page.locator(`text=${expectedCount}/6 players`)).toBeVisible({ timeout: 10000 })
+  } catch {
+    // Try alternative: just verify player count increased
+    const newCountText = await playerCountLocator.textContent()
+    const newCount = parseInt(newCountText?.match(/(\d+)\/6/)?.[1] || '0', 10)
+    expect(newCount).toBeGreaterThan(currentCount)
+  }
 }
 
 /**

@@ -1,0 +1,41 @@
+# Three-tile founding deterministic tile sequence
+#
+# Goal: Human (Player 0) founds a 3-tile chain on turn 3
+# Strategy:
+#   Turn 1: Human places tile-1A as orphan
+#   Turn 2: Human places tile-3A as orphan with gap at tile-2A
+#   Turn 3: Human places tile-2A connecting tiles 1A and 3A -> founding!
+#
+# Bot tiles are placed FAR from row A and FAR from each other to prevent
+# any chain founding by bots.
+#
+# Tile dealing uses LIFO so last in CSV equals first dealt.
+# Players get 6 tiles each:
+#   Player 0 human gets: tile-1A tile-3A tile-2A tile-4A tile-5A tile-6A
+#   Player 1 bot gets: tile-1I tile-5I tile-9I tile-1G tile-5G tile-9G spread apart
+#   Player 2 bot gets: tile-3I tile-7I tile-11I tile-3G tile-7G tile-11G spread apart
+#
+# Board layout:
+#   Column: 1  2  3  4  5  6  7  8  9  10 11 12
+#   Row A: Human 3-tile chain at columns 1 to 3 after placing tile-2A
+#   Row G: Bot tiles spread 4 columns apart for isolation
+#   Row I: Bot tiles spread 4 columns apart for isolation
+
+# Additional tiles for drawing after initial hands. Also isolated.
+1H,3H,5H,7H,9H,11H
+2H,4H,6H,8H,10H,12H
+1F,3F,5F,7F,9F,11F
+2F,4F,6F,8F,10F,12F
+
+# Player 2 starting hand. Dealt last from positions 13 to 18 of tile_bag.
+# Hand order after dealing: tile-3I tile-7I tile-11I tile-3G tile-7G tile-11G
+11G,7G,3G,11I,7I,3I
+
+# Player 1 starting hand. Dealt second from positions 7 to 12 of tile_bag.
+# Hand order after dealing: tile-1I tile-5I tile-9I tile-1G tile-5G tile-9G
+9G,5G,1G,9I,5I,1I
+
+# Player 0 starting hand. Dealt first from positions 1 to 6 of tile_bag.
+# Hand order after dealing: tile-1A tile-3A tile-2A tile-4A tile-5A tile-6A
+# First 3 tiles placed: tile-1A orphan then tile-3A orphan then tile-2A connects for founding!
+6A,5A,4A,2A,3A,1A

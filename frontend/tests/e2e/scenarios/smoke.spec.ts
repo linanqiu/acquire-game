@@ -8,6 +8,7 @@ import {
   assertBotInLobby,
   getPlayerCountFromUI,
 } from './helpers/game-setup'
+import { useDeterministicBackend } from '../fixtures/deterministic-server'
 
 /**
  * Smoke tests to verify the E2E scenario test infrastructure is working.
@@ -18,6 +19,8 @@ import {
  * - Full user journey: create game, add bots, start game via UI
  */
 test.describe('Scenario Test Infrastructure Smoke Test', () => {
+  useDeterministicBackend('default.csv')
+
   test.beforeEach(() => {
     resetStepCounter()
   })
