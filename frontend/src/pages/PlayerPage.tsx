@@ -365,6 +365,7 @@ export function PlayerPage() {
         <Board
           tiles={boardTileStates}
           highlightedTile={selectedTile}
+          playableTiles={new Set(yourHand)}
           size="md"
           interactive={isMyTurn}
           onTileClick={(coord) => {
@@ -515,7 +516,7 @@ export function PlayerPage() {
   const renderWaitingContent = () => (
     <div className={styles.waitingContent}>
       <div className={styles.boardContainer}>
-        <Board tiles={boardTileStates} size="md" />
+        <Board tiles={boardTileStates} playableTiles={new Set(yourHand)} size="md" />
       </div>
       <p className={styles.waitingMessage}>
         Waiting for {currentPlayerName} to {phase === 'place_tile' ? 'place a tile' : 'take action'}
@@ -574,6 +575,41 @@ export function PlayerPage() {
 
   const showTileRack = phase !== 'lobby' && phase !== 'game_over'
   const showPortfolio = phase !== 'lobby' && phase !== 'game_over'
+  const showPlayersPanel = phase !== 'lobby' && phase !== 'game_over'
+
+  // Render players panel showing all players' cash and stock holdings
+  const renderPlayersPanel = () => {
+    if (!gameState) return null
+    return (
+      <div className={styles.playersPanel}>
+        <h4 className={styles.playersPanelTitle}>PLAYERS</h4>
+        {Object.entries(gameState.players).map(([id, player]) => (
+          <div
+            key={id}
+            className={`${styles.playerRow} ${id === currentTurnPlayerId ? styles.activePlayer : ''}`}
+          >
+            <span className={styles.playerName}>
+              {player.name}
+              {id === myPlayerId && <span className={styles.youBadge}>YOU</span>}
+            </span>
+            <span className={styles.playerCash}>${player.money.toLocaleString()}</span>
+            <div className={styles.playerStocks}>
+              {Object.entries(player.stocks)
+                .filter(([, count]) => count > 0)
+                .map(([chain, count]) => (
+                  <span
+                    key={chain}
+                    className={`${styles.stockBadge} bg-${chain.toLowerCase()}`}
+                  >
+                    {count}
+                  </span>
+                ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   return (
     <PageShell
@@ -594,6 +630,8 @@ export function PlayerPage() {
       }
     >
       <div className={styles.content}>{renderMainContent()}</div>
+
+      {showPlayersPanel && renderPlayersPanel()}
 
       {showPortfolio && (
         <div className={styles.portfolioStrip}>

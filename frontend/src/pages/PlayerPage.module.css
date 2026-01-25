@@ -218,6 +218,77 @@
   color: var(--error);
 }
 
+/* Players Panel */
+.playersPanel {
+  padding: var(--space-3);
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-3);
+}
+
+.playersPanelTitle {
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-2);
+  letter-spacing: 1px;
+}
+
+.playerRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.playerRow.activePlayer {
+  background-color: var(--bg-tertiary);
+  border-left: 3px solid var(--text-accent);
+}
+
+.playerName {
+  flex: 1;
+  font-weight: var(--font-medium);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.youBadge {
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  color: var(--text-accent);
+  padding: 1px 4px;
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+}
+
+.playerCash {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  min-width: 70px;
+  text-align: right;
+}
+
+.playerStocks {
+  display: flex;
+  gap: var(--space-1);
+  min-width: 100px;
+  flex-wrap: wrap;
+}
+
+.stockBadge {
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  color: white;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  min-width: 20px;
+  text-align: center;
+}
+
 /* Portfolio Strip */
 .portfolioStrip {
   margin-top: auto;

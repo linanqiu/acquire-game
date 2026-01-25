@@ -67,7 +67,7 @@ Acquire uses a **shared display + private terminals** architecture, similar to J
 | **WebSocket real-time** | Bidirectional communication for instant state sync |
 | **Authoritative server** | All game logic runs server-side; clients are dumb terminals |
 | **Heuristic bots first** | Rule-based bots (easy/medium/hard) before ML training |
-| **React frontend (planned)** | Component-based UI with TypeScript for maintainability |
+| **React frontend** | Component-based UI with TypeScript for maintainability |
 | **Zustand state management** | Lightweight, hooks-based state for React |
 
 ### System Components
@@ -110,7 +110,7 @@ Acquire uses a **shared display + private terminals** architecture, similar to J
   - Full Acquire rules implementation
   - Board, Hotel, Player, Rules modules
   - Three-tier bot AI (easy, medium, hard)
-  - Comprehensive test coverage (pytest)
+  - Comprehensive test coverage (pytest, 645+ tests)
 
 - **Server Infrastructure**
   - FastAPI with WebSocket support
@@ -123,14 +123,26 @@ Acquire uses a **shared display + private terminals** architecture, similar to J
   - Training configuration system
   - Deterministic game seeding for reproducibility
 
+- **Frontend Application**
+  - React + TypeScript + Vite
+  - Full design system (typography, colors, layout)
+  - Complete Game UI (lobby, board, player view, host view)
+  - All game components (tile rack, stock stepper, chain selector, merger disposition)
+  - E2E test infrastructure with Playwright
+
+- **Real-time Integration**
+  - WebSocket client with Zustand state management
+  - Live game state synchronization
+  - Reconnection handling
+
 ### What's Planned
 
 See the [Roadmap](#roadmap) for detailed stories:
 
-- **Frontend** - React + TypeScript UI (host view, player view)
-- **Real-time Integration** - WebSocket client, state management
-- **AI Training** - MCTS, neural bots, decision transformer
-- **Deployment** - Railway setup, monitoring, logging
+- **AI Training** - Neural bots (MCTS, decision transformer)
+- **Deployment** - Railway setup, monitoring
+- **Security Hardening** - CORS, rate limiting, input validation
+- **Scenario Tests** - Comprehensive E2E coverage
 
 ---
 
@@ -139,7 +151,7 @@ See the [Roadmap](#roadmap) for detailed stories:
 | Layer | Technology | Purpose |
 |-------|------------|---------|
 | Backend | Python 3.12 + FastAPI | Game logic, API, WebSocket |
-| Frontend | React + TypeScript + Vite | UI components (planned) |
+| Frontend | React + TypeScript + Vite | UI components |
 | State | Zustand | Frontend state management |
 | Testing | pytest, Playwright | Unit tests, E2E tests |
 | Linting | ruff | Format + lint |
@@ -169,7 +181,12 @@ acquire/
 │   │   ├── state_encoder.py # Game → tensor encoding
 │   │   └── config.py        # Training configuration
 │   └── tests/               # pytest test suite
-├── frontend/                # (Planned) React application
+├── frontend/                # React application
+│   ├── src/
+│   │   ├── components/      # Reusable UI components
+│   │   ├── pages/           # Page components (Lobby, Player, Host)
+│   │   ├── stores/          # Zustand state stores
+│   │   └── styles/          # Design system CSS
 ├── docs/
 │   ├── rules/               # Game rules documentation
 │   ├── ui/                  # UI specifications
@@ -193,7 +210,7 @@ acquire/
 ### Prerequisites
 
 - Python 3.12+
-- Node.js 20+ (for frontend, when implemented)
+- Node.js 20+
 
 ### Local Development
 
@@ -227,20 +244,23 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 The product roadmap lives in [`docs/roadmap/`](docs/roadmap/README.md) with:
 
-- **6 Epics**: Backend Hardening, Frontend Foundation, Game UI, Real-time, AI Training, Deployment
-- **57 Stories**: Each designed for single-session completion
+- **9 Epics**: Backend Hardening, Frontend Foundation, Game UI, Real-time, AI Training, Deployment, Security Hardening, Scenario Tests, Backlog
+- **75 Stories**: Each designed for single-session completion
 - **Dependency Graph**: Clear parallelization opportunities
 
 ### Epic Overview
 
-| Epic | Stories | Status | Parallelizable |
-|------|---------|--------|----------------|
-| [Backend Hardening](docs/roadmap/epics/00-backend-hardening.md) | 12 | Not Started | Yes - DO FIRST |
-| [Frontend Foundation](docs/roadmap/epics/01-frontend-foundation.md) | 10 | Not Started | After BH complete |
-| [Game UI](docs/roadmap/epics/02-game-ui.md) | 15 | Not Started | After FF-005 |
-| [Real-time Integration](docs/roadmap/epics/03-realtime-integration.md) | 6 | Not Started | After FF-001 |
-| [AI Training](docs/roadmap/epics/04-ai-training.md) | 9 | Not Started | Yes (independent track) |
-| [Deployment](docs/roadmap/epics/05-deployment.md) | 5 | Not Started | Yes (independent track) |
+| Epic | Progress | Status | Notes |
+|------|----------|--------|-------|
+| [Backend Hardening](docs/roadmap/epics/00-backend-hardening.md) | 13/13 | Complete | Foundation layer |
+| [Frontend Foundation](docs/roadmap/epics/01-frontend-foundation.md) | 11/11 | Complete | Design system |
+| [Game UI](docs/roadmap/epics/02-game-ui.md) | 16/16 | Complete | All game components |
+| [Real-time Integration](docs/roadmap/epics/03-realtime-integration.md) | 5/6 | In Progress | WebSocket core done |
+| [AI Training](docs/roadmap/epics/04-ai-training.md) | 0/9 | Not Started | Independent track |
+| [Deployment](docs/roadmap/epics/05-deployment.md) | 0/5 | Not Started | Independent track |
+| [Security Hardening](docs/roadmap/epics/06-security-hardening.md) | 0/5 | Not Started | Pre-production |
+| [Scenario Tests](docs/roadmap/epics/07-scenario-tests.md) | 2/10 | In Progress | E2E coverage |
+| [Backlog](docs/roadmap/epics/08-backlog.md) | 0/4 | Not Started | Feature ideas |
 
 ### Parallelization
 
@@ -281,7 +301,7 @@ pytest --cov=game --cov-report=term-missing
 
 1. **Unit tests** (pytest) - Test individual functions/classes
 2. **Integration tests** - Test module interactions
-3. **E2E tests** (Playwright, when frontend exists) - Simulate real user scenarios
+3. **E2E tests** (Playwright) - Simulate real user scenarios
 
 ```bash
 # Run all tests
