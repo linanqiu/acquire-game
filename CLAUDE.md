@@ -53,6 +53,40 @@ pip install -r backend/requirements.txt
 pip install ruff
 ```
 
+## Agentic Development Workflow
+
+This project is optimized for Claude Code (agentic AI) development.
+
+### First-Time Setup (Once Per Session)
+```bash
+./scripts/dev-ready.sh  # Installs browser, starts servers
+```
+
+### Development Cycle
+1. Make code changes
+2. Quick verify: `./scripts/verify-change.sh`
+3. Full verify: `./scripts/verify-full.sh`
+
+### Interactive UI Testing with Playwright MCP
+Use Playwright MCP tools to test the real app:
+
+```
+browser_navigate → http://127.0.0.1:5173
+browser_snapshot → see current page state
+browser_click → interact with elements
+browser_take_screenshot → capture visual evidence
+```
+
+This tests the FULL STACK - real browser, real servers, real user experience.
+
+### Verification Commands
+| Command | Time | What it checks |
+|---------|------|----------------|
+| `./scripts/verify-change.sh` | ~10s | Lint, format, fast tests, typecheck |
+| `./scripts/verify-full.sh` | ~60s | All above + full backend tests + E2E smoke |
+| `pytest backend/tests -x` | ~2s | All backend unit/integration tests |
+| `npm run e2e` | ~60s | Full Playwright E2E suite |
+
 ## Git Workflow
 After completing code changes, always follow this sequence before being asked:
 1. Run ruff format
