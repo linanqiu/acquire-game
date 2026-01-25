@@ -8,6 +8,7 @@ import type {
   ChainName,
   GameStateMessage,
   LobbyUpdateMessage,
+  TilePlayabilityInfo,
   WebSocketMessage,
 } from '../types/api'
 
@@ -44,6 +45,7 @@ export interface GameStoreState {
   // Game state (from server)
   gameState: GameStateMessage | null
   yourHand: string[]
+  tilePlayability: Record<string, TilePlayabilityInfo> | null
 
   // Pending actions
   pendingChainChoice: ChainName[] | null
@@ -84,6 +86,7 @@ const initialState = {
   canStart: false,
   gameState: null,
   yourHand: [],
+  tilePlayability: null,
   pendingChainChoice: null,
   pendingMergerChoice: null,
   pendingStockDisposition: null,
@@ -109,6 +112,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     set({
       gameState: message,
       yourHand: message.your_hand ?? get().yourHand,
+      tilePlayability: message.tile_playability ?? get().tilePlayability,
     }),
 
   setPendingChainChoice: (chains) => set({ pendingChainChoice: chains }),

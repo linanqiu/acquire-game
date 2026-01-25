@@ -5,7 +5,7 @@
  * frontend component expectations.
  */
 
-import type { BoardCell } from '../types/api'
+import type { BoardCell, TilePlayabilityInfo } from '../types/api'
 import type { TileState, Coordinate } from '../types/game'
 
 /**
@@ -54,4 +54,35 @@ export function transformHandToRackTiles(
     coordinate: tile as Coordinate,
     playability: playabilityMap?.[tile] ?? 'playable',
   }))
+}
+
+/**
+ * Transform backend tile playability info to frontend Playability type.
+ *
+ * Backend format:
+ *   { "1A": { playable: false, reason: "would_create_eighth_chain", permanent: true, would_trigger_merger: false } }
+ *
+ * Frontend format:
+ *   { "1A": "perm_unplayable" }
+ *
+ * Transformation rules:
+ *   - If playable === false && permanent === true → "perm_unplayable"
+ *   - If playable === false && permanent === false → "temp_unplayable"
+ *   - If playable === true && would_trigger_merger === true → "merger"
+ *   - If playable === true && would_trigger_merger === false → "playable"
+ */
+export function transformPlayabilityMap(
+  playabilityInfo: Record<string, TilePlayabilityInfo>
+): Record<string, Playability> {
+  const result: Record<string, Playability> = {}
+  for (const [tile, info] of Object.entries(playabilityInfo)) {
+    if (!info.playable) {
+      result[tile] = info.permanent ? 'perm_unplayable' : 'temp_unplayable'
+    } else if (info.would_trigger_merger) {
+      result[tile] = 'merger'
+    } else {
+      result[tile] = 'playable'
+    }
+  }
+  return result
 }

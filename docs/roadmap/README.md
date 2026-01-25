@@ -22,7 +22,7 @@
 | [Deployment](epics/05-deployment.md) | 0/5 | DP-001 |
 | [Security Hardening](epics/06-security-hardening.md) | 0/5 | SH-002, SH-003, SH-004, SH-005 (after E2E: SH-001) |
 | [Scenario Tests](epics/07-scenario-tests.md) | 2/10 | ST-003 through ST-008 (parallel) |
-| [Backlog](epics/08-backlog.md) | 0/4 | BL-001, BL-002, BL-003, BL-004 |
+| [Backlog](epics/08-backlog.md) | 4/6 | BL-004, BL-005 |
 
 ## Story Status Key
 

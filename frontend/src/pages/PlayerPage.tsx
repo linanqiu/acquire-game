@@ -19,7 +19,11 @@ import { ChainMarker } from '../components/game/ChainMarker'
 import { useGameStore } from '../store/gameStore'
 import { useToast } from '../components/ui/useToast'
 import { useErrorHandler } from '../hooks/useErrorHandler'
-import { transformBoardToTileStates, transformHandToRackTiles } from '../utils/transforms'
+import {
+  transformBoardToTileStates,
+  transformHandToRackTiles,
+  transformPlayabilityMap,
+} from '../utils/transforms'
 import type { ChainName, GamePhase } from '../types/api'
 import type { Coordinate } from '../types/game'
 import styles from './PlayerPage.module.css'
@@ -79,6 +83,7 @@ export function PlayerPage() {
     canStart,
     gameState,
     yourHand,
+    tilePlayability,
     pendingChainChoice,
     pendingStockDisposition,
     setCurrentPlayer,
@@ -149,8 +154,11 @@ export function PlayerPage() {
   }, [gameState])
 
   const rackTiles: RackTile[] = useMemo(() => {
-    return transformHandToRackTiles(yourHand)
-  }, [yourHand])
+    const playabilityMap = tilePlayability
+      ? transformPlayabilityMap(tilePlayability)
+      : undefined
+    return transformHandToRackTiles(yourHand, playabilityMap)
+  }, [yourHand, tilePlayability])
 
   const activeChains = useMemo(() => {
     if (!gameState) return []
