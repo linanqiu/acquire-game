@@ -174,6 +174,39 @@ class TestPlacementValidation:
         # The tile should not be playable
         assert not Rules.can_place_tile(game.board, tile, game.hotel)
 
+    def test_play_tile_returns_error_for_eighth_chain(self, game_with_two_players):
+        """Playing a tile that would create 8th chain should return error."""
+        game = game_with_two_players
+        builder = ChainBuilder(game)
+
+        # Set up all 7 chains
+        chains = [
+            "Luxor",
+            "Tower",
+            "American",
+            "Worldwide",
+            "Festival",
+            "Imperial",
+            "Continental",
+        ]
+        row_letters = ["A", "B", "C", "D", "E", "F", "G"]
+        for i, chain in enumerate(chains):
+            builder.setup_chain(chain, 2, start_col=1, row=row_letters[i])
+
+        # Place lone tile
+        game.board.place_tile(Tile(10, "I"))
+
+        # Give player 11I (adjacent to 10I, would found 8th chain)
+        player = game.get_current_player()
+        tile = Tile(11, "I")
+        give_player_tile(player, tile, game)
+
+        # Attempt to play - should fail
+        result = game.play_tile(player.player_id, tile)
+
+        assert result["success"] is False
+        assert "cannot be placed" in result["error"].lower()
+
 
 class TestTileFromString:
     """Tests for tile string parsing."""

@@ -23,6 +23,17 @@ export const VALID_CHAINS: ChainName[] = [
 ]
 
 // =============================================================================
+// Tile Playability Types
+// =============================================================================
+
+export interface TilePlayabilityInfo {
+  playable: boolean
+  reason: 'would_merge_safe_chains' | 'would_create_eighth_chain' | null
+  permanent: boolean | null
+  would_trigger_merger: boolean
+}
+
+// =============================================================================
 // WebSocket Message Types (Server -> Client)
 // =============================================================================
 
@@ -71,6 +82,7 @@ export interface GameStateMessage {
   >
   tiles_remaining: number
   your_hand?: string[] // Only sent to the owning player
+  tile_playability?: Record<string, TilePlayabilityInfo> // Only sent to the owning player
 }
 
 export interface LobbyUpdateMessage {
