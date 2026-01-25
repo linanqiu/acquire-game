@@ -48,6 +48,7 @@ class MergerState:
         default_factory=list
     )  # Players handling disposition
     stock_index: int = 0  # Current player index in disposition queue
+    tile: Optional[Tile] = None  # The tile that triggered the merger
 
     def reset(self) -> None:
         """Reset all merger state after completion."""
@@ -57,6 +58,7 @@ class MergerState:
         self.current_defunct = None
         self.stock_players = []
         self.stock_index = 0
+        self.tile = None
 
 
 class GamePhase(Enum):
@@ -571,17 +573,18 @@ class Game:
         """Start processing a merger."""
         self.phase = GamePhase.MERGING
         self._merger.survivor = survivor
+        self._merger.tile = tile  # Store tile for finalization
         self._merger.defunct_queue = sorted(
             defunct_chains, key=lambda c: self.board.get_chain_size(c), reverse=True
         )
 
-        self._process_next_defunct_chain(tile)
+        self._process_next_defunct_chain()
 
-    def _process_next_defunct_chain(self, tile: Tile = None):
+    def _process_next_defunct_chain(self):
         """Process the next defunct chain in the queue."""
         if not self._merger.defunct_queue:
             # All defunct chains processed, finalize merger
-            self._finalize_merger(tile)
+            self._finalize_merger()
             return
 
         defunct = self._merger.defunct_queue.pop(0)
@@ -611,7 +614,7 @@ class Game:
             self._prompt_next_stock_disposition()
         else:
             # No stockholders, continue to next defunct chain
-            self._process_next_defunct_chain(tile)
+            self._process_next_defunct_chain()
 
     def _prompt_next_stock_disposition(self):
         """Prompt the next player for stock disposition."""
@@ -771,9 +774,10 @@ class Game:
             else "buy_stocks",
         )
 
-    def _finalize_merger(self, tile: Tile = None):
+    def _finalize_merger(self):
         """Finalize the merger by merging all defunct chains into survivor."""
         survivor = self._merger.survivor
+        tile = self._merger.tile
 
         # Merge all defunct chains into survivor on the board
         for defunct in self._merger.chains:
@@ -781,7 +785,7 @@ class Game:
                 self.board.merge_chains(survivor, defunct)
                 self.hotel.deactivate_chain(defunct)
 
-        # If we have a tile, also absorb any connected lone tiles
+        # Absorb the triggering tile and any connected lone tiles
         if tile:
             connected = self.board.get_connected_tiles(tile)
             for t in connected:
