@@ -25,8 +25,6 @@ describe('UI components barrel exports', () => {
 
     // Form components
     expect(UIComponents.TextInput).toBeDefined()
-    expect(UIComponents.Select).toBeDefined()
-    expect(UIComponents.RadioGroup).toBeDefined()
     expect(UIComponents.Slider).toBeDefined()
 
     // Overlay components
