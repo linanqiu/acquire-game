@@ -2,14 +2,11 @@
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional, Dict, List, TYPE_CHECKING
+from typing import Optional, Dict, List
 import random
 
 from game.board import Board, Tile, TileState
 from game.action import TradeOffer
-
-if TYPE_CHECKING:
-    from game.action import Action
 from game.hotel import Hotel
 from game.player import Player
 from game.rules import Rules, PlacementResult
@@ -1529,71 +1526,3 @@ class Game:
             "outgoing_trades": outgoing_trades,
             "end_game_available": end_game_available,
         }
-
-    def apply_action(self, player_id: str, action: "Action") -> dict:
-        """Apply a single action and return result.
-
-        This unified interface simplifies RL training by providing a single
-        method to apply any action type.
-
-        Args:
-            player_id: ID of player taking the action
-            action: Action object representing the action to take
-
-        Returns:
-            Dict with result of the action
-        """
-        from game.action import ActionType
-
-        if action.action_type == ActionType.PLAY_TILE:
-            tile = Tile.from_string(action.tile)
-            return self.play_tile(player_id, tile)
-
-        elif action.action_type == ActionType.FOUND_CHAIN:
-            return self.found_chain(player_id, action.chain)
-
-        elif action.action_type == ActionType.CHOOSE_MERGER_SURVIVOR:
-            return self.choose_merger_survivor(player_id, action.chain)
-
-        elif action.action_type == ActionType.STOCK_DISPOSITION:
-            disp = action.disposition
-            return self.handle_stock_disposition(
-                player_id, disp["sell"], disp["trade"], disp["keep"]
-            )
-
-        elif action.action_type == ActionType.BUY_STOCKS:
-            return self.buy_stocks(player_id, action.stocks or [])
-
-        elif action.action_type == ActionType.END_TURN:
-            return self.end_turn(player_id)
-
-        elif action.action_type == ActionType.END_GAME:
-            return self.end_game()
-
-        elif action.action_type == ActionType.PROPOSE_TRADE:
-            if action.trade is None:
-                return {"success": False, "error": "Trade offer is required"}
-            # Ensure the proposing player matches the action player
-            if action.trade.from_player_id != player_id:
-                return {
-                    "success": False,
-                    "error": "Trade proposer must match action player",
-                }
-            return self.propose_trade(action.trade)
-
-        elif action.action_type == ActionType.ACCEPT_TRADE:
-            if action.trade_id is None:
-                return {"success": False, "error": "Trade ID is required"}
-            return self.accept_trade(player_id, action.trade_id)
-
-        elif action.action_type == ActionType.REJECT_TRADE:
-            if action.trade_id is None:
-                return {"success": False, "error": "Trade ID is required"}
-            return self.reject_trade(player_id, action.trade_id)
-
-        elif action.action_type == ActionType.CANCEL_TRADE:
-            if action.trade_id is None:
-                return {"success": False, "error": "Trade ID is required"}
-            return self.cancel_trade(player_id, action.trade_id)
-
-        return {"success": False, "error": f"Unknown action type: {action.action_type}"}
