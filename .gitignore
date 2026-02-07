@@ -35,5 +35,6 @@ Thumbs.db
 .env
 *.local
 
-# Playwright MCP
+# Playwright
 .playwright-mcp/
+test-results/
