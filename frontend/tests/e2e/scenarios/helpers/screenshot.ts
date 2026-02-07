@@ -38,7 +38,12 @@ export async function captureStep(
   const filename = `${paddedStep}-${sanitizedName}.png`
   const filepath = path.join(dir, filename)
 
-  await page.screenshot({ path: filepath, fullPage: false })
+  try {
+    await page.screenshot({ path: filepath, fullPage: false, timeout: 5000 })
+  } catch {
+    // In environments where external fonts are unreachable, screenshot can hang.
+    console.log(`[screenshot] Skipping ${filename} (font/timeout issue)`)
+  }
   return filepath
 }
 

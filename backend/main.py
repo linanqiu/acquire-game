@@ -818,6 +818,11 @@ async def handle_merger_disposition(
 
     await broadcast_game_state(room_code)
 
+    # After merger fully resolves, the bot that triggered it may need to
+    # finish its turn (buy stocks, end turn) and subsequent bots may need
+    # to take their turns.
+    await process_bot_turns(room_code)
+
 
 async def handle_buy_stocks(room_code: str, player_id: str, purchases: dict):
     """Handle stock purchase action using Game class."""
@@ -1237,6 +1242,8 @@ async def process_bot_turns(room_code: str):
     """Process bot turns automatically using Game.execute_bot_turn().
 
     This function handles bot players by using the Game class's bot execution.
+    After bots finish and it's a human player's turn, checks if the human
+    has all-unplayable tiles and replaces them automatically.
     """
     import asyncio
 
@@ -1269,13 +1276,109 @@ async def process_bot_turns(room_code: str):
             break
 
         # This is a bot's turn - use Game.execute_bot_turn()
+        prev_player = current_player_id
+        prev_phase = game.phase
         game.execute_bot_turn(current_player_id)
+
+        # Detect stuck bot: if player and phase didn't change, the bot
+        # couldn't complete its turn (e.g., play_tile rejected its tile).
+        # Force-advance to prevent infinite loop.
+        if game.phase == prev_phase and game.get_current_player_id() == prev_player:
+            if game.phase == GamePhase.PLAYING:
+                # Bot couldn't play any tile — skip to buy and end turn
+                game.phase = GamePhase.BUYING_STOCKS
+                game.buy_stocks(current_player_id, {})
+                game.end_turn(current_player_id)
 
         # Broadcast the state after bot's turn
         await broadcast_game_state(room_code)
 
+        # If bot triggered a merger that requires a human to dispose stock,
+        # handle it and break out. Without this, execute_bot_turn breaks out
+        # of its merger loop (human can't dispose inside bot execution),
+        # and process_bot_turns loops endlessly calling execute_bot_turn.
+        if game.phase == GamePhase.MERGING and game.pending_action:
+            pending_type = game.pending_action.get("type")
+            if pending_type == "stock_disposition":
+                disposition_player_id = game.pending_action.get("player_id")
+                disp_conn = room.players.get(disposition_player_id, None)
+                if disp_conn is None or not disp_conn.is_bot:
+                    # Human needs to dispose — notify them and stop
+                    await notify_or_handle_stock_disposition(room_code)
+                    await broadcast_game_state(room_code)
+                    return  # Wait for human input
+
         # Small delay to prevent overwhelming clients
         await asyncio.sleep(0.1)
+
+    # After bots finish, if it's a human player's turn, check for
+    # all-unplayable tiles. The frontend won't let them click unplayable
+    # tiles, so we must handle replacement server-side proactively.
+    await check_and_replace_unplayable_tiles(room_code)
+
+
+async def check_and_replace_unplayable_tiles(room_code: str):
+    """If the current human player has all unplayable tiles, replace them.
+
+    This prevents a deadlock where the frontend shows no clickable tiles
+    and the backend waits for a play_tile message that can never come.
+    Loops in case replacement tiles are also all unplayable.
+    """
+    room = session_manager.get_room(room_code)
+    if room is None or room.game is None:
+        return
+
+    game = room.game
+    max_replacements = 10  # Safety limit
+
+    for _ in range(max_replacements):
+        if game.phase != GamePhase.PLAYING:
+            break
+
+        current_player_id = game.get_current_player_id()
+        if current_player_id is None:
+            break
+
+        # Only handle for human players
+        player_conn = room.players.get(current_player_id)
+        if player_conn is None or player_conn.is_bot:
+            break
+
+        player = game.get_player(current_player_id)
+        if player is None:
+            break
+
+        result = game.handle_all_tiles_unplayable(player)
+        if result is None:
+            # Player has at least one playable tile - no action needed
+            break
+
+        # Broadcast the replacement event
+        await session_manager.broadcast_to_room(
+            room_code,
+            {
+                "type": "all_tiles_unplayable",
+                "player_id": current_player_id,
+                "player_name": player.name,
+                "revealed_hand": result["revealed_hand"],
+                "removed_tiles": result["removed_tiles"],
+                "new_tiles_count": len(result["new_tiles"]),
+            },
+        )
+
+        # Notify the player of their new hand
+        await session_manager.send_to_player(
+            room_code,
+            current_player_id,
+            {
+                "type": "tiles_replaced",
+                "removed_tiles": result["removed_tiles"],
+                "new_hand": [str(t) for t in player.hand],
+            },
+        )
+
+        # Broadcast updated state so frontend gets new tile_playability
+        await broadcast_game_state(room_code)
 
 
 async def broadcast_game_state(room_code: str):
@@ -1347,6 +1450,7 @@ async def broadcast_game_state(room_code: str):
         ws_state = {
             **public_state,
             "your_hand": player_state.get("hand", []),
+            "tile_playability": player_state.get("tile_playability", {}),
         }
         await session_manager.send_to_player(room_code, player_id, ws_state)
 

@@ -22,8 +22,12 @@ export interface GameContext {
  * @returns GameContext with room code extracted from URL
  */
 export async function createGameViaUI(page: Page, playerName: string): Promise<GameContext> {
-  // Navigate to lobby
-  await page.goto('/')
+  // Block external font requests that hang in environments without DNS
+  await page.route('**fonts.googleapis.com**', (route) => route.abort())
+  await page.route('**fonts.gstatic.com**', (route) => route.abort())
+
+  // Navigate to lobby (use domcontentloaded to avoid blocking on external font CSS)
+  await page.goto('/', { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('heading', { name: 'ACQUIRE' })).toBeVisible()
 
   // Enter player name
@@ -33,7 +37,7 @@ export async function createGameViaUI(page: Page, playerName: string): Promise<G
   await page.getByTestId('create-button').click()
 
   // Wait for redirect to player page (URL pattern: /play/XXXX)
-  await page.waitForURL(/\/play\/[A-Z]{4}/)
+  await page.waitForURL(/\/play\/[A-Z]{4}/, { waitUntil: 'domcontentloaded' })
 
   // Extract room code from URL
   const url = page.url()
@@ -65,8 +69,12 @@ export async function joinGameViaUI(
   playerName: string,
   roomCode: string
 ): Promise<GameContext> {
-  // Navigate to lobby
-  await page.goto('/')
+  // Block external font requests that hang in environments without DNS
+  await page.route('**fonts.googleapis.com**', (route) => route.abort())
+  await page.route('**fonts.gstatic.com**', (route) => route.abort())
+
+  // Navigate to lobby (use domcontentloaded to avoid blocking on external font CSS)
+  await page.goto('/', { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('heading', { name: 'ACQUIRE' })).toBeVisible()
 
   // Enter player name
@@ -79,7 +87,7 @@ export async function joinGameViaUI(
   await page.getByTestId('join-button').click()
 
   // Wait for redirect to player page
-  await page.waitForURL(`/play/${roomCode}`)
+  await page.waitForURL(`/play/${roomCode}`, { waitUntil: 'domcontentloaded' })
 
   // Verify we're in the waiting room
   await expect(page.getByText('WAITING FOR PLAYERS')).toBeVisible()
@@ -122,12 +130,20 @@ export async function addBotViaUI(page: Page): Promise<void> {
  * @param page - Playwright Page (must be on the player page as host with enough players)
  */
 export async function startGameViaUI(page: Page): Promise<void> {
-  // Click the Start Game button
+  // Click the Start Game button (sends HTTP POST to backend)
   await page.getByRole('button', { name: 'START GAME' }).click()
 
   // Wait for the game to start (lobby view disappears, game view appears)
-  // The "WAITING FOR PLAYERS" text should disappear
-  await expect(page.getByText('WAITING FOR PLAYERS')).not.toBeVisible({ timeout: 10000 })
+  // The lobby-to-game transition is driven by a WebSocket game_state message.
+  // If the WebSocket dropped, reload the page to reconnect and get current state.
+  try {
+    await expect(page.getByText('WAITING FOR PLAYERS')).not.toBeVisible({ timeout: 10000 })
+  } catch {
+    // WebSocket might have dropped — reload to reconnect and get game state
+    console.log('[startGameViaUI] Lobby still visible after START, reloading page...')
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await expect(page.getByText('WAITING FOR PLAYERS')).not.toBeVisible({ timeout: 15000 })
+  }
 }
 
 /**

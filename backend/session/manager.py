@@ -171,13 +171,16 @@ class SessionManager:
             message: The message dict to send
         """
         dead_websockets = []
-        for ws in player.websockets:
+        for ws in list(player.websockets):  # iterate over a copy for safety
             try:
                 await ws.send_json(message)
             except Exception:
                 dead_websockets.append(ws)
         for ws in dead_websockets:
-            player.websockets.remove(ws)
+            try:
+                player.websockets.remove(ws)
+            except ValueError:
+                pass  # already removed by concurrent disconnect
 
     async def broadcast_to_room(self, room_code: str, message: dict):
         """Send message to all connected players in room."""

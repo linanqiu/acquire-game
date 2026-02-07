@@ -32,6 +32,7 @@ import styles from './PlayerPage.module.css'
 function getPhaseText(phase: GamePhase, isMyTurn: boolean, currentPlayerName: string): string {
   if (phase === 'lobby') return 'WAITING FOR HOST'
   if (phase === 'game_over') return 'GAME OVER'
+  if (phase === 'stock_disposition') return 'DISPOSE YOUR STOCK'
   if (!isMyTurn) return `${currentPlayerName}'s TURN`
 
   switch (phase) {

@@ -73,26 +73,16 @@ class Bot:
     def _get_playable_tiles(self, board: Board, hotel: Hotel) -> list[Tile]:
         """Get tiles from hand that can be legally played.
 
-        A tile is unplayable if it would merge two or more safe chains.
+        Uses Rules.can_place_tile for accurate playability checking,
+        which covers all cases: safe chain merges, 8th chain, etc.
         """
-        playable = []
-        for tile in self.player.hand:
-            if board.is_tile_played(tile):
-                continue
+        from game.rules import Rules
 
-            # Check for illegal merge (two or more safe chains)
-            adjacent_chains = board.get_adjacent_chains(tile)
-            if len(adjacent_chains) >= 2:
-                safe_chains = [
-                    c
-                    for c in adjacent_chains
-                    if hotel.is_chain_safe(c, board.get_chain_size(c))
-                ]
-                if len(safe_chains) >= 2:
-                    continue  # Illegal - would merge safe chains
-
-            playable.append(tile)
-        return playable
+        return [
+            tile
+            for tile in self.player.hand
+            if Rules.can_place_tile(board, tile, hotel)
+        ]
 
     def _score_tile(self, tile: Tile, board: Board, hotel: Hotel) -> float:
         """Score a tile based on strategic value."""
