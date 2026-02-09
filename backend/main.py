@@ -766,23 +766,11 @@ async def handle_merger_choice(room_code: str, player_id: str, surviving_chain: 
         )
         return
 
-    # Check if stock disposition is needed
-    if result.get("next_action") == "stock_disposition":
-        pending = game.pending_action
-        if pending and pending.get("type") == "stock_disposition":
-            await session_manager.send_to_player(
-                room_code,
-                pending.get("player_id"),
-                {
-                    "type": "stock_disposition_required",
-                    "defunct_chain": pending.get("defunct_chain"),
-                    "surviving_chain": pending.get("surviving_chain"),
-                    "stock_count": pending.get("stock_count"),
-                    "available_to_trade": pending.get("available_to_trade"),
-                },
-            )
-
+    # After survivor is chosen, handle stock disposition (bots auto-dispose)
+    await notify_or_handle_stock_disposition(room_code)
     await broadcast_game_state(room_code)
+    # Resume bot turns if merger is fully resolved
+    await process_bot_turns(room_code)
 
 
 async def handle_merger_disposition(

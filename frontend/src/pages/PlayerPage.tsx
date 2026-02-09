@@ -29,10 +29,11 @@ import type { Coordinate } from '../types/game'
 import styles from './PlayerPage.module.css'
 
 // Phase display text
+// Note: stock_disposition and merger phases with pending actions are handled at the
+// call site using pendingStockDisposition/pendingMergerChoice for accurate display.
 function getPhaseText(phase: GamePhase, isMyTurn: boolean, currentPlayerName: string): string {
   if (phase === 'lobby') return 'WAITING FOR HOST'
   if (phase === 'game_over') return 'GAME OVER'
-  if (phase === 'stock_disposition') return 'DISPOSE YOUR STOCK'
   if (!isMyTurn) return `${currentPlayerName}'s TURN`
 
   switch (phase) {
@@ -86,6 +87,7 @@ export function PlayerPage() {
     yourHand,
     tilePlayability,
     pendingChainChoice,
+    pendingMergerChoice,
     pendingStockDisposition,
     setCurrentPlayer,
   } = useGameStore()
@@ -231,6 +233,14 @@ export function PlayerPage() {
     (chain: ChainName) => {
       setActionLoading(true)
       sendAction({ action: 'found_chain', chain })
+    },
+    [sendAction]
+  )
+
+  const handleChooseMergerSurvivor = useCallback(
+    (chain: ChainName) => {
+      setActionLoading(true)
+      sendAction({ action: 'merger_choice', surviving_chain: chain })
     },
     [sendAction]
   )
@@ -415,7 +425,16 @@ export function PlayerPage() {
   // Render merger content
   const renderMergerContent = () => (
     <div className={styles.mergerContent}>
-      {pendingStockDisposition ? (
+      {pendingMergerChoice ? (
+        <div className={styles.foundingContent}>
+          <h3 className={styles.sectionTitle}>CHOOSE SURVIVING CHAIN</h3>
+          <ChainSelector
+            availableChains={pendingMergerChoice}
+            onSelect={handleChooseMergerSurvivor}
+            stockAvailability={stockAvailability}
+          />
+        </div>
+      ) : pendingStockDisposition ? (
         <MergerDisposition
           defunctChain={pendingStockDisposition.defunctChain}
           survivorChain={pendingStockDisposition.survivingChain}
@@ -622,7 +641,15 @@ export function PlayerPage() {
 
   return (
     <PageShell
-      phase={getPhaseText(phase, isMyTurn, currentPlayerName)}
+      phase={
+          pendingMergerChoice
+            ? 'CHOOSE SURVIVOR'
+            : phase === 'stock_disposition' && pendingStockDisposition
+              ? 'DISPOSE YOUR STOCK'
+              : phase === 'stock_disposition'
+                ? 'MERGER IN PROGRESS'
+                : getPhaseText(phase, isMyTurn, currentPlayerName)
+        }
       roomCode={room}
       cash={myPlayerData?.money}
       playerName={currentPlayer?.name}

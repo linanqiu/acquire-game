@@ -1,14 +1,7 @@
 /**
  * Deterministic backend server fixture for scenario tests.
  *
- * This module provides functions to start and stop the backend server with
- * a specific tile order CSV file for deterministic gameplay.
- *
- * Available tile sequences:
- * - 'default.csv' - General purpose, chain founding on turn 2
- * - 'three-tile-founding.csv' - Three-tile chain founding on turn 3
- * - 'depleted-stock.csv' - Quick stock depletion scenario
- * - 'seven-chains.csv' - All 7 chains on board scenario
+ * Starts a backend server with a specific game seed for reproducible tests.
  *
  * Usage in tests:
  *
@@ -16,7 +9,7 @@
  *   import { useDeterministicBackend } from '../fixtures/deterministic-server'
  *
  *   test.describe('My Test Suite', () => {
- *     useDeterministicBackend('default.csv')
+ *     useDeterministicBackend('default.csv', { seed: 2 })
  *
  *     test('my test', async ({ page }) => {
  *       // Test code here - backend runs with deterministic tiles
@@ -36,7 +29,7 @@ const __dirname = dirname(__filename)
 const execAsync = promisify(exec)
 
 let backendProcess: ChildProcess | null = null
-let serverStarted = false
+let currentSeed: number | null = null
 
 async function waitForServer(url: string, timeout: number = 30000): Promise<boolean> {
   const start = Date.now()
@@ -63,21 +56,31 @@ async function killBackendServer(): Promise<void> {
 }
 
 /**
- * Start the backend server with a specific tile order CSV file.
+ * Start the backend server with a specific tile order CSV file and seed.
  * This will kill any existing backend server first.
  *
  * @param tileOrderCsv - Name of the CSV file in fixtures/tile-sequences/
+ * @param seed - Random seed for deterministic tile distribution (default: 2)
  */
-export async function startDeterministicBackend(tileOrderCsv: string): Promise<void> {
-  if (serverStarted) {
-    console.log(`[deterministic-server] Server already started, skipping`)
+export async function startDeterministicBackend(
+  tileOrderCsv: string,
+  seed: number = 2
+): Promise<void> {
+  // If server is running with the same seed, reuse it
+  if (backendProcess && currentSeed === seed) {
+    console.log(`[deterministic-server] Server already running with seed ${seed}, reusing`)
     return
+  }
+
+  // Stop any existing server (may have different seed)
+  if (backendProcess) {
+    await stopDeterministicBackend()
   }
 
   const tileOrderFile = path.resolve(__dirname, 'tile-sequences', tileOrderCsv)
   const backendDir = path.resolve(__dirname, '../../../../backend')
 
-  console.log(`[deterministic-server] Starting backend with tile order: ${tileOrderCsv}`)
+  console.log(`[deterministic-server] Starting backend with seed=${seed}, tile order: ${tileOrderCsv}`)
 
   // Kill any existing backend server
   await killBackendServer()
@@ -90,7 +93,7 @@ export async function startDeterministicBackend(tileOrderCsv: string): Promise<v
       cwd: backendDir,
       env: {
         ...process.env,
-        ACQUIRE_GAME_SEED: '2',
+        ACQUIRE_GAME_SEED: String(seed),
         ACQUIRE_TILE_ORDER_FILE: tileOrderFile,
       },
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -99,18 +102,18 @@ export async function startDeterministicBackend(tileOrderCsv: string): Promise<v
   )
 
   // Log server output (condensed)
-  backendProcess.stdout?.on('data', (data) => {
+  backendProcess.stdout?.on('data', (data: Buffer) => {
     const msg = data.toString().trim()
     if (msg && !msg.includes('127.0.0.1')) {
       console.log(`[backend] ${msg}`)
     }
   })
-  backendProcess.stderr?.on('data', (data) => {
+  backendProcess.stderr?.on('data', (data: Buffer) => {
     const msg = data.toString().trim()
     if (msg) console.error(`[backend] ${msg}`)
   })
 
-  backendProcess.on('error', (err) => {
+  backendProcess.on('error', (err: Error) => {
     console.error(`[deterministic-server] Process error: ${err.message}`)
   })
 
@@ -120,8 +123,8 @@ export async function startDeterministicBackend(tileOrderCsv: string): Promise<v
     throw new Error('[deterministic-server] Backend server failed to start within timeout')
   }
 
-  serverStarted = true
-  console.log(`[deterministic-server] Backend ready with ${tileOrderCsv}`)
+  currentSeed = seed
+  console.log(`[deterministic-server] Backend ready with seed=${seed}`)
 }
 
 /**
@@ -141,7 +144,7 @@ export async function stopDeterministicBackend(): Promise<void> {
 
   // Also kill any remaining processes
   await killBackendServer()
-  serverStarted = false
+  currentSeed = null
 
   console.log('[deterministic-server] Backend server stopped')
 }
@@ -151,16 +154,27 @@ export async function stopDeterministicBackend(): Promise<void> {
  * for a describe block.
  *
  * @param tileOrderCsv - Name of the CSV file in fixtures/tile-sequences/
+ * @param options - Optional configuration (seed defaults to 2)
  *
  * Usage:
  *   test.describe('My Suite', () => {
- *     useDeterministicBackend('default.csv')
+ *     useDeterministicBackend('default.csv')  // seed 2
  *     test('my test', async ({ page }) => { ... })
  *   })
+ *
+ *   test.describe('Tie-breaker Suite', () => {
+ *     useDeterministicBackend('default.csv', { seed: 8 })
+ *     test('tie test', async ({ page }) => { ... })
+ *   })
  */
-export function useDeterministicBackend(tileOrderCsv: string): void {
+export function useDeterministicBackend(
+  tileOrderCsv: string,
+  options?: { seed?: number }
+): void {
+  const seed = options?.seed ?? 2
+
   test.beforeAll(async () => {
-    await startDeterministicBackend(tileOrderCsv)
+    await startDeterministicBackend(tileOrderCsv, seed)
   })
 
   test.afterAll(async () => {
