@@ -85,6 +85,7 @@ export function PlayerPage() {
     yourHand,
     tilePlayability,
     pendingChainChoice,
+    pendingMergerChoice,
     pendingStockDisposition,
     setCurrentPlayer,
   } = useGameStore()
@@ -177,6 +178,15 @@ export function PlayerPage() {
     }
   }, [gameState])
 
+  // Safety timeout: reset actionLoading after 10 seconds to prevent stuck UI
+  useEffect(() => {
+    if (!actionLoading) return
+    const timer = setTimeout(() => {
+      setActionLoading(false)
+    }, 10000)
+    return () => clearTimeout(timer)
+  }, [actionLoading])
+
   // Action handlers
   const handleStartGame = useCallback(async () => {
     setActionLoading(true)
@@ -230,6 +240,14 @@ export function PlayerPage() {
     (chain: ChainName) => {
       setActionLoading(true)
       sendAction({ action: 'found_chain', chain })
+    },
+    [sendAction]
+  )
+
+  const handleMergerChoice = useCallback(
+    (chain: ChainName) => {
+      setActionLoading(true)
+      sendAction({ action: 'merger_choice', surviving_chain: chain })
     },
     [sendAction]
   )
@@ -414,7 +432,13 @@ export function PlayerPage() {
   // Render merger content
   const renderMergerContent = () => (
     <div className={styles.mergerContent}>
-      {pendingStockDisposition ? (
+      {pendingMergerChoice ? (
+        <ChainSelector
+          availableChains={pendingMergerChoice}
+          onSelect={handleMergerChoice}
+          stockAvailability={{}}
+        />
+      ) : pendingStockDisposition ? (
         <MergerDisposition
           defunctChain={pendingStockDisposition.defunctChain}
           survivorChain={pendingStockDisposition.survivingChain}
@@ -562,7 +586,9 @@ export function PlayerPage() {
     }
 
     // During game phases
-    if (!isMyTurn && phase !== 'stock_disposition') {
+    // Allow rendering merger/disposition content when we have a pending stock
+    // disposition or merger choice, even if it's not technically our turn
+    if (!isMyTurn && phase !== 'stock_disposition' && !pendingStockDisposition && !pendingMergerChoice) {
       return renderWaitingContent()
     }
 
@@ -621,7 +647,7 @@ export function PlayerPage() {
 
   return (
     <PageShell
-      phase={getPhaseText(phase, isMyTurn, currentPlayerName)}
+      phase={pendingMergerChoice ? 'CHOOSE SURVIVING CHAIN' : pendingStockDisposition ? 'DISPOSE YOUR STOCK' : getPhaseText(phase, isMyTurn, currentPlayerName)}
       roomCode={room}
       cash={myPlayerData?.money}
       playerName={currentPlayer?.name}

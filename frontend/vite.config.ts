@@ -41,16 +41,24 @@ export default defineConfig({
         ws: true,
         changeOrigin: true,
         rewrite: (path) => path,
+        timeout: 0, // Disable timeout for WebSocket connections
+        proxyTimeout: 0, // Disable proxy timeout
         configure: (proxy) => {
           // Handle proxy errors gracefully to prevent crashes
           proxy.on('error', (err) => {
             console.log('[vite] ws proxy error:', err.message)
           })
-          // Handle WebSocket-specific socket errors
+          // Disable socket timeouts for WebSocket connections
           proxy.on('proxyReqWs', (_proxyReq, _req, socket) => {
+            socket.setTimeout(0)
+            socket.setKeepAlive(true, 30000)
             socket.on('error', (err) => {
               console.log('[vite] ws socket error:', err.message)
             })
+          })
+          proxy.on('open', (proxySocket) => {
+            proxySocket.setTimeout(0)
+            proxySocket.setKeepAlive(true, 30000)
           })
         },
       },

@@ -54,9 +54,19 @@ async function waitForServer(url: string, timeout: number = 30000): Promise<bool
 
 async function killBackendServer(): Promise<void> {
   try {
-    await execAsync('pkill -9 -f "uvicorn main:app" || true')
+    // Kill only the process using port 8000, not all uvicorn processes
+    await execAsync('fuser -k 8000/tcp 2>/dev/null || true')
     // Wait for port to be released
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    // Double-check: if port is still occupied, use pkill as fallback
+    try {
+      await execAsync('fuser 8000/tcp 2>/dev/null')
+      // Port still in use, force kill
+      await execAsync('fuser -k -9 8000/tcp 2>/dev/null || true')
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+    } catch {
+      // Port is free
+    }
   } catch {
     // Ignore errors
   }
@@ -85,7 +95,19 @@ export async function startDeterministicBackend(tileOrderCsv: string): Promise<v
   // Start the backend server with the tile order file
   backendProcess = spawn(
     'python3',
-    ['-m', 'uvicorn', 'main:app', '--host', '127.0.0.1', '--port', '8000'],
+    [
+      '-m',
+      'uvicorn',
+      'main:app',
+      '--host',
+      '127.0.0.1',
+      '--port',
+      '8000',
+      '--ws-ping-interval',
+      '300',
+      '--ws-ping-timeout',
+      '300',
+    ],
     {
       cwd: backendDir,
       env: {

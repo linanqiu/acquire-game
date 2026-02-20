@@ -83,6 +83,7 @@ export function useWebSocket({
       ws.onopen = () => {
         setConnectionStatus('connected')
         reconnectAttemptsRef.current = 0
+        intentionalCloseRef.current = false
       }
 
       ws.onmessage = (event) => {
