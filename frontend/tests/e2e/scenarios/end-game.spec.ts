@@ -2,8 +2,6 @@ import { test, expect } from '@playwright/test'
 import { captureStep, resetStepCounter } from './helpers/screenshot'
 import { createGameViaUI, addBotViaUI, startGameViaUI } from './helpers/game-setup'
 import {
-  selectTileFromRack,
-  placeTile,
   endTurn,
   hasChainSelector,
   selectFirstAvailableChain,

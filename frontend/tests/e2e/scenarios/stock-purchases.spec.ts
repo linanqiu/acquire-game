@@ -622,7 +622,7 @@ test.describe('Stock Purchase Scenarios (6.x)', () => {
           const qty = Math.min(3, available)
 
           if (qty > 0) {
-            const cashBefore = await getCash(page)
+            await getCash(page)
             await buyStockViaUI(page, chain, qty)
 
             const insufficientFunds = await hasInsufficientFundsError(page)
