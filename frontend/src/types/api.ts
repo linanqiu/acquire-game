@@ -83,6 +83,7 @@ export interface GameStateMessage {
   tiles_remaining: number
   your_hand?: string[] // Only sent to the owning player
   tile_playability?: Record<string, TilePlayabilityInfo> // Only sent to the owning player
+  end_game_available?: boolean // True when current player can declare end game
 }
 
 export interface LobbyUpdateMessage {

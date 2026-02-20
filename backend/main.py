@@ -1451,6 +1451,7 @@ async def broadcast_game_state(room_code: str):
         ws_state = {
             **public_state,
             "your_hand": player_state.get("hand", []),
+            "end_game_available": player_state.get("end_game_available", False),
         }
         await session_manager.send_to_player(room_code, player_id, ws_state)
 

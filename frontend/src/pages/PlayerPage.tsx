@@ -271,6 +271,11 @@ export function PlayerPage() {
     setStockPurchases({})
   }, [stockPurchases, sendAction])
 
+  const handleDeclareEndGame = useCallback(() => {
+    setActionLoading(true)
+    sendAction({ action: 'declare_end_game' })
+  }, [sendAction])
+
   const handleProposeTrade = useCallback(
     (
       partnerId: string,
@@ -511,6 +516,17 @@ export function PlayerPage() {
           >
             {totalSharesPurchased > 0 ? 'BUY & END TURN' : 'SKIP & END TURN'}
           </Button>
+          {gameState?.end_game_available && (
+            <Button
+              variant="danger"
+              onClick={handleDeclareEndGame}
+              disabled={!isMyTurn || actionLoading}
+              loading={actionLoading}
+              data-testid="end-game-button"
+            >
+              END GAME
+            </Button>
+          )}
         </div>
       </div>
     )
