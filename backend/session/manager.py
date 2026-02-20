@@ -177,7 +177,10 @@ class SessionManager:
             except Exception:
                 dead_websockets.append(ws)
         for ws in dead_websockets:
-            player.websockets.remove(ws)
+            try:
+                player.websockets.remove(ws)
+            except ValueError:
+                pass  # Already removed by concurrent operation
 
     async def broadcast_to_room(self, room_code: str, message: dict):
         """Send message to all connected players in room."""

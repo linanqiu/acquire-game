@@ -21,7 +21,7 @@
 | [AI Training](epics/04-ai-training.md) | 0/9 | AI-001, AI-003 |
 | [Deployment](epics/05-deployment.md) | 0/5 | DP-001 |
 | [Security Hardening](epics/06-security-hardening.md) | 0/5 | SH-002, SH-003, SH-004, SH-005 (after E2E: SH-001) |
-| [Scenario Tests](epics/07-scenario-tests.md) | 2/10 | ST-003 through ST-008 (parallel) |
+| [Scenario Tests](epics/07-scenario-tests.md) | 8/10 | ST-009, ST-010 |
 | [Backlog](epics/08-backlog.md) | 4/6 | BL-004, BL-005 |
 
 ## Story Status Key

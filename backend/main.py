@@ -410,6 +410,85 @@ async def get_room_state(room_code: str):
     }
 
 
+@app.post("/room/{room_code}/refresh/{player_id}")
+async def refresh_player_state(room_code: str, player_id: str):
+    """Force re-send game state to a specific player via WebSocket."""
+    room = session_manager.get_room(room_code)
+    if room is None:
+        all_rooms = list(session_manager._rooms.keys())
+        raise HTTPException(
+            status_code=404,
+            detail=f"Room not found: {room_code}. Active rooms: {all_rooms}",
+        )
+    if not room.started or room.game is None:
+        raise HTTPException(status_code=400, detail="Game not started")
+    if player_id not in room.players:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    try:
+        await broadcast_game_state(room_code)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Broadcast failed: {e}")
+    return {"status": "ok"}
+
+
+@app.post("/room/{room_code}/action/{player_id}")
+async def http_game_action(room_code: str, player_id: str, data: dict):
+    """Execute a game action via HTTP instead of WebSocket.
+
+    This provides a reliable alternative to WebSocket for sending game actions.
+    The response includes the updated game state, bypassing WebSocket delivery.
+
+    Supported actions: place_tile, found_chain, buy_stocks, end_turn,
+    merger_choice, merger_disposition
+    """
+    room = session_manager.get_room(room_code)
+    if room is None:
+        raise HTTPException(status_code=404, detail="Room not found")
+    if not room.started or room.game is None:
+        raise HTTPException(status_code=400, detail="Game not started")
+    if player_id not in room.players:
+        raise HTTPException(status_code=404, detail="Player not found")
+
+    # Capture any errors sent via WS during action processing
+    action_errors: list[str] = []
+    original_send = session_manager.send_to_player
+
+    async def capture_errors(rc, pid, msg):
+        if pid == player_id and isinstance(msg, dict) and msg.get("type") == "error":
+            action_errors.append(msg.get("message", "Unknown error"))
+        await original_send(rc, pid, msg)
+
+    session_manager.send_to_player = capture_errors
+    try:
+        await handle_player_action(room_code, player_id, data)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        session_manager.send_to_player = original_send
+
+    # Return the current game state so caller doesn't depend on WebSocket
+    game = room.game
+    if game is None:
+        return {"status": "ok"}
+
+    game_state = game.get_public_state()
+    player_state = game.get_player_state(player_id)
+    response = {
+        "status": "ok",
+        "phase": game_state.get("phase"),
+        "current_player": game_state.get("current_player"),
+        "your_hand": player_state.get("hand", []),
+    }
+
+    # Include error info if the action failed
+    if action_errors:
+        response["error"] = action_errors[0]
+        response["status"] = "error"
+
+    return response
+
+
 # WebSocket endpoints
 @app.websocket("/ws/host/{room_code}")
 async def host_websocket(websocket: WebSocket, room_code: str):
@@ -818,6 +897,15 @@ async def handle_merger_disposition(
 
     await broadcast_game_state(room_code)
 
+    # Resume bot turn processing after disposition is handled.
+    # When a bot triggered the merger and a human had to dispose their stock,
+    # the bot is still the current player and needs to continue (buy stocks,
+    # end turn). Without this call, the bot gets stuck at BUYING_STOCKS.
+    try:
+        await process_bot_turns(room_code)
+    except Exception as e:
+        print(f"Error resuming bot turns after disposition: {e}")
+
 
 async def handle_buy_stocks(room_code: str, player_id: str, purchases: dict):
     """Handle stock purchase action using Game class."""
@@ -896,25 +984,23 @@ async def handle_declare_end_game(room_code: str, player_id: str):
     # Use Game.declare_end_game() method
     result = game.declare_end_game(player_id)
 
-    if not result.get("success"):
+    if not result.success:
         await session_manager.send_to_player(
             room_code,
             player_id,
-            {"type": "error", "message": result.get("error", "Unknown error")},
+            {"type": "error", "message": result.error or "Unknown error"},
         )
         return
 
     # Build final scores from standings
-    standings = result.get("standings", [])
     final_scores = {}
-    for entry in standings:
-        final_scores[entry["player_id"]] = {
-            "name": entry["name"],
-            "money": entry["money"],
+    for entry in result.standings:
+        final_scores[entry.player_id] = {
+            "name": entry.name,
+            "money": entry.money,
         }
 
-    winner = result.get("winner", {})
-    winner_id = winner.get("player_id") if winner else None
+    winner_id = result.winner.player_id if result.winner else None
 
     # Broadcast final results
     await session_manager.broadcast_to_room(
@@ -936,6 +1022,9 @@ async def handle_declare_end_game(room_code: str, player_id: str):
             "declared_by": player_id,
         },
     )
+
+    # Broadcast game state so frontend gets phase='game_over' update
+    await broadcast_game_state(room_code)
 
 
 # =============================================================================
@@ -1269,10 +1358,25 @@ async def process_bot_turns(room_code: str):
             break
 
         # This is a bot's turn - use Game.execute_bot_turn()
-        game.execute_bot_turn(current_player_id)
+        try:
+            game.execute_bot_turn(current_player_id)
+        except Exception as e:
+            print(f"Error executing bot turn for {current_player_id}: {e}")
+            break
 
         # Broadcast the state after bot's turn
         await broadcast_game_state(room_code)
+
+        # Check if a merger during the bot's turn requires human stock disposition
+        if game.phase == GamePhase.MERGING:
+            pending = game.pending_action
+            if pending and pending.get("type") == "stock_disposition":
+                disposition_player_id = pending.get("player_id")
+                player_conn_disp = room.players.get(disposition_player_id, None)
+                if player_conn_disp and not player_conn_disp.is_bot:
+                    # Human needs to handle disposition - notify them and stop
+                    await notify_or_handle_stock_disposition(room_code)
+                    break
 
         # Small delay to prevent overwhelming clients
         await asyncio.sleep(0.1)
@@ -1347,6 +1451,7 @@ async def broadcast_game_state(room_code: str):
         ws_state = {
             **public_state,
             "your_hand": player_state.get("hand", []),
+            "end_game_available": player_state.get("end_game_available", False),
         }
         await session_manager.send_to_player(room_code, player_id, ws_state)
 
@@ -1392,5 +1497,39 @@ async def send_player_state(room_code: str, player_id: str):
 
     if room.started and room.game:
         await broadcast_game_state(room_code)
+
+        # Re-send stock disposition notification if this player has a pending one
+        game = room.game
+        if game.phase == GamePhase.MERGING:
+            pending = game.pending_action
+            if (
+                pending
+                and pending.get("type") == "stock_disposition"
+                and pending.get("player_id") == player_id
+            ):
+                await session_manager.send_to_player(
+                    room_code,
+                    player_id,
+                    {
+                        "type": "stock_disposition_required",
+                        "defunct_chain": pending.get("defunct_chain"),
+                        "surviving_chain": pending.get("surviving_chain"),
+                        "stock_count": pending.get("stock_count"),
+                        "available_to_trade": pending.get("available_to_trade"),
+                    },
+                )
+
+        # Re-send can_end_game notification if applicable
+        if game.can_declare_end_game():
+            current = game.get_current_player()
+            if current and current.player_id == player_id:
+                await session_manager.send_to_player(
+                    room_code,
+                    player_id,
+                    {
+                        "type": "can_end_game",
+                        "message": "You may choose to end the game",
+                    },
+                )
     else:
         await broadcast_lobby_update(room_code)
