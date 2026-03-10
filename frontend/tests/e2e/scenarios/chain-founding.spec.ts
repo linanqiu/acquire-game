@@ -5,6 +5,7 @@ import {
   addBotViaUI,
   startGameViaUI,
   assertPlayerInLobby,
+  configureRoom,
 } from './helpers/game-setup'
 import {
   selectTileFromRack,
@@ -24,7 +25,6 @@ import {
   waitForPhaseChange,
   waitForPhase,
 } from './helpers/turn-actions'
-import { useDeterministicBackend } from '../fixtures/deterministic-server'
 
 const CATEGORY = 'chain-founding'
 
@@ -53,14 +53,13 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
   // Tests using default tile sequence
   // =========================================================================
   test.describe('Default tile sequence tests', () => {
-    useDeterministicBackend('default.csv')
-
     test('3.1 & 3.3: Basic chain creation with all chains available', async ({ page }) => {
       const testName = '3.1-basic-founding'
       const errorTracker = setupConsoleErrorTracking(page)
 
       // Setup: Create game with bots
-      await createGameViaUI(page, 'Founder')
+      const ctx = await createGameViaUI(page, 'Founder')
+      await configureRoom(ctx.roomCode, { seed: 2 })
       await assertPlayerInLobby(page, 'Founder')
       await addBotViaUI(page)
       await addBotViaUI(page)
@@ -267,7 +266,8 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
       const errorTracker = setupConsoleErrorTracking(page)
 
       // Setup: Create game with bots
-      await createGameViaUI(page, 'Founder2')
+      const ctx = await createGameViaUI(page, 'Founder2')
+      await configureRoom(ctx.roomCode, { seed: 2 })
       await assertPlayerInLobby(page, 'Founder2')
       await addBotViaUI(page)
       await addBotViaUI(page)
@@ -487,7 +487,8 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
       const errorTracker = setupConsoleErrorTracking(page)
 
       // Setup: Create game with bots
-      await createGameViaUI(page, 'ColorChecker')
+      const ctx = await createGameViaUI(page, 'ColorChecker')
+      await configureRoom(ctx.roomCode, { seed: 2 })
       await assertPlayerInLobby(page, 'ColorChecker')
       await addBotViaUI(page)
       await addBotViaUI(page)
@@ -686,7 +687,8 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
       const errorTracker = setupConsoleErrorTracking(page)
 
       // Setup: Create game with bots
-      await createGameViaUI(page, 'Disconnector')
+      const ctx = await createGameViaUI(page, 'Disconnector')
+      await configureRoom(ctx.roomCode, { seed: 2 })
       await assertPlayerInLobby(page, 'Disconnector')
       await addBotViaUI(page)
       await addBotViaUI(page)
@@ -916,8 +918,6 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
   // Tests requiring three-tile-founding.csv
   // =========================================================================
   test.describe('Three-tile founding (3.2)', () => {
-    useDeterministicBackend('three-tile-founding.csv')
-
     test('3.2: Three-tile founding (3+ tiles form chain)', async ({ page }) => {
       // Human gets tiles: 1A, 3A, 2A, 4A, 5A, 6A
       // Turn 1: Place 1A (orphan)
@@ -932,7 +932,8 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
       const expectedTiles = ['1A', '3A', '2A', '4A', '5A', '6A']
 
       // Setup: Create game with bots
-      await createGameViaUI(page, 'ThreeTiler')
+      const ctx = await createGameViaUI(page, 'ThreeTiler')
+      await configureRoom(ctx.roomCode, { seed: 2 })
       await assertPlayerInLobby(page, 'ThreeTiler')
       await addBotViaUI(page)
       await addBotViaUI(page)
@@ -1145,8 +1146,6 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
   // Tests requiring depleted-stock.csv
   // =========================================================================
   test.describe('Stock depletion (3.6)', () => {
-    useDeterministicBackend('depleted-stock.csv')
-
     test('3.6: Founder bonus stock depleted', async ({ page }) => {
       // This test verifies that stock buying works and tracks depletion progress.
       // Full depletion (25 stocks) requires ~8 human turns buying 3 each turn.
@@ -1156,7 +1155,8 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
       const errorTracker = setupConsoleErrorTracking(page)
 
       // Setup: Create game with bots
-      await createGameViaUI(page, 'StockBuyer')
+      const ctx = await createGameViaUI(page, 'StockBuyer')
+      await configureRoom(ctx.roomCode, { seed: 2 })
       await assertPlayerInLobby(page, 'StockBuyer')
       await addBotViaUI(page)
       await addBotViaUI(page)
@@ -1359,8 +1359,6 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
   // Tests requiring seven-chains.csv
   // =========================================================================
   test.describe('Seven chains (3.7)', () => {
-    useDeterministicBackend('seven-chains.csv')
-
     test('3.7: Cannot found 8th chain (all 7 chains active)', async ({ page }) => {
       // This test plays extended turns to track chain founding and observe chain count.
       test.setTimeout(300000) // 5 minutes for extended gameplay
@@ -1369,7 +1367,8 @@ test.describe('Chain Founding Scenarios (3.x)', () => {
       const errorTracker = setupConsoleErrorTracking(page)
 
       // Setup: Create game with bots
-      await createGameViaUI(page, 'ChainCounter')
+      const ctx = await createGameViaUI(page, 'ChainCounter')
+      await configureRoom(ctx.roomCode, { seed: 2 })
       await assertPlayerInLobby(page, 'ChainCounter')
       await addBotViaUI(page)
       await addBotViaUI(page)

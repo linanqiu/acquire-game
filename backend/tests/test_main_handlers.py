@@ -574,3 +574,59 @@ class TestValidationErrors:
             mock_send.assert_called()
             call_args = mock_send.call_args[0]
             assert call_args[2]["type"] == "error"
+
+
+class TestConfigureRoomEndpoint:
+    """Tests for the /room/{code}/configure endpoint."""
+
+    def test_configure_room_sets_seed(self, client, clean_session_manager):
+        """Create a room, configure it with a seed, and verify it takes effect."""
+        # Create a room (first player is added automatically)
+        response = client.post("/create", data={"player_name": "Alice"})
+        assert response.status_code == 200
+        room_code = response.json()["room_code"]
+
+        # Join 2 more players so game can start (3 total)
+        for name in ["Bob", "Charlie"]:
+            client.post("/join", data={"room_code": room_code, "player_name": name})
+
+        # Configure the room with a seed
+        response = client.post(
+            f"/room/{room_code}/configure",
+            json={"seed": 42},
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "configured"
+
+        # Verify seed was stored on the room
+        room = clean_session_manager.get_room(room_code)
+        assert room.seed == 42
+
+    def test_configure_room_rejects_after_start(self, client, clean_session_manager):
+        """Configuring a room after the game has started should return 400."""
+        # Create a room and add players
+        response = client.post("/create", data={"player_name": "Alice"})
+        room_code = response.json()["room_code"]
+
+        for name in ["Bob", "Charlie"]:
+            client.post("/join", data={"room_code": room_code, "player_name": name})
+
+        # Start the game
+        client.post(f"/room/{room_code}/start")
+
+        # Try to configure after start
+        response = client.post(
+            f"/room/{room_code}/configure",
+            json={"seed": 42},
+        )
+        assert response.status_code == 400
+        assert "started" in response.json()["detail"].lower()
+
+    def test_configure_room_not_found(self, client, clean_session_manager):
+        """Configuring a non-existent room should return 404."""
+        response = client.post(
+            "/room/ZZZZ/configure",
+            json={"seed": 42},
+        )
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()

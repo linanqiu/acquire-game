@@ -7,6 +7,7 @@ import uuid
 from typing import Optional, Union, Literal
 
 from fastapi import (
+    Body,
     FastAPI,
     WebSocket,
     WebSocketDisconnect,
@@ -19,6 +20,7 @@ from session.manager import SessionManager
 from game.board import Tile
 from game.game import Game, GamePhase
 from game.action import TradeOffer
+from game.rules import Rules
 
 
 # =============================================================================
@@ -389,6 +391,30 @@ async def start_game(room_code: str):
     return {"status": "started"}
 
 
+@app.post("/room/{room_code}/configure")
+async def configure_room(
+    room_code: str,
+    seed: Optional[int] = Body(None),
+    tile_order: Optional[list[str]] = Body(None),
+):
+    """Configure room settings (seed, tile order) before game starts."""
+    room = session_manager.get_room(room_code)
+    if room is None:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    if room.started:
+        raise HTTPException(
+            status_code=400, detail="Cannot configure after game started"
+        )
+
+    if seed is not None:
+        room.seed = seed
+    if tile_order is not None:
+        room.tile_order = tile_order
+
+    return {"status": "configured"}
+
+
 @app.get("/room/{room_code}/state")
 async def get_room_state(room_code: str):
     """Get current room state."""
@@ -668,10 +694,13 @@ async def initialize_game(room_code: str):
     if room is None:
         return
 
-    # Create Game instance with optional seed for deterministic testing
-    seed_str = os.environ.get("ACQUIRE_GAME_SEED")
-    seed = int(seed_str) if seed_str else None
-    game = Game(seed=seed)
+    # Per-room config takes priority, env var as fallback
+    seed = room.seed
+    tile_order = room.tile_order
+    if seed is None and tile_order is None:
+        seed_str = os.environ.get("ACQUIRE_GAME_SEED")
+        seed = int(seed_str) if seed_str else None
+    game = Game(seed=seed, tile_order=tile_order)
 
     # Add all players to the game
     for player_id, connection in room.players.items():
@@ -895,8 +924,6 @@ async def handle_merger_disposition(
     if result.get("next_action") == "stock_disposition":
         await notify_or_handle_stock_disposition(room_code)
 
-    await broadcast_game_state(room_code)
-
     # Resume bot turn processing after disposition is handled.
     # When a bot triggered the merger and a human had to dispose their stock,
     # the bot is still the current player and needs to continue (buy stocks,
@@ -905,6 +932,8 @@ async def handle_merger_disposition(
         await process_bot_turns(room_code)
     except Exception as e:
         print(f"Error resuming bot turns after disposition: {e}")
+
+    await broadcast_game_state(room_code)
 
 
 async def handle_buy_stocks(room_code: str, player_id: str, purchases: dict):
@@ -963,10 +992,12 @@ async def handle_end_turn(room_code: str, player_id: str):
             {"type": "can_end_game", "message": "You may choose to end the game"},
         )
 
-    await broadcast_game_state(room_code)
-
     # Process bot turns if the next player is a bot
+    # (must run BEFORE broadcasting so the client sees the final state,
+    #  not an intermediate PLAYING state that gets immediately corrected)
     await process_bot_turns(room_code)
+
+    await broadcast_game_state(room_code)
 
 
 async def handle_declare_end_game(room_code: str, player_id: str):
@@ -1354,7 +1385,35 @@ async def process_bot_turns(room_code: str):
 
         # Check if current player is a bot
         if player_conn is None or not player_conn.is_bot:
-            # Human player's turn - stop and wait for their input
+            # Human player's turn - handle unplayable tiles before waiting
+            if game.phase == GamePhase.PLAYING:
+                player = game.get_player(current_player_id)
+                if player:
+                    # Replace tiles if ALL are unplayable (Acquire rule)
+                    unplayable_result = game.handle_all_tiles_unplayable(player)
+                    if unplayable_result:
+                        await session_manager.broadcast_to_room(
+                            room_code,
+                            {
+                                "type": "all_tiles_unplayable",
+                                "player_id": current_player_id,
+                                "player_name": player.name,
+                                "revealed_hand": unplayable_result["revealed_hand"],
+                                "removed_tiles": unplayable_result["removed_tiles"],
+                                "new_tiles_count": len(unplayable_result["new_tiles"]),
+                            },
+                        )
+                        await broadcast_game_state(room_code)
+
+                    # Skip to buy phase if still no playable tiles
+                    playable = [
+                        t
+                        for t in player.hand
+                        if Rules.can_place_tile(game.board, t, game.hotel)
+                    ]
+                    if not playable:
+                        game.phase = GamePhase.BUYING_STOCKS
+                        await broadcast_game_state(room_code)
             break
 
         # This is a bot's turn - use Game.execute_bot_turn()

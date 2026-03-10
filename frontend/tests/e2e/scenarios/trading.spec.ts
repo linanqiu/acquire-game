@@ -1,6 +1,12 @@
 import { test, expect } from '@playwright/test'
 import { captureStep, resetStepCounter } from './helpers/screenshot'
-import { createGameViaUI, addBotViaUI, startGameViaUI, joinGameViaUI } from './helpers/game-setup'
+import {
+  createGameViaUI,
+  addBotViaUI,
+  startGameViaUI,
+  joinGameViaUI,
+  configureRoom,
+} from './helpers/game-setup'
 import {
   waitForMyTurn,
   selectTileFromRack,
@@ -29,7 +35,6 @@ import {
   getTradeMax,
   isTradeDisabled,
 } from './helpers/merger'
-import { useDeterministicBackend } from '../fixtures/deterministic-server'
 
 const CATEGORY = 'trading'
 
@@ -43,8 +48,6 @@ const CATEGORY = 'trading'
  * Uses deterministic tile order for reproducible tests.
  */
 test.describe('Trading Scenarios (2.x)', () => {
-  useDeterministicBackend('default.csv')
-
   test.beforeEach(() => {
     resetStepCounter()
   })
@@ -58,7 +61,8 @@ test.describe('Trading Scenarios (2.x)', () => {
       const errorTracker = setupConsoleErrorTracking(page)
 
       // Setup: Create game with bots
-      await createGameViaUI(page, 'Trader1')
+      const { roomCode } = await createGameViaUI(page, 'Trader1')
+      await configureRoom(roomCode, { seed: 2 })
       await addBotViaUI(page)
       await addBotViaUI(page)
       await captureStep(page, 'lobby', { category: CATEGORY, testName })
@@ -142,7 +146,8 @@ test.describe('Trading Scenarios (2.x)', () => {
       const errorTracker = setupConsoleErrorTracking(page)
 
       // Setup game
-      await createGameViaUI(page, 'Canceller')
+      const { roomCode } = await createGameViaUI(page, 'Canceller')
+      await configureRoom(roomCode, { seed: 2 })
       await addBotViaUI(page)
       await addBotViaUI(page)
       await startGameViaUI(page)
@@ -218,6 +223,7 @@ test.describe('Trading Scenarios (2.x)', () => {
 
         // Proposer creates game
         const { roomCode } = await createGameViaUI(proposerPage, 'Proposer')
+        await configureRoom(roomCode, { seed: 2 })
         console.log(`[2.3] Game created with room code: ${roomCode}`)
         await captureStep(proposerPage, 'proposer-lobby', { category: CATEGORY, testName })
 
@@ -266,6 +272,7 @@ test.describe('Trading Scenarios (2.x)', () => {
       try {
         // Create and join game
         const { roomCode } = await createGameViaUI(proposerPage, 'Proposer')
+        await configureRoom(roomCode, { seed: 2 })
         await joinGameViaUI(recipientPage, 'Recipient', roomCode)
         await addBotViaUI(proposerPage)
         await startGameViaUI(proposerPage)
@@ -293,6 +300,7 @@ test.describe('Trading Scenarios (2.x)', () => {
 
       try {
         const { roomCode } = await createGameViaUI(proposerPage, 'Proposer')
+        await configureRoom(roomCode, { seed: 2 })
         await joinGameViaUI(recipientPage, 'Recipient', roomCode)
         await addBotViaUI(proposerPage)
         await startGameViaUI(proposerPage)
@@ -311,7 +319,8 @@ test.describe('Trading Scenarios (2.x)', () => {
       const testName = '2.6-insufficient-stocks'
       const errorTracker = setupConsoleErrorTracking(page)
 
-      await createGameViaUI(page, 'InsufficientTrader')
+      const { roomCode } = await createGameViaUI(page, 'InsufficientTrader')
+      await configureRoom(roomCode, { seed: 2 })
       await addBotViaUI(page)
       await addBotViaUI(page)
       await startGameViaUI(page)
@@ -384,6 +393,7 @@ test.describe('Trading Scenarios (2.x)', () => {
       try {
         // Create game with 3 human players
         const { roomCode } = await createGameViaUI(page1, 'Player1')
+        await configureRoom(roomCode, { seed: 2 })
         await joinGameViaUI(page2, 'Player2', roomCode)
         await joinGameViaUI(page3, 'Player3', roomCode)
         await startGameViaUI(page1)
@@ -405,7 +415,8 @@ test.describe('Trading Scenarios (2.x)', () => {
       const errorTracker = setupConsoleErrorTracking(page)
 
       // This test documents behavior when game state changes during trade negotiation
-      await createGameViaUI(page, 'StaleTester')
+      const { roomCode } = await createGameViaUI(page, 'StaleTester')
+      await configureRoom(roomCode, { seed: 2 })
       await addBotViaUI(page)
       await addBotViaUI(page)
       await startGameViaUI(page)
@@ -425,7 +436,8 @@ test.describe('Trading Scenarios (2.x)', () => {
       const errorTracker = setupConsoleErrorTracking(page)
 
       // This test documents timeout behavior (if implemented)
-      await createGameViaUI(page, 'TimeoutTester')
+      const { roomCode } = await createGameViaUI(page, 'TimeoutTester')
+      await configureRoom(roomCode, { seed: 2 })
       await addBotViaUI(page)
       await addBotViaUI(page)
       await startGameViaUI(page)
@@ -449,7 +461,8 @@ test.describe('Trading Scenarios (2.x)', () => {
       const testName = '2.10-basic-2-1-trade'
       const errorTracker = setupConsoleErrorTracking(page)
 
-      await createGameViaUI(page, 'Merger2to1')
+      const { roomCode } = await createGameViaUI(page, 'Merger2to1')
+      await configureRoom(roomCode, { seed: 2 })
       await addBotViaUI(page)
       await addBotViaUI(page)
       await captureStep(page, 'lobby', { category: CATEGORY, testName })
@@ -517,7 +530,8 @@ test.describe('Trading Scenarios (2.x)', () => {
       const testName = '2.11-max-2-1-trade'
       const errorTracker = setupConsoleErrorTracking(page)
 
-      await createGameViaUI(page, 'MaxTrader')
+      const { roomCode } = await createGameViaUI(page, 'MaxTrader')
+      await configureRoom(roomCode, { seed: 2 })
       await addBotViaUI(page)
       await addBotViaUI(page)
       await startGameViaUI(page)
@@ -564,7 +578,8 @@ test.describe('Trading Scenarios (2.x)', () => {
       const testName = '2.12-partial-trade'
       const errorTracker = setupConsoleErrorTracking(page)
 
-      await createGameViaUI(page, 'PartialTrader')
+      const { roomCode } = await createGameViaUI(page, 'PartialTrader')
+      await configureRoom(roomCode, { seed: 2 })
       await addBotViaUI(page)
       await addBotViaUI(page)
       await startGameViaUI(page)
@@ -617,7 +632,8 @@ test.describe('Trading Scenarios (2.x)', () => {
       const testName = '2.13-no-trade-available'
       const errorTracker = setupConsoleErrorTracking(page)
 
-      await createGameViaUI(page, 'NoTradeTester')
+      const { roomCode } = await createGameViaUI(page, 'NoTradeTester')
+      await configureRoom(roomCode, { seed: 2 })
       await addBotViaUI(page)
       await addBotViaUI(page)
       await startGameViaUI(page)
@@ -664,7 +680,8 @@ test.describe('Trading Scenarios (2.x)', () => {
       const testName = '2.14-odd-stock'
       const errorTracker = setupConsoleErrorTracking(page)
 
-      await createGameViaUI(page, 'OddStockTester')
+      const { roomCode } = await createGameViaUI(page, 'OddStockTester')
+      await configureRoom(roomCode, { seed: 2 })
       await addBotViaUI(page)
       await addBotViaUI(page)
       await startGameViaUI(page)
@@ -708,7 +725,8 @@ test.describe('Trading Scenarios (2.x)', () => {
       const testName = '2.15-trade-and-sell'
       const errorTracker = setupConsoleErrorTracking(page)
 
-      await createGameViaUI(page, 'TradeAndSeller')
+      const { roomCode } = await createGameViaUI(page, 'TradeAndSeller')
+      await configureRoom(roomCode, { seed: 2 })
       await addBotViaUI(page)
       await addBotViaUI(page)
       await startGameViaUI(page)
@@ -755,7 +773,8 @@ test.describe('Trading Scenarios (2.x)', () => {
       const testName = '2.16-trade-and-hold'
       const errorTracker = setupConsoleErrorTracking(page)
 
-      await createGameViaUI(page, 'TradeAndHolder')
+      const { roomCode } = await createGameViaUI(page, 'TradeAndHolder')
+      await configureRoom(roomCode, { seed: 2 })
       await addBotViaUI(page)
       await addBotViaUI(page)
       await startGameViaUI(page)
@@ -801,7 +820,8 @@ test.describe('Trading Scenarios (2.x)', () => {
       const testName = '2.17-pool-depletion'
       const errorTracker = setupConsoleErrorTracking(page)
 
-      await createGameViaUI(page, 'PoolDepleter')
+      const { roomCode } = await createGameViaUI(page, 'PoolDepleter')
+      await configureRoom(roomCode, { seed: 2 })
       await addBotViaUI(page)
       await addBotViaUI(page)
       await startGameViaUI(page)
@@ -851,7 +871,8 @@ test.describe('Trading Scenarios (2.x)', () => {
       const testName = '2.18-multi-chain-merger'
       const errorTracker = setupConsoleErrorTracking(page)
 
-      await createGameViaUI(page, 'MultiMerger')
+      const { roomCode } = await createGameViaUI(page, 'MultiMerger')
+      await configureRoom(roomCode, { seed: 2 })
       await addBotViaUI(page)
       await addBotViaUI(page)
       await startGameViaUI(page)
