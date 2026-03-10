@@ -21,6 +21,7 @@ from game.board import Tile
 from game.game import Game, GamePhase
 from game.action import TradeOffer
 from game.rules import Rules
+from health import router as health_router
 
 
 # =============================================================================
@@ -270,6 +271,7 @@ def validate_websocket_message(
 
 
 app = FastAPI(title="Acquire Board Game")
+app.include_router(health_router)
 
 # Global session manager
 session_manager = SessionManager()
