@@ -16,6 +16,8 @@ from fastapi import (
 )
 from pydantic import BaseModel, field_validator, ValidationError
 
+from logging_config import setup_logging
+from middleware import RequestLoggingMiddleware
 from session.manager import SessionManager
 from game.board import Tile
 from game.game import Game, GamePhase
@@ -269,7 +271,10 @@ def validate_websocket_message(
         return None, "Validation error"
 
 
+setup_logging()
+
 app = FastAPI(title="Acquire Board Game")
+app.add_middleware(RequestLoggingMiddleware)
 
 # Global session manager
 session_manager = SessionManager()
