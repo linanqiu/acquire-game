@@ -91,13 +91,17 @@ class Game:
     MAX_STOCKS_PER_TURN = 3
     MAX_PENDING_TRADES_PER_PLAYER = 5  # Limit to prevent spam
 
-    def __init__(self, seed: Optional[int] = None):
+    def __init__(
+        self, seed: Optional[int] = None, tile_order: Optional[list[str]] = None
+    ):
         """Initialize a new game in lobby state.
 
         Args:
             seed: Optional random seed for reproducible games
+            tile_order: Optional explicit tile order (list of tile strings like "1A", "2B")
         """
         self.seed = seed
+        self._tile_order = tile_order
         self.rng = random.Random(seed)
         self.board = Board()
         self.hotel = Hotel()
@@ -220,9 +224,12 @@ class Game:
         if len(self.players) < self.MIN_PLAYERS:
             raise ValueError(f"Need at least {self.MIN_PLAYERS} players to start")
 
-        # Create and shuffle tile bag (use instance RNG for reproducibility)
-        self.tile_bag = Board.all_tiles()
-        self.rng.shuffle(self.tile_bag)
+        # Create tile bag: use explicit order if provided, otherwise shuffle
+        if self._tile_order:
+            self.tile_bag = [Tile.from_string(s) for s in self._tile_order]
+        else:
+            self.tile_bag = Board.all_tiles()
+            self.rng.shuffle(self.tile_bag)
 
         # Deal starting tiles to each player
         for player in self.players:

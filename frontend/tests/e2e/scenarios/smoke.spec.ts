@@ -7,8 +7,8 @@ import {
   assertPlayerInLobby,
   assertBotInLobby,
   getPlayerCountFromUI,
+  configureRoom,
 } from './helpers/game-setup'
-import { useDeterministicBackend } from '../fixtures/deterministic-server'
 import { waitForWebSocketConnected } from './helpers/turn-actions'
 
 /**
@@ -20,8 +20,6 @@ import { waitForWebSocketConnected } from './helpers/turn-actions'
  * - Full user journey: create game, add bots, start game via UI
  */
 test.describe('Scenario Test Infrastructure Smoke Test', () => {
-  useDeterministicBackend('default.csv')
-
   test.beforeEach(() => {
     resetStepCounter()
   })
@@ -96,6 +94,7 @@ test.describe('Scenario Test Infrastructure Smoke Test', () => {
     })
 
     const gameContext = await createGameViaUI(page, 'TestHost')
+    await configureRoom(gameContext.roomCode, { seed: 2 })
     await captureStep(page, 'game-created-waiting-room', {
       category: 'smoke',
       testName: 'full-user-journey',
@@ -155,6 +154,8 @@ test.describe('Scenario Test Infrastructure Smoke Test', () => {
 
     // Wait for redirect to host page
     await page.waitForURL(/\/host\/[A-Z]{4}/)
+    const roomCode = page.url().match(/\/host\/([A-Z]{4})/)?.[1]
+    await configureRoom(roomCode!, { seed: 2 })
 
     // Wait for WebSocket to connect (condition-based, not arbitrary timeout)
     await waitForWebSocketConnected(page)

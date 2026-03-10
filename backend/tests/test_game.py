@@ -1014,3 +1014,104 @@ class TestEndTurn:
 
         assert result["next_player"] == "p2"
         assert game.get_current_player().player_id == "p2"
+
+
+class TestTileOrdering:
+    """Tests for tile ordering features (seed, tile_order)."""
+
+    def test_game_with_tile_order_uses_exact_sequence(self):
+        """Test that Game(tile_order=...) uses the exact tile sequence.
+
+        Tiles are popped from the END of tile_bag, and the dealing loop
+        gives all 6 tiles to player 0 first, then player 1, then player 2.
+        So with tile_order of 18 tiles:
+        - P0 gets the last 6 tiles (popped from end): indices 17,16,15,14,13,12
+        - P1 gets the next 6: indices 11,10,9,8,7,6
+        - P2 gets the first 6: indices 5,4,3,2,1,0
+        """
+        tile_order = [
+            "1A",
+            "2A",
+            "3A",
+            "4A",
+            "5A",
+            "6A",
+            "7A",
+            "8A",
+            "9A",
+            "1B",
+            "2B",
+            "3B",
+            "4B",
+            "5B",
+            "6B",
+            "7B",
+            "8B",
+            "9B",
+        ]
+        game = Game(tile_order=tile_order)
+        game.add_player("p0", "Alice")
+        game.add_player("p1", "Bob")
+        game.add_player("p2", "Charlie")
+        game.start_game()
+
+        # tile_bag was [1A,2A,...,9B] and pop() takes from end
+        # P0 draws 6 tiles from end: 9B,8B,7B,6B,5B,4B
+        p0 = game.get_player("p0")
+        p0_tiles = {str(t) for t in p0.hand}
+        assert p0_tiles == {"9B", "8B", "7B", "6B", "5B", "4B"}
+
+        # P1 draws next 6: 3B,2B,1B,9A,8A,7A
+        p1 = game.get_player("p1")
+        p1_tiles = {str(t) for t in p1.hand}
+        assert p1_tiles == {"3B", "2B", "1B", "9A", "8A", "7A"}
+
+        # P2 draws last 6: 6A,5A,4A,3A,2A,1A
+        p2 = game.get_player("p2")
+        p2_tiles = {str(t) for t in p2.hand}
+        assert p2_tiles == {"6A", "5A", "4A", "3A", "2A", "1A"}
+
+        # All tiles should have been dealt; bag should be empty
+        assert len(game.tile_bag) == 0
+
+    def test_game_with_seed_still_works(self):
+        """Verify Game(seed=42) produces deterministic results."""
+
+        def make_game_with_seed(seed):
+            game = Game(seed=seed)
+            game.add_player("p1", "Alice")
+            game.add_player("p2", "Bob")
+            game.add_player("p3", "Charlie")
+            game.start_game()
+            return game
+
+        game1 = make_game_with_seed(42)
+        game2 = make_game_with_seed(42)
+
+        # Same seed should produce identical tile distributions
+        for p_id in ["p1", "p2", "p3"]:
+            tiles1 = [str(t) for t in game1.get_player(p_id).hand]
+            tiles2 = [str(t) for t in game2.get_player(p_id).hand]
+            assert tiles1 == tiles2, f"Player {p_id} tiles differ between seeded games"
+
+        # Tile bags should also be identical
+        bag1 = [str(t) for t in game1.tile_bag]
+        bag2 = [str(t) for t in game2.tile_bag]
+        assert bag1 == bag2
+
+    def test_game_with_no_args_still_works(self):
+        """Verify Game() with no arguments creates a valid game."""
+        game = Game()
+        game.add_player("p1", "Alice")
+        game.add_player("p2", "Bob")
+        game.add_player("p3", "Charlie")
+        game.start_game()
+
+        assert game.phase == GamePhase.PLAYING
+
+        # Each player should have 6 tiles
+        for player in game.players:
+            assert player.hand_size == 6
+
+        # 108 total tiles - 18 dealt = 90 remaining
+        assert len(game.tile_bag) == 90

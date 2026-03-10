@@ -34,6 +34,8 @@ class GameRoom:
     started: bool = False
     max_players: int = 6
     min_players: int = 2
+    seed: Optional[int] = None
+    tile_order: Optional[list[str]] = None
 
 
 class SessionManager:

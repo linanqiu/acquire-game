@@ -189,3 +189,24 @@ export async function assertBotInLobby(page: Page): Promise<void> {
   // Look specifically for the BOT badge element (exact match)
   await expect(page.getByText('BOT', { exact: true })).toBeVisible()
 }
+
+/**
+ * Configure room settings (seed, tile order) before game starts.
+ * Calls the backend directly from Node.js (not through the browser page).
+ *
+ * @param roomCode - Room code to configure
+ * @param options - Configuration options
+ */
+export async function configureRoom(
+  roomCode: string,
+  options: { seed?: number; tileOrder?: string[] }
+): Promise<void> {
+  const res = await fetch(`http://127.0.0.1:8000/room/${roomCode}/configure`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ seed: options.seed, tile_order: options.tileOrder }),
+  })
+  if (!res.ok) {
+    throw new Error(`Failed to configure room ${roomCode}: ${await res.text()}`)
+  }
+}

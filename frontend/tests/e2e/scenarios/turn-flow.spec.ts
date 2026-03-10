@@ -5,6 +5,7 @@ import {
   addBotViaUI,
   startGameViaUI,
   assertPlayerInLobby,
+  configureRoom,
 } from './helpers/game-setup'
 import {
   waitForMyTurn,
@@ -19,7 +20,6 @@ import {
   waitForPhaseChange,
   waitForPhase,
 } from './helpers/turn-actions'
-import { useDeterministicBackend } from '../fixtures/deterministic-server'
 
 const CATEGORY = 'turn-flow'
 
@@ -38,8 +38,6 @@ const CATEGORY = 'turn-flow'
  * Scenario 1.9 requires turn timer feature (not yet implemented).
  */
 test.describe('Turn Flow Scenarios (1.x)', () => {
-  useDeterministicBackend('default.csv')
-
   test.beforeEach(() => {
     resetStepCounter()
   })
@@ -52,7 +50,8 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
       const errorTracker = setupConsoleErrorTracking(page)
 
       // Setup: Create game with bots
-      await createGameViaUI(page, 'TestPlayer')
+      const ctx = await createGameViaUI(page, 'TestPlayer')
+      await configureRoom(ctx.roomCode, { seed: 2 })
       await assertPlayerInLobby(page, 'TestPlayer')
       await addBotViaUI(page)
       await addBotViaUI(page)
@@ -188,7 +187,8 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
     const errorTracker = setupConsoleErrorTracking(page)
 
     // Setup: Create game with bots
-    await createGameViaUI(page, 'SkipBuyPlayer')
+    const ctx = await createGameViaUI(page, 'SkipBuyPlayer')
+    await configureRoom(ctx.roomCode, { seed: 2 })
     await assertPlayerInLobby(page, 'SkipBuyPlayer')
     await addBotViaUI(page)
     await addBotViaUI(page)
@@ -324,7 +324,8 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
     const errorTracker = setupConsoleErrorTracking(page)
 
     // Setup: Create game with bots
-    await createGameViaUI(page, 'FounderPlayer')
+    const ctx = await createGameViaUI(page, 'FounderPlayer')
+    await configureRoom(ctx.roomCode, { seed: 2 })
     await assertPlayerInLobby(page, 'FounderPlayer')
     await addBotViaUI(page)
     await addBotViaUI(page)
@@ -473,7 +474,8 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
     const errorTracker = setupConsoleErrorTracking(page)
 
     // Setup: Create game with bots
-    await createGameViaUI(page, 'MultiTurnPlayer')
+    const ctx = await createGameViaUI(page, 'MultiTurnPlayer')
+    await configureRoom(ctx.roomCode, { seed: 2 })
     await assertPlayerInLobby(page, 'MultiTurnPlayer')
     await addBotViaUI(page)
     await addBotViaUI(page)
@@ -734,12 +736,12 @@ test.describe('Turn Flow Scenarios (1.x)', () => {
 
     try {
       // Host creates a game
-      await createGameViaUI(hostPage, 'Host')
+      const ctx = await createGameViaUI(hostPage, 'Host')
+      await configureRoom(ctx.roomCode, { seed: 2 })
       await captureStep(hostPage, 'host-created-game', { category: CATEGORY, testName })
 
       // Get room code from URL
-      const url = hostPage.url()
-      const roomCode = url.match(/\/play\/([A-Z]{4})/)?.[1]
+      const roomCode = ctx.roomCode
       expect(roomCode).toBeTruthy()
 
       // Second player joins

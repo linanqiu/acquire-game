@@ -5,6 +5,7 @@ import {
   addBotViaUI,
   startGameViaUI,
   assertPlayerInLobby,
+  configureRoom,
 } from './helpers/game-setup'
 import {
   selectTileFromRack,
@@ -19,7 +20,6 @@ import {
   waitForPhaseChange,
   waitForPhase,
 } from './helpers/turn-actions'
-import { useDeterministicBackend } from '../fixtures/deterministic-server'
 
 const CATEGORY = 'chain-expansion'
 
@@ -169,8 +169,6 @@ test.describe('Chain Expansion Scenarios (4.x)', () => {
   // Tests using default tile sequence
   // =========================================================================
   test.describe('Default tile sequence tests', () => {
-    useDeterministicBackend('default.csv')
-
     test('4.1 & 4.3 & 4.7: Chain expansion, orphan absorption, and no founding trigger', async ({
       page,
     }) => {
@@ -180,7 +178,8 @@ test.describe('Chain Expansion Scenarios (4.x)', () => {
       const errorTracker = setupConsoleErrorTracking(page)
 
       // Setup: Create game with bots
-      await createGameViaUI(page, 'Expander')
+      const { roomCode } = await createGameViaUI(page, 'Expander')
+      await configureRoom(roomCode, { seed: 2 })
       await assertPlayerInLobby(page, 'Expander')
       await addBotViaUI(page)
       await addBotViaUI(page)
@@ -412,7 +411,8 @@ test.describe('Chain Expansion Scenarios (4.x)', () => {
       const getChainData = setupGameStateCapture(page)
 
       // Setup: Create game with bots
-      await createGameViaUI(page, 'PriceTracker')
+      const { roomCode } = await createGameViaUI(page, 'PriceTracker')
+      await configureRoom(roomCode, { seed: 2 })
       await assertPlayerInLobby(page, 'PriceTracker')
       await addBotViaUI(page)
       await addBotViaUI(page)
@@ -618,7 +618,8 @@ test.describe('Chain Expansion Scenarios (4.x)', () => {
       const errorTracker = setupConsoleErrorTracking(page)
 
       // Setup: Create game with bots
-      await createGameViaUI(page, 'SafeChecker')
+      const { roomCode } = await createGameViaUI(page, 'SafeChecker')
+      await configureRoom(roomCode, { seed: 2 })
       await assertPlayerInLobby(page, 'SafeChecker')
       await addBotViaUI(page)
       await addBotViaUI(page)

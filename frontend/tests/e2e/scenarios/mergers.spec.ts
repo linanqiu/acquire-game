@@ -541,6 +541,7 @@ test.describe('Merger Scenarios (5.x)', () => {
       let mergerCount = 0
       let safeChainObserved = false
       let consecutiveWaits = 0
+      let noPlayableTilesCount = 0
       const chainSizeLog: Record<string, number> = {}
 
       console.log('\n' + '='.repeat(60))
@@ -570,6 +571,28 @@ test.describe('Merger Scenarios (5.x)', () => {
         }
 
         if (phase.includes('PLACE')) {
+          // Check if there are actually playable tiles before trying to play.
+          // When all tiles are unplayable, the backend will transition to BUY phase,
+          // but we may see the intermediate PLACE state briefly due to WebSocket timing.
+          const hasPlayableTile = await page
+            .getByTestId('tile-rack')
+            .locator('[role="button"]')
+            .first()
+            .isVisible({ timeout: 3000 })
+            .catch(() => false)
+          if (!hasPlayableTile) {
+            noPlayableTilesCount++
+            console.log(`[5.5] No playable tiles (${noPlayableTilesCount}x), waiting for phase change`)
+            if (noPlayableTilesCount >= 3) {
+              console.log(`[5.5] All tiles unplayable for ${noPlayableTilesCount} consecutive turns, ending test`)
+              break
+            }
+            await waitForPhaseChange(page, phase, 10000)
+            lastPhase = ''
+            continue
+          }
+          noPlayableTilesCount = 0
+
           humanTurnCount++
 
           // Track chain sizes every 5 turns
@@ -995,6 +1018,7 @@ test.describe('Merger Scenarios (5.x)', () => {
       let lastPhase = ''
       let mergerCount = 0
       let consecutiveWaits = 0
+      let noPlayableTilesCount = 0
       const mergerLog: Array<{ turn: number; chains: string[] }> = []
 
       console.log('\n' + '='.repeat(60))
@@ -1035,6 +1059,26 @@ test.describe('Merger Scenarios (5.x)', () => {
         }
 
         if (phase.includes('PLACE')) {
+          // Check for playable tiles before attempting to play
+          const hasPlayableTile = await page
+            .getByTestId('tile-rack')
+            .locator('[role="button"]')
+            .first()
+            .isVisible({ timeout: 3000 })
+            .catch(() => false)
+          if (!hasPlayableTile) {
+            noPlayableTilesCount++
+            console.log(`[5.x] No playable tiles (${noPlayableTilesCount}x), waiting for phase change`)
+            if (noPlayableTilesCount >= 3) {
+              console.log(`[5.x] All tiles unplayable for ${noPlayableTilesCount} consecutive turns, ending test`)
+              break
+            }
+            await waitForPhaseChange(page, phase, 10000)
+            lastPhase = ''
+            continue
+          }
+          noPlayableTilesCount = 0
+
           humanTurnCount++
           consecutiveWaits = 0
 

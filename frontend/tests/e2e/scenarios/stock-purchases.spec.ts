@@ -23,7 +23,6 @@ import {
   safeEndTurnInBuyPhase,
 } from './helpers/turn-actions'
 // Note: Backend with ACQUIRE_GAME_SEED=2 is started by Playwright webServer config.
-// We do NOT use useDeterministicBackend here to avoid conflicts with concurrent test runs.
 
 const CATEGORY = 'stock-purchases'
 

@@ -25,7 +25,7 @@ export default defineConfig({
     {
       name: 'scenarios',
       testDir: './tests/e2e/scenarios',
-      fullyParallel: false,
+      fullyParallel: true,
       use: { ...devices['Desktop Chrome'] },
     },
   ],
