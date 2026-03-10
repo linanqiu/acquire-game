@@ -121,10 +121,13 @@
 /* Interactive states */
 .interactive {
   cursor: pointer;
+  border: 2px solid rgba(100, 200, 255, 0.6);
+  box-shadow: 0 0 6px rgba(100, 200, 255, 0.3);
 }
 
 .interactive:hover:not(.disabled) {
-  filter: brightness(1.1);
+  filter: brightness(1.2);
+  box-shadow: 0 0 10px rgba(100, 200, 255, 0.5);
 }
 
 .interactive:focus-visible {
