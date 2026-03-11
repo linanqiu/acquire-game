@@ -1,5 +1,6 @@
 """FastAPI application for Acquire board game."""
 
+import asyncio
 import json
 import os
 import re
@@ -15,12 +16,20 @@ from fastapi import (
     Form,
 )
 from pydantic import BaseModel, field_validator, ValidationError
+from starlette.middleware.cors import CORSMiddleware
 
+from config import get_settings
+from health import router as health_router
+from logging_config import setup_logging
+from middleware import RequestLoggingMiddleware
 from session.manager import SessionManager
 from game.board import Tile
 from game.game import Game, GamePhase
 from game.action import TradeOffer
 from game.rules import Rules
+
+# Initialize logging before anything else
+setup_logging()
 
 
 # =============================================================================
@@ -269,7 +278,24 @@ def validate_websocket_message(
         return None, "Validation error"
 
 
-app = FastAPI(title="Acquire Board Game")
+settings = get_settings()
+
+app = FastAPI(title="Acquire Board Game", debug=not settings.is_production)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Request logging middleware
+app.add_middleware(RequestLoggingMiddleware)
+
+# Health check endpoints
+app.include_router(health_router)
 
 # Global session manager
 session_manager = SessionManager()
@@ -515,6 +541,17 @@ async def http_game_action(room_code: str, player_id: str, data: dict):
     return response
 
 
+# WebSocket keepalive ping task
+async def ping_task(ws: WebSocket) -> None:
+    """Send periodic pings to keep WebSocket alive through Railway's idle timeout."""
+    try:
+        while True:
+            await asyncio.sleep(settings.ws_ping_interval)
+            await ws.send_json({"type": "ping"})
+    except Exception:
+        pass
+
+
 # WebSocket endpoints
 @app.websocket("/ws/host/{room_code}")
 async def host_websocket(websocket: WebSocket, room_code: str):
@@ -530,9 +567,15 @@ async def host_websocket(websocket: WebSocket, room_code: str):
     # Send current state
     await send_host_state(room_code)
 
+    ping = asyncio.create_task(ping_task(websocket))
     try:
         while True:
             data = await websocket.receive_json()
+
+            # Handle pong responses to keepalive pings
+            if data.get("type") == "pong":
+                continue
+
             action = data.get("action")
 
             if action == "add_bot":
@@ -554,6 +597,8 @@ async def host_websocket(websocket: WebSocket, room_code: str):
 
     except WebSocketDisconnect:
         pass
+    finally:
+        ping.cancel()
 
 
 @app.websocket("/ws/player/{room_code}/{player_id}")
@@ -574,6 +619,7 @@ async def player_websocket(websocket: WebSocket, room_code: str, player_id: str)
     # Send current state to player
     await send_player_state(room_code, player_id)
 
+    ping = asyncio.create_task(ping_task(websocket))
     try:
         while True:
             try:
@@ -585,6 +631,10 @@ async def player_websocket(websocket: WebSocket, room_code: str, player_id: str)
                     player_id,
                     {"type": "error", "message": f"Invalid JSON: {e}"},
                 )
+                continue
+
+            # Handle pong responses to keepalive pings
+            if data.get("type") == "pong":
                 continue
 
             try:
@@ -604,6 +654,7 @@ async def player_websocket(websocket: WebSocket, room_code: str, player_id: str)
         # Unexpected error - log it
         print(f"WebSocket error for {room_code}/{player_id}: {e}")
     finally:
+        ping.cancel()
         # Always cleanup, regardless of how we exit the loop
         session_manager.disconnect(room_code, player_id, websocket)
 
