@@ -97,6 +97,11 @@ export function useHostWebSocket({
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data) as WebSocketMessage
+          // Respond to server keepalive pings with pong
+          if (message.type === 'ping') {
+            ws.send(JSON.stringify({ type: 'pong' }))
+            return
+          }
           handleMessage(message)
         } catch (error) {
           console.error('Failed to parse WebSocket message:', error)
