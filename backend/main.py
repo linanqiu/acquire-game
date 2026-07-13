@@ -288,6 +288,41 @@ def validate_websocket_message(
         return None, "Validation error"
 
 
+# =============================================================================
+# Player Name Sanitization (SH-004)
+# =============================================================================
+
+PLAYER_NAME_MIN_LENGTH = 2
+PLAYER_NAME_MAX_LENGTH = 20
+# Whitelist: ASCII letters, digits, space and basic punctuation. Rejecting
+# (rather than escaping) HTML special characters and non-ASCII prevents XSS
+# and Unicode homograph impersonation.
+_PLAYER_NAME_PATTERN = re.compile(r"^[A-Za-z0-9 ._-]+$")
+
+
+def sanitize_player_name(name: str) -> str:
+    """Validate and normalize a player name (SH-004).
+
+    Trims leading/trailing whitespace, collapses internal whitespace runs to
+    single spaces, enforces 2-20 characters, and allows only letters, numbers,
+    spaces, hyphens, underscores, and periods.
+
+    Raises ValueError with a user-facing message when the name is invalid.
+    """
+    name = " ".join(name.split())
+
+    if len(name) < PLAYER_NAME_MIN_LENGTH:
+        raise ValueError("Name must be at least 2 characters")
+    if len(name) > PLAYER_NAME_MAX_LENGTH:
+        raise ValueError("Name must be at most 20 characters")
+    if not _PLAYER_NAME_PATTERN.match(name):
+        raise ValueError(
+            "Name contains invalid characters. Use letters, numbers, "
+            "spaces, hyphens, underscores, or periods."
+        )
+    return name
+
+
 settings = get_settings()
 
 app = FastAPI(title="Acquire Board Game", debug=not settings.is_production)
@@ -432,6 +467,11 @@ async def create_room(
     _rate_limit: None = Depends(create_rate_limiter),
 ):
     """Create a new game room and add the creator as first player."""
+    try:
+        player_name = sanitize_player_name(player_name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     room_code = session_manager.create_room()
 
     # Add creator as first player
@@ -474,6 +514,11 @@ async def join_room(
     _rate_limit: None = Depends(join_rate_limiter),
 ):
     """Join an existing room."""
+    try:
+        player_name = sanitize_player_name(player_name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     room = session_manager.get_room(room_code.upper())
     if room is None:
         raise HTTPException(status_code=404, detail="Room not found")

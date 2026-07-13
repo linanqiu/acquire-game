@@ -25,12 +25,22 @@ export function LobbyPage() {
   // Spectator mode state
   const [spectatorLoading, setSpectatorLoading] = useState(false)
 
+  // Mirrors backend sanitization rules (SH-004); backend remains authoritative
+  const NAME_PATTERN = /^[A-Za-z0-9 ._-]+$/
+
   const validateName = (name: string): string | null => {
-    if (!name.trim()) {
+    const trimmed = name.trim()
+    if (!trimmed) {
       return 'Name is required'
     }
-    if (name.length > 20) {
+    if (trimmed.length < 2) {
+      return 'Name must be at least 2 characters'
+    }
+    if (trimmed.length > 20) {
       return 'Name must be 20 characters or less'
+    }
+    if (!NAME_PATTERN.test(trimmed)) {
+      return 'Name can only use letters, numbers, spaces, hyphens, underscores, and periods'
     }
     return null
   }
