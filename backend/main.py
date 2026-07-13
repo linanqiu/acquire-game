@@ -5,7 +5,9 @@ import json
 import logging
 import os
 import re
+import time
 import uuid
+from collections import defaultdict
 from typing import Optional, Union, Literal
 
 from fastapi import (
@@ -14,6 +16,7 @@ from fastapi import (
     FastAPI,
     Header,
     Query,
+    Request,
     WebSocket,
     WebSocketDisconnect,
     HTTPException,
@@ -308,6 +311,78 @@ session_manager = SessionManager()
 
 
 # =============================================================================
+# Rate Limiting (SH-002)
+# =============================================================================
+
+
+class RequestRateLimiter:
+    """Sliding-window rate limiter usable as a FastAPI dependency.
+
+    scope="ip"   -> one bucket per client IP (for /create, /join)
+    scope="room" -> one bucket per {room_code} path parameter (for /start, /add-bot)
+
+    State persists for the lifetime of the process (single-instance deployment).
+    Raises 429 with a Retry-After header when the limit is exceeded.
+    """
+
+    def __init__(self, max_requests: int, window_seconds: float, scope: str = "ip"):
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self.scope = scope
+        self._requests: dict[str, list[float]] = defaultdict(list)
+
+    def _key(self, request: Request) -> str:
+        if self.scope == "room":
+            return f"room:{request.path_params.get('room_code', 'unknown')}"
+        client_ip = request.client.host if request.client else "unknown"
+        return f"ip:{client_ip}"
+
+    def reset(self) -> None:
+        """Clear all rate limit state (used by tests)."""
+        self._requests.clear()
+
+    async def __call__(self, request: Request) -> None:
+        if not settings.rate_limit_enabled:
+            return
+
+        now = time.monotonic()
+        key = self._key(request)
+        bucket = [t for t in self._requests[key] if now - t < self.window_seconds]
+
+        if len(bucket) >= self.max_requests:
+            self._requests[key] = bucket
+            retry_after = max(1, int(self.window_seconds - (now - bucket[0])) + 1)
+            logger.warning(
+                "Rate limit exceeded for %s on %s", key, request.url.path
+            )
+            raise HTTPException(
+                status_code=429,
+                detail="Too many requests",
+                headers={"Retry-After": str(retry_after)},
+            )
+
+        bucket.append(now)
+        self._requests[key] = bucket
+
+
+# Per-endpoint limiter instances (state persists across requests)
+create_rate_limiter = RequestRateLimiter(max_requests=5, window_seconds=60)
+join_rate_limiter = RequestRateLimiter(max_requests=10, window_seconds=60)
+start_rate_limiter = RequestRateLimiter(max_requests=3, window_seconds=60, scope="room")
+add_bot_rate_limiter = RequestRateLimiter(
+    max_requests=10, window_seconds=60, scope="room"
+)
+
+# Registry so tests can reset all limiter state between tests
+ALL_RATE_LIMITERS = [
+    create_rate_limiter,
+    join_rate_limiter,
+    start_rate_limiter,
+    add_bot_rate_limiter,
+]
+
+
+# =============================================================================
 # Authentication (SH-001)
 # =============================================================================
 
@@ -349,7 +424,10 @@ async def require_room_token(
 
 # HTTP Routes
 @app.post("/create")
-async def create_room(player_name: str = Form(...)):
+async def create_room(
+    player_name: str = Form(...),
+    _rate_limit: None = Depends(create_rate_limiter),
+):
     """Create a new game room and add the creator as first player."""
     room_code = session_manager.create_room()
 
@@ -370,7 +448,7 @@ async def create_room(player_name: str = Form(...)):
 
 
 @app.post("/create-spectator")
-async def create_spectator_room():
+async def create_spectator_room(_rate_limit: None = Depends(create_rate_limiter)):
     """Create a new game room for spectator mode (bots only).
 
     The caller does not join as a player - they can watch via the host WebSocket.
@@ -387,7 +465,11 @@ async def create_spectator_room():
 
 
 @app.post("/join")
-async def join_room(room_code: str = Form(...), player_name: str = Form(...)):
+async def join_room(
+    room_code: str = Form(...),
+    player_name: str = Form(...),
+    _rate_limit: None = Depends(join_rate_limiter),
+):
     """Join an existing room."""
     room = session_manager.get_room(room_code.upper())
     if room is None:
@@ -420,7 +502,11 @@ async def join_room(room_code: str = Form(...), player_name: str = Form(...)):
 
 
 @app.post("/room/{room_code}/add-bot")
-async def add_bot(room_code: str, _token: str = Depends(require_room_token)):
+async def add_bot(
+    room_code: str,
+    _token: str = Depends(require_room_token),
+    _rate_limit: None = Depends(add_bot_rate_limiter),
+):
     """Add a bot to the room. Requires a valid session token (SH-001)."""
     room = session_manager.get_room(room_code)
     if room is None:
@@ -442,7 +528,11 @@ async def add_bot(room_code: str, _token: str = Depends(require_room_token)):
 
 
 @app.post("/room/{room_code}/start")
-async def start_game(room_code: str, _token: str = Depends(require_room_token)):
+async def start_game(
+    room_code: str,
+    _token: str = Depends(require_room_token),
+    _rate_limit: None = Depends(start_rate_limiter),
+):
     """Start the game. Requires a valid session token (SH-001)."""
     room = session_manager.get_room(room_code)
     if room is None:

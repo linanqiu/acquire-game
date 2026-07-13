@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     game_timeout_minutes: int = 60
     ws_ping_interval: int = 30
     ws_ping_timeout: int = 10
+    # Rate limiting (SH-002). Disable only for load testing.
+    rate_limit_enabled: bool = True
 
     @property
     def cors_origins(self) -> list[str]:
