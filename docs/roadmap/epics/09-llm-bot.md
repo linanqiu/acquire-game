@@ -59,12 +59,15 @@ short table-talk line per move. If chat volume ever bloats the prompt, an auxili
 summarizer call compresses chat older than a few turns into a rolling summary (follow-up
 story; casual chat volume rarely needs it).
 
-Bots also reply to chat **off-turn**: a deterministic trigger (name mentioned, direct
-question, proposal addressed to the bot) wakes it, and a fire-and-forget background call
-produces `{reply: string | null}` — silence allowed, game state untouched (no lock, no
-stall risk). The reply prompt includes the bot's private strategist scratchpad with the
-rule that the plan is private — reveal, deflect, or misdirect deliberately. Code enforces
-a per-bot reply cooldown and that bots never reply to other bots (no banter loops).
+Bots also reply to chat **off-turn**, via two-stage routing: code guards first (per-bot
+cooldown; bots never reply to other bots — no banter loops), then a **very cheap LLM
+router** (default `claude-haiku-4-5`, configurable) classifies each message on a tiny
+context window — should this bot reply? It catches implicit addressing and provocation
+that keyword rules miss, at sub-second latency and negligible cost. Only routed messages
+reach the full model: a fire-and-forget background call producing `{reply: string | null}`
+— silence still allowed, game state untouched (no lock, no stall risk). The reply prompt
+includes the bot's private strategist scratchpad with the rule that the plan is private —
+reveal, deflect, or misdirect deliberately.
 
 ## Design Principles
 
