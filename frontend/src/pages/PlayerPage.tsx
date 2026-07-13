@@ -213,9 +213,13 @@ export function PlayerPage() {
   const handleAddBot = useCallback(async () => {
     setActionLoading(true)
     try {
+      const sessionToken = sessionStorage.getItem('session_token')
       const res = await fetch(`/api/room/${room}/add-bot`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        },
       })
       if (!res.ok) {
         throw new Error('Failed to add bot')

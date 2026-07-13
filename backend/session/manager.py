@@ -12,6 +12,11 @@ if TYPE_CHECKING:
     from game.game import Game
 
 
+def _generate_token() -> str:
+    """Generate a cryptographically random session token."""
+    return uuid.uuid4().hex
+
+
 @dataclass
 class PlayerConnection:
     """Tracks a connected player."""
@@ -21,6 +26,7 @@ class PlayerConnection:
     websockets: list[WebSocket] = field(default_factory=list)
     is_bot: bool = False
     is_host: bool = False
+    session_token: str = field(default_factory=_generate_token)
 
 
 @dataclass
@@ -36,6 +42,17 @@ class GameRoom:
     min_players: int = 2
     seed: Optional[int] = None
     tile_order: Optional[list[str]] = None
+    # Token for the host/spectator display (rooms created via /create-spectator
+    # have no player, so the host authenticates with this token instead)
+    host_token: str = field(default_factory=_generate_token)
+
+    def is_valid_token(self, token: Optional[str]) -> bool:
+        """Check whether a token belongs to this room (host or any player)."""
+        if not token:
+            return False
+        if token == self.host_token:
+            return True
+        return any(p.session_token == token for p in self.players.values())
 
 
 class SessionManager:

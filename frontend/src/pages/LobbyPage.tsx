@@ -156,6 +156,9 @@ export function LobbyPage() {
       sessionStorage.removeItem('session_token')
       sessionStorage.removeItem('player_name')
 
+      // Store host token for host WebSocket auth and host REST actions
+      sessionStorage.setItem('host_token', data.host_token)
+
       toast('Spectator room created!', 'success')
       navigate(`/host/${data.room_code}`)
     } catch (err) {

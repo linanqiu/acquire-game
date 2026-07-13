@@ -7,15 +7,22 @@ import { useEffect, useRef, useCallback } from 'react'
 import { useGameStore } from '../store'
 import type { WebSocketMessage } from '../types/api'
 
+// Get the token used to authenticate host connections/actions.
+// Spectator rooms store a host_token; player-hosts have a session_token.
+export function getHostToken(): string {
+  return sessionStorage.getItem('host_token') ?? sessionStorage.getItem('session_token') ?? ''
+}
+
 // Helper to build WebSocket URL for host mode
 function getHostWebSocketUrl(roomCode: string): string {
+  const token = encodeURIComponent(getHostToken())
   // If explicit WS URL is configured, use it
   if (import.meta.env.VITE_WS_URL) {
-    return `${import.meta.env.VITE_WS_URL}/ws/host/${roomCode}`
+    return `${import.meta.env.VITE_WS_URL}/ws/host/${roomCode}?token=${token}`
   }
   // Otherwise, use relative URL (goes through Vite proxy in dev)
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${protocol}//${window.location.host}/ws/host/${roomCode}`
+  return `${protocol}//${window.location.host}/ws/host/${roomCode}?token=${token}`
 }
 
 interface UseHostWebSocketOptions {

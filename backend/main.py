@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import logging
 import os
 import re
 import uuid
@@ -9,7 +10,10 @@ from typing import Optional, Union, Literal
 
 from fastapi import (
     Body,
+    Depends,
     FastAPI,
+    Header,
+    Query,
     WebSocket,
     WebSocketDisconnect,
     HTTPException,
@@ -30,6 +34,8 @@ from game.rules import Rules
 
 # Initialize logging before anything else
 setup_logging()
+
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -301,6 +307,46 @@ app.include_router(health_router)
 session_manager = SessionManager()
 
 
+# =============================================================================
+# Authentication (SH-001)
+# =============================================================================
+
+
+def _extract_bearer_token(authorization: Optional[str]) -> Optional[str]:
+    """Extract token from an Authorization header value.
+
+    Accepts both "Bearer <token>" and a raw token for convenience.
+    """
+    if not authorization:
+        return None
+    if authorization.lower().startswith("bearer "):
+        return authorization[7:].strip() or None
+    return authorization.strip() or None
+
+
+async def require_room_token(
+    room_code: str, authorization: Optional[str] = Header(None)
+) -> str:
+    """FastAPI dependency: require a valid session token for a room.
+
+    The token must match the room's host token or any player's session token.
+    Raises 401 when missing/invalid. Raises 404 when the room does not exist
+    (preserves existing endpoint semantics for unknown rooms).
+    """
+    room = session_manager.get_room(room_code)
+    if room is None:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    token = _extract_bearer_token(authorization)
+    if token is None:
+        logger.warning("Auth failure: missing session token for room %s", room_code)
+        raise HTTPException(status_code=401, detail="Missing session token")
+    if not room.is_valid_token(token):
+        logger.warning("Auth failure: invalid session token for room %s", room_code)
+        raise HTTPException(status_code=401, detail="Invalid session token")
+    return token
+
+
 # HTTP Routes
 @app.post("/create")
 async def create_room(player_name: str = Form(...)):
@@ -314,10 +360,12 @@ async def create_room(player_name: str = Form(...)):
     if not success:
         raise HTTPException(status_code=500, detail="Failed to create room")
 
+    room = session_manager.get_room(room_code)
     return {
         "room_code": room_code,
         "player_id": player_id,
         "is_host": True,
+        "session_token": room.players[player_id].session_token,
     }
 
 
@@ -330,9 +378,11 @@ async def create_spectator_room():
     """
     room_code = session_manager.create_room()
 
+    room = session_manager.get_room(room_code)
     return {
         "room_code": room_code,
         "is_spectator": True,
+        "host_token": room.host_token,
     }
 
 
@@ -361,15 +411,17 @@ async def join_room(room_code: str = Form(...), player_name: str = Form(...)):
             raise HTTPException(status_code=400, detail="Player name already taken")
         raise HTTPException(status_code=400, detail="Failed to join room")
 
+    room = session_manager.get_room(room_code.upper())
     return {
         "room_code": room_code.upper(),
         "player_id": player_id,
+        "session_token": room.players[player_id].session_token,
     }
 
 
 @app.post("/room/{room_code}/add-bot")
-async def add_bot(room_code: str):
-    """Add a bot to the room."""
+async def add_bot(room_code: str, _token: str = Depends(require_room_token)):
+    """Add a bot to the room. Requires a valid session token (SH-001)."""
     room = session_manager.get_room(room_code)
     if room is None:
         raise HTTPException(status_code=404, detail="Room not found")
@@ -390,8 +442,8 @@ async def add_bot(room_code: str):
 
 
 @app.post("/room/{room_code}/start")
-async def start_game(room_code: str):
-    """Start the game."""
+async def start_game(room_code: str, _token: str = Depends(require_room_token)):
+    """Start the game. Requires a valid session token (SH-001)."""
     room = session_manager.get_room(room_code)
     if room is None:
         raise HTTPException(status_code=404, detail="Room not found")
@@ -554,11 +606,19 @@ async def ping_task(ws: WebSocket) -> None:
 
 # WebSocket endpoints
 @app.websocket("/ws/host/{room_code}")
-async def host_websocket(websocket: WebSocket, room_code: str):
-    """WebSocket for host display."""
+async def host_websocket(
+    websocket: WebSocket, room_code: str, token: Optional[str] = Query(None)
+):
+    """WebSocket for host display. Requires a valid session token (SH-001)."""
     room = session_manager.get_room(room_code)
     if room is None:
         await websocket.close(code=4004, reason="Room not found")
+        return
+
+    # Host must present either the room's host token or a player session token
+    if not room.is_valid_token(token):
+        logger.warning("Auth failure: host WebSocket for room %s", room_code)
+        await websocket.close(code=4001, reason="Invalid session token")
         return
 
     await websocket.accept()
@@ -602,8 +662,13 @@ async def host_websocket(websocket: WebSocket, room_code: str):
 
 
 @app.websocket("/ws/player/{room_code}/{player_id}")
-async def player_websocket(websocket: WebSocket, room_code: str, player_id: str):
-    """WebSocket for player device."""
+async def player_websocket(
+    websocket: WebSocket,
+    room_code: str,
+    player_id: str,
+    token: Optional[str] = Query(None),
+):
+    """WebSocket for player device. Requires a valid session token (SH-001)."""
     room = session_manager.get_room(room_code)
     if room is None:
         await websocket.close(code=4004, reason="Room not found")
@@ -611,6 +676,16 @@ async def player_websocket(websocket: WebSocket, room_code: str, player_id: str)
 
     if player_id not in room.players:
         await websocket.close(code=4004, reason="Player not found")
+        return
+
+    # Strict session token validation: token must match this player's token
+    if token is None or room.players[player_id].session_token != token:
+        logger.warning(
+            "Auth failure: player WebSocket for room %s player %s",
+            room_code,
+            player_id,
+        )
+        await websocket.close(code=4001, reason="Invalid session token")
         return
 
     await websocket.accept()
