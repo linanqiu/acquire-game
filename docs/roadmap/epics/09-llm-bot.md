@@ -59,6 +59,13 @@ short table-talk line per move. If chat volume ever bloats the prompt, an auxili
 summarizer call compresses chat older than a few turns into a rolling summary (follow-up
 story; casual chat volume rarely needs it).
 
+Bots also reply to chat **off-turn**: a deterministic trigger (name mentioned, direct
+question, proposal addressed to the bot) wakes it, and a fire-and-forget background call
+produces `{reply: string | null}` — silence allowed, game state untouched (no lock, no
+stall risk). The reply prompt includes the bot's private strategist scratchpad with the
+rule that the plan is private — reveal, deflect, or misdirect deliberately. Code enforces
+a per-bot reply cooldown and that bots never reply to other bots (no banter loops).
+
 ## Design Principles
 
 - **Never stall a game**: any provider error, timeout, or malformed response falls back to the
