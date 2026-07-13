@@ -33,9 +33,7 @@ class TestCreateRateLimit:
         retry_after = int(response.headers["retry-after"])
         assert 1 <= retry_after <= 61
 
-    def test_create_spectator_shares_create_budget(
-        self, client, clean_session_manager
-    ):
+    def test_create_spectator_shares_create_budget(self, client, clean_session_manager):
         """Spectator room creation counts against the same room-creation limit."""
         for i in range(3):
             assert (
@@ -82,7 +80,9 @@ class TestStartRateLimit:
         headers = {"Authorization": f"Bearer {token}"}
 
         # 3 requests allowed (first starts the game, later ones 400)
-        assert client.post(f"/room/{room_code}/start", headers=headers).status_code == 200
+        assert (
+            client.post(f"/room/{room_code}/start", headers=headers).status_code == 200
+        )
         for _ in range(2):
             assert (
                 client.post(f"/room/{room_code}/start", headers=headers).status_code
@@ -103,14 +103,18 @@ class TestStartRateLimit:
                 client.post(f"/room/{room_a}/start", headers=headers_a).status_code
                 == 400
             )
-        assert client.post(f"/room/{room_a}/start", headers=headers_a).status_code == 429
+        assert (
+            client.post(f"/room/{room_a}/start", headers=headers_a).status_code == 429
+        )
 
         # Room B is unaffected
         room_b, token_b = _create_room(client, name="Zoe")
         headers_b = {"Authorization": f"Bearer {token_b}"}
         for name in ["Bob", "Charlie"]:
             client.post("/join", data={"room_code": room_b, "player_name": name})
-        assert client.post(f"/room/{room_b}/start", headers=headers_b).status_code == 200
+        assert (
+            client.post(f"/room/{room_b}/start", headers=headers_b).status_code == 200
+        )
 
     def test_unauthenticated_requests_do_not_consume_room_budget(
         self, client, clean_session_manager

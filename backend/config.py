@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     ws_ping_timeout: int = 10
     # Rate limiting (SH-002). Disable only for load testing.
     rate_limit_enabled: bool = True
+    # Room cleanup (SH-005): rooms inactive this long are deleted by a
+    # background task that runs every room_cleanup_interval_seconds.
+    room_timeout_minutes: int = 30
+    room_cleanup_interval_seconds: int = 60
 
     @property
     def cors_origins(self) -> list[str]:

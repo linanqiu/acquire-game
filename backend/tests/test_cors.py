@@ -56,8 +56,7 @@ class TestCorsHeaders:
         )
         assert response.status_code == 200
         assert (
-            response.headers["access-control-allow-origin"]
-            == "http://localhost:5173"
+            response.headers["access-control-allow-origin"] == "http://localhost:5173"
         )
         assert response.headers["access-control-allow-credentials"] == "true"
         allowed_methods = response.headers["access-control-allow-methods"]
@@ -83,8 +82,7 @@ class TestCorsHeaders:
         )
         assert response.status_code == 200
         assert (
-            response.headers["access-control-allow-origin"]
-            == "http://localhost:5173"
+            response.headers["access-control-allow-origin"] == "http://localhost:5173"
         )
 
     def test_dev_origins_match_config_constant(self):

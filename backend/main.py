@@ -8,6 +8,7 @@ import re
 import time
 import uuid
 from collections import defaultdict
+from contextlib import asynccontextmanager, suppress
 from typing import Optional, Union, Literal
 from urllib.parse import urlparse
 
@@ -323,9 +324,77 @@ def sanitize_player_name(name: str) -> str:
     return name
 
 
+# =============================================================================
+# Room Cleanup / Memory Management (SH-005)
+# =============================================================================
+
+
+async def cleanup_stale_rooms_once() -> list[str]:
+    """Remove rooms inactive for longer than settings.room_timeout_minutes.
+
+    Closes any remaining WebSocket connections with code 4002 and deletes the
+    room. Returns the list of removed room codes.
+    """
+    removed: list[str] = []
+    timeout_minutes = settings.room_timeout_minutes
+
+    for code, room in list(session_manager._rooms.items()):
+        if not room.is_stale(timeout_minutes):
+            continue
+
+        # Close any remaining connections
+        for player in room.players.values():
+            for ws in list(player.websockets):
+                try:
+                    await ws.close(code=4002, reason="Room expired due to inactivity")
+                except Exception:
+                    pass
+        if room.host_websocket is not None:
+            try:
+                await room.host_websocket.close(
+                    code=4002, reason="Room expired due to inactivity"
+                )
+            except Exception:
+                pass
+
+        session_manager.delete_room(code)
+        removed.append(code)
+        logger.info(
+            "Cleaned up stale room %s (inactive for %s+ minutes)",
+            code,
+            timeout_minutes,
+        )
+
+    return removed
+
+
+async def _room_cleanup_loop() -> None:
+    """Background task: periodically remove stale rooms."""
+    while True:
+        await asyncio.sleep(settings.room_cleanup_interval_seconds)
+        try:
+            await cleanup_stale_rooms_once()
+        except Exception:
+            logger.exception("Room cleanup pass failed")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Start/stop the stale-room cleanup background task with the app."""
+    cleanup_task = asyncio.create_task(_room_cleanup_loop())
+    yield
+    cleanup_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await cleanup_task
+
+
 settings = get_settings()
 
-app = FastAPI(title="Acquire Board Game", debug=not settings.is_production)
+app = FastAPI(
+    title="Acquire Board Game",
+    debug=not settings.is_production,
+    lifespan=lifespan,
+)
 
 # CORS middleware (SH-003): explicit origins from settings, restricted
 # methods/headers. In production, ALLOWED_ORIGINS must be configured or all
@@ -390,9 +459,7 @@ class RequestRateLimiter:
         if len(bucket) >= self.max_requests:
             self._requests[key] = bucket
             retry_after = max(1, int(self.window_seconds - (now - bucket[0])) + 1)
-            logger.warning(
-                "Rate limit exceeded for %s on %s", key, request.url.path
-            )
+            logger.warning("Rate limit exceeded for %s on %s", key, request.url.path)
             raise HTTPException(
                 status_code=429,
                 detail="Too many requests",
@@ -628,6 +695,7 @@ async def configure_room(
     if tile_order is not None:
         room.tile_order = tile_order
 
+    room.touch()
     return {"status": "configured"}
 
 
@@ -797,6 +865,9 @@ async def host_websocket(
         while True:
             data = await websocket.receive_json()
 
+            # Any inbound message (including pong) counts as room activity
+            room.touch()
+
             # Handle pong responses to keepalive pings
             if data.get("type") == "pong":
                 continue
@@ -878,6 +949,9 @@ async def player_websocket(
                 )
                 continue
 
+            # Any inbound message (including pong) counts as room activity
+            room.touch()
+
             # Handle pong responses to keepalive pings
             if data.get("type") == "pong":
                 continue
@@ -915,6 +989,9 @@ async def handle_player_action(room_code: str, player_id: str, data: dict) -> No
     room = session_manager.get_room(room_code)
     if room is None or not room.started:
         return
+
+    # Game actions reset the room inactivity timer (SH-005)
+    room.touch()
 
     # Validate the incoming message
     validated_msg, error = validate_websocket_message(data)

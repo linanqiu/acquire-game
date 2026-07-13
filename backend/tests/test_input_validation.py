@@ -104,9 +104,7 @@ class TestJoinEndpointValidation:
     """Name sanitization applied to /join."""
 
     def _create_room(self, client):
-        return client.post("/create", data={"player_name": "Alice"}).json()[
-            "room_code"
-        ]
+        return client.post("/create", data={"player_name": "Alice"}).json()["room_code"]
 
     def test_valid_name_succeeds(self, client, clean_session_manager):
         room_code = self._create_room(client)
