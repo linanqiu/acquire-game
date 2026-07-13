@@ -78,6 +78,14 @@ reveal, deflect, or misdirect deliberately.
 - **Separable**: the LLM bot lives in its own module behind the existing bot decision interface;
   the game engine gains only an event log (which also serves replay/debugging — see
   [BL-004](../stories/08-backlog/BL-004.md), a natural prerequisite).
+- **Routing is config, not a gateway**: every LLM touchpoint (move, critic, chat router, chat
+  reply, summarizer) resolves through one role×tier routing table in settings. Two adapters
+  suffice: native Anthropic (keeps the deep features — strict tools, prompt caching, effort
+  control — that generic wrappers flatten) and a universal OpenAI-compat adapter
+  (`base_url`+`key`+`model`) that serves GLM today and OpenRouter/Together/local Ollama
+  tomorrow with zero new code. No litellm, no proxy sidecar: this app's needs are narrow and
+  deep, cross-vendor LLM fallback is useless here (the fallback is the heuristic bot), and a
+  single-container free-tier deploy shouldn't grow infra components.
 - **Deterministic math stays in code**: the LLM is for judgment, not arithmetic. Anything
   computable is computed and handed to it.
 
@@ -90,7 +98,7 @@ provider/cost research) and will land as `docs/roadmap/stories/09-llm-bot/` file
 |------|------|
 | Event log | Engine emits public events per mutation (aligns with BL-004) |
 | Calculator pack | Pure module deriving exact figures from public state |
-| Provider adapter | One interface, three backends (Anthropic x2, GLM), env-var config |
+| Provider layer | Two adapters — native Anthropic (strict tools, caching, effort) + universal OpenAI-compat (GLM now; OpenRouter/local later, config-only) — behind a role×tier routing table; no litellm/gateway service | 
 | LLM bot brain | Prompt builder + structured move output + fallback to simple bot |
 | Orchestration | Strategist scratchpad; criticality gate; planner→critic→decide on critical moves |
 | Table talk | Room chat feature; chat as public events in the bot prompt timeline; optional bot banter; summarizer when long |
