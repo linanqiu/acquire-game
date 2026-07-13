@@ -19,11 +19,9 @@ The core idea: don't train a policy — prompt a strong general model with:
 
 The model returns a structured move — but not from a single naked prompt. Decisions run through an
 **agentic orchestration** layer (see below): a persistent per-bot strategy scratchpad, and for
-high-stakes decisions a planner → adversarial-critic → decide chain. The model is **swappable**
-via configuration between:
-
-**open-weight models for cheapness** (owner decision 2026-07-13; all via OpenAI-compatible
-endpoints — worst case ≈ $1.5/game with the full critic chain):
+high-stakes decisions a planner → adversarial-critic → decide chain. Models are **swappable via
+configuration** and are **open-weight only, for cheapness** (owner decision 2026-07-13; all via
+OpenAI-compatible endpoints — worst case ≈ $1.5/game with the full critic chain):
 
 - **DeepSeek V4 Flash** — `smart` tier, plus the chat router and summarizer (price floor)
 - **Kimi K2.6** (Moonshot), **GLM-5.2** (z.ai), **MiniMax M3** — `expert`/`genius` candidates;
