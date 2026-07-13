@@ -17,11 +17,11 @@
 | [Backend Hardening](epics/00-backend-hardening.md) | 13/13 ✅ | Complete |
 | [Frontend Foundation](epics/01-frontend-foundation.md) | 11/11 ✅ | Complete |
 | [Game UI](epics/02-game-ui.md) | 16/16 ✅ | Complete |
-| [Real-time Integration](epics/03-realtime-integration.md) | 5/6 | RT-004 (optional enhancement) |
+| [Real-time Integration](epics/03-realtime-integration.md) | 6/6 ✅ | Complete |
 | [AI Training](epics/04-ai-training.md) | 0/9 | AI-001, AI-003 |
-| [Deployment](epics/05-deployment.md) | 5/5 ✅ | Complete |
-| [Security Hardening](epics/06-security-hardening.md) | 0/5 | SH-002, SH-003, SH-004, SH-005 (after E2E: SH-001) |
-| [Scenario Tests](epics/07-scenario-tests.md) | 9/10 | ST-010 |
+| [Deployment](epics/05-deployment.md) | 5/5 ✅ | Complete (single-container Docker + Render) |
+| [Security Hardening](epics/06-security-hardening.md) | 5/5 ✅ | Complete |
+| [Scenario Tests](epics/07-scenario-tests.md) | 10/10 ✅ | Complete |
 | [Backlog](epics/08-backlog.md) | 4/6 | BL-004, BL-005 |
 
 ## Story Status Key
@@ -76,14 +76,14 @@ RT-001, RT-002, RT-003, RT-005 (WebSocket core) ✓
     ↓
 ST-001 (Scenario Test Infrastructure) ✓
     ↓
-ST-002 to ST-008 (Core Scenario Tests - parallel) ← NEXT
+ST-002 to ST-008 (Core Scenario Tests - parallel) ✓
     ↓
-ST-009 (Edge Cases) → ST-010 (Coverage Report)
+ST-009 (Edge Cases) ✓ → ST-010 (Coverage Report) ✓
     ↓
-SH-001 ──────────────────────  Track 4: SECURITY (after E2E)
-SH-002, SH-003, SH-004, SH-005 ← can start anytime
+SH-001 ✓ ─────────────────────  Track 4: SECURITY ✓ COMPLETE
+SH-002, SH-003, SH-004, SH-005 ✓
     ↓
-Production Deploy
+Production Deploy ← NEXT (single-container Docker image ready; see docs/deployment.md)
 ```
 
 ### Critical Path
@@ -95,9 +95,11 @@ Production Deploy
                                                                     ↓
                                                   [DONE] ST-001 (Scenario Test Infrastructure)
                                                                     ↓
-                                                  ST-002 to ST-010 (Scenario Tests) ← YOU ARE HERE
+                                                  [DONE] ST-002 to ST-010 (Scenario Tests)
                                                                     ↓
-                                                  Security → Deploy
+                                                  [DONE] Security (SH-001 to SH-005)
+                                                                    ↓
+                                                  Production Deploy ← YOU ARE HERE
 ```
 
 > **Note**: GU-012/GU-013 are complete but use placeholder action handlers. They become fully functional after RT-002 integration.
@@ -209,34 +211,31 @@ Build all game-specific UI components and pages.
 - **Complete**: GU-001 (Lobby Page), GU-002 (Board), GU-003 (Tile), GU-004 (Tile Rack), GU-005 (Chain Marker), GU-006 (Player Card), GU-007 (Portfolio Display), GU-008 (Stock Stepper), GU-009 (Chain Selector), GU-010 (Merger Disposition), GU-011 (Trade Builder), GU-012 (Player View Shell), GU-013 (Host View Layout), GU-014 (Game Over Screen), GU-015 (Reconnection UI), GU-016 (E2E Infrastructure Validation)
 - **Next**: Epic 7 (Scenario Tests) provides comprehensive E2E testing
 
-### Epic 3: Real-time Integration (6 stories)
+### Epic 3: Real-time Integration (6 stories) ✅ COMPLETE
 WebSocket client and state synchronization.
 - **Tech**: WebSocket, Zustand, message handlers
-- **Start**: RT-001, RT-002 (after FF-001)
+- **Result**: WebSocket core (RT-001/002/003/005), reconnection handling, and optimistic updates with server reconciliation and rollback (RT-004)
 
 ### Epic 4: AI Training (9 stories)
 Neural network bots and training pipeline.
 - **Tech**: Python, PyTorch, MCTS
 - **Start**: AI-001, AI-003 (fully independent)
 
-### Epic 5: Deployment (5 stories)
+### Epic 5: Deployment (5 stories) ✅ COMPLETE
 Production deployment and monitoring.
-- **Tech**: Railway, Docker, logging
-- **Start**: DP-001 (fully independent)
+- **Tech**: Docker (single multi-stage container serving backend + built frontend), Render free tier (primary), Railway
+- **Result**: `deploy/Dockerfile` bakes the frontend into the backend image; `render.yaml` blueprint auto-deploys; see docs/deployment.md
 
-### Epic 6: Security Hardening (5 stories)
+### Epic 6: Security Hardening (5 stories) ✅ COMPLETE
 Harden API security before production.
 - **Tech**: CORS, rate limiting, input validation, session tokens
-- **Start**: SH-002, SH-003, SH-004, SH-005 (independent); SH-001 after E2E
-- **Note**: Must complete before production deployment
+- **Result**: Bearer session/host tokens on privileged endpoints and WebSockets (SH-001), REST + WebSocket rate limiting (SH-002), fail-closed CORS and WS Origin validation (SH-003), player-name sanitization (SH-004), stale-room cleanup (SH-005)
 
-### Epic 7: Scenario Test Automation (10 stories)
+### Epic 7: Scenario Test Automation (10 stories) ✅ COMPLETE
 Full E2E scenario testing with screenshots as proof.
 - **Tech**: Playwright, screenshot capture, real server testing
 - **Philosophy**: "If there's no screenshot, it didn't happen."
-- **Start**: ST-001 after RT-001/RT-002 (WebSocket integration required)
-- **Parallel**: ST-002 to ST-008 can run simultaneously after ST-001
-- **Coverage**: All 124 documented game scenarios
+- **Result**: 62 scenario E2E tests covering 91 of 124 documented scenarios (73%: 78 direct + 13 indirect); coverage report at docs/tests/scenario-coverage.md with a CI gate and screenshot gallery (ST-010)
 
 ### Epic 8: Backlog
 Feature ideas and improvements discovered during app use.
