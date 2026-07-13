@@ -24,6 +24,8 @@ interface UseWebSocketOptions {
   playerId: string
   token: string
   onError?: (error: string) => void
+  /** Called when the server rejects an action with an `error` message. */
+  onServerError?: (message: string) => void
   onClose?: () => void
 }
 
@@ -38,6 +40,7 @@ export function useWebSocket({
   playerId,
   token,
   onError,
+  onServerError,
   onClose,
 }: UseWebSocketOptions): UseWebSocketReturn {
   const wsRef = useRef<WebSocket | null>(null)
@@ -94,7 +97,12 @@ export function useWebSocket({
             ws.send(JSON.stringify({ type: 'pong' }))
             return
           }
+          // handleMessage rolls back optimistic updates on 'error' (RT-004);
+          // notify the page afterwards so it can show a toast.
           handleMessage(message)
+          if (message.type === 'error') {
+            onServerError?.(message.message)
+          }
         } catch (error) {
           console.error('Failed to parse WebSocket message:', error)
         }
@@ -155,7 +163,16 @@ export function useWebSocket({
       reconnectAttemptsRef.current = maxReconnectAttempts
       wsRef.current?.close()
     }
-  }, [roomCode, playerId, token, setConnectionStatus, handleMessage, onError, onClose])
+  }, [
+    roomCode,
+    playerId,
+    token,
+    setConnectionStatus,
+    handleMessage,
+    onError,
+    onServerError,
+    onClose,
+  ])
 
   return {
     sendAction,

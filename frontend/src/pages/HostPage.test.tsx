@@ -15,6 +15,18 @@ vi.mock('../hooks/useWebSocket', () => ({
   }),
 }))
 
+// Mock useHostWebSocket (the hook HostPage actually uses) so the real
+// WebSocket connection logic doesn't override connectionStatus during tests
+vi.mock('../hooks/useHostWebSocket', () => ({
+  useHostWebSocket: () => ({
+    addBot: vi.fn(),
+    startGame: vi.fn(),
+    endGame: vi.fn(),
+    disconnect: vi.fn(),
+    isConnected: true,
+  }),
+}))
+
 // Helper to render HostPage with routing
 function renderHostPage(room = 'TEST') {
   return render(

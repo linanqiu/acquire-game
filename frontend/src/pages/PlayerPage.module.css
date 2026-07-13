@@ -5,6 +5,34 @@
   flex: 1;
 }
 
+/* Pending indicator: optimistic action awaiting server confirmation (RT-004) */
+.pendingIndicator {
+  position: fixed;
+  top: var(--space-4);
+  right: var(--space-4);
+  z-index: 100;
+  padding: var(--space-1) var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: var(--border-default);
+  border-radius: var(--radius-full);
+  pointer-events: none;
+  animation: pendingPulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes pendingPulse {
+  from {
+    opacity: 0.5;
+  }
+  to {
+    opacity: 0.95;
+  }
+}
+
 /* Lobby Content */
 .lobbyContent {
   display: flex;
