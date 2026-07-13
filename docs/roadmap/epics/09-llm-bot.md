@@ -17,11 +17,34 @@ The core idea: don't train a policy — prompt a strong general model with:
    holdings, affordability of purchases, end-game score projections.
 3. **Legal moves** — the exact set of valid actions for the current decision.
 
-The model returns a structured move. The model is **swappable** via configuration between:
+The model returns a structured move — but not from a single naked prompt. Decisions run through an
+**agentic orchestration** layer (see below): a persistent per-bot strategy scratchpad, and for
+high-stakes decisions a planner → adversarial-critic → decide chain. The model is **swappable**
+via configuration between:
 
 - Anthropic **Claude Opus** (`claude-opus-4-8`)
 - Anthropic **Claude Fable** (`claude-fable-5`)
 - **GLM-5.2** (Zhipu, OpenAI-compatible endpoint)
+
+## Agentic Orchestration
+
+Verification of the classic LLM failure modes is **deterministic, not LLM-based**: arithmetic
+lives in the calculator pack, and move legality is enumerated and validated by the engine (with
+one repair retry, then fallback). LLM-on-LLM verification is reserved for what code can't check —
+strategic judgment:
+
+- **Strategist scratchpad** (every decision): the bot maintains a short written plan across turns
+  ("accumulating Tower; want the 5C merger before Imperial is safe"), returned as a field on each
+  move and fed back into the next prompt. Cross-turn intent at zero extra calls.
+- **Criticality gate** (deterministic code): classifies each decision. Routine tile placements →
+  single call. Critical decisions — merger survivor, stock disposition, end-game declaration,
+  buys when a majority race is within a few shares, safe-chain-adjacent placements → escalate.
+- **Planner → adversarial critic → decide** (critical decisions only): propose 2–3 candidate
+  lines, a critic call attacks them from the opponents' seats ("how does the leader punish
+  this?"), a final call commits. ~15–25% of decisions escalate, so expect ~1.5× single-call cost
+  and longer thinks only on dramatic moves.
+- **Benchmark-gated**: the evaluation harness A/Bs single-call vs orchestrated win rates per
+  model, so orchestration depth is justified by measured strength, not vibes.
 
 ## Design Principles
 
@@ -46,7 +69,8 @@ provider/cost research) and will land as `docs/roadmap/stories/09-llm-bot/` file
 | Calculator pack | Pure module deriving exact figures from public state |
 | Provider adapter | One interface, three backends (Anthropic x2, GLM), env-var config |
 | LLM bot brain | Prompt builder + structured move output + fallback to simple bot |
-| Evaluation | Benchmark harness: LLM bot vs existing bot, per-model win rates & cost |
+| Orchestration | Strategist scratchpad; criticality gate; planner→critic→decide on critical moves |
+| Evaluation | Benchmark harness: LLM bot vs existing bot, single-call vs orchestrated, win rates & cost |
 
 ## Status
 
