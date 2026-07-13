@@ -46,6 +46,19 @@ strategic judgment:
 - **Benchmark-gated**: the evaluation harness A/Bs single-call vs orchestrated win rates per
   model, so orchestration depth is justified by measured strength, not vibes.
 
+## Table Talk (Room Chat)
+
+Players get a free-form room chat (new product feature: WS `chat` message, broadcast to all,
+shown on player and host screens). Chat messages are recorded as **public events in the same
+append-only timeline as moves**, so the bot's prompt shows table talk interleaved with game
+actions — what a human at the table hears. This lets players express intent to bots ("let's
+not feed Imperial"), negotiate, and bluff; the bot is prompted to treat chat as unverified —
+cross-checking claims against the event log and public holdings (bluff/lie detection is a
+judgment call informed by verifiable history). Optionally the bot can respond with its own
+short table-talk line per move. If chat volume ever bloats the prompt, an auxiliary
+summarizer call compresses chat older than a few turns into a rolling summary (follow-up
+story; casual chat volume rarely needs it).
+
 ## Design Principles
 
 - **Never stall a game**: any provider error, timeout, or malformed response falls back to the
@@ -70,6 +83,7 @@ provider/cost research) and will land as `docs/roadmap/stories/09-llm-bot/` file
 | Provider adapter | One interface, three backends (Anthropic x2, GLM), env-var config |
 | LLM bot brain | Prompt builder + structured move output + fallback to simple bot |
 | Orchestration | Strategist scratchpad; criticality gate; planner→critic→decide on critical moves |
+| Table talk | Room chat feature; chat as public events in the bot prompt timeline; optional bot banter; summarizer when long |
 | Evaluation | Benchmark harness: LLM bot vs existing bot, single-call vs orchestrated, win rates & cost |
 
 ## Status
