@@ -152,6 +152,81 @@ jobs:
           path: frontend/playwright-report/
           retention-days: 7
 
+  # E2E scenario suite (ST-010): runs the full Epic 07 scenario tests with
+  # rigor checks and publishes the HTML report + screenshot gallery.
+  e2e-scenarios:
+    runs-on: ubuntu-latest
+    needs: [test, lint]
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Rigor + freshness gate (plain Node, no deps needed):
+      # - fails if any scenario test uses test.skip / test.fixme / test.only
+      # - fails if docs/tests/scenario-coverage.md is stale vs the test suite
+      - name: Check scenario coverage report and rigor rules
+        run: node frontend/scripts/generate-scenario-coverage.mjs --check
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E scenario tests
+        working-directory: frontend
+        run: npx playwright test --project=scenarios --reporter=html
+
+      # Rigor check: scenario tests must have produced screenshot evidence.
+      - name: Verify screenshot artifacts exist
+        if: always()
+        run: |
+          count=$(find frontend/test-results/scenarios -name '*.png' 2>/dev/null | wc -l)
+          echo "Found $count scenario screenshots"
+          test "$count" -gt 0
+
+      - name: Generate screenshot gallery
+        if: always()
+        run: node frontend/scripts/generate-screenshot-gallery.mjs
+
+      - name: Upload scenario test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scenario-test-results
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/scenarios/
+          retention-days: 30
+
   build:
     runs-on: ubuntu-latest
     needs: [test, lint, frontend-lint, e2e]
