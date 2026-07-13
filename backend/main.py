@@ -7,7 +7,7 @@ import os
 import re
 import time
 import uuid
-from collections import defaultdict
+from collections import defaultdict, deque
 from contextlib import asynccontextmanager, suppress
 from typing import Optional, Union, Literal
 from urllib.parse import urlparse
@@ -487,6 +487,31 @@ ALL_RATE_LIMITERS = [
 ]
 
 
+class ConnectionRateLimiter:
+    """Per-connection sliding-window limiter for WebSocket messages (SH-002).
+
+    One instance is created per accepted WebSocket connection; messages beyond
+    the limit are dropped (with an error reply) instead of being processed.
+    """
+
+    def __init__(self, max_messages: int, window_seconds: float = 1.0):
+        self.max_messages = max_messages
+        self.window_seconds = window_seconds
+        self._times: deque[float] = deque()
+
+    def allow(self) -> bool:
+        """Record one message; return False if the connection is over budget."""
+        if not settings.rate_limit_enabled:
+            return True
+        now = time.monotonic()
+        while self._times and now - self._times[0] >= self.window_seconds:
+            self._times.popleft()
+        if len(self._times) >= self.max_messages:
+            return False
+        self._times.append(now)
+        return True
+
+
 # =============================================================================
 # Authentication (SH-001)
 # =============================================================================
@@ -861,12 +886,20 @@ async def host_websocket(
     await send_host_state(room_code)
 
     ping = asyncio.create_task(ping_task(websocket))
+    msg_limiter = ConnectionRateLimiter(settings.ws_max_messages_per_second)
     try:
         while True:
             data = await websocket.receive_json()
 
             # Any inbound message (including pong) counts as room activity
             room.touch()
+
+            # Per-connection message rate limiting (SH-002)
+            if not msg_limiter.allow():
+                await websocket.send_json(
+                    {"type": "error", "message": "Rate limit exceeded"}
+                )
+                continue
 
             # Handle pong responses to keepalive pings
             if data.get("type") == "pong":
@@ -936,6 +969,7 @@ async def player_websocket(
     await send_player_state(room_code, player_id)
 
     ping = asyncio.create_task(ping_task(websocket))
+    msg_limiter = ConnectionRateLimiter(settings.ws_max_messages_per_second)
     try:
         while True:
             try:
@@ -951,6 +985,13 @@ async def player_websocket(
 
             # Any inbound message (including pong) counts as room activity
             room.touch()
+
+            # Per-connection message rate limiting (SH-002)
+            if not msg_limiter.allow():
+                await websocket.send_json(
+                    {"type": "error", "message": "Rate limit exceeded"}
+                )
+                continue
 
             # Handle pong responses to keepalive pings
             if data.get("type") == "pong":

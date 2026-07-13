@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     ws_ping_timeout: int = 10
     # Rate limiting (SH-002). Disable only for load testing.
     rate_limit_enabled: bool = True
+    # Max inbound WebSocket messages per connection per second
+    ws_max_messages_per_second: int = 10
     # Room cleanup (SH-005): rooms inactive this long are deleted by a
     # background task that runs every room_cleanup_interval_seconds.
     room_timeout_minutes: int = 30

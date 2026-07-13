@@ -1,7 +1,7 @@
 """Tests for SH-002: rate limiting on REST endpoints."""
 
 import main
-from main import RequestRateLimiter
+from main import ConnectionRateLimiter, RequestRateLimiter
 
 
 def _create_room(client, name="Alice"):
@@ -177,3 +177,50 @@ class TestRateLimiterBehavior:
         for i in range(8):
             response = client.post("/create", data={"player_name": f"Player{i}"})
             assert response.status_code == 200
+
+
+class TestWebSocketMessageRateLimit:
+    """Per-connection WebSocket message rate limiting."""
+
+    def test_connection_limiter_allows_up_to_max(self):
+        limiter = ConnectionRateLimiter(max_messages=10, window_seconds=60)
+        for _ in range(10):
+            assert limiter.allow()
+        assert not limiter.allow()
+
+    def test_connection_limiter_window_expiry(self):
+        limiter = ConnectionRateLimiter(max_messages=1, window_seconds=60)
+        # Simulate an old message far outside the window
+        limiter._times.append(-10_000_000.0)
+        assert limiter.allow()
+
+    def test_connection_limiter_disabled_via_settings(self, monkeypatch):
+        monkeypatch.setattr(main.settings, "rate_limit_enabled", False)
+        limiter = ConnectionRateLimiter(max_messages=1, window_seconds=60)
+        for _ in range(5):
+            assert limiter.allow()
+
+    def test_player_ws_flood_gets_rate_limit_errors(
+        self, client, clean_session_manager, monkeypatch
+    ):
+        monkeypatch.setattr(main.settings, "ws_max_messages_per_second", 5)
+        data = client.post("/create", data={"player_name": "Alice"}).json()
+        room_code, player_id, token = (
+            data["room_code"],
+            data["player_id"],
+            data["session_token"],
+        )
+
+        with client.websocket_connect(
+            f"/ws/player/{room_code}/{player_id}?token={token}"
+        ) as ws:
+            assert ws.receive_json()["type"] == "lobby_update"
+
+            # Flood: room not started, so allowed actions produce no reply.
+            # Messages beyond the per-second budget get an error reply.
+            for _ in range(10):
+                ws.send_json({"action": "end_turn"})
+
+            message = ws.receive_json()
+            assert message["type"] == "error"
+            assert "rate limit" in message["message"].lower()
