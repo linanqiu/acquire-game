@@ -30,8 +30,11 @@ class Settings(BaseSettings):
 
     @property
     def is_production(self) -> bool:
-        """Check if running in production environment."""
-        return self.environment == "prod"
+        """Check if running in production environment.
+
+        Accepts both "prod" and "production" (deploy configs use the latter).
+        """
+        return self.environment in ("prod", "production")
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
