@@ -4,12 +4,18 @@ import random
 import string
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 from typing import Optional, TYPE_CHECKING
 
 from fastapi import WebSocket
 
 if TYPE_CHECKING:
     from game.game import Game
+
+
+def _generate_token() -> str:
+    """Generate a cryptographically random session token."""
+    return uuid.uuid4().hex
 
 
 @dataclass
@@ -21,6 +27,7 @@ class PlayerConnection:
     websockets: list[WebSocket] = field(default_factory=list)
     is_bot: bool = False
     is_host: bool = False
+    session_token: str = field(default_factory=_generate_token)
 
 
 @dataclass
@@ -36,6 +43,30 @@ class GameRoom:
     min_players: int = 2
     seed: Optional[int] = None
     tile_order: Optional[list[str]] = None
+    # Token for the host/spectator display (rooms created via /create-spectator
+    # have no player, so the host authenticates with this token instead)
+    host_token: str = field(default_factory=_generate_token)
+    # Activity tracking for stale-room cleanup (SH-005)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    last_activity: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def touch(self) -> None:
+        """Update the last-activity timestamp (SH-005)."""
+        self.last_activity = datetime.now(timezone.utc)
+
+    def is_stale(self, timeout_minutes: int = 30) -> bool:
+        """Check if the room has been inactive longer than timeout_minutes."""
+        return datetime.now(timezone.utc) - self.last_activity > timedelta(
+            minutes=timeout_minutes
+        )
+
+    def is_valid_token(self, token: Optional[str]) -> bool:
+        """Check whether a token belongs to this room (host or any player)."""
+        if not token:
+            return False
+        if token == self.host_token:
+            return True
+        return any(p.session_token == token for p in self.players.values())
 
 
 class SessionManager:
@@ -93,6 +124,7 @@ class SessionManager:
             name=name,
             is_host=is_host,
         )
+        room.touch()
         return True
 
     def leave_room(self, room_code: str, player_id: str):
@@ -134,6 +166,7 @@ class SessionManager:
             name=bot_name,
             is_bot=True,
         )
+        room.touch()
         return bot_id
 
     def connect_player(self, room_code: str, player_id: str, websocket: WebSocket):
@@ -144,6 +177,7 @@ class SessionManager:
         if player_id not in room.players:
             return
         room.players[player_id].websockets.append(websocket)
+        room.touch()
 
     def connect_host(self, room_code: str, websocket: WebSocket):
         """Connect host display."""
@@ -151,6 +185,7 @@ class SessionManager:
         if room is None:
             return
         room.host_websocket = websocket
+        room.touch()
 
     def disconnect(self, room_code: str, player_id: str, websocket: WebSocket):
         """Handle disconnect for a specific websocket."""
@@ -228,6 +263,7 @@ class SessionManager:
             return False
 
         room.started = True
+        room.touch()
         # Game initialization will be added when Game class is implemented
         return True
 

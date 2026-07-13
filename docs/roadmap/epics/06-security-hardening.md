@@ -10,11 +10,11 @@ This epic addresses security gaps identified during code review that must be res
 
 | ID | Title | Effort | Dependencies | Status |
 |----|-------|--------|--------------|--------|
-| [SH-001](../stories/06-security-hardening/SH-001.md) | Enforce Session Token Validation | S | GU-016 | `not-started` |
-| [SH-002](../stories/06-security-hardening/SH-002.md) | Rate Limit REST Endpoints | S | None | `not-started` |
-| [SH-003](../stories/06-security-hardening/SH-003.md) | Configure CORS | XS | None | `not-started` |
-| [SH-004](../stories/06-security-hardening/SH-004.md) | Sanitize Player Name Input | XS | None | `not-started` |
-| [SH-005](../stories/06-security-hardening/SH-005.md) | Room Cleanup and Memory Management | M | None | `not-started` |
+| [SH-001](../stories/06-security-hardening/SH-001.md) | Enforce Session Token Validation | S | GU-016 | `complete` |
+| [SH-002](../stories/06-security-hardening/SH-002.md) | Rate Limit REST Endpoints | S | None | `complete` |
+| [SH-003](../stories/06-security-hardening/SH-003.md) | Configure CORS | XS | None | `complete` |
+| [SH-004](../stories/06-security-hardening/SH-004.md) | Sanitize Player Name Input | XS | None | `complete` |
+| [SH-005](../stories/06-security-hardening/SH-005.md) | Room Cleanup and Memory Management | M | None | `complete` |
 
 ## Context
 
@@ -27,12 +27,12 @@ Security issues identified in holistic review:
 
 ## Success Criteria
 
-- [ ] All session tokens validated on every request
-- [ ] Rate limiting applied to all endpoints (REST and WebSocket)
-- [ ] CORS configured with explicit allowed origins
-- [ ] Player names sanitized on input
-- [ ] Stale rooms cleaned up automatically
-- [ ] Security tests added for each hardening measure
+- [x] All session tokens validated on every request
+- [x] Rate limiting applied to all endpoints (REST and WebSocket)
+- [x] CORS configured with explicit allowed origins
+- [x] Player names sanitized on input
+- [x] Stale rooms cleaned up automatically
+- [x] Security tests added for each hardening measure
 
 ## Technical Notes
 

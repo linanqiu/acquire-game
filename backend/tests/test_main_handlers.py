@@ -607,12 +607,16 @@ class TestConfigureRoomEndpoint:
         # Create a room and add players
         response = client.post("/create", data={"player_name": "Alice"})
         room_code = response.json()["room_code"]
+        session_token = response.json()["session_token"]
 
         for name in ["Bob", "Charlie"]:
             client.post("/join", data={"room_code": room_code, "player_name": name})
 
         # Start the game
-        client.post(f"/room/{room_code}/start")
+        client.post(
+            f"/room/{room_code}/start",
+            headers={"Authorization": f"Bearer {session_token}"},
+        )
 
         # Try to configure after start
         response = client.post(

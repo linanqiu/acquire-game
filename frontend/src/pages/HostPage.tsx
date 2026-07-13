@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useRoom } from '../hooks/useRoom'
-import { useHostWebSocket } from '../hooks/useHostWebSocket'
+import { useHostWebSocket, getHostToken } from '../hooks/useHostWebSocket'
 import { PageShell } from '../components/ui/PageShell'
 import { Panel } from '../components/ui/Panel'
 import { Button } from '../components/ui/Button'
@@ -130,7 +130,10 @@ export function HostPage() {
     try {
       const res = await fetch(`/api/room/${room}/start`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getHostToken()}`,
+        },
       })
       if (!res.ok) {
         throw new Error('Failed to start game')
@@ -150,7 +153,10 @@ export function HostPage() {
     try {
       const res = await fetch(`/api/room/${room}/add-bot`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getHostToken()}`,
+        },
       })
       if (!res.ok) {
         throw new Error('Failed to add bot')
