@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, act } from '@testing-library/react'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { PlayerPage } from './PlayerPage'
@@ -148,6 +148,27 @@ describe('PlayerPage', () => {
       })
       renderPlayerPage()
       expect(screen.getByText('PLACE A TILE')).toBeInTheDocument()
+    })
+
+    it('shows the pending indicator while an optimistic action awaits confirmation (RT-004)', () => {
+      useGameStore.setState({
+        gameState: mockGameState,
+        currentPlayer: { id: 'player1', name: 'Alice', token: 'tok', isHost: true },
+        yourHand: ['1A', '2B', '3C'],
+      })
+      renderPlayerPage()
+      expect(screen.queryByTestId('pending-indicator')).not.toBeInTheDocument()
+
+      act(() => {
+        useGameStore.getState().beginOptimisticAction('place_tile', { yourHand: ['2B', '3C'] })
+      })
+      expect(screen.getByTestId('pending-indicator')).toBeInTheDocument()
+
+      // Server confirmation clears the indicator
+      act(() => {
+        useGameStore.getState().handleMessage(mockGameState)
+      })
+      expect(screen.queryByTestId('pending-indicator')).not.toBeInTheDocument()
     })
 
     it('shows waiting message when not your turn', () => {

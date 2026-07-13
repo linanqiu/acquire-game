@@ -24,6 +24,7 @@ import {
   transformHandToRackTiles,
   transformPlayabilityMap,
 } from '../utils/transforms'
+import { predictTilePlacement, predictStockPurchase } from '../lib/optimisticUpdates'
 import type { ChainName, GamePhase } from '../types/api'
 import type { Coordinate } from '../types/game'
 import styles from './PlayerPage.module.css'
@@ -61,9 +62,25 @@ export function PlayerPage() {
   const { toast } = useToast()
   const { handleServerError } = useErrorHandler()
 
+  // Local UI state
+  const [selectedTile, setSelectedTile] = useState<Coordinate | undefined>()
+  const [showTradeBuilder, setShowTradeBuilder] = useState(false)
+  const [stockPurchases, setStockPurchases] = useState<Partial<Record<ChainName, number>>>({})
+  const [actionLoading, setActionLoading] = useState(false)
+
   // Stable callbacks for WebSocket to prevent infinite re-renders
   const handleWsError = useCallback(
     (error: string) => handleServerError(error),
+    [handleServerError]
+  )
+
+  // Server rejected an action: the store has already rolled back any
+  // optimistic updates (RT-004); surface the rejection via toast.
+  const handleWsServerError = useCallback(
+    (message: string) => {
+      setActionLoading(false)
+      handleServerError(message)
+    },
     [handleServerError]
   )
 
@@ -73,6 +90,7 @@ export function PlayerPage() {
     playerId: sessionStorage.getItem('player_id') || '',
     token: sessionStorage.getItem('session_token') || '',
     onError: handleWsError,
+    onServerError: handleWsServerError,
   })
 
   // Game store state
@@ -87,8 +105,12 @@ export function PlayerPage() {
     pendingChainChoice,
     pendingMergerChoice,
     pendingStockDisposition,
+    pendingActions,
+    beginOptimisticAction,
     setCurrentPlayer,
   } = useGameStore()
+
+  const hasPendingActions = pendingActions.length > 0
 
   // Initialize currentPlayer from sessionStorage on mount
   useEffect(() => {
@@ -107,12 +129,6 @@ export function PlayerPage() {
       setCurrentPlayer({ id: playerId, name: playerName, token, isHost })
     }
   }, [setCurrentPlayer, isHost])
-
-  // Local UI state
-  const [selectedTile, setSelectedTile] = useState<Coordinate | undefined>()
-  const [showTradeBuilder, setShowTradeBuilder] = useState(false)
-  const [stockPurchases, setStockPurchases] = useState<Partial<Record<ChainName, number>>>({})
-  const [actionLoading, setActionLoading] = useState(false)
 
   // Derived state
   const myPlayerId = currentPlayer?.id
@@ -155,9 +171,7 @@ export function PlayerPage() {
   }, [gameState])
 
   const rackTiles: RackTile[] = useMemo(() => {
-    const playabilityMap = tilePlayability
-      ? transformPlayabilityMap(tilePlayability)
-      : undefined
+    const playabilityMap = tilePlayability ? transformPlayabilityMap(tilePlayability) : undefined
     return transformHandToRackTiles(yourHand, playabilityMap)
   }, [yourHand, tilePlayability])
 
@@ -171,12 +185,14 @@ export function PlayerPage() {
     return gameState.hotel.available_stocks
   }, [gameState])
 
-  // Reset loading state when game state updates (action completed)
+  // Reset loading state when game state updates (action completed).
+  // While an optimistic action is still awaiting server confirmation,
+  // keep the loading state so buttons show a pending indicator.
   useEffect(() => {
-    if (gameState) {
+    if (gameState && !hasPendingActions) {
       setActionLoading(false)
     }
-  }, [gameState])
+  }, [gameState, hasPendingActions])
 
   // Safety timeout: reset actionLoading after 10 seconds to prevent stuck UI
   useEffect(() => {
@@ -232,9 +248,21 @@ export function PlayerPage() {
   const handlePlaceTile = useCallback(() => {
     if (!selectedTile) return
     setActionLoading(true)
+    // Optimistic update: show the tile on the board and remove it from the
+    // rack immediately; the server's game_state broadcast confirms it, and
+    // an error message rolls it back (RT-004).
+    const currentState = useGameStore.getState()
+    if (currentState.gameState) {
+      const predicted = predictTilePlacement(
+        currentState.gameState,
+        currentState.yourHand,
+        selectedTile
+      )
+      beginOptimisticAction('place_tile', predicted)
+    }
     sendAction({ action: 'place_tile', tile: selectedTile })
     setSelectedTile(undefined)
-  }, [selectedTile, sendAction])
+  }, [selectedTile, sendAction, beginOptimisticAction])
 
   const handleFoundChain = useCallback(
     (chain: ChainName) => {
@@ -267,9 +295,18 @@ export function PlayerPage() {
 
   const handleBuyStocks = useCallback(() => {
     setActionLoading(true)
+    // Optimistic update: deduct cash and add stocks immediately; the
+    // server's game_state broadcast confirms (and advances the turn), and
+    // an error message rolls it back (RT-004).
+    const currentState = useGameStore.getState()
+    const buyerId = currentState.currentPlayer?.id
+    if (currentState.gameState && buyerId && Object.keys(stockPurchases).length > 0) {
+      const predicted = predictStockPurchase(currentState.gameState, buyerId, stockPurchases)
+      beginOptimisticAction('buy_stocks', { gameState: predicted })
+    }
     sendAction({ action: 'buy_stocks', purchases: stockPurchases })
     setStockPurchases({})
-  }, [stockPurchases, sendAction])
+  }, [stockPurchases, sendAction, beginOptimisticAction])
 
   const handleDeclareEndGame = useCallback(() => {
     setActionLoading(true)
@@ -604,7 +641,12 @@ export function PlayerPage() {
     // During game phases
     // Allow rendering merger/disposition content when we have a pending stock
     // disposition or merger choice, even if it's not technically our turn
-    if (!isMyTurn && phase !== 'stock_disposition' && !pendingStockDisposition && !pendingMergerChoice) {
+    if (
+      !isMyTurn &&
+      phase !== 'stock_disposition' &&
+      !pendingStockDisposition &&
+      !pendingMergerChoice
+    ) {
       return renderWaitingContent()
     }
 
@@ -647,10 +689,7 @@ export function PlayerPage() {
               {Object.entries(player.stocks)
                 .filter(([, count]) => count > 0)
                 .map(([chain, count]) => (
-                  <span
-                    key={chain}
-                    className={`${styles.stockBadge} bg-${chain.toLowerCase()}`}
-                  >
+                  <span key={chain} className={`${styles.stockBadge} bg-${chain.toLowerCase()}`}>
                     {count}
                   </span>
                 ))}
@@ -663,7 +702,13 @@ export function PlayerPage() {
 
   return (
     <PageShell
-      phase={pendingMergerChoice ? 'CHOOSE SURVIVING CHAIN' : pendingStockDisposition ? 'DISPOSE YOUR STOCK' : getPhaseText(phase, isMyTurn, currentPlayerName)}
+      phase={
+        pendingMergerChoice
+          ? 'CHOOSE SURVIVING CHAIN'
+          : pendingStockDisposition
+            ? 'DISPOSE YOUR STOCK'
+            : getPhaseText(phase, isMyTurn, currentPlayerName)
+      }
       roomCode={room}
       cash={myPlayerData?.money}
       playerName={currentPlayer?.name}
@@ -679,6 +724,13 @@ export function PlayerPage() {
         )
       }
     >
+      {/* Pending indicator: an optimistic action is awaiting server confirmation (RT-004) */}
+      {hasPendingActions && (
+        <div className={styles.pendingIndicator} role="status" data-testid="pending-indicator">
+          SYNCING&hellip;
+        </div>
+      )}
+
       <div className={styles.content}>{renderMainContent()}</div>
 
       {showPlayersPanel && renderPlayersPanel()}

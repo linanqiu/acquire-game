@@ -30,6 +30,20 @@ export interface CurrentPlayer {
   isHost: boolean
 }
 
+// An optimistic (not yet server-confirmed) action, with the snapshot needed
+// to roll the UI back if the server rejects it. (RT-004)
+export interface PendingAction {
+  id: string
+  type: string
+  timestamp: number
+  snapshot: {
+    gameState: GameStateMessage | null
+    yourHand: string[]
+  }
+}
+
+let nextPendingActionId = 0
+
 // Game store state
 export interface GameStoreState {
   // Connection
@@ -57,6 +71,9 @@ export interface GameStoreState {
     availableToTrade: number
   } | null
 
+  // Optimistic updates (RT-004)
+  pendingActions: PendingAction[]
+
   // Actions
   setConnectionStatus: (status: ConnectionStatus, error?: string) => void
   setRoomCode: (code: string | null) => void
@@ -75,6 +92,23 @@ export interface GameStoreState {
   ) => void
   handleMessage: (message: WebSocketMessage) => void
   reset: () => void
+
+  // Optimistic update actions (RT-004)
+  /**
+   * Apply a predicted state immediately and track it as pending.
+   * Returns the pending action id.
+   */
+  beginOptimisticAction: (
+    type: string,
+    optimistic: { gameState?: GameStateMessage; yourHand?: string[] }
+  ) => string
+  /** Server confirmed (fresh game_state arrived): drop all pending actions. */
+  confirmPendingActions: () => void
+  /**
+   * Server rejected an action: restore the snapshot taken before the
+   * oldest pending action and drop all pending actions.
+   */
+  rollbackPendingActions: () => void
 }
 
 const initialState = {
@@ -90,6 +124,7 @@ const initialState = {
   pendingChainChoice: null,
   pendingMergerChoice: null,
   pendingStockDisposition: null,
+  pendingActions: [],
 }
 
 export const useGameStore = create<GameStoreState>((set, get) => ({
@@ -130,6 +165,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         break
 
       case 'game_state':
+        // Authoritative server state confirms (and overwrites) any optimistic
+        // predictions — drop them so a later error can't roll back past it.
+        store.confirmPendingActions()
         store.updateGameState(message)
         // Clear pending actions when we get new game state,
         // BUT preserve them if the phase indicates we're still waiting for that action.
@@ -163,9 +201,55 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         set({ yourHand: message.new_hand })
         break
 
+      case 'error':
+        // The server rejected an action: undo any optimistic predictions.
+        // (The toast for the error itself is shown by the page via the
+        // useWebSocket onServerError callback.)
+        store.rollbackPendingActions()
+        break
+
       // Other message types can be handled by components via useEffect
     }
   },
 
   reset: () => set(initialState),
+
+  beginOptimisticAction: (type, optimistic) => {
+    const id = `pending-${++nextPendingActionId}`
+    set((state) => ({
+      gameState: optimistic.gameState ?? state.gameState,
+      yourHand: optimistic.yourHand ?? state.yourHand,
+      pendingActions: [
+        ...state.pendingActions,
+        {
+          id,
+          type,
+          timestamp: Date.now(),
+          snapshot: {
+            gameState: state.gameState,
+            yourHand: state.yourHand,
+          },
+        },
+      ],
+    }))
+    return id
+  },
+
+  confirmPendingActions: () => {
+    if (get().pendingActions.length > 0) {
+      set({ pendingActions: [] })
+    }
+  },
+
+  rollbackPendingActions: () => {
+    const { pendingActions } = get()
+    if (pendingActions.length === 0) return
+    // Roll back to the state before the oldest unconfirmed action.
+    const { snapshot } = pendingActions[0]
+    set({
+      gameState: snapshot.gameState,
+      yourHand: snapshot.yourHand,
+      pendingActions: [],
+    })
+  },
 }))
