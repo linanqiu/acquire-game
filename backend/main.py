@@ -9,6 +9,7 @@ import time
 import uuid
 from collections import defaultdict
 from typing import Optional, Union, Literal
+from urllib.parse import urlparse
 
 from fastapi import (
     Body,
@@ -291,13 +292,15 @@ settings = get_settings()
 
 app = FastAPI(title="Acquire Board Game", debug=not settings.is_production)
 
-# CORS middleware
+# CORS middleware (SH-003): explicit origins from settings, restricted
+# methods/headers. In production, ALLOWED_ORIGINS must be configured or all
+# cross-origin requests are denied (same-origin traffic is unaffected).
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 # Request logging middleware
@@ -683,6 +686,28 @@ async def http_game_action(room_code: str, player_id: str, data: dict):
     return response
 
 
+def websocket_origin_allowed(websocket: WebSocket) -> bool:
+    """Validate the Origin header on WebSocket handshakes (SH-003).
+
+    CORS does not apply to WebSockets, so origins are checked explicitly.
+    Browsers always send Origin; non-browser clients may omit it (they are not
+    subject to CORS anyway and must still present a valid session token).
+    Enforced only in production so local/LAN development keeps working.
+    """
+    origin = websocket.headers.get("origin")
+    if not origin:
+        return True
+    if not settings.is_production:
+        return True
+    if origin in settings.cors_origins:
+        return True
+    # Same-origin handshake (e.g. SPA served by this backend in one container)
+    host = websocket.headers.get("host", "")
+    if host and urlparse(origin).netloc == host:
+        return True
+    return False
+
+
 # WebSocket keepalive ping task
 async def ping_task(ws: WebSocket) -> None:
     """Send periodic pings to keep WebSocket alive through Railway's idle timeout."""
@@ -700,6 +725,11 @@ async def host_websocket(
     websocket: WebSocket, room_code: str, token: Optional[str] = Query(None)
 ):
     """WebSocket for host display. Requires a valid session token (SH-001)."""
+    if not websocket_origin_allowed(websocket):
+        logger.warning("Rejected host WebSocket from disallowed origin")
+        await websocket.close(code=4003, reason="Origin not allowed")
+        return
+
     room = session_manager.get_room(room_code)
     if room is None:
         await websocket.close(code=4004, reason="Room not found")
@@ -759,6 +789,11 @@ async def player_websocket(
     token: Optional[str] = Query(None),
 ):
     """WebSocket for player device. Requires a valid session token (SH-001)."""
+    if not websocket_origin_allowed(websocket):
+        logger.warning("Rejected player WebSocket from disallowed origin")
+        await websocket.close(code=4003, reason="Origin not allowed")
+        return
+
     room = session_manager.get_room(room_code)
     if room is None:
         await websocket.close(code=4004, reason="Room not found")
