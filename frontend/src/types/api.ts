@@ -166,6 +166,10 @@ export interface TradeCanceledMessage {
   canceled_by: string
 }
 
+export interface PingMessage {
+  type: 'ping'
+}
+
 export type WebSocketMessage =
   | GameStateMessage
   | LobbyUpdateMessage
@@ -181,6 +185,7 @@ export type WebSocketMessage =
   | TradeAcceptedMessage
   | TradeRejectedMessage
   | TradeCanceledMessage
+  | PingMessage
 
 // =============================================================================
 // Action Payloads (Client -> Server)
