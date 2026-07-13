@@ -22,9 +22,14 @@ The model returns a structured move — but not from a single naked prompt. Deci
 high-stakes decisions a planner → adversarial-critic → decide chain. The model is **swappable**
 via configuration between:
 
-- Anthropic **Claude Opus** (`claude-opus-4-8`)
-- Anthropic **Claude Fable** (`claude-fable-5`)
-- **GLM-5.2** (Zhipu, OpenAI-compatible endpoint)
+**open-weight models for cheapness** (owner decision 2026-07-13; all via OpenAI-compatible
+endpoints — worst case ≈ $1.5/game with the full critic chain):
+
+- **DeepSeek V4 Flash** — `smart` tier, plus the chat router and summarizer (price floor)
+- **Kimi K2.6** (Moonshot), **GLM-5.2** (z.ai), **MiniMax M3** — `expert`/`genius` candidates;
+  the benchmark harness decides which earns which tier
+- Closed models (e.g. Claude) remain reachable later via OpenRouter through the same adapter
+  as a config-only change — not in v0
 
 ## Agentic Orchestration
 
@@ -61,7 +66,7 @@ story; casual chat volume rarely needs it).
 
 Bots also reply to chat **off-turn**, via two-stage routing: code guards first (per-bot
 cooldown; bots never reply to other bots — no banter loops), then a **very cheap LLM
-router** (default `claude-haiku-4-5`, configurable) classifies each message on a tiny
+router** (default DeepSeek V4 Flash, configurable) classifies each message on a tiny
 context window — should this bot reply? It catches implicit addressing and provocation
 that keyword rules miss, at sub-second latency and negligible cost. Only routed messages
 reach the full model: a fire-and-forget background call producing `{reply: string | null}`
@@ -79,13 +84,14 @@ reveal, deflect, or misdirect deliberately.
   the game engine gains only an event log (which also serves replay/debugging — see
   [BL-004](../stories/08-backlog/BL-004.md), a natural prerequisite).
 - **Routing is config, not a gateway**: every LLM touchpoint (move, critic, chat router, chat
-  reply, summarizer) resolves through one role×tier routing table in settings. Two adapters
-  suffice: native Anthropic (keeps the deep features — strict tools, prompt caching, effort
-  control — that generic wrappers flatten) and a universal OpenAI-compat adapter
-  (`base_url`+`key`+`model`) that serves GLM today and OpenRouter/Together/local Ollama
-  tomorrow with zero new code. No litellm, no proxy sidecar: this app's needs are narrow and
-  deep, cross-vendor LLM fallback is useless here (the fallback is the heuristic bot), and a
-  single-container free-tier deploy shouldn't grow infra components.
+  reply, summarizer) resolves through one role×tier routing table in settings, over a single
+  universal OpenAI-compat adapter (`base_url`+`key`+`model`) — DeepSeek/z.ai/Moonshot/MiniMax
+  today; OpenRouter, Together, or local Ollama tomorrow with zero new code. No vendor SDKs, no
+  litellm, no proxy sidecar: one dialect covers every provider in play, cross-vendor LLM
+  fallback is useless here (the fallback is the heuristic bot), and a single-container
+  free-tier deploy shouldn't grow infra components. With no strict-tool guarantees anywhere,
+  the JSON-mode → validate → repair → heuristic-fallback ladder is load-bearing for all
+  providers; `json_schema`/guided decoding is used opportunistically where supported.
 - **Deterministic math stays in code**: the LLM is for judgment, not arithmetic. Anything
   computable is computed and handed to it.
 
@@ -98,7 +104,7 @@ provider/cost research) and will land as `docs/roadmap/stories/09-llm-bot/` file
 |------|------|
 | Event log | Engine emits public events per mutation (aligns with BL-004) |
 | Calculator pack | Pure module deriving exact figures from public state |
-| Provider layer | Two adapters — native Anthropic (strict tools, caching, effort) + universal OpenAI-compat (GLM now; OpenRouter/local later, config-only) — behind a role×tier routing table; no litellm/gateway service | 
+| Provider layer | One universal OpenAI-compat adapter (DeepSeek/z.ai/Moonshot/MiniMax now; OpenRouter/local later, config-only) behind a role×tier routing table; no vendor SDKs, no litellm/gateway service | 
 | LLM bot brain | Prompt builder + structured move output + fallback to simple bot |
 | Orchestration | Strategist scratchpad; criticality gate; planner→critic→decide on critical moves |
 | Table talk | Room chat feature; chat as public events in the bot prompt timeline; optional bot banter; summarizer when long |
