@@ -9,6 +9,7 @@ import time
 import uuid
 from collections import defaultdict, deque
 from contextlib import asynccontextmanager, suppress
+from pathlib import Path
 from typing import Optional, Union, Literal
 from urllib.parse import urlparse
 
@@ -2006,3 +2007,70 @@ async def send_player_state(room_code: str, player_id: str):
                 )
     else:
         await broadcast_lobby_update(room_code)
+
+
+# =============================================================================
+# Static frontend serving (single-container deployment)
+# =============================================================================
+#
+# In production the Docker image (deploy/Dockerfile) bakes the built frontend
+# into the container and points STATIC_DIR at it. When STATIC_DIR contains an
+# index.html we:
+#   1. Rewrite incoming "/api/*" HTTP paths to "/*" - the frontend calls
+#      "/api/create" etc. (the Vite dev proxy strips the prefix in dev, so the
+#      backend routes have no "/api" prefix).
+#   2. Register a catch-all GET route that serves files from STATIC_DIR, with
+#      an SPA fallback to index.html for client-side routes like /host.
+#
+# Both are registered AFTER every API/WS route above, so FastAPI matches the
+# real routes first and the catch-all can never shadow /health, /create,
+# /room/*, or /ws/* (WebSockets use a different ASGI scope type entirely).
+#
+# In local dev STATIC_DIR (default ../frontend/dist) usually does not exist,
+# so none of this activates and the dev workflow / tests are untouched.
+
+_DEFAULT_STATIC_DIR = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+_STATIC_DIR = Path(os.environ.get("STATIC_DIR", str(_DEFAULT_STATIC_DIR))).resolve()
+
+
+class _ApiPrefixRewriteMiddleware:
+    """Strip a leading /api from HTTP request paths.
+
+    Mirrors the Vite dev proxy's rewrite so the built frontend's same-origin
+    fetch('/api/...') calls reach the un-prefixed backend routes.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and scope["path"].startswith("/api/"):
+            scope = dict(scope)
+            scope["path"] = scope["path"][len("/api") :]
+            scope["raw_path"] = scope["path"].encode("utf-8")
+        await self.app(scope, receive, send)
+
+
+if (_STATIC_DIR / "index.html").is_file():
+    from fastapi.responses import FileResponse
+    from fastapi.staticfiles import StaticFiles
+
+    app.add_middleware(_ApiPrefixRewriteMiddleware)
+
+    # Hashed build assets (JS/CSS bundles) served directly.
+    _assets_dir = _STATIC_DIR / "assets"
+    if _assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=_assets_dir), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa_fallback(full_path: str) -> FileResponse:
+        """Serve static files with SPA fallback to index.html.
+
+        Registered last, so every explicit API route wins over this one.
+        """
+        if full_path:
+            candidate = (_STATIC_DIR / full_path).resolve()
+            # Guard against path traversal outside the static dir.
+            if candidate.is_file() and candidate.is_relative_to(_STATIC_DIR):
+                return FileResponse(candidate)
+        return FileResponse(_STATIC_DIR / "index.html")
