@@ -64,8 +64,14 @@ export async function joinRoom(
 /**
  * Add a bot to a room via the API.
  */
-export async function addBot(request: APIRequestContext, roomCode: string): Promise<AddBotResult> {
-  const response = await request.post(`${API_URL}/room/${roomCode}/add-bot`)
+export async function addBot(
+  request: APIRequestContext,
+  roomCode: string,
+  sessionToken: string
+): Promise<AddBotResult> {
+  const response = await request.post(`${API_URL}/room/${roomCode}/add-bot`, {
+    headers: { Authorization: `Bearer ${sessionToken}` },
+  })
   if (!response.ok()) {
     throw new Error(`Failed to add bot: ${response.status()}`)
   }
@@ -75,8 +81,14 @@ export async function addBot(request: APIRequestContext, roomCode: string): Prom
 /**
  * Start the game in a room via the API.
  */
-export async function startGame(request: APIRequestContext, roomCode: string): Promise<void> {
-  const response = await request.post(`${API_URL}/room/${roomCode}/start`)
+export async function startGame(
+  request: APIRequestContext,
+  roomCode: string,
+  sessionToken: string
+): Promise<void> {
+  const response = await request.post(`${API_URL}/room/${roomCode}/start`, {
+    headers: { Authorization: `Bearer ${sessionToken}` },
+  })
   if (!response.ok()) {
     const body = await response.text()
     throw new Error(`Failed to start game: ${response.status()} - ${body}`)

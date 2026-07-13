@@ -17,6 +17,22 @@ def client():
     return TestClient(app)
 
 
+@pytest.fixture(autouse=True)
+def reset_rate_limiters():
+    """Clear rate limiter state between tests (SH-002).
+
+    Limiter state is process-global; without this, unrelated tests that hit
+    REST endpoints repeatedly would trip the limits.
+    """
+    from main import ALL_RATE_LIMITERS
+
+    for limiter in ALL_RATE_LIMITERS:
+        limiter.reset()
+    yield
+    for limiter in ALL_RATE_LIMITERS:
+        limiter.reset()
+
+
 @pytest.fixture
 def clean_session_manager():
     """Reset session manager before each test."""

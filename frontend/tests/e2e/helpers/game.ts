@@ -31,7 +31,7 @@ export async function setupGameWithBots(
   // Add bots
   const botIds: string[] = []
   for (let i = 0; i < botCount; i++) {
-    const { bot_id } = await addBot(request, room_code)
+    const { bot_id } = await addBot(request, room_code, session_token)
     botIds.push(bot_id)
   }
 
@@ -42,7 +42,7 @@ export async function setupGameWithBots(
   await connectWebSocket(page, room_code, player_id, session_token)
 
   // Start game
-  await startGame(request, room_code)
+  await startGame(request, room_code, session_token)
 
   // Wait for initial game state
   await waitForMessage<GameStateMessage>(page, { type: 'game_state' })

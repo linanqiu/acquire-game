@@ -1,0 +1,27 @@
+# Render Blueprint - https://render.com/docs/blueprint-spec
+#
+# Deploys the whole game (backend + built frontend) as ONE Docker web service
+# on Render's free tier. Every push to main auto-deploys.
+#
+# One-time setup steps: see docs/deployment.md
+
+services:
+  - type: web
+    name: acquire-game
+    runtime: docker
+    plan: free
+    dockerfilePath: ./deploy/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      # Single-origin deployment: the frontend is served by the same container,
+      # so browser requests are same-origin and CORS barely matters. Lock it to
+      # the deployed URL anyway. If Render assigns a different URL (name taken),
+      # update this to match - see docs/deployment.md.
+      - key: ALLOWED_ORIGINS
+        value: https://acquire-game.onrender.com

@@ -41,6 +41,10 @@ export default defineConfig({
       env: {
         ...process.env,
         ACQUIRE_GAME_SEED: '2',
+        // The parallel E2E suite creates far more rooms per minute than the
+        // SH-002 production limits allow (5 creates/min/IP), so disable rate
+        // limiting for the test server (the setting exists for load testing).
+        RATE_LIMIT_ENABLED: 'false',
       },
     },
     {

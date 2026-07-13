@@ -371,8 +371,14 @@ class TestBuyStocks:
         player = game.get_current_player()
         initial_money = player.money
 
-        # Find a tile that won't conflict with manually placed tiles (1A, 2A)
-        tile = next(t for t in player.hand if not (t.column in [1, 2] and t.row == "A"))
+        # Find a tile that won't conflict with, or grow (via adjacency), the
+        # manually placed Luxor tiles (1A, 2A) - otherwise the chain grows to
+        # size 3 and the $200 price assertion below becomes flaky.
+        tile = next(
+            t
+            for t in player.hand
+            if not (t.column in [1, 2, 3] and t.row in ["A", "B"])
+        )
         game.play_tile("p1", tile)
 
         game.buy_stocks("p1", ["Luxor"])

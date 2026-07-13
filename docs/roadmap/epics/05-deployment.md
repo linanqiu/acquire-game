@@ -1,5 +1,11 @@
 # Epic 5: Deployment
 
+> **Update (2026-07)**: Deployment was consolidated into a **single Docker
+> container** (frontend built and served by the backend, same origin) with
+> **Render free tier** as the primary target via `render.yaml` — see
+> `docs/deployment.md`. `railway.toml` is kept working as an alternative.
+> References to Railway and a separately-deployed frontend below are historical.
+
 ## Overview
 
 Deploy the application to Railway with proper WebSocket support, environment configuration, and monitoring. This epic is **fully independent** and can run in parallel with frontend/AI work.

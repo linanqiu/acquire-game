@@ -2,14 +2,24 @@
 
 import asyncio
 import json
+import logging
 import os
 import re
+import time
 import uuid
+from collections import defaultdict, deque
+from contextlib import asynccontextmanager, suppress
+from pathlib import Path
 from typing import Optional, Union, Literal
+from urllib.parse import urlparse
 
 from fastapi import (
     Body,
+    Depends,
     FastAPI,
+    Header,
+    Query,
+    Request,
     WebSocket,
     WebSocketDisconnect,
     HTTPException,
@@ -30,6 +40,8 @@ from game.rules import Rules
 
 # Initialize logging before anything else
 setup_logging()
+
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -278,17 +290,122 @@ def validate_websocket_message(
         return None, "Validation error"
 
 
+# =============================================================================
+# Player Name Sanitization (SH-004)
+# =============================================================================
+
+PLAYER_NAME_MIN_LENGTH = 2
+PLAYER_NAME_MAX_LENGTH = 20
+# Whitelist: ASCII letters, digits, space and basic punctuation. Rejecting
+# (rather than escaping) HTML special characters and non-ASCII prevents XSS
+# and Unicode homograph impersonation.
+_PLAYER_NAME_PATTERN = re.compile(r"^[A-Za-z0-9 ._-]+$")
+
+
+def sanitize_player_name(name: str) -> str:
+    """Validate and normalize a player name (SH-004).
+
+    Trims leading/trailing whitespace, collapses internal whitespace runs to
+    single spaces, enforces 2-20 characters, and allows only letters, numbers,
+    spaces, hyphens, underscores, and periods.
+
+    Raises ValueError with a user-facing message when the name is invalid.
+    """
+    name = " ".join(name.split())
+
+    if len(name) < PLAYER_NAME_MIN_LENGTH:
+        raise ValueError("Name must be at least 2 characters")
+    if len(name) > PLAYER_NAME_MAX_LENGTH:
+        raise ValueError("Name must be at most 20 characters")
+    if not _PLAYER_NAME_PATTERN.match(name):
+        raise ValueError(
+            "Name contains invalid characters. Use letters, numbers, "
+            "spaces, hyphens, underscores, or periods."
+        )
+    return name
+
+
+# =============================================================================
+# Room Cleanup / Memory Management (SH-005)
+# =============================================================================
+
+
+async def cleanup_stale_rooms_once() -> list[str]:
+    """Remove rooms inactive for longer than settings.room_timeout_minutes.
+
+    Closes any remaining WebSocket connections with code 4002 and deletes the
+    room. Returns the list of removed room codes.
+    """
+    removed: list[str] = []
+    timeout_minutes = settings.room_timeout_minutes
+
+    for code, room in list(session_manager._rooms.items()):
+        if not room.is_stale(timeout_minutes):
+            continue
+
+        # Close any remaining connections
+        for player in room.players.values():
+            for ws in list(player.websockets):
+                try:
+                    await ws.close(code=4002, reason="Room expired due to inactivity")
+                except Exception:
+                    pass
+        if room.host_websocket is not None:
+            try:
+                await room.host_websocket.close(
+                    code=4002, reason="Room expired due to inactivity"
+                )
+            except Exception:
+                pass
+
+        session_manager.delete_room(code)
+        removed.append(code)
+        logger.info(
+            "Cleaned up stale room %s (inactive for %s+ minutes)",
+            code,
+            timeout_minutes,
+        )
+
+    return removed
+
+
+async def _room_cleanup_loop() -> None:
+    """Background task: periodically remove stale rooms."""
+    while True:
+        await asyncio.sleep(settings.room_cleanup_interval_seconds)
+        try:
+            await cleanup_stale_rooms_once()
+        except Exception:
+            logger.exception("Room cleanup pass failed")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Start/stop the stale-room cleanup background task with the app."""
+    cleanup_task = asyncio.create_task(_room_cleanup_loop())
+    yield
+    cleanup_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await cleanup_task
+
+
 settings = get_settings()
 
-app = FastAPI(title="Acquire Board Game", debug=not settings.is_production)
+app = FastAPI(
+    title="Acquire Board Game",
+    debug=not settings.is_production,
+    lifespan=lifespan,
+)
 
-# CORS middleware
+# CORS middleware (SH-003): explicit origins from settings, restricted
+# methods/headers. In production, ALLOWED_ORIGINS must be configured or all
+# cross-origin requests are denied (same-origin traffic is unaffected).
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 # Request logging middleware
@@ -301,10 +418,153 @@ app.include_router(health_router)
 session_manager = SessionManager()
 
 
+# =============================================================================
+# Rate Limiting (SH-002)
+# =============================================================================
+
+
+class RequestRateLimiter:
+    """Sliding-window rate limiter usable as a FastAPI dependency.
+
+    scope="ip"   -> one bucket per client IP (for /create, /join)
+    scope="room" -> one bucket per {room_code} path parameter (for /start, /add-bot)
+
+    State persists for the lifetime of the process (single-instance deployment).
+    Raises 429 with a Retry-After header when the limit is exceeded.
+    """
+
+    def __init__(self, max_requests: int, window_seconds: float, scope: str = "ip"):
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self.scope = scope
+        self._requests: dict[str, list[float]] = defaultdict(list)
+
+    def _key(self, request: Request) -> str:
+        if self.scope == "room":
+            return f"room:{request.path_params.get('room_code', 'unknown')}"
+        client_ip = request.client.host if request.client else "unknown"
+        return f"ip:{client_ip}"
+
+    def reset(self) -> None:
+        """Clear all rate limit state (used by tests)."""
+        self._requests.clear()
+
+    async def __call__(self, request: Request) -> None:
+        if not settings.rate_limit_enabled:
+            return
+
+        now = time.monotonic()
+        key = self._key(request)
+        bucket = [t for t in self._requests[key] if now - t < self.window_seconds]
+
+        if len(bucket) >= self.max_requests:
+            self._requests[key] = bucket
+            retry_after = max(1, int(self.window_seconds - (now - bucket[0])) + 1)
+            logger.warning("Rate limit exceeded for %s on %s", key, request.url.path)
+            raise HTTPException(
+                status_code=429,
+                detail="Too many requests",
+                headers={"Retry-After": str(retry_after)},
+            )
+
+        bucket.append(now)
+        self._requests[key] = bucket
+
+
+# Per-endpoint limiter instances (state persists across requests)
+create_rate_limiter = RequestRateLimiter(max_requests=5, window_seconds=60)
+join_rate_limiter = RequestRateLimiter(max_requests=10, window_seconds=60)
+start_rate_limiter = RequestRateLimiter(max_requests=3, window_seconds=60, scope="room")
+add_bot_rate_limiter = RequestRateLimiter(
+    max_requests=10, window_seconds=60, scope="room"
+)
+
+# Registry so tests can reset all limiter state between tests
+ALL_RATE_LIMITERS = [
+    create_rate_limiter,
+    join_rate_limiter,
+    start_rate_limiter,
+    add_bot_rate_limiter,
+]
+
+
+class ConnectionRateLimiter:
+    """Per-connection sliding-window limiter for WebSocket messages (SH-002).
+
+    One instance is created per accepted WebSocket connection; messages beyond
+    the limit are dropped (with an error reply) instead of being processed.
+    """
+
+    def __init__(self, max_messages: int, window_seconds: float = 1.0):
+        self.max_messages = max_messages
+        self.window_seconds = window_seconds
+        self._times: deque[float] = deque()
+
+    def allow(self) -> bool:
+        """Record one message; return False if the connection is over budget."""
+        if not settings.rate_limit_enabled:
+            return True
+        now = time.monotonic()
+        while self._times and now - self._times[0] >= self.window_seconds:
+            self._times.popleft()
+        if len(self._times) >= self.max_messages:
+            return False
+        self._times.append(now)
+        return True
+
+
+# =============================================================================
+# Authentication (SH-001)
+# =============================================================================
+
+
+def _extract_bearer_token(authorization: Optional[str]) -> Optional[str]:
+    """Extract token from an Authorization header value.
+
+    Accepts both "Bearer <token>" and a raw token for convenience.
+    """
+    if not authorization:
+        return None
+    if authorization.lower().startswith("bearer "):
+        return authorization[7:].strip() or None
+    return authorization.strip() or None
+
+
+async def require_room_token(
+    room_code: str, authorization: Optional[str] = Header(None)
+) -> str:
+    """FastAPI dependency: require a valid session token for a room.
+
+    The token must match the room's host token or any player's session token.
+    Raises 401 when missing/invalid. Raises 404 when the room does not exist
+    (preserves existing endpoint semantics for unknown rooms).
+    """
+    room = session_manager.get_room(room_code)
+    if room is None:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    token = _extract_bearer_token(authorization)
+    if token is None:
+        logger.warning("Auth failure: missing session token for room %s", room_code)
+        raise HTTPException(status_code=401, detail="Missing session token")
+    if not room.is_valid_token(token):
+        logger.warning("Auth failure: invalid session token for room %s", room_code)
+        raise HTTPException(status_code=401, detail="Invalid session token")
+    return token
+
+
 # HTTP Routes
 @app.post("/create")
-async def create_room(player_name: str = Form(...)):
+async def create_room(
+    player_name: str = Form(...),
+    _rate_limit: None = Depends(create_rate_limiter),
+):
     """Create a new game room and add the creator as first player."""
+    try:
+        player_name = sanitize_player_name(player_name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     room_code = session_manager.create_room()
 
     # Add creator as first player
@@ -314,15 +574,17 @@ async def create_room(player_name: str = Form(...)):
     if not success:
         raise HTTPException(status_code=500, detail="Failed to create room")
 
+    room = session_manager.get_room(room_code)
     return {
         "room_code": room_code,
         "player_id": player_id,
         "is_host": True,
+        "session_token": room.players[player_id].session_token,
     }
 
 
 @app.post("/create-spectator")
-async def create_spectator_room():
+async def create_spectator_room(_rate_limit: None = Depends(create_rate_limiter)):
     """Create a new game room for spectator mode (bots only).
 
     The caller does not join as a player - they can watch via the host WebSocket.
@@ -330,15 +592,26 @@ async def create_spectator_room():
     """
     room_code = session_manager.create_room()
 
+    room = session_manager.get_room(room_code)
     return {
         "room_code": room_code,
         "is_spectator": True,
+        "host_token": room.host_token,
     }
 
 
 @app.post("/join")
-async def join_room(room_code: str = Form(...), player_name: str = Form(...)):
+async def join_room(
+    room_code: str = Form(...),
+    player_name: str = Form(...),
+    _rate_limit: None = Depends(join_rate_limiter),
+):
     """Join an existing room."""
+    try:
+        player_name = sanitize_player_name(player_name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     room = session_manager.get_room(room_code.upper())
     if room is None:
         raise HTTPException(status_code=404, detail="Room not found")
@@ -361,15 +634,21 @@ async def join_room(room_code: str = Form(...), player_name: str = Form(...)):
             raise HTTPException(status_code=400, detail="Player name already taken")
         raise HTTPException(status_code=400, detail="Failed to join room")
 
+    room = session_manager.get_room(room_code.upper())
     return {
         "room_code": room_code.upper(),
         "player_id": player_id,
+        "session_token": room.players[player_id].session_token,
     }
 
 
 @app.post("/room/{room_code}/add-bot")
-async def add_bot(room_code: str):
-    """Add a bot to the room."""
+async def add_bot(
+    room_code: str,
+    _token: str = Depends(require_room_token),
+    _rate_limit: None = Depends(add_bot_rate_limiter),
+):
+    """Add a bot to the room. Requires a valid session token (SH-001)."""
     room = session_manager.get_room(room_code)
     if room is None:
         raise HTTPException(status_code=404, detail="Room not found")
@@ -390,8 +669,12 @@ async def add_bot(room_code: str):
 
 
 @app.post("/room/{room_code}/start")
-async def start_game(room_code: str):
-    """Start the game."""
+async def start_game(
+    room_code: str,
+    _token: str = Depends(require_room_token),
+    _rate_limit: None = Depends(start_rate_limiter),
+):
+    """Start the game. Requires a valid session token (SH-001)."""
     room = session_manager.get_room(room_code)
     if room is None:
         raise HTTPException(status_code=404, detail="Room not found")
@@ -438,6 +721,7 @@ async def configure_room(
     if tile_order is not None:
         room.tile_order = tile_order
 
+    room.touch()
     return {"status": "configured"}
 
 
@@ -541,6 +825,28 @@ async def http_game_action(room_code: str, player_id: str, data: dict):
     return response
 
 
+def websocket_origin_allowed(websocket: WebSocket) -> bool:
+    """Validate the Origin header on WebSocket handshakes (SH-003).
+
+    CORS does not apply to WebSockets, so origins are checked explicitly.
+    Browsers always send Origin; non-browser clients may omit it (they are not
+    subject to CORS anyway and must still present a valid session token).
+    Enforced only in production so local/LAN development keeps working.
+    """
+    origin = websocket.headers.get("origin")
+    if not origin:
+        return True
+    if not settings.is_production:
+        return True
+    if origin in settings.cors_origins:
+        return True
+    # Same-origin handshake (e.g. SPA served by this backend in one container)
+    host = websocket.headers.get("host", "")
+    if host and urlparse(origin).netloc == host:
+        return True
+    return False
+
+
 # WebSocket keepalive ping task
 async def ping_task(ws: WebSocket) -> None:
     """Send periodic pings to keep WebSocket alive through Railway's idle timeout."""
@@ -554,11 +860,24 @@ async def ping_task(ws: WebSocket) -> None:
 
 # WebSocket endpoints
 @app.websocket("/ws/host/{room_code}")
-async def host_websocket(websocket: WebSocket, room_code: str):
-    """WebSocket for host display."""
+async def host_websocket(
+    websocket: WebSocket, room_code: str, token: Optional[str] = Query(None)
+):
+    """WebSocket for host display. Requires a valid session token (SH-001)."""
+    if not websocket_origin_allowed(websocket):
+        logger.warning("Rejected host WebSocket from disallowed origin")
+        await websocket.close(code=4003, reason="Origin not allowed")
+        return
+
     room = session_manager.get_room(room_code)
     if room is None:
         await websocket.close(code=4004, reason="Room not found")
+        return
+
+    # Host must present either the room's host token or a player session token
+    if not room.is_valid_token(token):
+        logger.warning("Auth failure: host WebSocket for room %s", room_code)
+        await websocket.close(code=4001, reason="Invalid session token")
         return
 
     await websocket.accept()
@@ -568,9 +887,20 @@ async def host_websocket(websocket: WebSocket, room_code: str):
     await send_host_state(room_code)
 
     ping = asyncio.create_task(ping_task(websocket))
+    msg_limiter = ConnectionRateLimiter(settings.ws_max_messages_per_second)
     try:
         while True:
             data = await websocket.receive_json()
+
+            # Any inbound message (including pong) counts as room activity
+            room.touch()
+
+            # Per-connection message rate limiting (SH-002)
+            if not msg_limiter.allow():
+                await websocket.send_json(
+                    {"type": "error", "message": "Rate limit exceeded"}
+                )
+                continue
 
             # Handle pong responses to keepalive pings
             if data.get("type") == "pong":
@@ -602,8 +932,18 @@ async def host_websocket(websocket: WebSocket, room_code: str):
 
 
 @app.websocket("/ws/player/{room_code}/{player_id}")
-async def player_websocket(websocket: WebSocket, room_code: str, player_id: str):
-    """WebSocket for player device."""
+async def player_websocket(
+    websocket: WebSocket,
+    room_code: str,
+    player_id: str,
+    token: Optional[str] = Query(None),
+):
+    """WebSocket for player device. Requires a valid session token (SH-001)."""
+    if not websocket_origin_allowed(websocket):
+        logger.warning("Rejected player WebSocket from disallowed origin")
+        await websocket.close(code=4003, reason="Origin not allowed")
+        return
+
     room = session_manager.get_room(room_code)
     if room is None:
         await websocket.close(code=4004, reason="Room not found")
@@ -613,6 +953,16 @@ async def player_websocket(websocket: WebSocket, room_code: str, player_id: str)
         await websocket.close(code=4004, reason="Player not found")
         return
 
+    # Strict session token validation: token must match this player's token
+    if token is None or room.players[player_id].session_token != token:
+        logger.warning(
+            "Auth failure: player WebSocket for room %s player %s",
+            room_code,
+            player_id,
+        )
+        await websocket.close(code=4001, reason="Invalid session token")
+        return
+
     await websocket.accept()
     session_manager.connect_player(room_code, player_id, websocket)
 
@@ -620,6 +970,7 @@ async def player_websocket(websocket: WebSocket, room_code: str, player_id: str)
     await send_player_state(room_code, player_id)
 
     ping = asyncio.create_task(ping_task(websocket))
+    msg_limiter = ConnectionRateLimiter(settings.ws_max_messages_per_second)
     try:
         while True:
             try:
@@ -630,6 +981,16 @@ async def player_websocket(websocket: WebSocket, room_code: str, player_id: str)
                     room_code,
                     player_id,
                     {"type": "error", "message": f"Invalid JSON: {e}"},
+                )
+                continue
+
+            # Any inbound message (including pong) counts as room activity
+            room.touch()
+
+            # Per-connection message rate limiting (SH-002)
+            if not msg_limiter.allow():
+                await websocket.send_json(
+                    {"type": "error", "message": "Rate limit exceeded"}
                 )
                 continue
 
@@ -670,6 +1031,9 @@ async def handle_player_action(room_code: str, player_id: str, data: dict) -> No
     room = session_manager.get_room(room_code)
     if room is None or not room.started:
         return
+
+    # Game actions reset the room inactivity timer (SH-005)
+    room.touch()
 
     # Validate the incoming message
     validated_msg, error = validate_websocket_message(data)
@@ -1643,3 +2007,70 @@ async def send_player_state(room_code: str, player_id: str):
                 )
     else:
         await broadcast_lobby_update(room_code)
+
+
+# =============================================================================
+# Static frontend serving (single-container deployment)
+# =============================================================================
+#
+# In production the Docker image (deploy/Dockerfile) bakes the built frontend
+# into the container and points STATIC_DIR at it. When STATIC_DIR contains an
+# index.html we:
+#   1. Rewrite incoming "/api/*" HTTP paths to "/*" - the frontend calls
+#      "/api/create" etc. (the Vite dev proxy strips the prefix in dev, so the
+#      backend routes have no "/api" prefix).
+#   2. Register a catch-all GET route that serves files from STATIC_DIR, with
+#      an SPA fallback to index.html for client-side routes like /host.
+#
+# Both are registered AFTER every API/WS route above, so FastAPI matches the
+# real routes first and the catch-all can never shadow /health, /create,
+# /room/*, or /ws/* (WebSockets use a different ASGI scope type entirely).
+#
+# In local dev STATIC_DIR (default ../frontend/dist) usually does not exist,
+# so none of this activates and the dev workflow / tests are untouched.
+
+_DEFAULT_STATIC_DIR = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+_STATIC_DIR = Path(os.environ.get("STATIC_DIR", str(_DEFAULT_STATIC_DIR))).resolve()
+
+
+class _ApiPrefixRewriteMiddleware:
+    """Strip a leading /api from HTTP request paths.
+
+    Mirrors the Vite dev proxy's rewrite so the built frontend's same-origin
+    fetch('/api/...') calls reach the un-prefixed backend routes.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and scope["path"].startswith("/api/"):
+            scope = dict(scope)
+            scope["path"] = scope["path"][len("/api") :]
+            scope["raw_path"] = scope["path"].encode("utf-8")
+        await self.app(scope, receive, send)
+
+
+if (_STATIC_DIR / "index.html").is_file():
+    from fastapi.responses import FileResponse
+    from fastapi.staticfiles import StaticFiles
+
+    app.add_middleware(_ApiPrefixRewriteMiddleware)
+
+    # Hashed build assets (JS/CSS bundles) served directly.
+    _assets_dir = _STATIC_DIR / "assets"
+    if _assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=_assets_dir), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa_fallback(full_path: str) -> FileResponse:
+        """Serve static files with SPA fallback to index.html.
+
+        Registered last, so every explicit API route wins over this one.
+        """
+        if full_path:
+            candidate = (_STATIC_DIR / full_path).resolve()
+            # Guard against path traversal outside the static dir.
+            if candidate.is_file() and candidate.is_relative_to(_STATIC_DIR):
+                return FileResponse(candidate)
+        return FileResponse(_STATIC_DIR / "index.html")

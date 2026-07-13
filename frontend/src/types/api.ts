@@ -283,6 +283,12 @@ export interface JoinRoomResponse {
   session_token: string
 }
 
+export interface CreateSpectatorRoomResponse {
+  room_code: string
+  is_spectator: boolean
+  host_token: string
+}
+
 export interface AddBotResponse {
   bot_id: string
 }
