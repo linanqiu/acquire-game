@@ -18,11 +18,12 @@
 | [Frontend Foundation](epics/01-frontend-foundation.md) | 11/11 ✅ | Complete |
 | [Game UI](epics/02-game-ui.md) | 16/16 ✅ | Complete |
 | [Real-time Integration](epics/03-realtime-integration.md) | 6/6 ✅ | Complete |
-| [AI Training](epics/04-ai-training.md) | 0/9 | AI-001, AI-003 |
+| [AI Training](epics/04-ai-training.md) | superseded | — (scrapped in favor of Epic 9) |
 | [Deployment](epics/05-deployment.md) | 5/5 ✅ | Complete (single-container Docker + Render) |
 | [Security Hardening](epics/06-security-hardening.md) | 5/5 ✅ | Complete |
 | [Scenario Tests](epics/07-scenario-tests.md) | 10/10 ✅ | Complete |
 | [Backlog](epics/08-backlog.md) | 4/6 | BL-004, BL-005 |
+| [LLM Bot](epics/09-llm-bot.md) | planning | Stories pending planning report |
 
 ## Story Status Key
 
@@ -32,22 +33,23 @@
 | `in-progress` | Being worked on |
 | `blocked` | Waiting on dependencies |
 | `complete` | Done and verified |
+| `superseded` | Scrapped by a pivot; kept for history, do not implement |
 
 ## Parallelization Guide
 
 ### Independent Tracks (Run Simultaneously)
 
 ```
-Track 1: BACKEND → FRONTEND    Track 2: AI TRAINING       Track 3: DEPLOYMENT
+Track 1: BACKEND → FRONTEND    Track 2: LLM BOT           Track 3: DEPLOYMENT
 ───────────────────────────    ─────────────────────      ──────────────────
-BH-001 (Unify State)           AI-001 (MCTS Basic)        DP-001 (Railway)
-BH-007,009,010 (Tests)         AI-003 (State Encoder)         ↓
-    ↓                              ↓                     DP-002, DP-004
-BH-002,003,004,005,006         AI-002, AI-004, AI-005        ↓
-BH-008,011,012 (Tests)             ↓                     DP-003, DP-005
-    ↓                          AI-006, AI-007, AI-008
-FF-001 (Project Setup) ✓           ↓
-FF-002 (Design Tokens) ✓       AI-009
+BH-001 (Unify State)           Epic 9 (planning) —        DP-001 (Railway)
+BH-007,009,010 (Tests)         supersedes AI-001..009         ↓
+    ↓                          (RL/MCTS scrapped)        DP-002, DP-004
+BH-002,003,004,005,006             ↓                         ↓
+BH-008,011,012 (Tests)         stories TBD from          DP-003, DP-005
+    ↓                          planning report
+FF-001 (Project Setup) ✓
+FF-002 (Design Tokens) ✓
 FF-003 (Typography) ✓
 FF-004 (Colors) ✓
 FF-005 (Layout) ✓
@@ -216,10 +218,10 @@ WebSocket client and state synchronization.
 - **Tech**: WebSocket, Zustand, message handlers
 - **Result**: WebSocket core (RT-001/002/003/005), reconnection handling, and optimistic updates with server reconciliation and rollback (RT-004)
 
-### Epic 4: AI Training (9 stories)
-Neural network bots and training pipeline.
-- **Tech**: Python, PyTorch, MCTS
-- **Start**: AI-001, AI-003 (fully independent)
+### Epic 4: AI Training (superseded)
+Neural network bots and training pipeline. **Scrapped 2026-07-13** — training an RL/MCTS
+pipeline isn't worth it versus prompting a strong general LLM. See Epic 9.
+- **Superseded by**: [Epic 9: LLM Bot](epics/09-llm-bot.md)
 
 ### Epic 5: Deployment (5 stories) ✅ COMPLETE
 Production deployment and monitoring.
@@ -242,6 +244,15 @@ Feature ideas and improvements discovered during app use.
 - **Purpose**: Capture ideas that emerge during gameplay or development
 - **Prefix**: BL-XXX
 - **Priority**: Items start as `low`, promote when ready to implement
+
+### Epic 9: LLM Bot (planning)
+LLM-agent bot replacing the RL/MCTS plan: prompt a strong model with the public event log,
+a deterministic "calculator pack" of exact figures derivable from public info, and the legal
+moves; the model applies judgment and returns a structured move. Swappable between Claude Opus,
+Claude Fable, and GLM-5.2, with fallback to the existing simple bot so games never stall.
+- **Tech**: Python, provider adapter (Anthropic + OpenAI-compatible), structured outputs
+- **Prefix**: LB-XXX
+- **Start**: stories pending planning report; BL-004 (event log) is a natural prerequisite
 
 ## Reference Documentation
 
