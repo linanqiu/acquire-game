@@ -25,8 +25,8 @@ test('trade with AI: the bot accepts a generous offer and rejects a bad one', as
 
   const seat = new Seat(page, j, 'alice', { maxShares: 3, cashReserve: 1000 })
   const me = await seat.myId()
-  const botRow = page.locator('[data-testid^="player-row-"]', { hasText: 'Bot 1' })
-  const botId = ((await botRow.getAttribute('data-testid')) ?? '').replace('player-row-', '')
+  const botRow = page.getByTestId('player-row').filter({ hasText: 'Bot 1' })
+  const botId = (await botRow.getAttribute('data-player-id')) ?? ''
   const botCash = async () =>
     parseMoney((await page.getByTestId(`player-cash-${botId}`).textContent()) ?? '')
 

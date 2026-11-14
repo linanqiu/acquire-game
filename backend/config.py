@@ -15,7 +15,13 @@ class Settings(BaseSettings):
     port: int = 8000
     environment: str = "dev"
     log_level: str = "INFO"
+    # Browsers only need CORS for cross-origin use (Vite dev on another port).
+    # A single-service deploy is same-origin, so this can stay at the default
+    # or be narrowed to your public URL.
     allowed_origins: str = "*"
+    # Built React app (env FRONTEND_DIST); relative paths resolve against
+    # backend/. Served only if the directory contains index.html.
+    frontend_dist: str = "../frontend/dist"
     max_players_per_game: int = 6
     game_timeout_minutes: int = 60
     ws_ping_interval: int = 30

@@ -168,6 +168,32 @@ def build_system_prompt() -> str:
     )
 
 
+# Bump by hand whenever ``build_user_prompt`` (or anything else that shapes
+# what the model sees, e.g. the retry message or the answer schema) changes
+# in a way that could change play. The system prompt text is hashed in
+# automatically. Benchmark results are only comparable within one
+# ``prompt_version`` (see docs/ai/benchmarking.md).
+PROMPT_BUILDER_VERSION = 1
+
+
+def _sha(text: str) -> str:
+    import hashlib
+
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def system_prompt_id(text: str) -> str:
+    """Stable id of a system prompt text (``sp-`` + 12 hex digits)."""
+    return "sp-" + _sha(text)[:12]
+
+
+def prompt_version() -> str:
+    """``v<builder version>-<10 hex>``: hash over the system prompt text and
+    ``PROMPT_BUILDER_VERSION``. Stable across processes and machines."""
+    digest = _sha(f"{PROMPT_BUILDER_VERSION}\n{build_system_prompt()}")[:10]
+    return f"v{PROMPT_BUILDER_VERSION}-{digest}"
+
+
 # ---------------------------------------------------------------------------
 # Events
 # ---------------------------------------------------------------------------

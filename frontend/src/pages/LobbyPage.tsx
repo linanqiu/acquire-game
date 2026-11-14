@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { PageShell } from '../components/ui/PageShell'
 import { Card } from '../components/ui/Card'
 import { TextInput } from '../components/ui/TextInput'
@@ -255,6 +255,15 @@ export function LobbyPage() {
           </Button>
           <p className={styles.spectatorHint}>Create a game with only AI players and watch</p>
         </div>
+
+        <nav className={styles.exploreLinks} aria-label="Explore">
+          <Link to="/games" data-testid="games-link">
+            Games &amp; transcripts
+          </Link>
+          <Link to="/bench" data-testid="bench-link">
+            Acquire Bench
+          </Link>
+        </nav>
       </div>
     </PageShell>
   )

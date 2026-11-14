@@ -20,7 +20,8 @@ Environment (read at call time, so tests and deployments can change it):
 ``ACQUIRE_LLM_CATALOG`` entry fields: ``id, label, description, provider``
 (``anthropic`` | ``openai``), ``model``; optional ``api_key_env`` (env var name
 holding the key), ``api_key`` (inline, discouraged), ``base_url``,
-``base_url_env``, ``timeout`` (s), ``max_tokens``, ``effort``, ``json_mode``.
+``base_url_env``, ``timeout`` (s), ``max_tokens``, ``effort``, ``json_mode``,
+``max_illegal_retries`` (default 4: retries after an illegal answer).
 """
 
 from __future__ import annotations
@@ -31,7 +32,12 @@ import os
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
-from agents.llm.agent import DEFAULT_MAX_TOKENS, DEFAULT_TIMEOUT_S, LLMAgent
+from agents.llm.agent import (
+    DEFAULT_MAX_ILLEGAL_RETRIES,
+    DEFAULT_MAX_TOKENS,
+    DEFAULT_TIMEOUT_S,
+    LLMAgent,
+)
 from agents.llm.providers import (
     AnthropicProvider,
     FakeProvider,
@@ -59,6 +65,7 @@ class CatalogEntry:
     max_tokens: int = DEFAULT_MAX_TOKENS
     effort: str | None = "medium"
     json_mode: str = "json_object"
+    max_illegal_retries: int = DEFAULT_MAX_ILLEGAL_RETRIES
 
     def resolved_key(self) -> str | None:
         if self.api_key:
@@ -171,6 +178,9 @@ def _entry_from_json(d: dict) -> CatalogEntry:
         max_tokens=int(d.get("max_tokens", DEFAULT_MAX_TOKENS)),
         effort=d.get("effort", "medium"),
         json_mode=d.get("json_mode", "json_object"),
+        max_illegal_retries=max(
+            0, int(d.get("max_illegal_retries", DEFAULT_MAX_ILLEGAL_RETRIES))
+        ),
     )
 
 
@@ -236,4 +246,5 @@ def create_agent(agent_id: str, *, name: str) -> LLMAgent:
         agent_id=entry.id,
         timeout=entry.timeout,
         max_tokens=entry.max_tokens,
+        max_illegal_retries=entry.max_illegal_retries,
     )

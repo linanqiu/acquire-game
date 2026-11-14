@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { PlayerPage } from './PlayerPage'
@@ -7,9 +7,11 @@ import { useGameStore } from '../store/gameStore'
 import type { GameStateMessage } from '../types/api'
 
 // Mock useWebSocket to prevent it from changing connectionStatus during tests
+const { sendAction } = vi.hoisted(() => ({ sendAction: vi.fn((_action: unknown) => true) }))
+
 vi.mock('../hooks/useWebSocket', () => ({
   useWebSocket: () => ({
-    sendAction: vi.fn(() => true),
+    sendAction,
     reconnect: vi.fn(() => Promise.resolve(true)),
     disconnect: vi.fn(),
     isConnected: true,
@@ -31,6 +33,7 @@ function renderPlayerPage(room = 'TEST') {
 
 describe('PlayerPage', () => {
   beforeEach(() => {
+    sendAction.mockClear()
     // Reset the store before each test
     useGameStore.getState().reset()
     // Set default connected state for most tests
@@ -151,6 +154,32 @@ describe('PlayerPage', () => {
       expect(screen.getByText('PLACE A TILE')).toBeInTheDocument()
     })
 
+    it('does not let the board select a tile the engine says is unplayable', () => {
+      useGameStore.setState({
+        gameState: mockGameState,
+        currentPlayer: { id: 'player1', name: 'Alice', token: 'tok', isHost: true },
+        yourHand: ['1A', '2B'],
+        tilePlayability: {
+          '1A': { playable: true, reason: null, permanent: null, would_trigger_merger: false },
+          '2B': {
+            playable: false,
+            reason: 'would_create_eighth_chain',
+            permanent: true,
+            would_trigger_merger: false,
+          },
+        },
+      })
+      renderPlayerPage()
+      // The rack explains why 2B is blocked.
+      expect(screen.getByTestId('rack-note-2B')).toHaveTextContent(/8th chain/)
+      const board = screen.getByTestId('board')
+      // Clicking the blocked tile's square does nothing; the playable one selects.
+      fireEvent.click(board.querySelector('[data-testid="tile-2B"]')!)
+      expect(screen.queryByTestId('place-tile-button')).not.toBeInTheDocument()
+      fireEvent.click(board.querySelector('[data-testid="tile-1A"]')!)
+      expect(screen.getByTestId('place-tile-button')).toBeInTheDocument()
+    })
+
     it('shows waiting message when not your turn', () => {
       useGameStore.setState({
         gameState: mockGameState,
@@ -190,6 +219,96 @@ describe('PlayerPage', () => {
       const buyStocksTexts = screen.getAllByText('BUY STOCKS')
       expect(buyStocksTexts.length).toBeGreaterThan(0)
       expect(screen.getByText('PROPOSE TRADE')).toBeInTheDocument()
+    })
+
+    it('clears the survivor prompt once the answer is sent (phase stays merger)', () => {
+      useGameStore.setState({
+        gameState: { ...mockGameState, phase: 'merger' },
+        currentPlayer: { id: 'player1', name: 'Alice', token: 'tok', isHost: true },
+        yourHand: ['1A'],
+        pendingMergerChoice: ['Luxor', 'Tower'],
+      })
+      renderPlayerPage()
+      expect(screen.getByTestId('chain-selector')).toBeInTheDocument()
+      fireEvent.click(screen.getByTestId('chain-button-tower'))
+      // Without this the selector would stay on screen over the disposition that follows.
+      expect(useGameStore.getState().pendingMergerChoice).toBeNull()
+      expect(screen.queryByTestId('chain-selector')).not.toBeInTheDocument()
+    })
+
+    it('clears the disposition prompt once it is confirmed', () => {
+      useGameStore.setState({
+        gameState: { ...mockGameState, phase: 'merger' },
+        currentPlayer: { id: 'player1', name: 'Alice', token: 'tok', isHost: true },
+        yourHand: ['1A'],
+        pendingStockDisposition: {
+          defunctChain: 'Luxor',
+          survivingChain: 'Tower',
+          stockCount: 3,
+          availableToTrade: 5,
+        },
+      })
+      renderPlayerPage()
+      fireEvent.click(screen.getByTestId('confirm-disposition'))
+      expect(useGameStore.getState().pendingStockDisposition).toBeNull()
+      expect(screen.queryByTestId('merger-disposition')).not.toBeInTheDocument()
+    })
+
+    describe('ending the buy phase', () => {
+      const buyState = () =>
+        useGameStore.setState({
+          gameState: {
+            ...mockGameState,
+            phase: 'buy_stocks',
+            hotel: {
+              ...mockGameState.hotel,
+              active_chains: ['Luxor'],
+              chains: [{ name: 'Luxor', size: 3, price: 300, stocks_available: 22 }],
+              available_stocks: { Luxor: 22 } as any,
+            },
+          },
+          currentPlayer: { id: 'player1', name: 'Alice', token: 'tok', isHost: true },
+          yourHand: ['1A'],
+        })
+
+      it('skipping sends end_turn, not an empty buy', () => {
+        buyState()
+        renderPlayerPage()
+        fireEvent.click(screen.getByTestId('end-turn-button'))
+        expect(sendAction).toHaveBeenCalledWith({ action: 'end_turn' })
+      })
+
+      it('buying sends the purchases', () => {
+        buyState()
+        renderPlayerPage()
+        fireEvent.click(screen.getByTestId('stepper-increment'))
+        fireEvent.click(screen.getByTestId('end-turn-button'))
+        expect(sendAction).toHaveBeenCalledWith({
+          action: 'buy_stocks',
+          purchases: { Luxor: 1 },
+        })
+      })
+
+      it('shows price and size per chain and caps the stepper by cash', () => {
+        buyState()
+        useGameStore.setState({
+          gameState: {
+            ...useGameStore.getState().gameState!,
+            players: {
+              ...mockGameState.players,
+              player1: { name: 'Alice', money: 700, stocks: {} as any, hand_size: 6 },
+            },
+          },
+        })
+        renderPlayerPage()
+        expect(screen.getByTestId('buy-price')).toHaveTextContent('$300')
+        expect(screen.getByTestId('buy-size')).toHaveTextContent('3 tiles')
+        fireEvent.click(screen.getByTestId('stepper-increment'))
+        fireEvent.click(screen.getByTestId('stepper-increment'))
+        // $700 pays for two $300 shares, not three.
+        expect(screen.getByTestId('stepper-value')).toHaveTextContent('2')
+        expect(screen.getByTestId('stepper-increment')).toBeDisabled()
+      })
     })
 
     it('shows founding content when pendingChainChoice is set', () => {

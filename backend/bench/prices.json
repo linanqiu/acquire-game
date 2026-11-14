@@ -1,0 +1,10 @@
+{
+  "_comment": "USD per 1,000,000 tokens. null = unknown: the report then says 'unknown' instead of inventing a number. Fill from your provider's published price list; see docs/ai/benchmarking.md. 'fake' is the offline test provider and is genuinely free. A model not listed here is treated as unknown.",
+  "_unit": "usd_per_million_tokens",
+  "models": {
+    "fake": {"input": 0.0, "output": 0.0, "cache_read": 0.0, "cache_write": 0.0},
+    "claude-haiku-5-5": {"input": null, "output": null, "cache_read": null, "cache_write": null},
+    "claude-sonnet-5-5": {"input": null, "output": null, "cache_read": null, "cache_write": null},
+    "claude-opus-5-5": {"input": null, "output": null, "cache_read": null, "cache_write": null}
+  }
+}

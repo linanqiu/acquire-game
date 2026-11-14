@@ -1,6 +1,18 @@
 """Pytest fixtures for Acquire board game tests."""
 
+import os
+import tempfile
+
 import pytest
+
+# Every game the tests play writes a transcript: keep them out of the source
+# tree (tests that inspect transcripts set their own directory per test).
+os.environ.setdefault(
+    "ACQUIRE_TRANSCRIPT_DIR", tempfile.mkdtemp(prefix="acquire-test-transcripts-")
+)
+os.environ.setdefault(
+    "ACQUIRE_BENCH_DIR", tempfile.mkdtemp(prefix="acquire-test-bench-")
+)
 from fastapi.testclient import TestClient
 
 from main import app, session_manager

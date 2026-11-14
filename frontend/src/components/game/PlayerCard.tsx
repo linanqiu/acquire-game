@@ -3,7 +3,7 @@ import { Badge } from '../ui/Badge'
 import { SeatKindBadge } from './SeatKindBadge'
 import { AiThinking } from './AiThinking'
 import styles from './PlayerCard.module.css'
-import type { ChainName, SeatKind } from '../../types/api'
+import type { ChainName, SeatFallbacks, SeatKind } from '../../types/api'
 
 export interface StockHolding {
   chain: ChainName
@@ -20,6 +20,8 @@ export interface PlayerCardProps {
   playerId?: string
   kind?: SeatKind
   agentLabel?: string | null
+  /** Rules-based-bot takeovers for this seat; a marker shows when `count > 0`. */
+  fallbacks?: SeatFallbacks
   /** True while the engine is waiting on this (AI) seat. */
   thinking?: boolean
   variant?: 'full' | 'compact'
@@ -35,6 +37,7 @@ export function PlayerCard({
   playerId = 'unknown',
   kind,
   agentLabel,
+  fallbacks,
   thinking = false,
   variant = 'full',
 }: PlayerCardProps) {
@@ -74,7 +77,13 @@ export function PlayerCard({
         {thinking && <AiThinking />}
         <div className={styles.badges}>
           {isHost && <Badge label="HOST" variant="info" />}
-          <SeatKindBadge playerId={playerId} kind={kind} isBot={isBot} agentLabel={agentLabel} />
+          <SeatKindBadge
+            playerId={playerId}
+            kind={kind}
+            isBot={isBot}
+            agentLabel={agentLabel}
+            fallbacks={fallbacks}
+          />
         </div>
         <span className={styles.cash} data-testid="player-cash">
           ${cash.toLocaleString()}

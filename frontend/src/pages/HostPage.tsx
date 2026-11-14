@@ -19,6 +19,7 @@ import { buildFinalScores } from '../lib/finalScores'
 import { roomUnavailable } from '../lib/roomAvailability'
 import { useGameStore } from '../store/gameStore'
 import { useToast } from '../components/ui/useToast'
+import { useFallbackToasts } from '../hooks/useFallbackToasts'
 import { useErrorHandler } from '../hooks/useErrorHandler'
 import { transformBoardToTileStates } from '../utils/transforms'
 import type { ChainName, GamePhase, TradeOffer } from '../types/api'
@@ -86,6 +87,7 @@ export function HostPage() {
   const navigate = useNavigate()
   const { toast } = useToast()
   const { handleServerError } = useErrorHandler()
+  useFallbackToasts()
 
   // Stable callback for WebSocket to prevent infinite re-renders
   const handleWsError = useCallback(
@@ -178,6 +180,7 @@ export function HostPage() {
         isBot: resolveSeatKind(player) !== 'human',
         kind: player.kind,
         agentLabel: player.agent_label,
+        fallbacks: player.fallbacks,
         thinking: isAiThinking(gameState.awaiting, playerId),
       }
     })
@@ -302,6 +305,7 @@ export function HostPage() {
           onPlayAgain={handlePlayAgain}
           onBackToLobby={handleBackToLobby}
           variant="host"
+          gameId={gameState?.game_id}
         />
       </div>
     )
@@ -316,7 +320,7 @@ export function HostPage() {
 
       <div className={styles.sidebar}>
         <Panel title="CHAINS">
-          <div className={styles.chainList}>
+          <div className={styles.chainList} data-testid="chain-list">
             {activeChains.length === 0 ? (
               <p className={styles.noChains}>No active chains</p>
             ) : (
@@ -363,6 +367,7 @@ export function HostPage() {
                 playerId={p.id}
                 kind={p.kind}
                 agentLabel={p.agentLabel}
+                fallbacks={p.fallbacks}
                 thinking={p.thinking}
                 variant="full"
               />

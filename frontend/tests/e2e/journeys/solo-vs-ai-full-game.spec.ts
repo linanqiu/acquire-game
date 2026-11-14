@@ -42,9 +42,10 @@ test('@ci solo vs AI: full game from the home page to game over and play again',
   await j.shot(page, 'game-started')
 
   // AI seats carry their kind badges in the players panel.
-  for (const id of aiIds) await expect(page.getByTestId(`player-row-${id}`)).toBeVisible()
-  await expect(page.locator('[data-testid^="player-row-"] [data-kind="bot"]')).toHaveCount(1)
-  await expect(page.locator('[data-testid^="player-row-"] [data-kind="llm"]')).toHaveCount(1)
+  for (const id of aiIds)
+    await expect(page.locator(`[data-testid="player-row"][data-player-id="${id}"]`)).toBeVisible()
+  await expect(page.locator('[data-testid="player-row"] [data-kind="bot"]')).toHaveCount(1)
+  await expect(page.locator('[data-testid="player-row"] [data-kind="llm"]')).toHaveCount(1)
 
   // --- Play the whole game --------------------------------------------------------------
   const seat = new Seat(page, j, 'alice', {
@@ -117,6 +118,46 @@ test('@ci solo vs AI: full game from the home page to game over and play again',
   for (const id of aiIds) {
     expect(obs.thinking[id] ?? 0, `thinking indicator seen for AI seat ${id}`).toBeGreaterThan(0)
   }
+
+  // --- Transcript of the finished game ------------------------------------------------
+  const winner = (
+    (await page.getByTestId('winner-announcement').locator('p').first().textContent()) ?? ''
+  ).trim()
+  const gameUrl = page.url()
+  j.log(`winner ${winner}; open "View full transcript"`)
+  await page.getByTestId('view-transcript-link').click()
+  await page.waitForURL(/\/games\/[^/]+$/)
+  const viewer = page.getByTestId('transcript-viewer')
+  await expect(viewer).toBeVisible()
+  const summary = page.getByTestId('summary-header')
+  await expect(summary).toContainText('FINISHED')
+  // Rank-1 row of the seat summary is the same winner the game-over screen showed.
+  const firstRow = summary.getByTestId('seat-summary').locator('tbody tr').first()
+  await expect(firstRow.locator('td').first()).toHaveText('1')
+  await expect(firstRow).toContainText(winner)
+  await expect(page.getByTestId('step-counter')).toHaveText(/^Step 0 \/ \d+$/)
+  const total = Number(((await page.getByTestId('step-counter').textContent()) ?? '').split('/')[1])
+  expect(total, 'the transcript has the whole game').toBeGreaterThan(60)
+  await j.shot(page, 'transcript-start')
+  for (let i = 1; i <= 3; i++) {
+    await page.getByTestId('step-next').click()
+    await expect(page.getByTestId('step-counter')).toHaveText(`Step ${i} / ${total}`)
+    await expect(page.getByTestId('event-log').locator('li').first()).toBeVisible()
+  }
+  await j.shot(page, 'transcript-step-3')
+  await page.getByTestId('step-prev').click()
+  await expect(page.getByTestId('step-counter')).toHaveText(`Step 2 / ${total}`)
+  await page.getByTestId('step-last').click()
+  await expect(page.getByTestId('step-counter')).toHaveText(`Step ${total} / ${total}`)
+  await j.shot(page, 'transcript-last-step')
+
+  // Browser back: the game page reconnects and shows the same final screen and breakdown.
+  await page.goBack()
+  await page.waitForURL(gameUrl)
+  await expect(page.getByTestId('game-over')).toBeVisible()
+  await expect(page.getByTestId('winner-announcement')).toContainText(winner)
+  await expect(page.getByTestId('breakdown-bonuses')).toBeVisible()
+  await j.shot(page, 'game-over-after-back')
 
   // --- Play again ----------------------------------------------------------------------
   await page.getByTestId('play-again').click()

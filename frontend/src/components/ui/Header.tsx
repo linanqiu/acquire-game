@@ -12,15 +12,23 @@ export function Header({ roomCode, cash, playerName, tilePool }: HeaderProps) {
     <header className={styles.header}>
       <div className={styles.logo}>ACQUIRE</div>
       <div className={styles.info}>
-        {roomCode && <div className={styles.roomCode}>Room: {roomCode}</div>}
-        {playerName && <div className={styles.playerName}>{playerName}</div>}
+        {roomCode && (
+          <div className={styles.roomCode} data-testid="header-room">
+            Room: {roomCode}
+          </div>
+        )}
+        {playerName && (
+          <div className={styles.playerName} data-testid="header-name">
+            {playerName}
+          </div>
+        )}
         {cash !== undefined && (
           <div className={styles.cash} data-testid="header-cash">
             ${cash.toLocaleString()}
           </div>
         )}
         {tilePool !== undefined && (
-          <div className={styles.tilePool}>
+          <div className={styles.tilePool} data-testid="header-tile-pool">
             [{typeof tilePool === 'number' ? tilePool : tilePool}]
           </div>
         )}

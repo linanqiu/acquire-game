@@ -33,10 +33,10 @@ export async function installObservers(page: Page): Promise<void> {
         if (w.__obs.cash[w.__obs.cash.length - 1] !== v) w.__obs.cash.push(v)
       }
       document.querySelectorAll('[data-testid="ai-thinking"]').forEach((el) => {
-        const row = el.closest('[data-testid^="player-row-"]') as HTMLElement | null
+        const row = el.closest('[data-testid="player-row"]') as HTMLElement | null
         const card = el.closest('[data-testid="player-card"]') as HTMLElement | null
         let id = '?'
-        if (row) id = (row.dataset.testid ?? '').replace('player-row-', '')
+        if (row) id = row.dataset.playerId ?? '?'
         else if (card) {
           const badge = card.querySelector('[data-testid^="seat-kind-"]') as HTMLElement | null
           id = (badge?.dataset.testid ?? '?').replace('seat-kind-', '')
@@ -166,8 +166,8 @@ export class Seat {
 
   /** My player id (from the YOU row of the players panel). */
   async myId(): Promise<string> {
-    const row = this.page.locator('[data-testid^="player-row-"]', { hasText: 'YOU' })
-    return ((await row.getAttribute('data-testid')) ?? '').replace('player-row-', '')
+    const row = this.page.getByTestId('player-row').filter({ hasText: 'YOU' })
+    return (await row.getAttribute('data-player-id')) ?? ''
   }
 
   /** Wait until this seat has something to do (or the game is over). */

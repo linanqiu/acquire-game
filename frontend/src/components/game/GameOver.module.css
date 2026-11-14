@@ -170,3 +170,13 @@
   gap: var(--space-3);
   padding-top: var(--space-2);
 }
+
+.transcriptLink {
+  align-self: center;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.transcriptLink:hover {
+  color: var(--text-primary);
+}
