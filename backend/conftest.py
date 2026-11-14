@@ -13,8 +13,13 @@ from game.game import Game
 
 @pytest.fixture
 def client():
-    """Create FastAPI test client."""
-    return TestClient(app)
+    """Create FastAPI test client.
+
+    Used as a context manager so every request shares one event loop: the
+    seat driver runs as a background task on that loop.
+    """
+    with TestClient(app) as c:
+        yield c
 
 
 @pytest.fixture

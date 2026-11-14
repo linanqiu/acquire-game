@@ -21,6 +21,18 @@ class Settings(BaseSettings):
     ws_ping_interval: int = 30
     ws_ping_timeout: int = 10
 
+    # Seat driver (seats.py). Per-decision timeouts by seat kind, in seconds.
+    # An LLM decision may need two provider calls (answer + repair) of up to
+    # 60 s each, hence the long default.
+    bot_decision_timeout: float = 10.0
+    scripted_decision_timeout: float = 10.0
+    llm_decision_timeout: float = 130.0
+    # Pause after each agent action so humans can follow (0 in test mode).
+    agent_action_delay: float = 0.4
+    # Runaway guards, per seat per turn.
+    max_agent_actions_per_turn: int = 40
+    max_trade_proposals_per_turn: int = 2
+
     @property
     def cors_origins(self) -> list[str]:
         """Parse comma-separated origins into a list."""

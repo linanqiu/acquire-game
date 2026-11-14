@@ -1,4 +1,7 @@
-"""Unit tests for main.py WebSocket handlers.
+"""Unit tests for the human action path (main.handle_player_action).
+
+The old per-action handle_* functions were replaced by one path through
+game.decisions.apply_action; these tests drive it with wire messages.
 
 These tests verify individual handler functions in main.py work correctly
 with proper validation and error handling.
@@ -9,11 +12,6 @@ from unittest.mock import AsyncMock, patch
 
 from main import (
     session_manager,
-    handle_place_tile,
-    handle_found_chain,
-    handle_buy_stocks,
-    handle_end_turn,
-    handle_merger_choice,
     handle_player_action,
     validate_websocket_message,
     PlaceTileMessage,
@@ -135,7 +133,9 @@ class TestHandlePlaceTileValidation:
         with patch.object(
             session_manager, "send_to_player", new_callable=AsyncMock
         ) as mock_send:
-            await handle_place_tile(game_room, wrong_player_id, str(tile))
+            await handle_player_action(
+                game_room, wrong_player_id, {"action": "place_tile", "tile": str(tile)}
+            )
 
             mock_send.assert_called()
             call_args = mock_send.call_args[0]
@@ -170,7 +170,11 @@ class TestHandlePlaceTileValidation:
             session_manager, "send_to_player", new_callable=AsyncMock
         ) as mock_send:
             # Try to place a tile not in hand
-            await handle_place_tile(game_room, current_player_id, invalid_tile)
+            await handle_player_action(
+                game_room,
+                current_player_id,
+                {"action": "place_tile", "tile": invalid_tile},
+            )
 
             mock_send.assert_called()
             call_args = mock_send.call_args[0]
@@ -193,7 +197,11 @@ class TestHandlePlaceTileValidation:
                 with patch.object(
                     session_manager, "broadcast_to_room", new_callable=AsyncMock
                 ):
-                    await handle_place_tile(game_room, current_player_id, str(tile))
+                    await handle_player_action(
+                        game_room,
+                        current_player_id,
+                        {"action": "place_tile", "tile": str(tile)},
+                    )
 
         # Phase should have changed (either to buy_stocks or found_chain)
         # Note: game.turn_phase is the internal turn phase, game.phase is GamePhase
@@ -225,7 +233,11 @@ class TestHandleBuyStocksValidation:
                     session_manager, "broadcast_to_room", new_callable=AsyncMock
                 ):
                     # Luxor is not active
-                    await handle_buy_stocks(game_room, current_player_id, {"Luxor": 1})
+                    await handle_player_action(
+                        game_room,
+                        current_player_id,
+                        {"action": "buy_stocks", "purchases": {"Luxor": 1}},
+                    )
 
         # No stocks should have been purchased
         player = game.get_player(current_player_id)
@@ -262,7 +274,11 @@ class TestHandleBuyStocksValidation:
                     session_manager, "broadcast_to_room", new_callable=AsyncMock
                 ):
                     # Try to buy 3, but only 1 available
-                    await handle_buy_stocks(game_room, current_player_id, {"Luxor": 3})
+                    await handle_player_action(
+                        game_room,
+                        current_player_id,
+                        {"action": "buy_stocks", "purchases": {"Luxor": 3}},
+                    )
 
         # Should only have bought 1 (or none if funds insufficient)
         final_stocks = player._stocks.get("Luxor", 0)
@@ -298,7 +314,11 @@ class TestHandleBuyStocksValidation:
                 with patch.object(
                     session_manager, "broadcast_to_room", new_callable=AsyncMock
                 ):
-                    await handle_buy_stocks(game_room, current_player_id, {"Luxor": 3})
+                    await handle_player_action(
+                        game_room,
+                        current_player_id,
+                        {"action": "buy_stocks", "purchases": {"Luxor": 3}},
+                    )
 
         # Should not have bought any stocks
         final_stocks = player._stocks.get("Luxor", 0)
@@ -325,7 +345,9 @@ class TestHandleEndTurnFlow:
                 with patch.object(
                     session_manager, "broadcast_to_room", new_callable=AsyncMock
                 ):
-                    await handle_end_turn(game_room, current_player_id)
+                    await handle_player_action(
+                        game_room, current_player_id, {"action": "end_turn"}
+                    )
 
         expected_index = (initial_index + 1) % len(game.turn_order)
         assert game.current_turn_index == expected_index
@@ -349,7 +371,9 @@ class TestHandleEndTurnFlow:
                 with patch.object(
                     session_manager, "broadcast_to_room", new_callable=AsyncMock
                 ):
-                    await handle_end_turn(game_room, last_player_id)
+                    await handle_player_action(
+                        game_room, last_player_id, {"action": "end_turn"}
+                    )
 
         assert game.current_turn_index == 0
 
@@ -375,7 +399,9 @@ class TestHandleEndTurnFlow:
                 with patch.object(
                     session_manager, "broadcast_to_room", new_callable=AsyncMock
                 ):
-                    await handle_end_turn(game_room, current_player_id)
+                    await handle_player_action(
+                        game_room, current_player_id, {"action": "end_turn"}
+                    )
 
         assert player.hand_size == initial_hand_size + 1
         assert len(game.tile_pool) == initial_pool_size - 1
@@ -394,7 +420,9 @@ class TestHandleEndTurnFlow:
                 with patch.object(
                     session_manager, "broadcast_to_room", new_callable=AsyncMock
                 ):
-                    await handle_end_turn(game_room, current_player_id)
+                    await handle_player_action(
+                        game_room, current_player_id, {"action": "end_turn"}
+                    )
 
         assert game.turn_phase == "place_tile"
 
@@ -419,7 +447,11 @@ class TestHandleFoundChain:
                 with patch.object(
                     session_manager, "broadcast_to_room", new_callable=AsyncMock
                 ):
-                    await handle_found_chain(game_room, current_player_id, "Luxor")
+                    await handle_player_action(
+                        game_room,
+                        current_player_id,
+                        {"action": "found_chain", "chain": "Luxor"},
+                    )
 
         # Chain should not be activated
         assert not hotel.is_chain_active("Luxor")
@@ -448,7 +480,11 @@ class TestHandleFoundChain:
         with patch.object(
             session_manager, "send_to_player", new_callable=AsyncMock
         ) as mock_send:
-            await handle_found_chain(game_room, current_player_id, "Luxor")
+            await handle_player_action(
+                game_room,
+                current_player_id,
+                {"action": "found_chain", "chain": "Luxor"},
+            )
 
             # Should send error
             mock_send.assert_called()
@@ -489,7 +525,11 @@ class TestHandleFoundChain:
                 with patch.object(
                     session_manager, "broadcast_to_room", new_callable=AsyncMock
                 ):
-                    await handle_found_chain(game_room, current_player_id, "Tower")
+                    await handle_player_action(
+                        game_room,
+                        current_player_id,
+                        {"action": "found_chain", "chain": "Tower"},
+                    )
 
         # Should have received founder's stock
         assert player._stocks["Tower"] == initial_stocks + 1
@@ -521,7 +561,11 @@ class TestHandleMergerChoice:
                     session_manager, "broadcast_to_room", new_callable=AsyncMock
                 ):
                     # Choose American which is not in the tie
-                    await handle_merger_choice(game_room, current_player_id, "American")
+                    await handle_player_action(
+                        game_room,
+                        current_player_id,
+                        {"action": "merger_choice", "surviving_chain": "American"},
+                    )
 
         # Should not have set up process_merger
         pending = game.pending_action
@@ -536,22 +580,26 @@ class TestActionOnUnstartedGame:
     async def test_action_ignored_when_game_not_started(
         self, room_with_players, clean_session_manager
     ):
-        """Actions on unstarted game should be ignored."""
-        # Game not started yet
-        with patch("main.handle_place_tile", new_callable=AsyncMock) as mock:
+        """Actions on unstarted game should be ignored (nothing sent, no game)."""
+        with patch.object(
+            session_manager, "send_to_player", new_callable=AsyncMock
+        ) as mock_send:
             await handle_player_action(
                 room_with_players, "player_1", {"action": "place_tile", "tile": "1A"}
             )
-            mock.assert_not_called()
+            mock_send.assert_not_called()
+        assert clean_session_manager.get_room(room_with_players).game is None
 
     @pytest.mark.asyncio
     async def test_action_ignored_when_room_not_found(self, clean_session_manager):
         """Actions on non-existent room should be ignored."""
-        with patch("main.handle_place_tile", new_callable=AsyncMock) as mock:
+        with patch.object(
+            session_manager, "send_to_player", new_callable=AsyncMock
+        ) as mock_send:
             await handle_player_action(
                 "NONEXISTENT", "player_1", {"action": "place_tile", "tile": "1A"}
             )
-            mock.assert_not_called()
+            mock_send.assert_not_called()
 
 
 class TestValidationErrors:
