@@ -2,8 +2,8 @@ import { test, expect, type Page, type Locator } from '@playwright/test'
 import { execFileSync } from 'child_process'
 import * as fs from 'fs'
 import * as path from 'path'
-import { captureStep, resetStepCounter } from '../scenarios/helpers/screenshot'
-import { createGameViaUI, addBotViaUI, startGameViaUI } from '../scenarios/helpers/game-setup'
+import { captureStep, resetStepCounter } from '../support/screenshot'
+import { createGameViaUI, addBotViaUI, startGameViaUI } from '../support/game-setup'
 import { BENCH_DIR, BENCH_RUN_DIR } from './dirs'
 
 /**

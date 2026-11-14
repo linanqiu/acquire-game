@@ -78,6 +78,9 @@ jobs:
       - name: Run Ruff formatter check
         run: ruff format --check backend/
 
+      - name: Surface coverage map (every surface names a test that exists)
+        run: python scripts/check-surface-coverage.py
+
   frontend-lint:
     runs-on: ubuntu-latest
 
@@ -103,8 +106,21 @@ jobs:
         working-directory: frontend
         run: npm run lint
 
+      - name: Unit tests
+        working-directory: frontend
+        run: npm test
+
+  # Browser tiers 3 (screens), 4 (journeys) and the transcripts journey, one parallel job each.
+  # Each job starts its own backend (ACQUIRE_TEST_MODE=1) and Vite dev server through the
+  # Playwright webServer config. Tracing is off (screenshots are the evidence).
   e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [screens, journeys, transcripts]
 
     steps:
       - uses: actions/checkout@v4
@@ -142,24 +158,19 @@ jobs:
         working-directory: frontend
         run: npx playwright install --with-deps chromium
 
-      - name: Verify backend can start
-        working-directory: backend
-        run: |
-          timeout 10 python -m uvicorn main:app --host 127.0.0.1 --port 8000 &
-          sleep 5
-          curl -f http://127.0.0.1:8000/docs || echo "Backend health check failed"
-          pkill -f uvicorn || true
-
-      - name: Run E2E tests (CI subset)
+      - name: Run ${{ matrix.project }} tests
         working-directory: frontend
-        run: npm run e2e:ci
+        run: npx playwright test --project=${{ matrix.project }} --trace off --reporter=list,html
 
-      - name: Upload Playwright report
+      - name: Upload screenshots and report
         uses: actions/upload-artifact@v4
-        if: failure()
+        # Journeys always (their screenshots are the proof they ran); the others on failure.
+        if: failure() || matrix.project == 'journeys'
         with:
-          name: playwright-report
-          path: frontend/playwright-report/
+          name: playwright-${{ matrix.project }}
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
           retention-days: 7
 
   build:

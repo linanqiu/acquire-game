@@ -13,7 +13,7 @@
 import { test as base, expect, type Page } from '@playwright/test'
 import * as fs from 'fs'
 import * as path from 'path'
-import { captureStep, resetStepCounter } from '../../scenarios/helpers/screenshot'
+import { captureStep, resetStepCounter } from '../../support/screenshot'
 
 export class Journey {
   readonly errors: string[] = []

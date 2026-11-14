@@ -1,3 +1,5 @@
+> **Historical.** This catalogue described the retired browser scenario suite. Current coverage is by surface: [surface-coverage.md](../surface-coverage.md); what happened to each old test: [legacy-suite-retirement.md](../legacy-suite-retirement.md).
+
 # Trading Flow E2E Scenarios
 
 Player-to-player trading is an optional feature that allows players to exchange stocks and money during the game. These scenarios test the complete trading workflow.

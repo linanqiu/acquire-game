@@ -62,11 +62,12 @@ These are written out in `CLAUDE.md`, Testing section.
 | [TP-001](../stories/11-test-pyramid/TP-001.md) | Snapshot fixture generator with provenance check | complete | ES-003 |
 | [TP-002](../stories/11-test-pyramid/TP-002.md) | Scripted seats | in-progress | ES-005, ES-006 |
 | [TP-003](../stories/11-test-pyramid/TP-003.md) | Tier-2 protocol suite | in-progress | TP-002 |
-| [TP-004](../stories/11-test-pyramid/TP-004.md) | Tier-3 screen tests | in-progress | TP-001, TP-002 |
-| [TP-005](../stories/11-test-pyramid/TP-005.md) | Tier-4 journeys from the home page | in-progress | TP-002 |
-| [TP-006](../stories/11-test-pyramid/TP-006.md) | Surface coverage map (supersedes ST-010) | in-progress | None (fill-in needs TP-004/005) |
-| [TP-007](../stories/11-test-pyramid/TP-007.md) | Retire/trim the old scenario suite | in-progress | TP-004, TP-005 |
-| [TP-008](../stories/11-test-pyramid/TP-008.md) | CI wiring | in-progress | TP-003, TP-004, TP-005 |
+| [TP-004](../stories/11-test-pyramid/TP-004.md) | Tier-3 screen tests | complete | TP-001, TP-002 |
+| [TP-005](../stories/11-test-pyramid/TP-005.md) | Tier-4 journeys from the home page | complete | TP-002 |
+| [TP-006](../stories/11-test-pyramid/TP-006.md) | Surface coverage map (supersedes ST-010) | complete | None (fill-in needs TP-004/005) |
+| [TP-007](../stories/11-test-pyramid/TP-007.md) | Retire/trim the old scenario suite | complete | TP-004, TP-005 |
+| [TP-008](../stories/11-test-pyramid/TP-008.md) | CI wiring | in-progress (workflow written; needs a green PR run) | TP-003, TP-004, TP-005 |
+| [TP-009](../stories/11-test-pyramid/TP-009.md) | Remaining browser-test gaps | todo | TP-004, TP-006 |
 
 ## Relationship to other epics
 
