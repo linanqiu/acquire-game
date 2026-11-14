@@ -118,6 +118,14 @@ class Game:
         # Player-to-player trading state
         self.pending_trades: Dict[str, TradeOffer] = {}  # trade_id -> TradeOffer
 
+        # Append-only event log (see docs/architecture/seat-contract.md).
+        # Each entry: {"seq": int, "type": str, "player_id": str | None,
+        #              "private_to": str | None, ...payload}
+        self.events: list[dict] = []
+
+        # True once the current player has bought stocks this turn.
+        self.stocks_bought_this_turn: bool = False
+
     # Convenience properties for backward compatibility with WebSocket handlers
 
     @property
