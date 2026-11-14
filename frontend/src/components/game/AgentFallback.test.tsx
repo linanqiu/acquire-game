@@ -8,6 +8,7 @@ import { ToastProvider } from '../ui/ToastProvider'
 import { useFallbackToasts } from '../../hooks/useFallbackToasts'
 import { useGameStore } from '../../store/gameStore'
 import type { AgentFallbackMessage, GameStateMessage, SeatFallbacks } from '../../types/api'
+import { snapshot } from '../../../tests/unit/fixtures/wire'
 
 vi.mock('../../hooks/useHostWebSocket', () => ({
   useHostWebSocket: () => ({ reconnect: vi.fn(), disconnect: vi.fn(), isConnected: true }),
@@ -87,29 +88,28 @@ describe('fallback marker', () => {
   })
 })
 
+/** A real spectator state (recorded from the server) in which seat `p2` is an LLM seat. */
+const LLM_SEAT = 'p2'
 function gameState(fallbacks?: SeatFallbacks): GameStateMessage {
-  return {
-    type: 'game_state',
-    board: { cells: {} },
-    hotel: { chains: [], available_stocks: {} as never, active_chains: [] },
-    turn_order: ['p1', 'p2'],
-    current_player: 'p1',
-    phase: 'place_tile',
-    players: {
-      p1: { name: 'Alice', money: 6000, stocks: {} as never, hand_size: 6, kind: 'human' },
-      p2: {
-        name: 'Claude',
-        money: 6000,
-        stocks: {} as never,
-        hand_size: 6,
-        kind: 'llm',
-        is_bot: true,
-        agent_label: 'Claude',
-        fallbacks,
-      },
-    },
-    tiles_remaining: 80,
+  const state = snapshot('three-player-midgame').host
+  const ids = Object.keys(state.players)
+  const llm = ids[1]
+  state.players[llm] = {
+    ...state.players[llm],
+    name: 'Claude',
+    kind: 'llm',
+    is_bot: true,
+    agent_label: 'Claude',
+    fallbacks,
   }
+  // Keep the seat ids stable for the assertions below.
+  const renamed = Object.fromEntries(
+    Object.entries(state.players).map(([id, p]) => [
+      id === llm ? LLM_SEAT : id === ids[0] ? 'p1' : id,
+      p,
+    ])
+  )
+  return { ...state, players: renamed, turn_order: ['p1', LLM_SEAT, ids[2]], current_player: 'p1' }
 }
 
 describe('HostPage fallback marker', () => {

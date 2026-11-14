@@ -1,175 +1,79 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { StockStepper } from './StockStepper'
 
+const setup = (props) => {
+  const onChange = vi.fn()
+  render(<StockStepper max={10} onChange={onChange} {...props} />)
+  return {
+    onChange,
+    inc: screen.getByTestId('stepper-increment'),
+    dec: screen.getByTestId('stepper-decrement'),
+    spin: screen.getByRole('spinbutton'),
+  }
+}
+
 describe('StockStepper', () => {
-  // Rendering tests
-  it('renders with current value', () => {
-    render(<StockStepper value={3} max={10} onChange={() => {}} />)
-    expect(screen.getByTestId('stepper-value')).toHaveTextContent('3')
+  it('+ and - step by one and say where the stepper is for assistive tech', () => {
+    const { onChange, inc, dec, spin } = setup({ value: 3, min: 1 })
+    expect(spin).toHaveAttribute('aria-valuenow', '3')
+    expect(spin).toHaveAttribute('aria-valuemin', '1')
+    expect(spin).toHaveAttribute('aria-valuemax', '10')
+    fireEvent.click(inc)
+    expect(onChange).toHaveBeenLastCalledWith(4)
+    fireEvent.click(dec)
+    expect(onChange).toHaveBeenLastCalledWith(2)
   })
 
-  it('renders increment and decrement buttons', () => {
-    render(<StockStepper value={3} max={10} onChange={() => {}} />)
-    expect(screen.getByTestId('stepper-decrement')).toBeInTheDocument()
-    expect(screen.getByTestId('stepper-increment')).toBeInTheDocument()
+  it('cannot go above the maximum or below the minimum, with buttons or arrow keys', () => {
+    const top = setup({ value: 10 })
+    expect(top.inc).toBeDisabled()
+    fireEvent.click(top.inc)
+    fireEvent.keyDown(top.spin, { key: 'ArrowUp' })
+    fireEvent.keyDown(top.spin, { key: 'ArrowRight' })
+    expect(top.onChange).not.toHaveBeenCalled()
+    expect(top.dec).not.toBeDisabled()
   })
 
-  it('has spinbutton role for accessibility', () => {
-    render(<StockStepper value={3} max={10} onChange={() => {}} />)
-    expect(screen.getByRole('spinbutton')).toBeInTheDocument()
+  it('the lower bound: default 0, or the given minimum', () => {
+    const { onChange, dec, spin } = setup({ value: 0 })
+    expect(dec).toBeDisabled()
+    fireEvent.click(dec)
+    fireEvent.keyDown(spin, { key: 'ArrowDown' })
+    fireEvent.keyDown(spin, { key: 'ArrowLeft' })
+    expect(onChange).not.toHaveBeenCalled()
+    cleanup()
+    const custom = setup({ value: 2, min: 2 })
+    expect(custom.dec).toBeDisabled()
   })
 
-  it('sets correct ARIA attributes', () => {
-    render(<StockStepper value={3} min={1} max={10} onChange={() => {}} />)
-    const stepper = screen.getByRole('spinbutton')
-    expect(stepper).toHaveAttribute('aria-valuenow', '3')
-    expect(stepper).toHaveAttribute('aria-valuemin', '1')
-    expect(stepper).toHaveAttribute('aria-valuemax', '10')
+  it('arrow keys step the value (up/right add one, down/left remove one)', () => {
+    const { onChange, spin } = setup({ value: 3 })
+    for (const [key, next] of [
+      ['ArrowUp', 4],
+      ['ArrowRight', 4],
+      ['ArrowDown', 2],
+      ['ArrowLeft', 2],
+    ]) {
+      onChange.mockClear()
+      fireEvent.keyDown(spin, { key })
+      expect(onChange).toHaveBeenCalledWith(next)
+    }
   })
 
-  // Increment tests
-  it('calls onChange with incremented value when + clicked', () => {
-    const onChange = vi.fn()
-    render(<StockStepper value={3} max={10} onChange={onChange} />)
-    fireEvent.click(screen.getByTestId('stepper-increment'))
-    expect(onChange).toHaveBeenCalledWith(4)
-  })
-
-  it('disables + button when at max', () => {
-    render(<StockStepper value={10} max={10} onChange={() => {}} />)
-    expect(screen.getByTestId('stepper-increment')).toBeDisabled()
-  })
-
-  it('does not call onChange when + clicked at max', () => {
-    const onChange = vi.fn()
-    render(<StockStepper value={10} max={10} onChange={onChange} />)
-    fireEvent.click(screen.getByTestId('stepper-increment'))
+  it('disabled (not my turn): neither buttons nor keys change anything, and it leaves the tab order', () => {
+    const { onChange, inc, dec, spin } = setup({ value: 5, disabled: true })
+    expect(inc).toBeDisabled()
+    expect(dec).toBeDisabled()
+    expect(spin).toHaveAttribute('tabIndex', '-1')
+    fireEvent.keyDown(spin, { key: 'ArrowUp' })
+    fireEvent.keyDown(spin, { key: 'ArrowDown' })
     expect(onChange).not.toHaveBeenCalled()
   })
 
-  // Decrement tests
-  it('calls onChange with decremented value when - clicked', () => {
-    const onChange = vi.fn()
-    render(<StockStepper value={3} max={10} onChange={onChange} />)
-    fireEvent.click(screen.getByTestId('stepper-decrement'))
-    expect(onChange).toHaveBeenCalledWith(2)
-  })
-
-  it('disables - button when at min (default 0)', () => {
-    render(<StockStepper value={0} max={10} onChange={() => {}} />)
-    expect(screen.getByTestId('stepper-decrement')).toBeDisabled()
-  })
-
-  it('disables - button when at custom min', () => {
-    render(<StockStepper value={2} min={2} max={10} onChange={() => {}} />)
-    expect(screen.getByTestId('stepper-decrement')).toBeDisabled()
-  })
-
-  it('does not call onChange when - clicked at min', () => {
-    const onChange = vi.fn()
-    render(<StockStepper value={0} max={10} onChange={onChange} />)
-    fireEvent.click(screen.getByTestId('stepper-decrement'))
-    expect(onChange).not.toHaveBeenCalled()
-  })
-
-  // Disabled state tests
-  it('disables both buttons when disabled prop is true', () => {
-    render(<StockStepper value={5} max={10} onChange={() => {}} disabled />)
-    expect(screen.getByTestId('stepper-decrement')).toBeDisabled()
-    expect(screen.getByTestId('stepper-increment')).toBeDisabled()
-  })
-
-  it('sets tabIndex to -1 when disabled', () => {
-    render(<StockStepper value={5} max={10} onChange={() => {}} disabled />)
-    expect(screen.getByRole('spinbutton')).toHaveAttribute('tabIndex', '-1')
-  })
-
-  it('sets tabIndex to 0 when not disabled', () => {
-    render(<StockStepper value={5} max={10} onChange={() => {}} />)
-    expect(screen.getByRole('spinbutton')).toHaveAttribute('tabIndex', '0')
-  })
-
-  // Keyboard navigation tests
-  it('increments on ArrowUp', () => {
-    const onChange = vi.fn()
-    render(<StockStepper value={3} max={10} onChange={onChange} />)
-    const stepper = screen.getByRole('spinbutton')
-    fireEvent.keyDown(stepper, { key: 'ArrowUp' })
-    expect(onChange).toHaveBeenCalledWith(4)
-  })
-
-  it('increments on ArrowRight', () => {
-    const onChange = vi.fn()
-    render(<StockStepper value={3} max={10} onChange={onChange} />)
-    const stepper = screen.getByRole('spinbutton')
-    fireEvent.keyDown(stepper, { key: 'ArrowRight' })
-    expect(onChange).toHaveBeenCalledWith(4)
-  })
-
-  it('decrements on ArrowDown', () => {
-    const onChange = vi.fn()
-    render(<StockStepper value={3} max={10} onChange={onChange} />)
-    const stepper = screen.getByRole('spinbutton')
-    fireEvent.keyDown(stepper, { key: 'ArrowDown' })
-    expect(onChange).toHaveBeenCalledWith(2)
-  })
-
-  it('decrements on ArrowLeft', () => {
-    const onChange = vi.fn()
-    render(<StockStepper value={3} max={10} onChange={onChange} />)
-    const stepper = screen.getByRole('spinbutton')
-    fireEvent.keyDown(stepper, { key: 'ArrowLeft' })
-    expect(onChange).toHaveBeenCalledWith(2)
-  })
-
-  it('does not increment past max with keyboard', () => {
-    const onChange = vi.fn()
-    render(<StockStepper value={10} max={10} onChange={onChange} />)
-    const stepper = screen.getByRole('spinbutton')
-    fireEvent.keyDown(stepper, { key: 'ArrowUp' })
-    expect(onChange).not.toHaveBeenCalled()
-  })
-
-  it('does not decrement past min with keyboard', () => {
-    const onChange = vi.fn()
-    render(<StockStepper value={0} max={10} onChange={onChange} />)
-    const stepper = screen.getByRole('spinbutton')
-    fireEvent.keyDown(stepper, { key: 'ArrowDown' })
-    expect(onChange).not.toHaveBeenCalled()
-  })
-
-  it('does not respond to keyboard when disabled', () => {
-    const onChange = vi.fn()
-    render(<StockStepper value={5} max={10} onChange={onChange} disabled />)
-    const stepper = screen.getByRole('spinbutton')
-    fireEvent.keyDown(stepper, { key: 'ArrowUp' })
-    fireEvent.keyDown(stepper, { key: 'ArrowDown' })
-    expect(onChange).not.toHaveBeenCalled()
-  })
-
-  // Default values
-  it('uses 0 as default min', () => {
-    render(<StockStepper value={0} max={10} onChange={() => {}} />)
-    expect(screen.getByRole('spinbutton')).toHaveAttribute('aria-valuemin', '0')
-    expect(screen.getByTestId('stepper-decrement')).toBeDisabled()
-  })
-
-  // Edge cases
-  it('handles min equal to max', () => {
-    const onChange = vi.fn()
-    render(<StockStepper value={5} min={5} max={5} onChange={onChange} />)
-    expect(screen.getByTestId('stepper-decrement')).toBeDisabled()
-    expect(screen.getByTestId('stepper-increment')).toBeDisabled()
-  })
-
-  it('displays value of 0 correctly', () => {
-    render(<StockStepper value={0} max={10} onChange={() => {}} />)
-    expect(screen.getByTestId('stepper-value')).toHaveTextContent('0')
-  })
-
-  it('displays large values correctly', () => {
-    render(<StockStepper value={999} max={1000} onChange={() => {}} />)
-    expect(screen.getByTestId('stepper-value')).toHaveTextContent('999')
+  it('a stepper whose bounds meet cannot move at all', () => {
+    const { inc, dec } = setup({ value: 5, min: 5, max: 5 })
+    expect(inc).toBeDisabled()
+    expect(dec).toBeDisabled()
   })
 })

@@ -4,12 +4,11 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { AddAiControl } from './AddAiControl'
 import { RemoveSeatButton } from './RemoveSeatButton'
 import { SeatKindBadge } from './SeatKindBadge'
-import { PlayerCard } from './PlayerCard'
 import { HostPage } from '../../pages/HostPage'
 import { ToastProvider } from '../ui/ToastProvider'
 import { useGameStore } from '../../store/gameStore'
-import { resolveSeatKind, isAiThinking } from '../../lib/agents'
 import type { AgentCatalogEntry, GameStateMessage } from '../../types/api'
+import { snapshot, wireCatalog } from '../../../tests/unit/fixtures/wire'
 
 vi.mock('../../hooks/useHostWebSocket', () => ({
   useHostWebSocket: () => ({
@@ -21,17 +20,10 @@ vi.mock('../../hooks/useHostWebSocket', () => ({
   }),
 }))
 
-const CATALOG: AgentCatalogEntry[] = [
-  {
-    id: 'bot',
-    kind: 'bot',
-    label: 'Heuristic Bot',
-    description: 'Fast rule-based',
-    available: true,
-  },
-  { id: 'claude', kind: 'llm', label: 'Claude', description: 'LLM opponent', available: true },
-  { id: 'gpt', kind: 'llm', label: 'GPT', description: 'Other LLM', available: false },
-]
+// The catalog exactly as the server serves it (some LLM entries are not configured here).
+const CATALOG: AgentCatalogEntry[] = wireCatalog()
+const AVAILABLE_LLM = CATALOG.find((e) => e.kind === 'llm' && e.available)!
+const UNAVAILABLE_LLM = CATALOG.find((e) => e.kind === 'llm' && !e.available)!
 
 function jsonResponse(body: unknown, status = 200) {
   return Promise.resolve(
@@ -72,12 +64,13 @@ describe('AddAiControl', () => {
     fireEvent.click(await screen.findByTestId('add-ai-button'))
 
     expect(screen.getByTestId('ai-option-bot')).toBeEnabled()
-    expect(screen.getByTestId('ai-option-claude')).toHaveTextContent('Claude')
-    expect(screen.getByTestId('ai-option-claude')).toHaveTextContent('LLM opponent')
-    const gpt = screen.getByTestId('ai-option-gpt')
-    expect(gpt).toBeDisabled()
-    expect(gpt).toHaveTextContent('not configured on this server')
-    expect(screen.getByTestId('ai-option-claude')).not.toHaveTextContent('not configured')
+    const ok = screen.getByTestId(`ai-option-${AVAILABLE_LLM.id}`)
+    expect(ok).toHaveTextContent(AVAILABLE_LLM.label)
+    expect(ok).toHaveTextContent(AVAILABLE_LLM.description)
+    expect(ok).not.toHaveTextContent('not configured')
+    const off = screen.getByTestId(`ai-option-${UNAVAILABLE_LLM.id}`)
+    expect(off).toBeDisabled()
+    expect(off).toHaveTextContent('not configured on this server')
   })
 
   it('posts add-seat with the chosen agent_id and closes the menu', async () => {
@@ -85,18 +78,18 @@ describe('AddAiControl', () => {
     const fetchMock = mockFetch((url) => {
       if (url === '/api/agents/catalog') return jsonResponse(CATALOG)
       if (url === '/api/room/ABCD/add-seat')
-        return jsonResponse({ player_id: 'p9', name: 'Claude', kind: 'llm' })
+        return jsonResponse({ player_id: 'p9', name: AVAILABLE_LLM.label, kind: 'llm' })
       return jsonResponse({}, 404)
     })
     renderControl({ onAdded })
 
     fireEvent.click(await screen.findByTestId('add-ai-button'))
-    fireEvent.click(screen.getByTestId('ai-option-claude'))
+    fireEvent.click(screen.getByTestId(`ai-option-${AVAILABLE_LLM.id}`))
 
-    await waitFor(() => expect(onAdded).toHaveBeenCalledWith('p9', 'Claude'))
+    await waitFor(() => expect(onAdded).toHaveBeenCalledWith('p9', AVAILABLE_LLM.label))
     const call = fetchMock.mock.calls.find((c) => String(c[0]).endsWith('/add-seat'))!
     expect(call[1]?.method).toBe('POST')
-    expect(JSON.parse(String(call[1]?.body))).toEqual({ agent_id: 'claude' })
+    expect(JSON.parse(String(call[1]?.body))).toEqual({ agent_id: AVAILABLE_LLM.id })
     expect(screen.queryByTestId('ai-menu')).not.toBeInTheDocument()
   })
 
@@ -106,7 +99,7 @@ describe('AddAiControl', () => {
     )
     renderControl()
     fireEvent.click(await screen.findByTestId('add-ai-button'))
-    fireEvent.click(screen.getByTestId('ai-option-gpt'))
+    fireEvent.click(screen.getByTestId(`ai-option-${UNAVAILABLE_LLM.id}`))
     expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('add-seat'))).toBe(false)
   })
 
@@ -190,69 +183,23 @@ describe('SeatKindBadge', () => {
     expect(screen.getByTestId('seat-kind-b')).toHaveTextContent('BOT')
     expect(screen.getByTestId('seat-kind-b')).toHaveAttribute('data-kind', 'bot')
   })
-
-  it('derives bot from is_bot when kind is absent, and hides for humans', () => {
-    render(
-      <>
-        <SeatKindBadge playerId="old-bot" isBot />
-        <SeatKindBadge playerId="human" isBot={false} kind="human" />
-      </>
-    )
-    expect(screen.getByTestId('seat-kind-old-bot')).toHaveAttribute('data-kind', 'bot')
-    expect(screen.queryByTestId('seat-kind-human')).not.toBeInTheDocument()
-  })
 })
 
-describe('agent helpers', () => {
-  it('resolveSeatKind prefers kind and falls back to is_bot', () => {
-    expect(resolveSeatKind({ kind: 'llm', is_bot: true })).toBe('llm')
-    expect(resolveSeatKind({ is_bot: true })).toBe('bot')
-    expect(resolveSeatKind({})).toBe('human')
-  })
-
-  it('isAiThinking only for non-human awaited seats', () => {
-    const aw = { player_id: 'p1', kind: 'llm' as const, decision: 'place_tile' }
-    expect(isAiThinking(aw, 'p1')).toBe(true)
-    expect(isAiThinking(aw, 'p2')).toBe(false)
-    expect(isAiThinking({ ...aw, kind: 'human' }, 'p1')).toBe(false)
-    expect(isAiThinking(null, 'p1')).toBe(false)
-    expect(isAiThinking(undefined, 'p1')).toBe(false)
-  })
-})
-
-describe('PlayerCard AI affordances', () => {
-  it('shows kind badge and thinking only when thinking', () => {
-    const { rerender } = render(
-      <PlayerCard name="Claude" cash={6000} stocks={[]} playerId="p1" kind="llm" thinking />
-    )
-    expect(screen.getByTestId('seat-kind-p1')).toBeInTheDocument()
-    expect(screen.getByTestId('ai-thinking')).toBeInTheDocument()
-    rerender(<PlayerCard name="Claude" cash={6000} stocks={[]} playerId="p1" kind="llm" />)
-    expect(screen.queryByTestId('ai-thinking')).not.toBeInTheDocument()
-  })
-})
-
-function gameState(awaiting: GameStateMessage['awaiting'], withKinds = true): GameStateMessage {
-  const players: GameStateMessage['players'] = {
-    p1: { name: 'Alice', money: 6000, stocks: {} as never, hand_size: 6 },
-    p2: {
-      name: 'Claude',
-      money: 6000,
-      stocks: {} as never,
-      hand_size: 6,
-      ...(withKinds ? { kind: 'llm', is_bot: true, agent_label: 'Claude' } : { is_bot: true }),
-    },
-  }
-  if (withKinds) players.p1.kind = 'human'
+/** A real spectator state (recorded from the server) with seat p2 turned into an LLM seat. */
+function gameState(awaiting: GameStateMessage['awaiting']): GameStateMessage {
+  const state = snapshot('three-player-midgame').host
+  const [first, second, third] = Object.keys(state.players)
+  const rename = { [first]: 'p1', [second]: 'p2', [third]: 'p3' }
+  const players = Object.fromEntries(
+    Object.entries(state.players).map(([id, p]) => [rename[id], p])
+  )
+  players.p1 = { ...players.p1, name: 'Alice', kind: 'human', is_bot: false }
+  players.p2 = { ...players.p2, name: 'Claude', kind: 'llm', is_bot: true, agent_label: 'Claude' }
   return {
-    type: 'game_state',
-    board: { cells: {} },
-    hotel: { chains: [], available_stocks: {} as never, active_chains: [] },
-    turn_order: ['p1', 'p2'],
-    current_player: 'p2',
-    phase: 'place_tile',
+    ...state,
     players,
-    tiles_remaining: 80,
+    turn_order: ['p1', 'p2', 'p3'],
+    current_player: 'p2',
     awaiting,
   }
 }
@@ -316,13 +263,6 @@ describe('HostPage AI seats', () => {
     unmount()
     useGameStore.setState({ gameState: gameState(null) })
     renderHost()
-    expect(screen.queryByTestId('ai-thinking')).not.toBeInTheDocument()
-  })
-
-  it('works against a backend that omits kind/awaiting (derives bot from is_bot)', () => {
-    useGameStore.setState({ gameState: gameState(undefined, false) })
-    renderHost()
-    expect(screen.getByTestId('seat-kind-p2')).toHaveAttribute('data-kind', 'bot')
     expect(screen.queryByTestId('ai-thinking')).not.toBeInTheDocument()
   })
 })

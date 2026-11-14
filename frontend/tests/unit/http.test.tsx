@@ -1,7 +1,7 @@
 import { render, screen, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { fetchWithRetry, isWaking, warmUpServer } from '../../src/lib/http'
+import { fetchWithRetry, isWaking, subscribeWaking, warmUpServer } from '../../src/lib/http'
 import { fetchAgentCatalog } from '../../src/lib/agents'
 import { LobbyPage } from '../../src/pages/LobbyPage'
 import { ToastProvider } from '../../src/components/ui/ToastProvider'
@@ -94,6 +94,75 @@ describe('fetchWithRetry', () => {
     await assertion
     expect(fn).toHaveBeenCalledTimes(1)
     expect(isWaking()).toBe(false)
+  })
+})
+
+describe('aborting', () => {
+  it('a request aborted while it runs is not retried and not reported as a failure of the server', async () => {
+    const fn = vi.fn(async () => {
+      throw new DOMException('Aborted', 'AbortError')
+    })
+    vi.stubGlobal('fetch', fn)
+    await expect(fetchWithRetry('/api/x')).rejects.toMatchObject({ name: 'AbortError' })
+    expect(fn).toHaveBeenCalledTimes(1)
+    expect(isWaking()).toBe(false)
+  })
+
+  it('an already-aborted signal stops the wait between attempts at once', async () => {
+    const ctrl = new AbortController()
+    script(res(503))
+    const p = fetchWithRetry('/api/x', {}, { signal: ctrl.signal, baseDelayMs: 100000 })
+    const assertion = expect(p).rejects.toMatchObject({ name: 'AbortError' })
+    await vi.advanceTimersByTimeAsync(1)
+    ctrl.abort()
+    await assertion
+    expect(isWaking()).toBe(false)
+  })
+
+  it('a failure that is not an abort is retried even when it has the same shape', async () => {
+    const fn = script(new TypeError('Failed to fetch'), res(200))
+    const p = fetchWithRetry('/api/x', {}, { baseDelayMs: 10 })
+    await vi.advanceTimersByTimeAsync(100)
+    expect((await p).status).toBe(200)
+    expect(fn).toHaveBeenCalledTimes(2)
+  })
+
+  it('the signal and the init options reach fetch', async () => {
+    const fn = script(res(200))
+    const ctrl = new AbortController()
+    await fetchWithRetry('/api/x', { headers: { A: 'b' } }, { signal: ctrl.signal })
+    const init = (fn.mock.calls[0] as unknown as [string, RequestInit])[1]
+    expect(init.signal).toBe(ctrl.signal)
+    expect(init.headers).toEqual({ A: 'b' })
+    await fetchWithRetry('/api/x', { signal: ctrl.signal })
+    expect((fn.mock.calls[1] as unknown as [string, RequestInit])[1].signal).toBe(ctrl.signal)
+  })
+
+  it('warmUpServer treats an abort as "do not bother the player" (true), a dead server as false', async () => {
+    script(res(502))
+    const ctrl = new AbortController()
+    const p = warmUpServer(ctrl.signal, { baseDelayMs: 100000 })
+    await vi.advanceTimersByTimeAsync(1)
+    ctrl.abort()
+    expect(await p).toBe(true)
+    script(res(404))
+    expect(await warmUpServer()).toBe(false)
+  })
+
+  it('the waking flag tells subscribers when it changes, and stops telling those who unsubscribed', async () => {
+    const seen: boolean[] = []
+    const off = subscribeWaking(() => seen.push(isWaking()))
+    script(res(502), res(200))
+    const p = fetchWithRetry('/api/x', {}, { baseDelayMs: 10 })
+    await vi.advanceTimersByTimeAsync(100)
+    await p
+    expect(seen).toEqual([true, false])
+    off()
+    script(res(502), res(200))
+    const q = fetchWithRetry('/api/x', {}, { baseDelayMs: 10 })
+    await vi.advanceTimersByTimeAsync(100)
+    await q
+    expect(seen).toEqual([true, false])
   })
 })
 

@@ -1,0 +1,30 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "vitest",
+  "plugins": ["@stryker-mutator/vitest-runner"],
+  "mutate": [
+    "src/store/*.ts",
+    "src/hooks/*.ts",
+    "src/lib/*.ts",
+    "src/utils/*.ts",
+    "src/ruleset/*.ts",
+    "src/ruleset/*.tsx",
+    "src/components/game/*.tsx",
+    "src/components/ui/*.tsx",
+    "src/pages/PlayerPage.tsx",
+    "src/pages/HostPage.tsx",
+    "src/pages/LobbyPage.tsx",
+    "!src/**/*.test.*",
+    "!src/**/index.ts"
+  ],
+  "reporters": ["json", "clear-text"],
+  "jsonReporter": { "fileName": "reports/mutation/mutation.json" },
+  "coverageAnalysis": "perTest",
+  "concurrency": 4,
+  "timeoutMS": 20000,
+  "tempDirName": ".stryker-tmp",
+  "cleanTempDir": true,
+  "inPlace": true,
+  "ignoreStatic": true,
+  "vitest": { "configFile": "vite.config.ts" }
+}

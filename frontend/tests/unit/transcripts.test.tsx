@@ -9,9 +9,9 @@ import { BenchPage } from '../../src/pages/BenchPage'
 import { BenchSeriesPage } from '../../src/pages/BenchSeriesPage'
 import { LobbyPage } from '../../src/pages/LobbyPage'
 import { GameOver } from '../../src/components/game/GameOver'
-import { ToastProvider } from '../../src/components/ui/ToastProvider'
-import { buildReplay, normalizeEntries, parseStep } from '../../src/lib/replay'
+import { buildReplay } from '../../src/lib/replay'
 import { describeEvents } from '../../src/lib/eventText'
+import { ToastProvider } from '../../src/components/ui/ToastProvider'
 import { CLASSIC } from './fixtures/rulesets'
 import type {
   Transcript,
@@ -99,69 +99,6 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals()
   vi.useRealTimers()
-})
-
-describe('replay building', () => {
-  it('turns decisions into steps with events and states', () => {
-    const replay = buildReplay(full)
-    expect(replay.steps.length).toBe(decisions.length + 1)
-    expect(replay.steps[0].decision).toBeNull()
-    expect(replay.steps[1].decision?.index).toBe(decisions[0].index)
-    expect(replay.steps.every((s) => s.state)).toBe(true)
-    const last = replay.steps[replay.steps.length - 1]
-    expect(last.events.some((e) => e.type === 'game_ended')).toBe(true)
-  })
-
-  it('accepts wrapped events and ignores junk entries', () => {
-    const wrapped = normalizeEntries([
-      { type: 'event', event: { seq: 0, type: 'game_started', player_id: null, private_to: null } },
-      { type: 'weird' },
-      null,
-    ] as never)
-    expect(wrapped).toHaveLength(1)
-    expect(wrapped[0].kind).toBe('event')
-  })
-
-  it('clamps ?step values', () => {
-    expect(parseStep(null, 10)).toBe(0)
-    expect(parseStep('abc', 10)).toBe(0)
-    expect(parseStep('99', 10)).toBe(10)
-    expect(parseStep('-4', 10)).toBe(0)
-    expect(parseStep('7', 10)).toBe(7)
-  })
-
-  it('describes known events as sentences and unknown ones generically', () => {
-    const names = { p1: 'Dan' }
-    const lines = describeEvents(
-      [
-        {
-          seq: 1,
-          type: 'tile_placed',
-          player_id: 'p1',
-          private_to: null,
-          tile: '9D',
-          outcome: 'expand',
-          chains: ['Luxor'],
-        },
-        {
-          seq: 2,
-          type: 'chain_expanded',
-          player_id: 'p1',
-          private_to: null,
-          tile: '9D',
-          chain: 'Luxor',
-          size: 4,
-        },
-        { seq: 3, type: 'martian_landing', player_id: 'p1', private_to: null, where: 'F5' },
-      ],
-      names,
-      CLASSIC
-    )
-    expect(lines[0].text).toBe('Dan placed 9D — Luxor grows to 4.')
-    expect(lines).toHaveLength(2)
-    expect(lines[1].text).toContain('martian landing')
-    expect(lines[1].text).toContain('where=F5')
-  })
 })
 
 describe('GamesPage', () => {

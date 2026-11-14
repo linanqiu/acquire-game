@@ -7,7 +7,6 @@
 import { fetchWithRetry } from './http'
 import type {
   BenchTrack,
-  GameDetail,
   GamesResponse,
   Leaderboard,
   SeriesDetail,
@@ -76,10 +75,6 @@ export function fetchGames(opts: ListGamesOptions = {}, signal?: AbortSignal) {
   q.set('limit', String(opts.limit ?? 50))
   if (opts.before) q.set('before', opts.before)
   return getJson<GamesResponse>(`/games?${q.toString()}`, signal)
-}
-
-export function fetchGame(gameId: string, signal?: AbortSignal) {
-  return getJson<GameDetail>(`/games/${encodeURIComponent(gameId)}`, signal)
 }
 
 export function fetchTranscript(gameId: string, signal?: AbortSignal) {

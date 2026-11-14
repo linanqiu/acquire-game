@@ -30,6 +30,25 @@ describe('waitingMessage', () => {
     )
   })
 
+  it('says when the table waits for a trade answer, and for an unknown kind of decision', () => {
+    expect(
+      waitingMessage(
+        { player_id: 'p2', kind: 'bot', decision: 'trade_response' },
+        players,
+        'Alice',
+        CLASSIC
+      )
+    ).toBe('Waiting for Bob to answer a trade offer...')
+    expect(
+      waitingMessage(
+        { player_id: 'p2', kind: 'bot', decision: 'something_new' },
+        players,
+        'Alice',
+        CLASSIC
+      )
+    ).toBe('Waiting for Bob to take action...')
+  })
+
   it('falls back to the current player when nothing is awaited or the id is unknown', () => {
     expect(waitingMessage(null, players, 'Alice', CLASSIC)).toBe(
       'Waiting for Alice to take action...'

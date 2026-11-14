@@ -1,64 +1,52 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { buildFinalScores } from './finalScores'
-import { useGameStore } from '../store/gameStore'
-import type { GameOverMessage, GameStateMessage } from '../types/api'
+import { snapshot } from '../../tests/unit/fixtures/wire'
 
-const state = {
-  type: 'game_state',
-  board: { cells: {} },
-  hotel: { chains: [], available_stocks: {}, active_chains: [] },
-  turn_order: ['a', 'b'],
-  current_player: 'a',
-  phase: 'game_over',
-  players: {
-    a: { name: 'Alice', money: 30000, stocks: {}, hand_size: 0 },
-    b: { name: 'Bob', money: 12000, stocks: {}, hand_size: 0 },
-  },
-  tiles_remaining: 0,
-} as unknown as GameStateMessage
-
-const over: GameOverMessage = {
-  type: 'game_over',
-  winner: 'a',
-  scores: {
-    a: { name: 'Alice', money: 30000, bonuses: 5000, stock_sales: 7000 },
-    b: { name: 'Bob', money: 12000, bonuses: 0, stock_sales: 1500 },
-  },
+const finished = (name: 'game-over' | 'game-over-tie') => {
+  const view = snapshot(name)
+  return {
+    state: view.player.find((m) => m.type === 'game_state'),
+    over: view.player.find((m) => m.type === 'game_over'),
+  }
 }
 
-describe('buildFinalScores', () => {
-  it('splits final money into cash, bonuses and stock sales from game_over', () => {
-    const scores = buildFinalScores(state, over)
-    expect(scores).toEqual([
-      { playerId: 'a', name: 'Alice', cash: 18000, bonuses: 5000, stockSales: 7000, total: 30000 },
-      { playerId: 'b', name: 'Bob', cash: 10500, bonuses: 0, stockSales: 1500, total: 12000 },
-    ])
+describe('buildFinalScores (a real finished game)', () => {
+  it.each(['game-over', 'game-over-tie'])(
+    '%s: final money splits into cash, bonuses and stock sales that add back up',
+    (name) => {
+      const { state, over } = finished(name)
+      const scores = buildFinalScores(state, over)
+      expect(scores.map((s) => s.playerId).sort()).toEqual(Object.keys(state.players).sort())
+      for (const s of scores) {
+        const sent = over.scores[s.playerId]
+        expect(s.name).toBe(state.players[s.playerId].name)
+        expect(s.total).toBe(state.players[s.playerId].money)
+        expect(s.bonuses).toBe(sent.bonuses)
+        expect(s.stockSales).toBe(sent.stock_sales)
+        expect(s.cash + s.bonuses + s.stockSales).toBe(s.total)
+      }
+    }
+  )
+
+  it('without the game_over message the breakdown is unknown, not $0, and cash is the total', () => {
+    const { state } = finished('game-over')
+    for (const s of buildFinalScores(state, null)) {
+      expect(s.bonuses).toBeUndefined()
+      expect(s.stockSales).toBeUndefined()
+      expect(s.cash).toBe(s.total)
+    }
   })
 
-  it('leaves the breakdown unknown (not $0) without a game_over breakdown', () => {
-    const scores = buildFinalScores(state, null)
-    expect(scores[0]).toEqual({
-      playerId: 'a',
-      name: 'Alice',
-      cash: 30000,
-      bonuses: undefined,
-      stockSales: undefined,
-      total: 30000,
-    })
+  it('a game_over message missing a player does not invent a breakdown for them', () => {
+    const { state, over } = finished('game-over')
+    const [first, second] = Object.keys(over.scores)
+    const partial = { ...over, scores: { [first]: over.scores[first] } }
+    const byId = Object.fromEntries(buildFinalScores(state, partial).map((s) => [s.playerId, s]))
+    expect(byId[first].bonuses).toBe(over.scores[first].bonuses)
+    expect(byId[second].bonuses).toBeUndefined()
   })
 
-  it('returns nothing without a game state', () => {
-    expect(buildFinalScores(null, over)).toEqual([])
-  })
-})
-
-describe('gameStore game_over', () => {
-  beforeEach(() => useGameStore.getState().reset())
-
-  it('keeps the game_over message and clears it on reset', () => {
-    useGameStore.getState().handleMessage(over)
-    expect(useGameStore.getState().gameOver).toEqual(over)
-    useGameStore.getState().reset()
-    expect(useGameStore.getState().gameOver).toBeNull()
+  it('returns nothing before any game state has arrived', () => {
+    expect(buildFinalScores(null, finished('game-over').over)).toEqual([])
   })
 })

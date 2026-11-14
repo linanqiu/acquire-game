@@ -1,336 +1,139 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { GameOver, GameOverProps, FinalScore } from './GameOver'
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent, within } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { GameOver } from './GameOver'
+import { buildFinalScores } from '../../lib/finalScores'
+import { snapshot } from '../../../tests/unit/fixtures/wire'
 
-const mockScores: FinalScore[] = [
-  { playerId: 'p1', name: 'Alice', cash: 5000, bonuses: 8000, stockSales: 12000, total: 25000 },
-  { playerId: 'p2', name: 'Bob', cash: 4000, bonuses: 10000, stockSales: 18000, total: 32000 },
-  { playerId: 'p3', name: 'Carol', cash: 6000, bonuses: 5000, stockSales: 8000, total: 19000 },
-]
-
-const defaultProps: GameOverProps = {
-  scores: mockScores,
-  myPlayerId: 'p1',
-  onPlayAgain: vi.fn(),
-  onBackToLobby: vi.fn(),
-  variant: 'player',
+/** The standings the player page shows for a real finished game. */
+function finished(name: 'game-over' | 'game-over-tie') {
+  const view = snapshot(name)
+  const state = view.player.find((m) => m.type === 'game_state')
+  const over = view.player.find((m) => m.type === 'game_over')
+  return { view, state, over, scores: buildFinalScores(state, over) }
 }
 
-describe('GameOver', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
+function mount(name, props = {}) {
+  const data = finished(name)
+  const onPlayAgain = vi.fn()
+  const onBackToLobby = vi.fn()
+  render(
+    <MemoryRouter>
+      <GameOver
+        scores={data.scores}
+        myPlayerId={data.view.human}
+        onPlayAgain={onPlayAgain}
+        onBackToLobby={onBackToLobby}
+        {...props}
+      />
+    </MemoryRouter>
+  )
+  return { ...data, onPlayAgain, onBackToLobby }
+}
+
+const money = (n) => `$${n.toLocaleString('en-US')}`
+// Names come from the game state (the game_over message repeats names from the recording).
+const nameOf = (data, id) => data.state.players[id].name
+
+describe('GameOver on a real finished game', () => {
+  it('names the single winner the server named, with their total', () => {
+    const data = mount('game-over')
+    const { over } = data
+    expect(over.winners).toHaveLength(1)
+    const winner = screen.getByTestId('winner-announcement')
+    expect(winner).toHaveTextContent('WINNER')
+    expect(winner).toHaveTextContent(nameOf(data, over.winner))
+    expect(winner).toHaveTextContent(money(over.scores[over.winner].money))
   })
 
-  describe('final cash only (no breakdown from the server)', () => {
-    const cashOnly: FinalScore[] = [
-      { playerId: 'p1', name: 'Alice', cash: 5000, total: 5000 },
-      { playerId: 'p2', name: 'Bob', cash: 7000, total: 7000 },
-    ]
-
-    it('does not invent zero bonuses or stock sales for the player', () => {
-      render(<GameOver {...defaultProps} scores={cashOnly} />)
-      const breakdown = screen.getByTestId('breakdown')
-      expect(breakdown).toHaveTextContent('Final cash (bonuses and share sales included)')
-      expect(breakdown).not.toHaveTextContent('Final bonuses')
-      expect(breakdown).not.toHaveTextContent('Stocks sold')
-      expect(breakdown).toHaveTextContent('$5,000')
-    })
-
-    it('shows only cash and total columns in the host table', () => {
-      render(<GameOver {...defaultProps} scores={cashOnly} variant="host" />)
-      const table = screen.getByTestId('full-breakdown')
-      expect(table).not.toHaveTextContent('Bonuses')
-      expect(table).not.toHaveTextContent('Stock Sales')
-      expect(table).toHaveTextContent('Cash')
-    })
-  })
-
-  describe('rendering', () => {
-    it('renders game over screen', () => {
-      render(<GameOver {...defaultProps} />)
-
-      expect(screen.getByTestId('game-over')).toBeInTheDocument()
-      expect(screen.getByText('GAME OVER')).toBeInTheDocument()
-    })
-
-    it('announces the winner correctly', () => {
-      render(<GameOver {...defaultProps} />)
-
-      const announcement = screen.getByTestId('winner-announcement')
-      expect(announcement).toBeInTheDocument()
-      expect(screen.getByText('WINNER')).toBeInTheDocument()
-      // Bob appears both in winner announcement and rankings, so check within announcement
-      expect(announcement.textContent).toContain('Bob')
-      expect(announcement.textContent).toContain('$32,000')
-    })
-
-    it('shows final standings in order', () => {
-      render(<GameOver {...defaultProps} />)
-
-      const rankings = screen.getByTestId('rankings')
-      expect(rankings).toBeInTheDocument()
-
-      // Check order: Bob (32k), Alice (25k), Carol (19k)
-      const rankRows = screen.getAllByTestId(/^rank-/)
-      expect(rankRows).toHaveLength(3)
+  it('lists everybody best first, with ranks 1, 2, 3...', () => {
+    const { over } = mount('game-over')
+    const order = Object.entries(over.scores)
+      .sort((a, b) => b[1].money - a[1].money)
+      .map(([id]) => id)
+    const rows = within(screen.getByTestId('rankings'))
+      .getAllByTestId(/^rank-/)
+      .map((r) => r.getAttribute('data-testid').replace('rank-', ''))
+    expect(rows).toEqual(order)
+    order.forEach((id, i) => {
+      expect(screen.getByTestId(`rank-${id}`)).toHaveTextContent(`${i + 1}.`)
+      expect(screen.getByTestId(`rank-${id}`)).toHaveTextContent(money(over.scores[id].money))
     })
   })
 
-  describe('tie game handling', () => {
-    it('handles tie game correctly', () => {
-      const tieScores: FinalScore[] = [
-        {
-          playerId: 'p1',
-          name: 'Alice',
-          cash: 5000,
-          bonuses: 15000,
-          stockSales: 12000,
-          total: 32000,
-        },
-        {
-          playerId: 'p2',
-          name: 'Bob',
-          cash: 4000,
-          bonuses: 10000,
-          stockSales: 18000,
-          total: 32000,
-        },
-        {
-          playerId: 'p3',
-          name: 'Carol',
-          cash: 6000,
-          bonuses: 5000,
-          stockSales: 8000,
-          total: 19000,
-        },
-      ]
-
-      render(<GameOver {...defaultProps} scores={tieScores} />)
-
-      expect(screen.getByText('TIE GAME!')).toBeInTheDocument()
-      expect(screen.getByText('Alice & Bob')).toBeInTheDocument()
-      expect(screen.getByText('$32,000 each')).toBeInTheDocument()
-    })
-
-    it('handles three-way tie correctly', () => {
-      const threeWayTie: FinalScore[] = [
-        {
-          playerId: 'p1',
-          name: 'Alice',
-          cash: 5000,
-          bonuses: 15000,
-          stockSales: 12000,
-          total: 32000,
-        },
-        {
-          playerId: 'p2',
-          name: 'Bob',
-          cash: 4000,
-          bonuses: 10000,
-          stockSales: 18000,
-          total: 32000,
-        },
-        {
-          playerId: 'p3',
-          name: 'Carol',
-          cash: 6000,
-          bonuses: 14000,
-          stockSales: 12000,
-          total: 32000,
-        },
-      ]
-
-      render(<GameOver {...defaultProps} scores={threeWayTie} />)
-
-      expect(screen.getByText('TIE GAME!')).toBeInTheDocument()
-      expect(screen.getByText('Alice & Bob & Carol')).toBeInTheDocument()
-    })
+  it('a tie is announced as a tie, naming every winner the server named, with equal rank 1', () => {
+    const data = mount('game-over-tie')
+    const { over } = data
+    expect(over.winners.length).toBeGreaterThan(1)
+    const winner = screen.getByTestId('winner-announcement')
+    expect(winner).toHaveTextContent('TIE GAME!')
+    for (const id of over.winners) {
+      expect(winner).toHaveTextContent(nameOf(data, id))
+      expect(screen.getByTestId(`rank-${id}`)).toHaveTextContent('1.')
+    }
+    expect(winner).toHaveTextContent('each')
+    // The player after the tied pair is ranked below them, skipping the shared places.
+    const rest = Object.keys(over.scores).filter((id) => !over.winners.includes(id))
+    expect(screen.getByTestId(`rank-${rest[0]}`)).toHaveTextContent(`${over.winners.length + 1}.`)
   })
 
-  describe('ranking calculation', () => {
-    it('assigns correct ranks with ties', () => {
-      const scoresWithTie: FinalScore[] = [
-        {
-          playerId: 'p1',
-          name: 'Alice',
-          cash: 5000,
-          bonuses: 15000,
-          stockSales: 12000,
-          total: 32000,
-        },
-        {
-          playerId: 'p2',
-          name: 'Bob',
-          cash: 4000,
-          bonuses: 10000,
-          stockSales: 18000,
-          total: 32000,
-        },
-        {
-          playerId: 'p3',
-          name: 'Carol',
-          cash: 6000,
-          bonuses: 5000,
-          stockSales: 8000,
-          total: 19000,
-        },
-      ]
-
-      render(<GameOver {...defaultProps} scores={scoresWithTie} />)
-
-      // Both Alice and Bob should be rank 1, Carol should be rank 3
-      const rankings = screen.getByTestId('rankings')
-      expect(rankings.textContent).toContain('1.')
-      expect(rankings.textContent).toContain('3.')
-      // Should not contain '2.' since it's skipped due to tie
-    })
+  it('the player sees their own breakdown: cash, bonuses and share sales add up to the total', () => {
+    const { over, view } = mount('game-over')
+    const mine = over.scores[view.human]
+    const box = screen.getByTestId('breakdown')
+    expect(screen.getByTestId('breakdown-bonuses')).toHaveTextContent(`+${money(mine.bonuses)}`)
+    expect(screen.getByTestId('breakdown-stock-sales')).toHaveTextContent(
+      `+${money(mine.stock_sales)}`
+    )
+    expect(box).toHaveTextContent(money(mine.money - mine.bonuses - mine.stock_sales))
+    expect(box).toHaveTextContent(`TOTAL:${money(mine.money)}`)
   })
 
-  describe('player variant', () => {
-    it('shows personal breakdown for player variant', () => {
-      render(<GameOver {...defaultProps} variant="player" />)
-
-      expect(screen.getByTestId('breakdown')).toBeInTheDocument()
-      expect(screen.getByText('YOUR BREAKDOWN')).toBeInTheDocument()
-      expect(screen.getByText('Cash on hand:')).toBeInTheDocument()
-      expect(screen.getByText('Final bonuses:')).toBeInTheDocument()
-      expect(screen.getByText('Stocks sold:')).toBeInTheDocument()
-      expect(screen.getByText('TOTAL:')).toBeInTheDocument()
-    })
-
-    it('shows correct breakdown values', () => {
-      render(<GameOver {...defaultProps} variant="player" myPlayerId="p1" />)
-
-      const breakdown = screen.getByTestId('breakdown')
-      expect(breakdown.textContent).toContain('$5,000')
-      expect(breakdown.textContent).toContain('+$8,000')
-      expect(breakdown.textContent).toContain('+$12,000')
-      expect(breakdown.textContent).toContain('$25,000')
-    })
-
-    it('does not show breakdown when myPlayerId not provided', () => {
-      render(<GameOver {...defaultProps} variant="player" myPlayerId={undefined} />)
-
-      expect(screen.queryByTestId('breakdown')).not.toBeInTheDocument()
-    })
+  it('when the server sent no breakdown nothing is invented: only final cash is shown', () => {
+    const data = finished('game-over')
+    const scores = buildFinalScores(data.state, null)
+    render(
+      <MemoryRouter>
+        <GameOver
+          scores={scores}
+          myPlayerId={data.view.human}
+          onPlayAgain={() => {}}
+          onBackToLobby={() => {}}
+        />
+      </MemoryRouter>
+    )
+    expect(screen.queryByTestId('breakdown-bonuses')).not.toBeInTheDocument()
+    expect(screen.getByTestId('breakdown')).toHaveTextContent('Final cash')
   })
 
-  describe('host variant', () => {
-    it('shows full breakdown table for host variant', () => {
-      render(<GameOver {...defaultProps} variant="host" />)
-
-      expect(screen.getByTestId('full-breakdown')).toBeInTheDocument()
-      expect(screen.getByText('FULL BREAKDOWN')).toBeInTheDocument()
-    })
-
-    it('shows all players in breakdown table', () => {
-      render(<GameOver {...defaultProps} variant="host" />)
-
-      const table = screen.getByTestId('full-breakdown')
-      expect(table.textContent).toContain('Alice')
-      expect(table.textContent).toContain('Bob')
-      expect(table.textContent).toContain('Carol')
-    })
-
-    it('shows note about defunct stocks', () => {
-      render(<GameOver {...defaultProps} variant="host" />)
-
-      expect(screen.getByText(/defunct hotel chains are worth \$0/)).toBeInTheDocument()
-    })
-
-    it('does not show personal breakdown for host variant', () => {
-      render(<GameOver {...defaultProps} variant="host" />)
-
-      expect(screen.queryByTestId('breakdown')).not.toBeInTheDocument()
-    })
+  it('the spectator view shows every player in a full table, with the defunct-share note', () => {
+    const data = mount('game-over', { variant: 'host', myPlayerId: undefined })
+    expect(screen.queryByTestId('breakdown')).not.toBeInTheDocument()
+    const table = screen.getByTestId('full-breakdown')
+    for (const [id, s] of Object.entries(data.over.scores)) {
+      expect(table).toHaveTextContent(nameOf(data, id))
+      expect(table).toHaveTextContent(`+${money(s.bonuses)}`)
+    }
+    expect(table).toHaveTextContent('Shares of defunct hotel chains are worth $0')
   })
 
-  describe('highlighting current player', () => {
-    it('highlights current player in rankings', () => {
-      render(<GameOver {...defaultProps} myPlayerId="p1" />)
-
-      const aliceRow = screen.getByTestId('rank-p1')
-      // CSS modules transform class names, so check for partial match
-      expect(aliceRow.className).toMatch(/you/)
-    })
-
-    it('does not highlight when no myPlayerId', () => {
-      render(<GameOver {...defaultProps} myPlayerId={undefined} />)
-
-      const aliceRow = screen.getByTestId('rank-p1')
-      expect(aliceRow.className).not.toMatch(/you/)
-    })
+  it('PLAY AGAIN and BACK TO LOBBY do what they say', () => {
+    const { onPlayAgain, onBackToLobby } = mount('game-over')
+    fireEvent.click(screen.getByTestId('play-again'))
+    fireEvent.click(screen.getByTestId('back-to-lobby'))
+    expect(onPlayAgain).toHaveBeenCalledTimes(1)
+    expect(onBackToLobby).toHaveBeenCalledTimes(1)
   })
 
-  describe('actions', () => {
-    it('calls onPlayAgain when Play Again clicked', () => {
-      const onPlayAgain = vi.fn()
-      render(<GameOver {...defaultProps} onPlayAgain={onPlayAgain} />)
-
-      fireEvent.click(screen.getByTestId('play-again'))
-
-      expect(onPlayAgain).toHaveBeenCalledTimes(1)
-    })
-
-    it('calls onBackToLobby when Back to Lobby clicked', () => {
-      const onBackToLobby = vi.fn()
-      render(<GameOver {...defaultProps} onBackToLobby={onBackToLobby} />)
-
-      fireEvent.click(screen.getByTestId('back-to-lobby'))
-
-      expect(onBackToLobby).toHaveBeenCalledTimes(1)
-    })
+  it('links to the transcript only when the game has one', () => {
+    mount('game-over', { gameId: 'g-1 2' })
+    expect(screen.getByTestId('view-transcript-link')).toHaveAttribute('href', '/games/g-1%202')
   })
+})
 
-  describe('edge cases', () => {
-    it('handles single player', () => {
-      const singlePlayer: FinalScore[] = [
-        {
-          playerId: 'p1',
-          name: 'Alice',
-          cash: 5000,
-          bonuses: 8000,
-          stockSales: 12000,
-          total: 25000,
-        },
-      ]
-
-      render(<GameOver {...defaultProps} scores={singlePlayer} />)
-
-      expect(screen.getByText('WINNER')).toBeInTheDocument()
-      // Alice appears in both winner announcement and rankings
-      const announcement = screen.getByTestId('winner-announcement')
-      expect(announcement.textContent).toContain('Alice')
-    })
-
-    it('handles zero totals', () => {
-      const zeroScores: FinalScore[] = [
-        { playerId: 'p1', name: 'Alice', cash: 0, bonuses: 0, stockSales: 0, total: 0 },
-        { playerId: 'p2', name: 'Bob', cash: 0, bonuses: 0, stockSales: 0, total: 0 },
-      ]
-
-      render(<GameOver {...defaultProps} scores={zeroScores} />)
-
-      expect(screen.getByText('TIE GAME!')).toBeInTheDocument()
-      expect(screen.getByText('$0 each')).toBeInTheDocument()
-    })
-
-    it('handles large numbers correctly', () => {
-      const bigScores: FinalScore[] = [
-        {
-          playerId: 'p1',
-          name: 'Alice',
-          cash: 150000,
-          bonuses: 80000,
-          stockSales: 220000,
-          total: 450000,
-        },
-      ]
-
-      render(<GameOver {...defaultProps} scores={bigScores} myPlayerId="p1" />)
-
-      // $450,000 appears in winner announcement and ranking, use getAllByText
-      const totals = screen.getAllByText('$450,000')
-      expect(totals.length).toBeGreaterThan(0)
-    })
+describe('GameOver without a transcript', () => {
+  it('shows no transcript link', () => {
+    mount('game-over')
+    expect(screen.queryByTestId('view-transcript-link')).not.toBeInTheDocument()
   })
 })

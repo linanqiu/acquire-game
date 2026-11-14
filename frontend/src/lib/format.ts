@@ -37,11 +37,6 @@ export function formatBytes(n: number): string {
   return `${(n / 1024 / 1024).toFixed(1)} MB`
 }
 
-export function formatMoney(n: number | null | undefined): string {
-  if (n === null || n === undefined) return '—'
-  return `$${n.toLocaleString('en-US')}`
-}
-
 /** "3 min ago" style label; falls back to the date for anything older than a week. */
 export function formatWhen(iso: string | null | undefined, now: number = Date.now()): string {
   if (!iso) return '—'

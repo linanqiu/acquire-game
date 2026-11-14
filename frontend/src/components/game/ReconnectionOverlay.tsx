@@ -77,6 +77,10 @@ export function ReconnectionOverlay({
   })
 
   const mountedRef = useRef(true)
+  // Bumped whenever the connection status changes: an attempt that started under an earlier
+  // status is stale and its result is ignored. (Not when the reconnection phase changes: starting
+  // an attempt changes the phase, and must not discard that attempt's own result.)
+  const attemptEpochRef = useRef(0)
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Clear timeout helper
@@ -96,6 +100,10 @@ export function ReconnectionOverlay({
     }
   }, [clearRetryTimeout])
 
+  useEffect(() => {
+    attemptEpochRef.current += 1
+  }, [connectionStatus])
+
   // Reset when connection status changes to disconnected
   useEffect(() => {
     if (connectionStatus === 'disconnected') {
@@ -113,17 +121,18 @@ export function ReconnectionOverlay({
       return
     }
 
-    let cancelled = false
+    const epoch = attemptEpochRef.current
+    const stale = () => epoch !== attemptEpochRef.current || !mountedRef.current
 
     const doReconnect = async () => {
-      if (cancelled || !mountedRef.current) return
+      if (stale()) return
 
       dispatch({ type: 'START_ATTEMPT' })
 
       try {
         const success = await onReconnect()
 
-        if (cancelled || !mountedRef.current) return
+        if (stale()) return
 
         if (success) {
           dispatch({ type: 'ATTEMPT_SUCCESS' })
@@ -131,16 +140,12 @@ export function ReconnectionOverlay({
           dispatch({ type: 'ATTEMPT_FAILED', maxAttempts })
         }
       } catch {
-        if (cancelled || !mountedRef.current) return
+        if (stale()) return
         dispatch({ type: 'ATTEMPT_FAILED', maxAttempts })
       }
     }
 
     doReconnect()
-
-    return () => {
-      cancelled = true
-    }
   }, [connectionStatus, state.phase, state.attempts, maxAttempts, onReconnect])
 
   // Handle retry scheduling

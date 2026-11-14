@@ -1,10 +1,16 @@
+/**
+ * Trading and reconnection on the player page, from real server states (recorded from the
+ * backend, tests/unit/fixtures/generate_wire_messages.py). Answering an offer is in
+ * PlayerPage.screens.test.tsx; here: what the offers panel says, the notices, the builder
+ * round trip, and the connection overlay.
+ */
 import { render, screen, act, fireEvent, within } from '@testing-library/react'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { PlayerPage } from './PlayerPage'
 import { ToastProvider } from '../components/ui/ToastProvider'
 import { useGameStore } from '../store/gameStore'
-import type { GameStateMessage, TradeOffer } from '../types/api'
+import { loadSnapshotAsPlayer, snapshot } from '../../tests/unit/fixtures/wire'
 
 const ws = vi.hoisted(() => ({
   sendAction: vi.fn(() => true),
@@ -24,81 +30,7 @@ vi.mock('../hooks/useWebSocket', () => ({
   },
 }))
 
-function gameState(overrides: Partial<GameStateMessage> = {}): GameStateMessage {
-  return {
-    type: 'game_state',
-    board: { cells: {} },
-    hotel: {
-      chains: [
-        { name: 'Luxor', size: 3, price: 300, stocks_available: 20 },
-        { name: 'Tower', size: 3, price: 300, stocks_available: 20 },
-      ],
-      available_stocks: { Luxor: 20, Tower: 20 } as GameStateMessage['hotel']['available_stocks'],
-      active_chains: ['Luxor', 'Tower'],
-    },
-    turn_order: ['me', 'bob', 'ai'],
-    current_player: 'bob',
-    phase: 'place_tile',
-    players: {
-      me: {
-        name: 'Alice',
-        money: 5000,
-        stocks: { Luxor: 3 } as GameStateMessage['players'][string]['stocks'],
-        hand_size: 6,
-      },
-      bob: {
-        name: 'Bob',
-        money: 4000,
-        stocks: { Tower: 4 } as GameStateMessage['players'][string]['stocks'],
-        hand_size: 6,
-      },
-      ai: {
-        name: 'Robo',
-        money: 4000,
-        stocks: { Tower: 3 } as GameStateMessage['players'][string]['stocks'],
-        hand_size: 6,
-        is_bot: true,
-        kind: 'llm',
-        agent_label: 'AI',
-      },
-    },
-    tiles_remaining: 80,
-    your_hand: ['1A'],
-    ...overrides,
-  }
-}
-
-const incoming: TradeOffer = {
-  trade_id: 't-in',
-  from_player_id: 'ai',
-  to_player_id: 'me',
-  offering_stocks: { Tower: 2 },
-  offering_money: 0,
-  requesting_stocks: { Luxor: 1 },
-  requesting_money: 100,
-}
-
-const outgoing: TradeOffer = {
-  trade_id: 't-out',
-  from_player_id: 'me',
-  to_player_id: 'bob',
-  offering_stocks: { Luxor: 2 },
-  offering_money: 0,
-  requesting_stocks: {},
-  requesting_money: 500,
-}
-
-function setup(state: GameStateMessage = gameState()) {
-  useGameStore.getState().reset()
-  sessionStorage.setItem('player_id', 'me')
-  sessionStorage.setItem('player_name', 'Alice')
-  sessionStorage.setItem('session_token', 'tok')
-  useGameStore.setState({
-    connectionStatus: 'connected',
-    gameState: state,
-    yourHand: ['1A'],
-    currentPlayer: { id: 'me', name: 'Alice', token: 'tok', isHost: false },
-  })
+function mount() {
   return render(
     <MemoryRouter initialEntries={['/play/TEST']}>
       <ToastProvider>
@@ -110,202 +42,251 @@ function setup(state: GameStateMessage = gameState()) {
   )
 }
 
-describe('PlayerPage trade offers', () => {
-  beforeEach(() => {
-    ws.sendAction.mockClear()
-    ws.sendAction.mockReturnValue(true)
-    ws.reconnect.mockClear()
+const deliver = (msg: Record<string, unknown>) =>
+  act(() => useGameStore.getState().handleMessage(msg as never))
+const stateOf = (view: ReturnType<typeof snapshot>) =>
+  view.player.find((m) => m.type === 'game_state')!
+
+beforeEach(() => {
+  ws.sendAction.mockClear()
+  ws.sendAction.mockReturnValue(true)
+  useGameStore.getState().reset()
+})
+
+describe('the offers panel', () => {
+  it('shows an incoming offer with who sent it (and that it is an AI seat), what they give and what they ask', () => {
+    const view = loadSnapshotAsPlayer('trade-incoming')
+    mount()
+    const [offer] = stateOf(view).incoming_trades
+    const proposer = stateOf(view).players[offer.from_player_id]
+    const card = screen.getByTestId(`trade-offer-${offer.trade_id}`)
+    expect(within(card).getByText(proposer.name)).toBeInTheDocument()
+    expect(within(card).getByTestId(`seat-kind-${offer.from_player_id}`)).toBeInTheDocument()
+    const [chain, qty] = Object.entries(offer.offering_stocks)[0] as [string, number]
+    expect(within(card).getByTestId(`trade-stock-${chain}`)).toHaveTextContent(`×${qty}`)
+    expect(card).toHaveTextContent(`$${offer.requesting_money.toLocaleString('en-US')}`)
   })
 
-  it('renders incoming and outgoing offers from per-player state', () => {
-    setup(gameState({ incoming_trades: [incoming], outgoing_trades: [outgoing] }))
-    // game_state fields are applied through the store, like the real socket does
-    act(() => {
-      useGameStore
-        .getState()
-        .handleMessage(gameState({ incoming_trades: [incoming], outgoing_trades: [outgoing] }))
-    })
-    expect(screen.getByTestId('trade-offers')).toBeInTheDocument()
-    const offer = screen.getByTestId('trade-offer-t-in')
-    expect(within(offer).getByText('Robo')).toBeInTheDocument()
-    expect(within(offer).getByTestId('seat-kind-ai')).toBeInTheDocument()
-    expect(within(offer).getByText('×2')).toBeInTheDocument()
-    expect(within(offer).getByText('$100')).toBeInTheDocument()
-    const out = screen.getByTestId('trade-outgoing-t-out')
-    expect(within(out).getByText('Bob')).toBeInTheDocument()
-    expect(within(out).getByText('$500')).toBeInTheDocument()
+  it('shows my own pending offer with the person it went to', () => {
+    const view = loadSnapshotAsPlayer('trade-outgoing-pending')
+    mount()
+    const [offer] = stateOf(view).outgoing_trades
+    const to = stateOf(view).players[offer.to_player_id]
+    expect(screen.getByTestId(`trade-outgoing-${offer.trade_id}`)).toHaveTextContent(to.name)
   })
 
-  it('accept, reject and cancel send the matching action', () => {
-    setup()
-    act(() => {
-      useGameStore.getState().handleMessage({ type: 'trade_proposed', trade: incoming })
-      useGameStore.getState().handleMessage({ type: 'trade_proposed', trade: outgoing })
-    })
-    fireEvent.click(screen.getByTestId('trade-accept-t-in'))
-    expect(ws.sendAction).toHaveBeenLastCalledWith({ action: 'accept_trade', trade_id: 't-in' })
-    fireEvent.click(screen.getByTestId('trade-cancel-t-out'))
-    expect(ws.sendAction).toHaveBeenLastCalledWith({ action: 'cancel_trade', trade_id: 't-out' })
+  it('Accept is off, with the reason, when I cannot give what is asked; Reject still works', () => {
+    const view = snapshot('trade-incoming')
+    const state = stateOf(view)
+    const me = state.players[view.human]
+    const [offer] = state.incoming_trades
+    offer.requesting_money = me.money + 1
+    useGameStore.getState().reset()
+    // deliver the doctored copy of the real state
+    useGameStore.getState().setRoomCode('TEST')
+    useGameStore.getState().setConnectionStatus('connected')
+    useGameStore
+      .getState()
+      .setCurrentPlayer({ id: view.human, name: 'Alice', token: 't', isHost: false })
+    useGameStore.getState().handleMessage(state)
+    mount()
+    expect(screen.getByTestId(`trade-accept-${offer.trade_id}`)).toBeDisabled()
+    expect(screen.getByTestId(`trade-reason-${offer.trade_id}`)).toHaveTextContent(
+      "You can't afford"
+    )
+    expect(screen.getByTestId(`trade-reject-${offer.trade_id}`)).toBeEnabled()
   })
 
-  it('reject sends reject_trade', () => {
-    setup()
-    act(() => {
-      useGameStore.getState().handleMessage({ type: 'trade_proposed', trade: incoming })
-    })
-    fireEvent.click(screen.getByTestId('trade-reject-t-in'))
-    expect(ws.sendAction).toHaveBeenLastCalledWith({ action: 'reject_trade', trade_id: 't-in' })
-  })
-
-  it('disables Accept with a reason when the player cannot fulfil the offer', () => {
-    setup()
-    const expensive = { ...incoming, requesting_stocks: { Luxor: 9 }, requesting_money: 0 }
-    act(() => {
-      useGameStore.getState().handleMessage({ type: 'trade_proposed', trade: expensive })
-    })
-    expect(screen.getByTestId('trade-accept-t-in')).toBeDisabled()
-    expect(screen.getByTestId('trade-reason-t-in')).toHaveTextContent('You only have 3 Luxor')
-    // Reject stays available
-    expect(screen.getByTestId('trade-reject-t-in')).toBeEnabled()
-  })
-
-  it('toasts when an offer arrives and when one of mine is accepted or rejected', () => {
-    setup()
-    act(() => {
-      useGameStore.getState().handleMessage({ type: 'trade_proposed', trade: incoming })
-    })
-    expect(screen.getByText('Robo sent you a trade offer')).toBeInTheDocument()
-
-    act(() => {
-      useGameStore.getState().handleMessage({ type: 'trade_proposed', trade: outgoing })
-    })
-    act(() => {
-      useGameStore.getState().handleMessage({
-        type: 'trade_accepted',
-        trade_id: 't-out',
-        from_player: 'me',
-        to_player: 'bob',
-      })
-    })
-    expect(screen.getByText('Bob accepted your offer')).toBeInTheDocument()
-    expect(screen.queryByTestId('trade-outgoing-t-out')).not.toBeInTheDocument()
-
-    const second = { ...outgoing, trade_id: 't-out2' }
-    act(() => {
-      useGameStore.getState().handleMessage({ type: 'trade_proposed', trade: second })
-    })
-    act(() => {
-      useGameStore
-        .getState()
-        .handleMessage({ type: 'trade_rejected', trade_id: 't-out2', rejected_by: 'bob' })
-    })
-    expect(screen.getByText('Bob rejected your offer')).toBeInTheDocument()
-  })
-
-  it('keeps the offers panel visible during stock disposition', () => {
-    setup(gameState({ phase: 'stock_disposition', current_player: 'bob' }))
-    act(() => {
-      useGameStore.setState({
-        pendingStockDisposition: {
-          defunctChain: 'Tower',
-          survivingChain: 'Luxor',
-          stockCount: 2,
-          availableToTrade: 5,
+  it.each(['disposition-human-first', 'found-chain-choice'])(
+    'an offer that arrives while I answer a prompt (%s) is still shown',
+    (name) => {
+      const view = loadSnapshotAsPlayer(name)
+      mount()
+      const other = Object.keys(stateOf(view).players).find((id) => id !== view.human)!
+      deliver({
+        type: 'trade_proposed',
+        trade: {
+          trade_id: 'late',
+          from_player_id: other,
+          to_player_id: view.human,
+          offering_stocks: {},
+          offering_money: 100,
+          requesting_stocks: {},
+          requesting_money: 0,
         },
       })
-      useGameStore.getState().handleMessage({ type: 'trade_proposed', trade: incoming })
+      expect(screen.getByTestId('trade-offer-late')).toBeInTheDocument()
+    }
+  )
+})
+
+describe('trade notices', () => {
+  it('tells me when an offer arrives, and when one of mine is accepted or rejected', () => {
+    const view = loadSnapshotAsPlayer('trade-outgoing-pending')
+    mount()
+    const state = stateOf(view)
+    const [mine] = state.outgoing_trades
+    const to = state.players[mine.to_player_id].name
+    // an offer for me from the same player
+    deliver({
+      type: 'trade_proposed',
+      trade: {
+        ...mine,
+        trade_id: 'in-1',
+        from_player_id: mine.to_player_id,
+        to_player_id: view.human,
+      },
     })
-    expect(screen.getByTestId('trade-offers')).toBeInTheDocument()
-    expect(screen.getByTestId('trade-offer-t-in')).toBeInTheDocument()
+    expect(screen.getByText(`${to} sent you a trade offer`)).toBeInTheDocument()
+    deliver({
+      type: 'trade_accepted',
+      trade_id: mine.trade_id,
+      from_player: view.human,
+      to_player: mine.to_player_id,
+    })
+    expect(screen.getByText(`${to} accepted your offer`)).toBeInTheDocument()
+    expect(screen.queryByTestId(`trade-outgoing-${mine.trade_id}`)).not.toBeInTheDocument()
+    deliver({ type: 'trade_proposed', trade: { ...mine, trade_id: 'out-2' } })
+    deliver({ type: 'trade_rejected', trade_id: 'out-2', rejected_by: mine.to_player_id })
+    expect(screen.getByText(`${to} rejected your offer`)).toBeInTheDocument()
+  })
+})
+
+describe('trade notices for offers made to me', () => {
+  const setup = () => {
+    const view = loadSnapshotAsPlayer('trade-incoming')
+    mount()
+    const [offer] = stateOf(view).incoming_trades
+    const from = stateOf(view).players[offer.from_player_id].name
+    return { view, offer, from }
+  }
+
+  it('when I accept, the page says the trade with the proposer is completed', () => {
+    const { view, offer, from } = setup()
+    deliver({
+      type: 'trade_accepted',
+      trade_id: offer.trade_id,
+      from_player: offer.from_player_id,
+      to_player: view.human,
+    })
+    expect(screen.getByText(`Trade with ${from} completed`)).toBeInTheDocument()
+    expect(screen.queryByTestId(`trade-offer-${offer.trade_id}`)).not.toBeInTheDocument()
   })
 
-  it('keeps the offers panel visible while choosing a chain', () => {
-    setup(gameState({ phase: 'found_chain', current_player: 'me' }))
-    act(() => {
-      useGameStore.setState({ pendingChainChoice: ['Luxor', 'Tower'] })
-    })
-    expect(screen.getByTestId('trade-offers')).toBeInTheDocument()
+  it('when I reject, it says "Offer rejected"; when the proposer withdraws, it names them', () => {
+    const { view, offer, from } = setup()
+    deliver({ type: 'trade_rejected', trade_id: offer.trade_id, rejected_by: view.human })
+    expect(screen.getByText('Offer rejected')).toBeInTheDocument()
+    deliver({ type: 'trade_proposed', trade: { ...offer, trade_id: 'second' } })
+    deliver({ type: 'trade_canceled', trade_id: 'second', canceled_by: offer.from_player_id })
+    expect(screen.getByText(`${from} withdrew their offer`)).toBeInTheDocument()
   })
 
-  it('shows a server refusal inside the trade builder and keeps it open', () => {
-    setup()
+  it('when I cancel an offer of mine, it says "Offer canceled"', () => {
+    const view = loadSnapshotAsPlayer('trade-outgoing-pending')
+    mount()
+    const [mine] = stateOf(view).outgoing_trades
+    deliver({ type: 'trade_canceled', trade_id: mine.trade_id, canceled_by: view.human })
+    expect(screen.getByText('Offer canceled')).toBeInTheDocument()
+  })
+
+  it('news about a trade between two other players is not announced to me', () => {
+    const view = loadSnapshotAsPlayer('trade-incoming')
+    mount()
+    const [a, b] = Object.keys(stateOf(view).players).filter((id) => id !== view.human)
+    deliver({
+      type: 'trade_proposed',
+      trade: {
+        trade_id: 'other',
+        from_player_id: a,
+        to_player_id: b,
+        offering_stocks: {},
+        offering_money: 1,
+        requesting_stocks: {},
+        requesting_money: 0,
+      },
+    })
+    expect(screen.queryByText(/sent you a trade offer/)).not.toBeInTheDocument()
+  })
+})
+
+describe('proposing a trade', () => {
+  const open = () => {
+    const view = loadSnapshotAsPlayer('buy-phase-multi-chain')
+    mount()
     fireEvent.click(screen.getByRole('button', { name: 'PROPOSE TRADE' }))
-    fireEvent.click(screen.getByTestId('player-select-bob'))
+    const state = stateOf(view)
+    const partner = Object.entries(state.players).find(([id]) => id !== view.human)!
+    fireEvent.click(screen.getByTestId(`player-select-${partner[0]}`))
     fireEvent.change(screen.getByTestId('offer-cash-input'), { target: { value: '100' } })
     fireEvent.change(screen.getByTestId('want-cash-input'), { target: { value: '50' } })
     fireEvent.click(screen.getByTestId('propose-trade'))
+    return { partner: partner[0], view }
+  }
+
+  it('sends the proposal; a server refusal shows inside the builder, which stays open', () => {
+    const { partner } = open()
     expect(ws.sendAction).toHaveBeenLastCalledWith({
       action: 'propose_trade',
-      to_player_id: 'bob',
+      to_player_id: partner,
       offering_stocks: {},
       offering_money: 100,
       requesting_stocks: {},
       requesting_money: 50,
     })
-    act(() => {
-      ws.onError?.('Maximum of 5 pending trades per player')
-    })
+    act(() => ws.onError?.('Maximum of 5 pending trades per player'))
     expect(screen.getByTestId('trade-error')).toHaveTextContent('Maximum of 5 pending trades')
     expect(screen.getByTestId('trade-builder')).toBeInTheDocument()
   })
 
-  it('closes the builder once the server confirms the proposal', () => {
-    setup()
-    fireEvent.click(screen.getByRole('button', { name: 'PROPOSE TRADE' }))
-    // an AI seat can be selected like any human
-    fireEvent.click(screen.getByTestId('player-select-ai'))
-    fireEvent.change(screen.getByTestId('offer-cash-input'), { target: { value: '100' } })
-    fireEvent.change(screen.getByTestId('want-cash-input'), { target: { value: '50' } })
-    fireEvent.click(screen.getByTestId('propose-trade'))
-    expect(ws.sendAction).toHaveBeenLastCalledWith(
-      expect.objectContaining({ action: 'propose_trade', to_player_id: 'ai' })
-    )
-    act(() => {
-      useGameStore.getState().handleMessage({
-        type: 'trade_proposed',
-        trade: { ...outgoing, trade_id: 'new', to_player_id: 'ai' },
-      })
+  it('the builder closes once the server confirms the proposal (trade_proposed)', () => {
+    const { partner, view } = open()
+    deliver({
+      type: 'trade_proposed',
+      trade: {
+        trade_id: 'new',
+        from_player_id: view.human,
+        to_player_id: partner,
+        offering_stocks: {},
+        offering_money: 100,
+        requesting_stocks: {},
+        requesting_money: 50,
+      },
     })
     expect(screen.queryByTestId('trade-builder')).not.toBeInTheDocument()
     expect(screen.getByTestId('trade-outgoing-new')).toBeInTheDocument()
   })
+
+  it('during a merger the builder warns that the shares involved cannot be traded', () => {
+    loadSnapshotAsPlayer('disposition-human-first')
+    mount()
+    fireEvent.click(screen.getByRole('button', { name: 'PROPOSE TRADE' }))
+    expect(screen.getByTestId('trade-builder')).toHaveTextContent(/merger is in progress/)
+  })
 })
 
-describe('PlayerPage reconnection', () => {
-  it('shows the overlay on disconnect and hides it (with a welcome-back card) after reconnect', () => {
-    setup()
+describe('reconnection', () => {
+  it('overlays the game when the socket drops, and welcomes the player back when it returns', () => {
+    loadSnapshotAsPlayer('trade-incoming')
+    mount()
     expect(screen.queryByText('RECONNECTING...')).not.toBeInTheDocument()
-
-    act(() => {
-      useGameStore.setState({ connectionStatus: 'connecting' })
-    })
+    act(() => useGameStore.setState({ connectionStatus: 'connecting' }))
     expect(screen.getByText('RECONNECTING...')).toBeInTheDocument()
     // the game stays rendered underneath instead of collapsing into a spinner
     expect(screen.getByTestId('trade-offers')).toBeInTheDocument()
-
-    act(() => {
-      useGameStore.setState({ connectionStatus: 'connected' })
-    })
+    act(() => useGameStore.setState({ connectionStatus: 'connected' }))
     expect(screen.queryByText('RECONNECTING...')).not.toBeInTheDocument()
     expect(screen.getByTestId('reconnected-toast')).toBeInTheDocument()
-
     fireEvent.click(screen.getByTestId('continue-playing'))
     expect(screen.queryByTestId('reconnected-toast')).not.toBeInTheDocument()
   })
 
-  it('does not show the overlay during the initial connection', () => {
-    useGameStore.getState().reset()
+  it('shows no overlay and no welcome during the first connection', () => {
     useGameStore.setState({ connectionStatus: 'connecting' })
-    render(
-      <MemoryRouter initialEntries={['/play/TEST']}>
-        <ToastProvider>
-          <Routes>
-            <Route path="/play/:room" element={<PlayerPage />} />
-          </Routes>
-        </ToastProvider>
-      </MemoryRouter>
-    )
+    mount()
     expect(screen.queryByText('RECONNECTING...')).not.toBeInTheDocument()
     expect(screen.getByText('Connecting to game...')).toBeInTheDocument()
+    act(() => useGameStore.setState({ connectionStatus: 'connected' }))
+    expect(screen.queryByTestId('reconnected-toast')).not.toBeInTheDocument()
   })
 })

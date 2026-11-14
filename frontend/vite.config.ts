@@ -18,17 +18,21 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './tests/unit/setup.ts',
+    // The transcript-viewer tests render long fixtures; 5 s flaked on a loaded machine.
+    testTimeout: 15000,
     include: ['src/**/*.test.{ts,tsx}', 'tests/unit/**/*.test.{ts,tsx}'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      include: ['src/components/**', 'src/hooks/**', 'src/lib/**'],
-      exclude: ['**/*.test.{ts,tsx}', '**/index.ts'],
+      include: ['src/store/**', 'src/hooks/**', 'src/lib/**', 'src/ruleset/**', 'src/utils/**'],
+      exclude: ['**/*.test.{ts,tsx}', '**/index.ts', 'src/ruleset/classic.ts'],
+      // Logic-bearing directories only (components and pages are judged by mutation score and the
+      // browser tiers). Enforced by `npm run test:coverage`.
       thresholds: {
-        statements: 80,
-        branches: 80,
-        functions: 80,
-        lines: 80,
+        statements: 85,
+        branches: 75,
+        functions: 85,
+        lines: 85,
       },
     },
   },

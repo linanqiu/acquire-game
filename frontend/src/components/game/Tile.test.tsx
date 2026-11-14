@@ -6,185 +6,64 @@ import { readableText } from '../../lib/ruleset'
 import { ALL_RULESETS } from '../../../tests/unit/fixtures/rulesets'
 
 describe('Tile', () => {
-  describe('rendering', () => {
-    it('renders coordinate label by default', () => {
-      render(<Tile coordinate="3B" />)
-      expect(screen.getByText('3B')).toBeInTheDocument()
-    })
-
-    it('hides label when showLabel is false', () => {
-      render(<Tile coordinate="3B" showLabel={false} />)
-      expect(screen.queryByText('3B')).not.toBeInTheDocument()
-    })
-
-    it('renders with data-testid', () => {
-      render(<Tile coordinate="12I" />)
-      expect(screen.getByTestId('tile-12I')).toBeInTheDocument()
-    })
-  })
-
-  describe('size variants', () => {
-    it('applies sm class for small size', () => {
-      render(<Tile coordinate="1A" size="sm" />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('sm')
-    })
-
-    it('applies md class for medium size (default)', () => {
-      render(<Tile coordinate="1A" />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('md')
-    })
-
-    it('applies lg class for large size', () => {
-      render(<Tile coordinate="1A" size="lg" />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('lg')
-    })
-  })
-
-  describe('chain colors', () => {
-    it('renders empty tile with neutral background', () => {
-      render(<Tile coordinate="1A" />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('empty')
-    })
-
-    it('renders orphan tile with distinct color', () => {
-      render(<Tile coordinate="1A" chain="orphan" />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('orphan')
-    })
-
-    it('renders a chain tile in the ruleset colour, labelled with the abbreviation', () => {
-      for (const [name, rs] of Object.entries(ALL_RULESETS)) {
-        for (const c of rs.chains) {
-          const { unmount } = render(
-            <RulesetScope ruleset={rs}>
-              <Tile coordinate="1A" chain={c.id} />
-            </RulesetScope>
-          )
-          const tile = screen.getByTestId('tile-1A')
-          expect(tile.className, `${name} ${c.id}`).toContain('chain')
-          expect(tile.style.getPropertyValue('--chain-bg')).toBe(c.color)
-          expect(tile.style.getPropertyValue('--chain-fg')).toBe(readableText(c.color))
-          expect(tile).toHaveTextContent(c.abbreviation)
-          expect(tile).toHaveAttribute('title', `1A · ${c.name}`)
-          expect(tile).toHaveAttribute('data-chain', c.id)
-          unmount()
-        }
+  it('a chain square shows the chain in the ruleset colour, by abbreviation (never colour alone)', () => {
+    for (const [name, rs] of Object.entries(ALL_RULESETS)) {
+      for (const c of rs.chains) {
+        const { unmount } = render(
+          <RulesetScope ruleset={rs}>
+            <Tile coordinate="1A" chain={c.id} />
+          </RulesetScope>
+        )
+        const tile = screen.getByTestId('tile-1A')
+        expect(tile.style.getPropertyValue('--chain-bg'), `${name} ${c.id}`).toBe(c.color)
+        expect(tile.style.getPropertyValue('--chain-fg')).toBe(readableText(c.color))
+        expect(tile).toHaveTextContent(c.abbreviation)
+        expect(tile).toHaveAttribute('title', `1A · ${c.name}`)
+        unmount()
       }
-    })
+    }
   })
 
-  describe('visual states', () => {
-    it('applies default state by default', () => {
-      render(<Tile coordinate="1A" />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('default')
-    })
-
-    it('applies selected state with elevated appearance', () => {
-      render(<Tile coordinate="1A" state="selected" />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('selected')
-    })
-
-    it('applies disabled state with dimmed appearance', () => {
-      render(<Tile coordinate="1A" state="disabled" />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('disabled')
-      expect(screen.getByText('🔒')).toBeInTheDocument()
-    })
-
-    it('applies merger state with warning indicator', () => {
-      render(<Tile coordinate="1A" state="merger" />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('merger')
-      expect(screen.getByText('!!')).toBeInTheDocument()
-    })
-
-    it('applies dead state with crossed out appearance', () => {
-      render(<Tile coordinate="1A" state="dead" />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('dead')
-      expect(screen.getByText('✕')).toBeInTheDocument()
-    })
-
-    it('applies highlighted state with glow', () => {
-      render(<Tile coordinate="1A" highlighted />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('highlighted')
-    })
+  it('an empty square shows its coordinate, an orphan tile is not a chain', () => {
+    const { unmount } = render(<Tile coordinate="3C" />)
+    expect(screen.getByTestId('tile-3C')).toHaveTextContent('3C')
+    expect(screen.getByTestId('tile-3C')).toHaveAttribute('data-chain', 'empty')
+    unmount()
+    render(<Tile coordinate="3C" chain="orphan" />)
+    expect(screen.getByTestId('tile-3C')).toHaveAttribute('data-chain', 'orphan')
+    expect(screen.getByTestId('tile-3C').style.getPropertyValue('--chain-bg')).toBe('')
   })
 
-  describe('interactivity', () => {
-    it('calls onClick when clicked', () => {
-      const handleClick = vi.fn()
-      render(<Tile coordinate="1A" onClick={handleClick} />)
-      const tile = screen.getByTestId('tile-1A')
-      fireEvent.click(tile)
-      expect(handleClick).toHaveBeenCalledTimes(1)
-    })
+  it('a clickable tile is a button that works with the mouse, Enter and Space, and nothing else', () => {
+    const onClick = vi.fn()
+    render(<Tile coordinate="1A" onClick={onClick} />)
+    const tile = screen.getByRole('button')
+    fireEvent.click(tile)
+    fireEvent.keyDown(tile, { key: 'Enter' })
+    fireEvent.keyDown(tile, { key: ' ' })
+    expect(onClick).toHaveBeenCalledTimes(3)
+    fireEvent.keyDown(tile, { key: 'a' })
+    fireEvent.keyDown(tile, { key: 'Tab' })
+    expect(onClick).toHaveBeenCalledTimes(3)
+    expect(tile).toHaveAttribute('tabindex', '0')
+  })
 
-    it('applies interactive class when onClick is provided', () => {
-      const handleClick = vi.fn()
-      render(<Tile coordinate="1A" onClick={handleClick} />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('interactive')
-    })
+  it('a locked (disabled) tile ignores clicks and is skipped by Tab', () => {
+    const onClick = vi.fn()
+    render(<Tile coordinate="1A" state="disabled" onClick={onClick} />)
+    const tile = screen.getByTestId('tile-1A')
+    fireEvent.click(tile)
+    expect(onClick).not.toHaveBeenCalled()
+    expect(tile).not.toHaveAttribute('tabindex')
+  })
 
-    it('has button role when interactive', () => {
-      const handleClick = vi.fn()
-      render(<Tile coordinate="1A" onClick={handleClick} />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.getAttribute('role')).toBe('button')
-    })
+  it('a tile without a handler is not a button', () => {
+    render(<Tile coordinate="1A" />)
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
 
-    it('is focusable when interactive', () => {
-      const handleClick = vi.fn()
-      render(<Tile coordinate="1A" onClick={handleClick} />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.getAttribute('tabIndex')).toBe('0')
-    })
-
-    it('does not call onClick when disabled', () => {
-      const handleClick = vi.fn()
-      render(<Tile coordinate="1A" onClick={handleClick} state="disabled" />)
-      const tile = screen.getByTestId('tile-1A')
-      fireEvent.click(tile)
-      expect(handleClick).not.toHaveBeenCalled()
-    })
-
-    it('is not focusable when disabled', () => {
-      const handleClick = vi.fn()
-      render(<Tile coordinate="1A" onClick={handleClick} state="disabled" />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.getAttribute('tabIndex')).toBeNull()
-    })
-
-    it('triggers onClick on Enter key', () => {
-      const handleClick = vi.fn()
-      render(<Tile coordinate="1A" onClick={handleClick} />)
-      const tile = screen.getByTestId('tile-1A')
-      fireEvent.keyDown(tile, { key: 'Enter' })
-      expect(handleClick).toHaveBeenCalledTimes(1)
-    })
-
-    it('triggers onClick on Space key', () => {
-      const handleClick = vi.fn()
-      render(<Tile coordinate="1A" onClick={handleClick} />)
-      const tile = screen.getByTestId('tile-1A')
-      fireEvent.keyDown(tile, { key: ' ' })
-      expect(handleClick).toHaveBeenCalledTimes(1)
-    })
-
-    it('does not trigger onClick on other keys', () => {
-      const handleClick = vi.fn()
-      render(<Tile coordinate="1A" onClick={handleClick} />)
-      const tile = screen.getByTestId('tile-1A')
-      fireEvent.keyDown(tile, { key: 'Tab' })
-      expect(handleClick).not.toHaveBeenCalled()
-    })
+  it('the label can be hidden (board squares)', () => {
+    render(<Tile coordinate="1A" showLabel={false} />)
+    expect(screen.getByTestId('tile-1A')).toBeEmptyDOMElement()
   })
 })

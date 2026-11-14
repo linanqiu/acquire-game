@@ -188,7 +188,6 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | `Header`, `PageShell` | room, name, cash, tile pool | PG-14 | `screens/turn-basics.spec.ts : opening turn` |
 | `Slider`, `Badge` | disposition sliders; status and kind badges | PG-06, TX-01 | `screens/merger.spec.ts : disposition (human first)` |
 | `DecisionPanel`, `LlmPanel`, `TextBlock`, `Timeline`, `VirtualList`, `ReplayBoard`, `SummaryHeader`, `SeatChip`, `RangeBar`, `PageFrame` | transcript and bench widgets | TX-01..TX-15, BN-01..BN-07 | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` |
-| `TokenSwatch` | design-token swatch | none | `src/components/TokenSwatch.test.tsx : renders`; GAP: not mounted on any page, so it is not a user-visible surface; unit test only |
 
 ## Known gaps (also listed by the check script)
 
@@ -212,9 +211,9 @@ Facts learned while filling this map (2026-11-14):
 
 ## Summary (checked by the script; update when rows change)
 
-- Surfaces: 117
+- Surfaces: 116
 - Covered: 112
-- GAP: 7
+- GAP: 6
 - Journeys: 7
 
 ## Appendix: Snapshot fixtures available

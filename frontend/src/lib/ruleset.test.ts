@@ -5,14 +5,19 @@ import {
   chainSpec,
   chainsByTier,
   columnLabels,
+  contrastRatio,
+  DARK_TEXT,
   formatAmount,
+  LIGHT_TEXT,
+  luminance,
   orderChainIds,
   playerRange,
+  readableText,
   rowLabels,
-  sharePrice,
+  rulesetForTranscript,
+  tileCount,
   unplayableReasonText,
 } from './ruleset'
-import { playerPhaseText, hostPhaseText } from './phaseText'
 import { describeAction, describeEvents, decisionKindLabel } from './eventText'
 import { CLASSIC, MINI, VALLEY } from '../../tests/unit/fixtures/rulesets'
 
@@ -42,13 +47,6 @@ describe('ruleset helpers', () => {
     expect(orderChainIds(MINI, ['beacon', 'harbor', 'zzz'])).toEqual(['harbor', 'beacon', 'zzz'])
   })
 
-  it('prices from tier brackets', () => {
-    expect(sharePrice(MINI, 'harbor', 2)).toBe(100)
-    expect(sharePrice(MINI, 'harbor', 7)).toBe(300)
-    expect(sharePrice(MINI, 'beacon', 30)).toBe(1000)
-    expect(sharePrice(CLASSIC, 'Luxor', 1)).toBe(0)
-  })
-
   it('formats money with the currency symbol and words with the right article', () => {
     expect(formatAmount({ ...MINI, theme: { ...MINI.theme, currency_symbol: '€' } }, 4000)).toBe(
       '€4,000'
@@ -57,6 +55,12 @@ describe('ruleset helpers', () => {
     expect(article('AI startup')).toBe('an')
     expect(article('shipping line')).toBe('a')
     expect(playerRange(MINI)).toBe('2-5 players')
+  })
+
+  it('"a" or "an" follows how the ordinal is spoken: an 8th, an 11th, an 18th, but a 7th, a 12th, a 110th', () => {
+    for (const p of ['8th', '11th', '18th', '80th', 'AI startup']) expect(article(p), p).toBe('an')
+    for (const p of ['1st', '7th', '9th', '12th', '110th', '118th', 'hotel'])
+      expect(article(p), p).toBe('a')
   })
 
   it('words unplayable-tile reasons from the ruleset', () => {
@@ -69,19 +73,141 @@ describe('ruleset helpers', () => {
   })
 })
 
-describe('phase banners', () => {
-  it('classic keeps its familiar wording', () => {
-    expect(playerPhaseText(CLASSIC, 'buy_stocks', true, 'x')).toBe('BUY STOCKS')
-    expect(playerPhaseText(CLASSIC, 'found_chain', true, 'x')).toBe('CHOOSE A HOTEL CHAIN')
-    expect(hostPhaseText(CLASSIC, 'merger', 'Bob')).toBe("Bob's TURN - MERGER")
+describe('colours and readable text', () => {
+  it('the text colour on a chain colour is the one with the better contrast (white on dark, near-black on light)', () => {
+    expect(readableText('#000000')).toBe(LIGHT_TEXT)
+    expect(readableText('#FFFFFF')).toBe(DARK_TEXT)
+    expect(readableText('#FFD700')).toBe(DARK_TEXT)
+    expect(readableText('#1E3A8A')).toBe(LIGHT_TEXT)
+    expect(readableText('#fff')).toBe(DARK_TEXT)
   })
 
-  it('themes use their own nouns', () => {
-    expect(playerPhaseText(VALLEY, 'found_chain', true, 'x')).toBe('CHOOSE AN AI STARTUP')
-    expect(playerPhaseText(VALLEY, 'merger', true, 'x')).toBe('ACQUISITION IN PROGRESS')
-    expect(playerPhaseText(MINI, 'stock_disposition', true, 'x')).toBe('DISPOSE YOUR SHARES')
-    expect(playerPhaseText(VALLEY, 'buy_stocks', true, 'x')).toBe('BUY EQUITY')
-    expect(hostPhaseText(MINI, 'merger', 'Bob')).toBe("Bob's TURN - TAKEOVER")
+  it('luminance and contrast follow WCAG', () => {
+    expect(luminance('#000000')).toBe(0)
+    expect(luminance('#FFFFFF')).toBeCloseTo(1, 5)
+    expect(luminance('#f00')).toBeCloseTo(0.2126, 4)
+    expect(luminance('#00ff00')).toBeCloseTo(0.7152, 4)
+    expect(luminance('#0000FF')).toBeCloseTo(0.0722, 4)
+    expect(luminance('not a colour')).toBe(0)
+    expect(contrastRatio('#000000', '#FFFFFF')).toBeCloseTo(21, 3)
+    expect(contrastRatio('#FFFFFF', '#000000')).toBeCloseTo(21, 3)
+    expect(contrastRatio('#777777', '#777777')).toBe(1)
+  })
+
+  it('every chain colour of every shipped ruleset has a text colour readable at 4.5:1', () => {
+    for (const rs of [CLASSIC, VALLEY, MINI]) {
+      for (const c of rs.chains) {
+        expect(
+          contrastRatio(c.color, readableText(c.color)),
+          `${rs.id} ${c.id}`
+        ).toBeGreaterThanOrEqual(4.5)
+      }
+    }
+  })
+})
+
+describe('board and chain details', () => {
+  it('the board has columns x rows squares', () => {
+    expect(tileCount(CLASSIC)).toBe(108)
+    expect(tileCount(MINI)).toBe(63)
+  })
+
+  it('an unknown chain id is shown by its own name, abbreviated by its first two letters, in a neutral colour', () => {
+    const spec = chainSpec(MINI, 'Zeta Corp')
+    expect(spec).toMatchObject({ id: 'Zeta Corp', name: 'Zeta Corp', abbreviation: 'ZE', tier: '' })
+    expect(spec.color).toBe('#6B7280')
+    expect(chainSpec(MINI, '!!').abbreviation).toBe('?')
+    expect(chainSpec(MINI, 'a-b-c').abbreviation).toBe('AB')
+  })
+
+  it('tiers that no chain uses are left out of the grouping', () => {
+    const rs = { ...MINI, chains: MINI.chains.filter((c) => c.tier === MINI.tiers[0].id) }
+    expect(chainsByTier(rs)).toHaveLength(1)
+  })
+
+  it('the ordinal in "the 12th chain" is right for 1st, 2nd, 3rd, 11th-13th, 21st, 22nd and 111th', () => {
+    const word = (chains: number) =>
+      unplayableReasonText(
+        {
+          ...MINI,
+          chains: Array.from({ length: chains - 1 }, (_, i) => ({
+            ...MINI.chains[0],
+            id: `c${i}`,
+          })),
+        },
+        'would_create_eighth_chain'
+      ).match(/start an? (\w+) /)![1]
+    expect(word(2)).toBe('2nd')
+    expect(word(3)).toBe('3rd')
+    expect(word(4)).toBe('4th')
+    expect(word(11)).toBe('11th')
+    expect(word(12)).toBe('12th')
+    expect(word(13)).toBe('13th')
+    expect(word(21)).toBe('21st')
+    expect(word(22)).toBe('22nd')
+    expect(word(111)).toBe('111th')
+  })
+
+  it('an unknown tile reason has a neutral text; a fixed player count reads as one number', () => {
+    expect(unplayableReasonText(CLASSIC, 'something_new')).toBe('it is not playable now')
+    expect(unplayableReasonText(CLASSIC, null)).toBe('it is not playable now')
+    expect(playerRange({ ...CLASSIC, min_players: 4, max_players: 4 })).toBe('4 players')
+  })
+
+  it('money: a dash for nothing, a minus sign before the symbol, thousands separators', () => {
+    expect(formatAmount(CLASSIC, null)).toBe('—')
+    expect(formatAmount(CLASSIC, undefined)).toBe('—')
+    expect(formatAmount(CLASSIC, Number.NaN)).toBe('—')
+    expect(formatAmount(CLASSIC, 0)).toBe('$0')
+    expect(formatAmount(CLASSIC, 1234567)).toBe('$1,234,567')
+  })
+})
+
+describe('the ruleset of a transcript that does not carry one', () => {
+  const states = (cells: string[], chains: Record<string, { color?: string }> = {}) => [
+    { board: { cells: Object.fromEntries(cells.map((c) => [c, {}])) }, chains },
+  ]
+
+  it('a header that carries one wins', () => {
+    expect(rulesetForTranscript(MINI, states(['1A']))).toBe(MINI)
+  })
+
+  it("otherwise the first known ruleset the states fit: the server's, then classic", () => {
+    // 12I is outside the 9x7 mini board but inside classic.
+    expect(rulesetForTranscript(null, states(['12I']), [MINI]).id).toBe('classic')
+    expect(rulesetForTranscript(null, states(['9G'], { harbor: {} }), [MINI])).toBe(MINI)
+    // A chain the candidate does not have rules it out.
+    expect(rulesetForTranscript(null, states(['1A'], { Luxor: {} }), [MINI]).id).toBe('classic')
+    expect(rulesetForTranscript(undefined, states(['1A']))).toBeDefined()
+  })
+
+  it('failing that: classic numbers with the chains and the board extent seen, and no borrowed title', () => {
+    const rs = rulesetForTranscript(
+      null,
+      states(['14K', '3B', 'junk'], {
+        Luxor: { color: '#123456' },
+        Zeta: {},
+        Tower: { color: '#654321' },
+      }),
+      []
+    )
+    expect(rs.id).toBe('unknown')
+    expect(rs.title).toBe('')
+    expect(rs.board).toEqual({ columns: 14, rows: 11 })
+    expect(rs.chains.map((c) => c.id)).toEqual(['Luxor', 'Zeta', 'Tower'])
+    expect(rs.chains.find((c) => c.id === 'Luxor')!.color).toBe('#123456')
+    expect(rs.chains.find((c) => c.id === 'Luxor')!.tier).toBe(
+      CLASSIC.chains.find((c) => c.id === 'Luxor')!.tier
+    )
+    // A chain classic does not know gets the middle tier and a neutral colour.
+    const zeta = rs.chains.find((c) => c.id === 'Zeta')!
+    expect(zeta.tier).toBe(CLASSIC.tiers[Math.floor(CLASSIC.tiers.length / 2)].id)
+    expect(zeta.color).toBe('#6B7280')
+  })
+
+  it('an empty board still gets a usable 2x2 grid', () => {
+    const rs = rulesetForTranscript(null, states([], { Zeta: {} }), [])
+    expect(rs.board).toEqual({ columns: 2, rows: 2 })
   })
 })
 

@@ -47,7 +47,8 @@ export function LobbyPage() {
     if (!name.trim()) {
       return 'Name is required'
     }
-    if (name.length > 20) {
+    // The trimmed name is what is sent, so it is the trimmed length that counts.
+    if (name.trim().length > 20) {
       return 'Name must be 20 characters or less'
     }
     return null

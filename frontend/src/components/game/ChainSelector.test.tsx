@@ -1,302 +1,175 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
-import { ChainSelector, type ChainSelectorProps } from './ChainSelector'
-import type { ChainId } from '../../types/api'
+import { render, screen, fireEvent, within } from '@testing-library/react'
+import { ChainSelector } from './ChainSelector'
+import { chainsByTier } from '../../lib/ruleset'
 import { RulesetScope } from '../../ruleset/RulesetScope'
 import { CLASSIC, MINI, VALLEY } from '../../../tests/unit/fixtures/rulesets'
+import { snapshot, playerState, playedGame } from '../../../tests/unit/fixtures/wire'
+
+const btn = (chain) => screen.getByTestId(`chain-button-${chain.toLowerCase()}`)
+
+/** A real "found a chain" prompt: the chains the server offers, and what the bank holds. */
+function founding() {
+  const view = snapshot('found-chain-choice')
+  const offered = view.player.find((m) => m.type === 'choose_chain').available_chains
+  const state = playerState('found-chain-choice')
+  return { offered, stock: state.hotel.available_stocks }
+}
 
 describe('ChainSelector', () => {
-  const allChains: ChainId[] = [
-    'Luxor',
-    'Tower',
-    'American',
-    'Festival',
-    'Worldwide',
-    'Continental',
-    'Imperial',
-  ]
-
-  const defaultProps: ChainSelectorProps = {
-    availableChains: allChains,
-    onSelect: vi.fn(),
-    stockAvailability: {},
-  }
-
-  describe('rendering', () => {
-    it('renders all chains grouped by tier', () => {
-      render(<ChainSelector {...defaultProps} />)
-
-      // Tier labels come from the ruleset (classic: cheap / medium / expensive)
-      for (const tier of CLASSIC.tiers) {
-        expect(screen.getByText(tier.label)).toBeInTheDocument()
+  it('founding: the offered chains are choosable, the ones already on the board are marked ACTIVE and locked', () => {
+    const { offered, stock } = founding()
+    const onSelect = vi.fn()
+    render(
+      <ChainSelector availableChains={offered} stockAvailability={stock} onSelect={onSelect} />
+    )
+    for (const c of CLASSIC.chains.map((x) => x.id)) {
+      if (offered.includes(c)) {
+        expect(btn(c)).not.toBeDisabled()
+        expect(btn(c)).toHaveTextContent(`${stock[c]} shares left`)
+        expect(btn(c)).toHaveAttribute('aria-label', `${c}, ${stock[c]} shares left`)
+      } else {
+        expect(btn(c)).toBeDisabled()
+        expect(btn(c)).toHaveTextContent('ACTIVE')
+        expect(btn(c)).toHaveAttribute('aria-label', `${c}, already active`)
       }
+    }
+    fireEvent.click(btn(offered[0]))
+    expect(onSelect).toHaveBeenCalledWith(offered[0])
+    const locked = CLASSIC.chains.map((x) => x.id).find((c) => !offered.includes(c))
+    fireEvent.click(btn(locked))
+    expect(onSelect).toHaveBeenCalledTimes(1)
+  })
 
-      allChains.forEach((chain) => {
-        expect(screen.getByTestId(`chain-button-${chain.toLowerCase()}`)).toBeInTheDocument()
-      })
-    })
+  it('a survivor tie: only the tied chains are choosable, the others say NOT TIED', () => {
+    const view = snapshot('merger-survivor-tie')
+    const tied = view.player.find((m) => m.type === 'choose_merger_survivor').tied_chains
+    const onSelect = vi.fn()
+    render(
+      <ChainSelector
+        availableChains={tied}
+        stockAvailability={playerState('merger-survivor-tie').hotel.available_stocks}
+        onSelect={onSelect}
+        unavailableLabel="NOT TIED"
+      />
+    )
+    const group = screen.getByRole('radiogroup')
+    const enabled = within(group)
+      .getAllByRole('radio')
+      .filter((r) => !r.disabled)
+    expect(enabled).toHaveLength(tied.length)
+    const other = CLASSIC.chains.map((x) => x.id).find((c) => !tied.includes(c))
+    expect(btn(other)).toHaveTextContent('NOT TIED')
+    expect(btn(other)).toHaveAttribute('aria-label', `${other}, not tied`)
+  })
 
-    it('shows stock availability for available chains', () => {
-      const stockAvailability = { Luxor: 20, Tower: 15 }
+  it('a chain whose shares the bank has sold out can still be founded (the founder gets a free one)', () => {
+    const onSelect = vi.fn()
+    render(
+      <ChainSelector
+        availableChains={['Luxor']}
+        stockAvailability={{ Luxor: 0 }}
+        onSelect={onSelect}
+      />
+    )
+    expect(btn('Luxor')).toHaveTextContent('0 shares left')
+    fireEvent.click(btn('Luxor'))
+    expect(onSelect).toHaveBeenCalledWith('Luxor')
+  })
 
+  it('without a count the bank is full: the ruleset bank size', () => {
+    render(<ChainSelector availableChains={['Luxor']} stockAvailability={{}} onSelect={() => {}} />)
+    expect(btn('Luxor')).toHaveTextContent(`${CLASSIC.stocks_per_chain} shares left`)
+  })
+
+  it('shows which one is selected to assistive tech', () => {
+    render(
+      <ChainSelector
+        availableChains={['Luxor', 'Tower']}
+        selectedChain="Luxor"
+        stockAvailability={{}}
+        onSelect={() => {}}
+      />
+    )
+    expect(btn('Luxor')).toHaveAttribute('aria-checked', 'true')
+    expect(btn('Tower')).toHaveAttribute('aria-checked', 'false')
+  })
+
+  describe('keyboard', () => {
+    const mount = (available = ['Luxor', 'Tower']) => {
+      const onSelect = vi.fn()
       render(
-        <ChainSelector
-          {...defaultProps}
-          stockAvailability={stockAvailability as ChainSelectorProps['stockAvailability']}
-        />
+        <ChainSelector availableChains={available} stockAvailability={{}} onSelect={onSelect} />
       )
+      return onSelect
+    }
 
-      const luxorButton = screen.getByTestId('chain-button-luxor')
-      expect(luxorButton).toHaveTextContent('20 shares left')
-
-      const towerButton = screen.getByTestId('chain-button-tower')
-      expect(towerButton).toHaveTextContent('15 shares left')
+    it('arrow keys move through the chains that can be chosen, skipping locked ones, and wrap around', () => {
+      // Focus order is the display order: chains grouped by tier, cheapest tier first.
+      const order = chainsByTier(CLASSIC).flatMap((t) => t.chains.map((c) => c.id))
+      // Offer the 1st, 4th and 7th: the others are locked (disabled buttons cannot take focus).
+      const offered = [order[0], order[3], order[6]]
+      mount(offered)
+      const [a, b, c] = offered.map(btn)
+      a.focus()
+      fireEvent.keyDown(a, { key: 'ArrowRight' })
+      expect(b).toHaveFocus()
+      fireEvent.keyDown(b, { key: 'ArrowDown' })
+      expect(c).toHaveFocus()
+      fireEvent.keyDown(c, { key: 'ArrowRight' })
+      expect(a).toHaveFocus()
+      fireEvent.keyDown(a, { key: 'ArrowLeft' })
+      expect(c).toHaveFocus()
+      fireEvent.keyDown(c, { key: 'ArrowUp' })
+      expect(b).toHaveFocus()
     })
 
-    it("defaults to the ruleset's bank size when not specified", () => {
-      render(<ChainSelector {...defaultProps} stockAvailability={{}} />)
-
-      const luxorButton = screen.getByTestId('chain-button-luxor')
-      expect(luxorButton).toHaveTextContent(`${CLASSIC.stocks_per_chain} shares left`)
+    it('with a single chain on offer the arrows stay on it', () => {
+      mount(['Tower'])
+      btn('Tower').focus()
+      fireEvent.keyDown(btn('Tower'), { key: 'ArrowRight' })
+      expect(btn('Tower')).toHaveFocus()
     })
 
-    it('shows ACTIVE for unavailable chains', () => {
-      const availableChains: ChainId[] = ['Luxor', 'Tower']
-
-      render(<ChainSelector {...defaultProps} availableChains={availableChains} />)
-
-      const americanButton = screen.getByTestId('chain-button-american')
-      expect(americanButton).toHaveTextContent('ACTIVE')
-      expect(americanButton).toBeDisabled()
+    it('Enter and Space choose the focused chain, but never a chain that is not on offer', () => {
+      const onSelect = mount()
+      fireEvent.keyDown(btn('Luxor'), { key: 'Enter' })
+      fireEvent.keyDown(btn('Luxor'), { key: ' ' })
+      expect(onSelect).toHaveBeenCalledTimes(2)
+      fireEvent.keyDown(btn('American'), { key: 'Enter' })
+      expect(onSelect).toHaveBeenCalledTimes(2)
     })
   })
 
-  describe('selection', () => {
-    it('calls onSelect when available chain is clicked', () => {
-      const onSelect = vi.fn()
-
-      render(<ChainSelector {...defaultProps} onSelect={onSelect} />)
-
-      fireEvent.click(screen.getByTestId('chain-button-luxor'))
-
-      expect(onSelect).toHaveBeenCalledWith('Luxor')
-    })
-
-    it('does not call onSelect when unavailable chain is clicked', () => {
-      const onSelect = vi.fn()
-      const availableChains: ChainId[] = ['Luxor', 'Tower']
-
+  describe('other rulesets', () => {
+    it('valley: its own tiers, chain names, share noun, and no classic words', () => {
+      const state = playedGame('valley').states['found_chain/found_chain']
+      const offered = state.hotel.chains
+        .map((c) => c.name)
+        .filter((n) => !state.hotel.active_chains.includes(n))
       render(
-        <ChainSelector {...defaultProps} availableChains={availableChains} onSelect={onSelect} />
-      )
-
-      fireEvent.click(screen.getByTestId('chain-button-american'))
-
-      expect(onSelect).not.toHaveBeenCalled()
-    })
-
-    it('shows selected state for selected chain', () => {
-      render(<ChainSelector {...defaultProps} selectedChain="Luxor" />)
-
-      const luxorButton = screen.getByTestId('chain-button-luxor')
-      expect(luxorButton).toHaveAttribute('aria-checked', 'true')
-    })
-
-    it('shows unselected state for non-selected chains', () => {
-      render(<ChainSelector {...defaultProps} selectedChain="Luxor" />)
-
-      const towerButton = screen.getByTestId('chain-button-tower')
-      expect(towerButton).toHaveAttribute('aria-checked', 'false')
-    })
-  })
-
-  describe('keyboard navigation', () => {
-    it('moves focus right with ArrowRight', () => {
-      render(<ChainSelector {...defaultProps} />)
-
-      const luxorButton = screen.getByTestId('chain-button-luxor')
-      const towerButton = screen.getByTestId('chain-button-tower')
-
-      luxorButton.focus()
-      fireEvent.keyDown(luxorButton, { key: 'ArrowRight' })
-
-      expect(document.activeElement).toBe(towerButton)
-    })
-
-    it('moves focus left with ArrowLeft', () => {
-      render(<ChainSelector {...defaultProps} />)
-
-      const luxorButton = screen.getByTestId('chain-button-luxor')
-      const towerButton = screen.getByTestId('chain-button-tower')
-
-      towerButton.focus()
-      fireEvent.keyDown(towerButton, { key: 'ArrowLeft' })
-
-      expect(document.activeElement).toBe(luxorButton)
-    })
-
-    it('wraps around when at the end', () => {
-      render(<ChainSelector {...defaultProps} />)
-
-      const luxorButton = screen.getByTestId('chain-button-luxor')
-      // Ruleset order: the last classic chain is Continental
-      const lastButton = screen.getByTestId('chain-button-continental')
-
-      lastButton.focus()
-      fireEvent.keyDown(lastButton, { key: 'ArrowRight' })
-
-      expect(document.activeElement).toBe(luxorButton)
-    })
-
-    it('wraps around when at the beginning', () => {
-      render(<ChainSelector {...defaultProps} />)
-
-      const luxorButton = screen.getByTestId('chain-button-luxor')
-      const lastButton = screen.getByTestId('chain-button-continental')
-
-      luxorButton.focus()
-      fireEvent.keyDown(luxorButton, { key: 'ArrowLeft' })
-
-      expect(document.activeElement).toBe(lastButton)
-    })
-
-    it('selects chain with Enter key', () => {
-      const onSelect = vi.fn()
-      render(<ChainSelector {...defaultProps} onSelect={onSelect} />)
-
-      const luxorButton = screen.getByTestId('chain-button-luxor')
-      luxorButton.focus()
-      fireEvent.keyDown(luxorButton, { key: 'Enter' })
-
-      expect(onSelect).toHaveBeenCalledWith('Luxor')
-    })
-
-    it('selects chain with Space key', () => {
-      const onSelect = vi.fn()
-      render(<ChainSelector {...defaultProps} onSelect={onSelect} />)
-
-      const luxorButton = screen.getByTestId('chain-button-luxor')
-      luxorButton.focus()
-      fireEvent.keyDown(luxorButton, { key: ' ' })
-
-      expect(onSelect).toHaveBeenCalledWith('Luxor')
-    })
-
-    it('does not select unavailable chain with Enter key', () => {
-      const onSelect = vi.fn()
-      const availableChains: ChainId[] = ['Luxor', 'Tower']
-
-      render(
-        <ChainSelector {...defaultProps} availableChains={availableChains} onSelect={onSelect} />
-      )
-
-      const americanButton = screen.getByTestId('chain-button-american')
-      americanButton.focus()
-      fireEvent.keyDown(americanButton, { key: 'Enter' })
-
-      expect(onSelect).not.toHaveBeenCalled()
-    })
-  })
-
-  describe('accessibility', () => {
-    it('has radiogroup role', () => {
-      render(<ChainSelector {...defaultProps} />)
-
-      expect(screen.getByTestId('chain-selector')).toHaveAttribute('role', 'radiogroup')
-    })
-
-    it('each chain button has radio role', () => {
-      render(<ChainSelector {...defaultProps} />)
-
-      allChains.forEach((chain) => {
-        const button = screen.getByTestId(`chain-button-${chain.toLowerCase()}`)
-        expect(button).toHaveAttribute('role', 'radio')
-      })
-    })
-
-    it('has accessible labels for available chains', () => {
-      const stockAvailability = { Luxor: 20 }
-
-      render(
-        <ChainSelector
-          {...defaultProps}
-          stockAvailability={stockAvailability as ChainSelectorProps['stockAvailability']}
-        />
-      )
-
-      const luxorButton = screen.getByTestId('chain-button-luxor')
-      expect(luxorButton).toHaveAttribute('aria-label', 'Luxor, 20 shares left')
-    })
-
-    it('has accessible labels for unavailable chains', () => {
-      const availableChains: ChainId[] = ['Luxor', 'Tower']
-
-      render(<ChainSelector {...defaultProps} availableChains={availableChains} />)
-
-      const americanButton = screen.getByTestId('chain-button-american')
-      expect(americanButton).toHaveAttribute('aria-label', 'American, already active')
-    })
-  })
-
-  describe('edge cases', () => {
-    it('works with 0 stock available (still selectable)', () => {
-      const onSelect = vi.fn()
-      const stockAvailability = { Luxor: 0 }
-
-      render(
-        <ChainSelector
-          {...defaultProps}
-          onSelect={onSelect}
-          stockAvailability={stockAvailability as ChainSelectorProps['stockAvailability']}
-        />
-      )
-
-      const luxorButton = screen.getByTestId('chain-button-luxor')
-      expect(luxorButton).toHaveTextContent('0 shares left')
-      expect(luxorButton).not.toBeDisabled()
-
-      fireEvent.click(luxorButton)
-      expect(onSelect).toHaveBeenCalledWith('Luxor')
-    })
-
-    it('works with empty availableChains', () => {
-      render(<ChainSelector {...defaultProps} availableChains={[]} />)
-
-      allChains.forEach((chain) => {
-        const button = screen.getByTestId(`chain-button-${chain.toLowerCase()}`)
-        expect(button).toBeDisabled()
-        expect(button).toHaveTextContent('ACTIVE')
-      })
-    })
-  })
-
-  describe('themed rulesets', () => {
-    it('valley: tiers, names and share noun from the ruleset, no classic chain', () => {
-      render(
-        <RulesetScope ruleset={VALLEY}>
+        <RulesetScope ruleset={state.ruleset}>
           <ChainSelector
-            availableChains={['tokenwise', 'gradient']}
-            onSelect={vi.fn()}
-            stockAvailability={{ gradient: 25 }}
+            availableChains={offered}
+            stockAvailability={state.hotel.available_stocks}
+            onSelect={() => {}}
           />
         </RulesetScope>
       )
       for (const tier of VALLEY.tiers) expect(screen.getByText(tier.label)).toBeInTheDocument()
       expect(screen.getAllByRole('radio')).toHaveLength(VALLEY.chains.length)
-      expect(screen.getByTestId('chain-button-gradient')).toHaveTextContent('Gradient Labs')
-      expect(screen.getByTestId('chain-button-gradient')).toHaveTextContent('25 equity shares left')
-      expect(screen.getByTestId('chain-button-promptly')).toBeDisabled()
-      expect(screen.getByTestId('chain-selector').textContent).not.toMatch(/Luxor|Tower|TIER/)
+      expect(screen.getByRole('radiogroup').textContent).toMatch(/equity shares left/)
+      expect(screen.getByRole('radiogroup').textContent).not.toMatch(/Luxor|Tower|hotel/i)
     })
 
-    it('mini: five chains, 18-share bank', () => {
+    it('mini: five chains and an 18-share bank', () => {
       render(
         <RulesetScope ruleset={MINI}>
-          <ChainSelector availableChains={['harbor']} onSelect={vi.fn()} stockAvailability={{}} />
+          <ChainSelector availableChains={['harbor']} stockAvailability={{}} onSelect={() => {}} />
         </RulesetScope>
       )
       expect(screen.getAllByRole('radio')).toHaveLength(5)
-      expect(screen.getByTestId('chain-button-harbor')).toHaveTextContent('18 shares left')
+      expect(btn('harbor')).toHaveTextContent('18 shares left')
     })
   })
 })

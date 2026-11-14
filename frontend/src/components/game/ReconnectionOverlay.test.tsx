@@ -1,150 +1,86 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
-import { ReconnectionOverlay, ReconnectionOverlayProps } from './ReconnectionOverlay'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { ReconnectionOverlay } from './ReconnectionOverlay'
 
-const defaultProps: ReconnectionOverlayProps = {
-  connectionStatus: 'disconnected',
-  playerName: 'Alice',
-  onReconnect: vi.fn().mockResolvedValue(false),
-  onBackToLobby: vi.fn(),
-  maxAttempts: 3,
-  retryDelayMs: 100,
+function mount(onReconnect: () => Promise<boolean>, props = {}) {
+  const onBackToLobby = vi.fn()
+  const view = render(
+    <ReconnectionOverlay
+      connectionStatus="disconnected"
+      playerName="Alice"
+      onReconnect={onReconnect}
+      onBackToLobby={onBackToLobby}
+      retryDelayMs={10}
+      {...props}
+    />
+  )
+  return { ...view, onBackToLobby }
 }
 
 describe('ReconnectionOverlay', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
+  it('shows nothing while connected', () => {
+    mount(vi.fn().mockResolvedValue(true), { connectionStatus: 'connected' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  describe('when connected', () => {
-    it('does not render when connected', () => {
-      render(<ReconnectionOverlay {...defaultProps} connectionStatus="connected" />)
-
-      expect(screen.queryByTestId('reconnecting-status')).not.toBeInTheDocument()
-      expect(screen.queryByTestId('manual-rejoin')).not.toBeInTheDocument()
-    })
+  it('on a dropped connection it blocks the screen and starts reconnecting at once', async () => {
+    const onReconnect = vi.fn().mockResolvedValue(false)
+    mount(onReconnect)
+    expect(screen.getByRole('dialog', { name: 'RECONNECTING...' })).toBeInTheDocument()
+    expect(screen.getByTestId('attempt-count')).toHaveTextContent('Attempt 1/3')
+    await waitFor(() => expect(onReconnect).toHaveBeenCalledTimes(1))
   })
 
-  describe('auto-reconnection', () => {
-    it('shows reconnecting status when disconnected', async () => {
-      render(<ReconnectionOverlay {...defaultProps} />)
-
-      expect(screen.getByTestId('reconnecting-status')).toBeInTheDocument()
-      expect(screen.getByText('Re-establishing connection to room...')).toBeInTheDocument()
-    })
-
-    it('shows spinner during reconnection', () => {
-      render(<ReconnectionOverlay {...defaultProps} />)
-
-      expect(screen.getByRole('status')).toBeInTheDocument()
-    })
-
-    it('shows attempt count', async () => {
-      render(<ReconnectionOverlay {...defaultProps} />)
-
-      // Initial state shows attempt 1
-      expect(screen.getByTestId('attempt-count')).toHaveTextContent(/Attempt \d+\/3/)
-    })
-
-    it('calls onReconnect when disconnected', async () => {
-      const onReconnect = vi.fn().mockResolvedValue(true)
-      render(<ReconnectionOverlay {...defaultProps} onReconnect={onReconnect} />)
-
-      await waitFor(() => {
-        expect(onReconnect).toHaveBeenCalled()
-      })
-    })
-
-    it('hides overlay when reconnection succeeds and status changes to connected', async () => {
-      const onReconnect = vi.fn().mockResolvedValue(true)
-      const { rerender } = render(
-        <ReconnectionOverlay {...defaultProps} onReconnect={onReconnect} />
-      )
-
-      await waitFor(() => expect(onReconnect).toHaveBeenCalled())
-
-      // Simulate connection status changing to connected
-      rerender(
-        <ReconnectionOverlay
-          {...defaultProps}
-          onReconnect={onReconnect}
-          connectionStatus="connected"
-        />
-      )
-
-      expect(screen.queryByTestId('reconnecting-status')).not.toBeInTheDocument()
-    })
+  it('keeps trying up to the attempt limit, counting the attempts, then offers a manual rejoin', async () => {
+    const onReconnect = vi.fn().mockResolvedValue(false)
+    mount(onReconnect, { maxAttempts: 3 })
+    await waitFor(() => expect(screen.getByTestId('manual-rejoin')).toBeInTheDocument())
+    expect(onReconnect).toHaveBeenCalledTimes(3)
+    expect(screen.getByRole('dialog', { name: 'CONNECTION LOST' })).toBeInTheDocument()
+    expect(screen.getByTestId('rejoin-button')).toHaveTextContent('REJOIN AS ALICE')
+    // It stops by itself: no fourth attempt.
+    await new Promise((r) => setTimeout(r, 60))
+    expect(onReconnect).toHaveBeenCalledTimes(3)
   })
 
-  describe('manual rejoin', () => {
-    it('shows manual rejoin UI when maxAttempts is 0', async () => {
-      const onReconnect = vi.fn().mockResolvedValue(false)
-      render(<ReconnectionOverlay {...defaultProps} onReconnect={onReconnect} maxAttempts={0} />)
-
-      // With 0 max attempts, should immediately show manual rejoin
-      await waitFor(() => {
-        expect(screen.getByTestId('manual-rejoin')).toBeInTheDocument()
-      })
-
-      expect(screen.getByText('Unable to reconnect automatically.')).toBeInTheDocument()
-      expect(screen.getByText('Your game may still be in progress.')).toBeInTheDocument()
-    })
-
-    it('shows player name in rejoin button', async () => {
-      render(<ReconnectionOverlay {...defaultProps} playerName="Bob" maxAttempts={0} />)
-
-      await waitFor(() => {
-        expect(screen.getByTestId('rejoin-button')).toHaveTextContent('REJOIN AS BOB')
-      })
-    })
-
-    it('calls onBackToLobby when back button clicked', async () => {
-      const onBackToLobby = vi.fn()
-      render(
-        <ReconnectionOverlay {...defaultProps} onBackToLobby={onBackToLobby} maxAttempts={0} />
-      )
-
-      await waitFor(() => {
-        expect(screen.getByTestId('manual-rejoin')).toBeInTheDocument()
-      })
-
-      fireEvent.click(screen.getByTestId('back-to-lobby-button'))
-
-      expect(onBackToLobby).toHaveBeenCalledTimes(1)
-    })
-
-    it('hides manual rejoin UI when rejoin button clicked', async () => {
-      render(<ReconnectionOverlay {...defaultProps} maxAttempts={0} />)
-
-      // Wait for manual rejoin to appear
-      await waitFor(() => {
-        expect(screen.getByTestId('manual-rejoin')).toBeInTheDocument()
-      })
-
-      // Click rejoin - this should hide the manual UI and show reconnecting
-      await act(async () => {
-        fireEvent.click(screen.getByTestId('rejoin-button'))
-      })
-
-      // After clicking rejoin, manual UI should be hidden
-      // (either showing reconnecting or back to manual after attempt)
-      // We just verify the button was clickable and component didn't crash
-      expect(screen.getByRole('dialog')).toBeInTheDocument()
-    })
+  it('a thrown error counts as a failed attempt, not a crash', async () => {
+    const onReconnect = vi.fn().mockRejectedValue(new Error('socket'))
+    mount(onReconnect, { maxAttempts: 2 })
+    await waitFor(() => expect(screen.getByTestId('manual-rejoin')).toBeInTheDocument())
+    expect(onReconnect).toHaveBeenCalledTimes(2)
   })
 
-  describe('modal properties', () => {
-    it('shows RECONNECTING title during reconnection', () => {
-      render(<ReconnectionOverlay {...defaultProps} />)
+  it('REJOIN starts a fresh round of attempts', async () => {
+    const onReconnect = vi.fn().mockResolvedValue(false)
+    mount(onReconnect, { maxAttempts: 1 })
+    await waitFor(() => expect(screen.getByTestId('manual-rejoin')).toBeInTheDocument())
+    expect(onReconnect).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByTestId('rejoin-button'))
+    await waitFor(() => expect(onReconnect).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(screen.getByTestId('manual-rejoin')).toBeInTheDocument())
+  })
 
-      expect(screen.getByText('RECONNECTING...')).toBeInTheDocument()
-    })
+  it('BACK TO LOBBY leaves the game', async () => {
+    const { onBackToLobby } = mount(vi.fn().mockResolvedValue(false), { maxAttempts: 1 })
+    await waitFor(() => expect(screen.getByTestId('manual-rejoin')).toBeInTheDocument())
+    fireEvent.click(screen.getByTestId('back-to-lobby-button'))
+    expect(onBackToLobby).toHaveBeenCalledTimes(1)
+  })
 
-    it('shows CONNECTION LOST title for manual rejoin', async () => {
-      render(<ReconnectionOverlay {...defaultProps} maxAttempts={0} />)
-
-      await waitFor(() => {
-        expect(screen.getByText('CONNECTION LOST')).toBeInTheDocument()
-      })
-    })
+  it('once the socket is back the overlay goes away and no more attempts are made', async () => {
+    const onReconnect = vi.fn().mockResolvedValue(false)
+    const { rerender, onBackToLobby } = mount(onReconnect, { maxAttempts: 5, retryDelayMs: 30 })
+    await waitFor(() => expect(onReconnect).toHaveBeenCalledTimes(1))
+    rerender(
+      <ReconnectionOverlay
+        connectionStatus="connected"
+        onReconnect={onReconnect}
+        onBackToLobby={onBackToLobby}
+        retryDelayMs={30}
+      />
+    )
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await new Promise((r) => setTimeout(r, 100))
+    expect(onReconnect).toHaveBeenCalledTimes(1)
   })
 })

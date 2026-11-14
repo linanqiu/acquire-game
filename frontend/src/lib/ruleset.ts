@@ -125,29 +125,18 @@ export function chainStyle(rs: Ruleset, id: ChainId): Record<string, string> {
   return { '--chain-bg': color, '--chain-fg': readableText(color) }
 }
 
-/** Share price for a chain of `size` tiles (0 below two tiles), from its tier's brackets. */
-export function sharePrice(rs: Ruleset, id: ChainId, size: number): number {
-  if (size < 2) return 0
-  const tier = tierOf(rs, chainSpec(rs, id).tier)
-  if (!tier) return 0
-  let price = 0
-  for (const b of tier.prices) if (size >= b.from) price = b.price
-  return price
-}
-
 // -- Wording ------------------------------------------------------------------
 
-/** `a` / `an` for a noun phrase (by its first letter: good enough for theme words). */
+/**
+ * `a` / `an` for a noun phrase, by how it is pronounced: a vowel first letter, or an ordinal that
+ * starts with "eight(h)" or "eleven(th)" / "eighteen(th)" (8th, 11th, 18th, 80th-89th).
+ */
 export function article(phrase: string): string {
-  return /^[aeiou]/i.test(phrase.trim()) ? 'an' : 'a'
+  return /^(?:[aeiou]|8|11(?!\d)|18(?!\d))/i.test(phrase.trim()) ? 'an' : 'a'
 }
 
 export function withArticle(phrase: string): string {
   return `${article(phrase)} ${phrase}`
-}
-
-export function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
 /** `1 share`, `3 shares` with the theme's nouns. */

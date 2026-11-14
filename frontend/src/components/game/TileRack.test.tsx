@@ -1,207 +1,80 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
-import { TileRack, type RackTile } from './TileRack'
+import { TileRack } from './TileRack'
+import {
+  transformHandToRackTiles,
+  transformPlayabilityMap,
+  unplayableReasons,
+} from '../../utils/transforms'
+import { playerState } from '../../../tests/unit/fixtures/wire'
+import { CLASSIC } from '../../../tests/unit/fixtures/rulesets'
 
-const createTiles = (count: number): RackTile[] =>
-  Array.from({ length: count }, (_, i) => ({
-    coordinate: `${i + 1}A` as const,
-    playability: 'playable' as const,
-  }))
+/** The rack props the page builds from a real server state (same transforms as PlayerPage). */
+function rackFrom(name: string) {
+  const state = playerState(name)
+  return transformHandToRackTiles(
+    state.your_hand,
+    transformPlayabilityMap(state.tile_playability),
+    unplayableReasons(state.tile_playability, CLASSIC)
+  )
+}
 
-describe('TileRack', () => {
-  describe('rendering', () => {
-    it('renders exactly 6 tiles', () => {
-      const tiles = createTiles(6)
-      const onSelect = vi.fn()
-      render(<TileRack tiles={tiles} onTileSelect={onSelect} />)
-      expect(screen.getByTestId('tile-rack')).toBeInTheDocument()
-      expect(screen.getByTestId('tile-1A')).toBeInTheDocument()
-      expect(screen.getByTestId('tile-2A')).toBeInTheDocument()
-      expect(screen.getByTestId('tile-3A')).toBeInTheDocument()
-      expect(screen.getByTestId('tile-4A')).toBeInTheDocument()
-      expect(screen.getByTestId('tile-5A')).toBeInTheDocument()
-      expect(screen.getByTestId('tile-6A')).toBeInTheDocument()
-    })
+function mount(name: string, props = {}) {
+  const onTileSelect = vi.fn()
+  const tiles = rackFrom(name)
+  render(<TileRack tiles={tiles} onTileSelect={onTileSelect} {...props} />)
+  return { tiles, onTileSelect, tile: (c: string) => screen.getByTestId(`tile-${c}`) }
+}
 
-    it('renders fewer than 6 tiles when provided', () => {
-      const tiles = createTiles(3)
-      const onSelect = vi.fn()
-      render(<TileRack tiles={tiles} onTileSelect={onSelect} />)
-      expect(screen.getByTestId('tile-1A')).toBeInTheDocument()
-      expect(screen.getByTestId('tile-2A')).toBeInTheDocument()
-      expect(screen.getByTestId('tile-3A')).toBeInTheDocument()
-      expect(screen.queryByTestId('tile-4A')).not.toBeInTheDocument()
-    })
-
-    it('shows coordinate labels on tiles', () => {
-      const tiles: RackTile[] = [
-        { coordinate: '3C', playability: 'playable' },
-        { coordinate: '12I', playability: 'playable' },
-      ]
-      const onSelect = vi.fn()
-      render(<TileRack tiles={tiles} onTileSelect={onSelect} />)
-      expect(screen.getByText('3C')).toBeInTheDocument()
-      expect(screen.getByText('12I')).toBeInTheDocument()
-    })
+describe('TileRack with a real hand', () => {
+  it('shows every tile of the hand and nothing else', () => {
+    const { tiles } = mount('opening-place-tile')
+    const rack = within(screen.getByTestId('tile-rack'))
+    expect(tiles).toHaveLength(6)
+    for (const t of tiles) expect(rack.getByText(t.coordinate)).toBeInTheDocument()
+    expect(screen.queryByTestId('rack-notes')).not.toBeInTheDocument()
   })
 
-  describe('selection', () => {
-    it('applies selected state to selected tile', () => {
-      const tiles = createTiles(3)
-      const onSelect = vi.fn()
-      render(<TileRack tiles={tiles} selectedTile="2A" onTileSelect={onSelect} />)
-      const selectedTile = screen.getByTestId('tile-2A')
-      expect(selectedTile.className).toContain('selected')
-    })
-
-    it('non-selected tiles have default state', () => {
-      const tiles = createTiles(3)
-      const onSelect = vi.fn()
-      render(<TileRack tiles={tiles} selectedTile="2A" onTileSelect={onSelect} />)
-      const unselectedTile = screen.getByTestId('tile-1A')
-      expect(unselectedTile.className).toContain('default')
-      expect(unselectedTile.className).not.toContain('selected')
-    })
+  it('a playable tile can be picked', () => {
+    const { tiles, onTileSelect, tile } = mount('opening-place-tile')
+    fireEvent.click(tile(tiles[2].coordinate))
+    expect(onTileSelect).toHaveBeenCalledWith(tiles[2].coordinate)
   })
 
-  describe('playability states', () => {
-    it('renders playable tiles with default state', () => {
-      const tiles: RackTile[] = [{ coordinate: '1A', playability: 'playable' }]
-      const onSelect = vi.fn()
-      render(<TileRack tiles={tiles} onTileSelect={onSelect} />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('default')
-    })
-
-    it('renders merger tiles with warning indicator (!!)', () => {
-      const tiles: RackTile[] = [{ coordinate: '1A', playability: 'merger' }]
-      const onSelect = vi.fn()
-      render(<TileRack tiles={tiles} onTileSelect={onSelect} />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('merger')
-      expect(screen.getByText('!!')).toBeInTheDocument()
-    })
-
-    it('renders temporarily unplayable tiles dimmed with lock', () => {
-      const tiles: RackTile[] = [{ coordinate: '1A', playability: 'temp_unplayable' }]
-      const onSelect = vi.fn()
-      render(<TileRack tiles={tiles} onTileSelect={onSelect} />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('disabled')
-      expect(screen.getByText('🔒')).toBeInTheDocument()
-    })
-
-    it('renders permanently unplayable tiles crossed out', () => {
-      const tiles: RackTile[] = [{ coordinate: '1A', playability: 'perm_unplayable' }]
-      const onSelect = vi.fn()
-      render(<TileRack tiles={tiles} onTileSelect={onSelect} />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('dead')
-      expect(screen.getByText('✕')).toBeInTheDocument()
-    })
+  it('a permanently dead tile cannot be picked, is crossed out, and the rack says why', () => {
+    const { tiles, onTileSelect, tile } = mount('dead-tile-in-hand')
+    const dead = tiles.find((t) => t.playability === 'perm_unplayable')
+    expect(dead.coordinate).toBe('10F')
+    fireEvent.click(tile('10F'))
+    expect(onTileSelect).not.toHaveBeenCalled()
+    expect(tile('10F')).toHaveTextContent('✕')
+    expect(screen.getByTestId('rack-note-10F')).toHaveTextContent(
+      /can't be played: it would start an 8th hotel chain \(all 7 are already on the board\)/
+    )
   })
 
-  describe('interactivity', () => {
-    it('calls onTileSelect when clicking a playable tile', () => {
-      const tiles: RackTile[] = [{ coordinate: '1A', playability: 'playable' }]
-      const onSelect = vi.fn()
-      render(<TileRack tiles={tiles} onTileSelect={onSelect} />)
-      const tile = screen.getByTestId('tile-1A')
-      fireEvent.click(tile)
-      expect(onSelect).toHaveBeenCalledWith('1A')
-    })
-
-    it('calls onTileSelect when clicking a merger tile', () => {
-      const tiles: RackTile[] = [{ coordinate: '2B', playability: 'merger' }]
-      const onSelect = vi.fn()
-      render(<TileRack tiles={tiles} onTileSelect={onSelect} />)
-      const tile = screen.getByTestId('tile-2B')
-      fireEvent.click(tile)
-      expect(onSelect).toHaveBeenCalledWith('2B')
-    })
-
-    it('does not call onTileSelect when clicking temp_unplayable tile', () => {
-      const tiles: RackTile[] = [{ coordinate: '1A', playability: 'temp_unplayable' }]
-      const onSelect = vi.fn()
-      render(<TileRack tiles={tiles} onTileSelect={onSelect} />)
-      const tile = screen.getByTestId('tile-1A')
-      fireEvent.click(tile)
-      expect(onSelect).not.toHaveBeenCalled()
-    })
-
-    it('does not call onTileSelect when clicking perm_unplayable tile', () => {
-      const tiles: RackTile[] = [{ coordinate: '1A', playability: 'perm_unplayable' }]
-      const onSelect = vi.fn()
-      render(<TileRack tiles={tiles} onTileSelect={onSelect} />)
-      const tile = screen.getByTestId('tile-1A')
-      fireEvent.click(tile)
-      expect(onSelect).not.toHaveBeenCalled()
-    })
+  it('a tile that would merge two safe chains is locked for now (not dead) and explained', () => {
+    const { tiles, onTileSelect, tile } = mount('safe-chain-on-board')
+    const locked = tiles.find((t) => t.playability === 'temp_unplayable')
+    expect(locked.coordinate).toBe('7D')
+    fireEvent.click(tile('7D'))
+    expect(onTileSelect).not.toHaveBeenCalled()
+    expect(tile('7D')).toHaveTextContent('🔒')
+    expect(screen.getByTestId('rack-note-7D')).toHaveTextContent(/merge two hotel chains/)
   })
 
-  describe('disabled prop', () => {
-    it('disables all tile interactions when disabled is true', () => {
-      const tiles: RackTile[] = [
-        { coordinate: '1A', playability: 'playable' },
-        { coordinate: '2A', playability: 'merger' },
-      ]
-      const onSelect = vi.fn()
-      render(<TileRack tiles={tiles} onTileSelect={onSelect} disabled />)
-
-      fireEvent.click(screen.getByTestId('tile-1A'))
-      fireEvent.click(screen.getByTestId('tile-2A'))
-      expect(onSelect).not.toHaveBeenCalled()
-    })
-
-    it('playable tiles still show their playability state when rack is disabled', () => {
-      const tiles: RackTile[] = [{ coordinate: '1A', playability: 'playable' }]
-      const onSelect = vi.fn()
-      render(<TileRack tiles={tiles} onTileSelect={onSelect} disabled />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('default')
-    })
+  it('a tile that would cause a merger is flagged but still playable', () => {
+    const { tiles, onTileSelect, tile } = mount('three-player-midgame')
+    const merger = tiles.find((t) => t.playability === 'merger')
+    expect(tile(merger.coordinate)).toHaveTextContent('!!')
+    fireEvent.click(tile(merger.coordinate))
+    expect(onTileSelect).toHaveBeenCalledWith(merger.coordinate)
   })
 
-  describe('mixed playability', () => {
-    it('renders tiles with mixed playability states correctly', () => {
-      const tiles: RackTile[] = [
-        { coordinate: '1A', playability: 'playable' },
-        { coordinate: '2A', playability: 'merger' },
-        { coordinate: '3A', playability: 'temp_unplayable' },
-        { coordinate: '4A', playability: 'perm_unplayable' },
-        { coordinate: '5A', playability: 'playable' },
-        { coordinate: '6A', playability: 'playable' },
-      ]
-      const onSelect = vi.fn()
-      render(<TileRack tiles={tiles} onTileSelect={onSelect} />)
-
-      expect(screen.getByTestId('tile-1A').className).toContain('default')
-      expect(screen.getByTestId('tile-2A').className).toContain('merger')
-      expect(screen.getByTestId('tile-3A').className).toContain('disabled')
-      expect(screen.getByTestId('tile-4A').className).toContain('dead')
-      expect(screen.getByTestId('tile-5A').className).toContain('default')
-      expect(screen.getByTestId('tile-6A').className).toContain('default')
-    })
-
-    it('only playable and merger tiles are clickable', () => {
-      const tiles: RackTile[] = [
-        { coordinate: '1A', playability: 'playable' },
-        { coordinate: '2A', playability: 'merger' },
-        { coordinate: '3A', playability: 'temp_unplayable' },
-        { coordinate: '4A', playability: 'perm_unplayable' },
-      ]
-      const onSelect = vi.fn()
-      render(<TileRack tiles={tiles} onTileSelect={onSelect} />)
-
-      fireEvent.click(screen.getByTestId('tile-1A'))
-      expect(onSelect).toHaveBeenCalledWith('1A')
-
-      fireEvent.click(screen.getByTestId('tile-2A'))
-      expect(onSelect).toHaveBeenCalledWith('2A')
-
-      fireEvent.click(screen.getByTestId('tile-3A'))
-      fireEvent.click(screen.getByTestId('tile-4A'))
-      expect(onSelect).toHaveBeenCalledTimes(2)
-    })
+  it('when it is not my turn the whole rack is locked, but unplayable tiles are still explained', () => {
+    const { tiles, onTileSelect, tile } = mount('dead-tile-in-hand', { disabled: true })
+    for (const t of tiles) fireEvent.click(tile(t.coordinate))
+    expect(onTileSelect).not.toHaveBeenCalled()
+    expect(screen.getByTestId('rack-note-10F')).toBeInTheDocument()
   })
 })

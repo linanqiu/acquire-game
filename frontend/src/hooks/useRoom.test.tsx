@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { useRoom } from './useRoom'
 import type { ReactNode } from 'react'
 
-function createWrapper(route: string, path: string) {
+function at(route: string, path: string) {
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
       <MemoryRouter initialEntries={[route]}>
@@ -17,38 +17,15 @@ function createWrapper(route: string, path: string) {
 }
 
 describe('useRoom', () => {
-  it('returns room code from URL', () => {
-    const { result } = renderHook(() => useRoom(), {
-      wrapper: createWrapper('/play/ABCD', '/play/:room'),
-    })
-    expect(result.current).toBe('ABCD')
+  it('the room code is the URL parameter, upper-cased (a code typed in lower case still finds the room)', () => {
+    const player = renderHook(() => useRoom(), { wrapper: at('/play/abCd', '/play/:room') })
+    expect(player.result.current).toBe('ABCD')
+    const host = renderHook(() => useRoom(), { wrapper: at('/host/wxyz', '/host/:room') })
+    expect(host.result.current).toBe('WXYZ')
   })
 
-  it('returns uppercase room code for lowercase input', () => {
-    const { result } = renderHook(() => useRoom(), {
-      wrapper: createWrapper('/play/abcd', '/play/:room'),
-    })
-    expect(result.current).toBe('ABCD')
-  })
-
-  it('returns uppercase room code for mixed case input', () => {
-    const { result } = renderHook(() => useRoom(), {
-      wrapper: createWrapper('/play/AbCd', '/play/:room'),
-    })
-    expect(result.current).toBe('ABCD')
-  })
-
-  it('returns empty string when no room param', () => {
-    const { result } = renderHook(() => useRoom(), {
-      wrapper: createWrapper('/', '/'),
-    })
+  it('is empty where the route has no room', () => {
+    const { result } = renderHook(() => useRoom(), { wrapper: at('/', '/') })
     expect(result.current).toBe('')
-  })
-
-  it('works with host route', () => {
-    const { result } = renderHook(() => useRoom(), {
-      wrapper: createWrapper('/host/WXYZ', '/host/:room'),
-    })
-    expect(result.current).toBe('WXYZ')
   })
 })

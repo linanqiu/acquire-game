@@ -27,9 +27,6 @@ interface UseHostWebSocketOptions {
 }
 
 interface UseHostWebSocketReturn {
-  addBot: () => void
-  startGame: () => void
-  endGame: () => void
   disconnect: () => void
   /** Manually re-open the socket (resets the retry budget). Resolves true once connected. */
   reconnect: () => Promise<boolean>
@@ -81,26 +78,6 @@ export function useHostWebSocket({
       poll()
     })
   }, [])
-
-  const sendMessage = useCallback((message: Record<string, unknown>) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(message))
-    } else {
-      console.error('Host WebSocket is not connected')
-    }
-  }, [])
-
-  const addBot = useCallback(() => {
-    sendMessage({ action: 'add_bot' })
-  }, [sendMessage])
-
-  const startGame = useCallback(() => {
-    sendMessage({ action: 'start_game' })
-  }, [sendMessage])
-
-  const endGame = useCallback(() => {
-    sendMessage({ action: 'end_game' })
-  }, [sendMessage])
 
   // Connect on mount, reconnect with exponential backoff
   useEffect(() => {
@@ -225,9 +202,6 @@ export function useHostWebSocket({
   }, [roomCode, setConnectionStatus, handleMessage, onError, onClose])
 
   return {
-    addBot,
-    startGame,
-    endGame,
     disconnect,
     reconnect,
     isConnected: connectionStatus === 'connected',

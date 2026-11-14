@@ -50,14 +50,25 @@ export function ChainSelector({
   const handleKeyDown = (e: React.KeyboardEvent, chain: ChainId) => {
     const currentIndex = allChains.indexOf(chain)
 
+    // The next chain in `direction` that can be chosen (disabled buttons cannot take focus, so
+    // stepping onto one would leave the keyboard user stuck), wrapping around.
+    const nextChoosable = (direction: 1 | -1): number | null => {
+      const n = allChains.length
+      for (let step = 1; step <= n; step++) {
+        const i = (currentIndex + direction * step + n * step) % n
+        if (availableChains.includes(allChains[i])) return i
+      }
+      return null
+    }
+
     let nextIndex: number | null = null
 
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
       e.preventDefault()
-      nextIndex = (currentIndex + 1) % allChains.length
+      nextIndex = nextChoosable(1)
     } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
       e.preventDefault()
-      nextIndex = (currentIndex - 1 + allChains.length) % allChains.length
+      nextIndex = nextChoosable(-1)
     } else if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
       if (availableChains.includes(chain)) {
