@@ -32,7 +32,8 @@ the same commit.
 {"action": "declare_end_game"}
 // Player-to-player trading (allowed out of turn):
 {"action": "propose_trade", "to_player_id": "...", "offering_stocks": {},
- "offering_money": 0, "requesting_stocks": {}, "requesting_money": 0}
+ "offering_money": 0, "requesting_stocks": {}, "requesting_money": 0,
+ "trade_id": "..."}   // trade_id optional: explicit id for deterministic fixtures, else a random uuid
 {"action": "accept_trade", "trade_id": "..."}
 {"action": "reject_trade", "trade_id": "..."}
 {"action": "cancel_trade", "trade_id": "..."}

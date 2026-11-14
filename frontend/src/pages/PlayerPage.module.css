@@ -341,3 +341,18 @@
     font-size: var(--text-lg);
   }
 }
+
+/* Welcome-back card shown after the socket reconnects */
+.reconnectedToast {
+  position: fixed;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  z-index: 900;
+}
+
+@media (max-width: 480px) {
+  .reconnectedToast {
+    left: var(--space-4);
+    bottom: 96px;
+  }
+}

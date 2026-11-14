@@ -1,17 +1,21 @@
 import { useState, useMemo } from 'react'
 import { ChainMarker } from './ChainMarker'
+import { SeatKindBadge } from './SeatKindBadge'
 import { StockStepper } from './StockStepper'
 import { TextInput } from '../ui/TextInput'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import styles from './TradeBuilder.module.css'
-import type { ChainName } from '../../types/api'
+import type { ChainName, SeatKind } from '../../types/api'
 
 interface PlayerInfo {
   id: string
   name: string
   cash: number
   stocks: Partial<Record<ChainName, number>>
+  isBot?: boolean
+  kind?: SeatKind
+  agentLabel?: string | null
 }
 
 interface StockOffer {
@@ -30,6 +34,12 @@ export interface TradeBuilderProps {
   myCash: number
   onPropose: (partnerId: string, offer: TradeOffer, want: TradeOffer) => void
   onCancel: () => void
+  /** Error returned by the server for the last proposal (shown inline, builder stays open). */
+  serverError?: string
+  /** True while a proposal is in flight. */
+  submitting?: boolean
+  /** Shown as a hint, e.g. while a merger freezes some chains. */
+  notice?: string
 }
 
 export function TradeBuilder({
@@ -38,6 +48,9 @@ export function TradeBuilder({
   myCash,
   onPropose,
   onCancel,
+  serverError,
+  submitting = false,
+  notice,
 }: TradeBuilderProps) {
   const [partnerId, setPartnerId] = useState<string>('')
   const [offer, setOffer] = useState<TradeOffer>({ stocks: [], cash: 0 })
@@ -155,9 +168,10 @@ export function TradeBuilder({
   return (
     <Card title="NEW TRADE" onClose={handleCancel}>
       <div className={styles.container} data-testid="trade-builder">
-        {error && (
+        {notice && <p className={styles.hint}>{notice}</p>}
+        {(error || serverError) && (
           <p className={styles.error} role="alert" data-testid="trade-error">
-            {error}
+            {error || serverError}
           </p>
         )}
 
@@ -173,7 +187,15 @@ export function TradeBuilder({
                 aria-pressed={partnerId === p.id}
                 data-testid={`player-select-${p.id}`}
               >
-                <span className={styles.playerName}>{p.name}</span>
+                <span className={styles.playerName}>
+                  {p.name}{' '}
+                  <SeatKindBadge
+                    playerId={p.id}
+                    kind={p.kind}
+                    isBot={p.isBot}
+                    agentLabel={p.agentLabel}
+                  />
+                </span>
                 <span className={styles.playerCash}>${p.cash.toLocaleString()}</span>
               </button>
             ))}
@@ -264,7 +286,7 @@ export function TradeBuilder({
           <Button variant="secondary" onClick={handleCancel} data-testid="cancel-trade">
             CANCEL
           </Button>
-          <Button onClick={handleSubmit} data-testid="propose-trade">
+          <Button onClick={handleSubmit} disabled={submitting} data-testid="propose-trade">
             PROPOSE TRADE
           </Button>
         </div>

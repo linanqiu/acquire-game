@@ -9,7 +9,8 @@ import type { GameStateMessage } from '../types/api'
 // Mock useWebSocket to prevent it from changing connectionStatus during tests
 vi.mock('../hooks/useWebSocket', () => ({
   useWebSocket: () => ({
-    sendAction: vi.fn(),
+    sendAction: vi.fn(() => true),
+    reconnect: vi.fn(() => Promise.resolve(true)),
     disconnect: vi.fn(),
     isConnected: true,
   }),

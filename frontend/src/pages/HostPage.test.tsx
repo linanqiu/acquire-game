@@ -13,6 +13,7 @@ vi.mock('../hooks/useHostWebSocket', () => ({
     startGame: vi.fn(),
     endGame: vi.fn(),
     disconnect: vi.fn(),
+    reconnect: vi.fn(() => Promise.resolve(true)),
     isConnected: true,
   }),
 }))

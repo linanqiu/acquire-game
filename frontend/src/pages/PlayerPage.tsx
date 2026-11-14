@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useRoom } from '../hooks/useRoom'
 import { useWebSocket } from '../hooks/useWebSocket'
@@ -13,6 +13,9 @@ import { Board } from '../components/game/Board'
 import { ChainSelector } from '../components/game/ChainSelector'
 import { MergerDisposition } from '../components/game/MergerDisposition'
 import { TradeBuilder } from '../components/game/TradeBuilder'
+import { TradeOffers } from '../components/game/TradeOffers'
+import { ReconnectionOverlay } from '../components/game/ReconnectionOverlay'
+import { ReconnectedToast } from '../components/game/ReconnectedToast'
 import { GameOver, type FinalScore } from '../components/game/GameOver'
 import { StockStepper } from '../components/game/StockStepper'
 import { ChainMarker } from '../components/game/ChainMarker'
@@ -66,14 +69,28 @@ export function PlayerPage() {
   const { toast } = useToast()
   const { handleServerError } = useErrorHandler()
 
+  // Set while a propose_trade is in flight so a server refusal can be shown inside the builder
+  const [proposing, setProposing] = useState(false)
+  const [tradeError, setTradeError] = useState('')
+  const proposingRef = useRef(false)
+  useEffect(() => {
+    proposingRef.current = proposing
+  }, [proposing])
+
   // Stable callbacks for WebSocket to prevent infinite re-renders
   const handleWsError = useCallback(
-    (error: string) => handleServerError(error),
+    (error: string) => {
+      if (proposingRef.current) {
+        setTradeError(error)
+        setProposing(false)
+      }
+      handleServerError(error)
+    },
     [handleServerError]
   )
 
   // WebSocket connection for game actions
-  const { sendAction } = useWebSocket({
+  const { sendAction, reconnect } = useWebSocket({
     roomCode: room,
     playerId: sessionStorage.getItem('player_id') || '',
     token: sessionStorage.getItem('session_token') || '',
@@ -92,6 +109,8 @@ export function PlayerPage() {
     pendingChainChoice,
     pendingMergerChoice,
     pendingStockDisposition,
+    trades,
+    lastTradeEvent,
     setCurrentPlayer,
   } = useGameStore()
 
@@ -173,6 +192,65 @@ export function PlayerPage() {
     if (!gameState) return {}
     return gameState.hotel.available_stocks
   }, [gameState])
+
+  // --- Connection lifecycle: overlay while the socket is down, welcome-back card after ---
+  const [hasConnected, setHasConnected] = useState(connectionStatus === 'connected')
+  const [showReconnected, setShowReconnected] = useState(false)
+  const prevStatusRef = useRef(connectionStatus)
+  useEffect(() => {
+    const prev = prevStatusRef.current
+    prevStatusRef.current = connectionStatus
+    if (connectionStatus === 'connected') {
+      setHasConnected(true)
+      if (prev !== 'connected' && hasConnected) setShowReconnected(true)
+    } else {
+      setShowReconnected(false)
+    }
+  }, [connectionStatus, hasConnected])
+  const showReconnectionOverlay = hasConnected && connectionStatus !== 'connected'
+
+  // --- Trade notifications (toast) and builder lifecycle ---
+  const seenTradeSeq = useRef(lastTradeEvent?.seq ?? 0)
+  useEffect(() => {
+    if (!lastTradeEvent || lastTradeEvent.seq <= seenTradeSeq.current) return
+    seenTradeSeq.current = lastTradeEvent.seq
+    if (!myPlayerId) return
+    const nameOf = (id?: string) => (id && gameState?.players[id]?.name) || 'Someone'
+    const { kind, trade, byPlayerId } = lastTradeEvent
+    const mine = trade?.from_player_id === myPlayerId
+    const toMe = trade?.to_player_id === myPlayerId
+    if (!mine && !toMe) return
+    if (kind === 'proposed') {
+      if (mine) {
+        toast(`Offer sent to ${nameOf(trade?.to_player_id)}`, 'success')
+        setProposing(false)
+        setShowTradeBuilder(false)
+      } else {
+        toast(`${nameOf(trade?.from_player_id)} sent you a trade offer`, 'info', 8000)
+      }
+    } else if (kind === 'accepted') {
+      toast(
+        mine
+          ? `${nameOf(trade?.to_player_id)} accepted your offer`
+          : `Trade with ${nameOf(trade?.from_player_id)} completed`,
+        'success'
+      )
+    } else if (kind === 'rejected') {
+      toast(
+        byPlayerId === myPlayerId
+          ? 'Offer rejected'
+          : `${nameOf(trade?.to_player_id)} rejected your offer`,
+        mine ? 'warning' : 'info'
+      )
+    } else if (kind === 'canceled') {
+      toast(
+        byPlayerId === myPlayerId
+          ? 'Offer canceled'
+          : `${nameOf(trade?.from_player_id)} withdrew their offer`,
+        'info'
+      )
+    }
+  }, [lastTradeEvent, myPlayerId, gameState, toast])
 
   // Reset loading state when game state updates (action completed)
   useEffect(() => {
@@ -266,7 +344,7 @@ export function PlayerPage() {
       offer: { stocks: { chain: ChainName; quantity: number }[]; cash: number },
       want: { stocks: { chain: ChainName; quantity: number }[]; cash: number }
     ) => {
-      setActionLoading(true)
+      setTradeError('')
       // Transform array format to record format expected by API
       const offeringStocks: Partial<Record<ChainName, number>> = {}
       for (const { chain, quantity } of offer.stocks) {
@@ -276,7 +354,7 @@ export function PlayerPage() {
       for (const { chain, quantity } of want.stocks) {
         requestingStocks[chain] = quantity
       }
-      sendAction({
+      const sent = sendAction({
         action: 'propose_trade',
         to_player_id: partnerId,
         offering_stocks: offeringStocks,
@@ -284,9 +362,38 @@ export function PlayerPage() {
         requesting_stocks: requestingStocks,
         requesting_money: want.cash,
       })
-      setShowTradeBuilder(false)
+      if (sent === false) {
+        setTradeError('Not connected to the game. Try again in a moment.')
+        return
+      }
+      // The builder closes when the server confirms (trade_proposed) and stays open
+      // with the server's reason when it refuses.
+      setProposing(true)
     },
     [sendAction]
+  )
+
+  // Trade responses go over the same WebSocket as every other action. Trades are not
+  // turn-bound, so no actionLoading here (it would lock the turn UI).
+  const sendTradeResponse = useCallback(
+    (action: 'accept_trade' | 'reject_trade' | 'cancel_trade', tradeId: string) => {
+      if (sendAction({ action, trade_id: tradeId }) === false) {
+        toast('Not connected to the game. Try again in a moment.', 'error')
+      }
+    },
+    [sendAction, toast]
+  )
+  const handleAcceptTrade = useCallback(
+    (id: string) => sendTradeResponse('accept_trade', id),
+    [sendTradeResponse]
+  )
+  const handleRejectTrade = useCallback(
+    (id: string) => sendTradeResponse('reject_trade', id),
+    [sendTradeResponse]
+  )
+  const handleCancelTrade = useCallback(
+    (id: string) => sendTradeResponse('cancel_trade', id),
+    [sendTradeResponse]
   )
 
   const handlePlayAgain = useCallback(() => {
@@ -332,6 +439,9 @@ export function PlayerPage() {
         name: p.name,
         cash: p.money,
         stocks: p.stocks,
+        isBot: p.is_bot,
+        kind: p.kind,
+        agentLabel: p.agent_label,
       }))
   }, [gameState, myPlayerId])
 
@@ -490,13 +600,6 @@ export function PlayerPage() {
         </Card>
         <div className={styles.buyingActions}>
           <Button
-            variant="secondary"
-            onClick={() => setShowTradeBuilder(true)}
-            disabled={!isMyTurn || actionLoading}
-          >
-            PROPOSE TRADE
-          </Button>
-          <Button
             onClick={handleBuyStocks}
             disabled={!isMyTurn || !canAfford || !validPurchase || actionLoading}
             loading={actionLoading}
@@ -563,7 +666,7 @@ export function PlayerPage() {
 
   // Main content renderer
   const renderMainContent = () => {
-    if (connectionStatus === 'connecting') {
+    if (connectionStatus === 'connecting' && !gameState) {
       return (
         <div className={styles.connecting}>
           <Spinner />
@@ -572,7 +675,7 @@ export function PlayerPage() {
       )
     }
 
-    if (connectionStatus === 'error') {
+    if (connectionStatus === 'error' && !gameState) {
       return (
         <div className={styles.error}>
           <p>Connection error. Please refresh the page.</p>
@@ -619,6 +722,8 @@ export function PlayerPage() {
   const showTileRack = phase !== 'lobby' && phase !== 'game_over'
   const showPortfolio = phase !== 'lobby' && phase !== 'game_over'
   const showPlayersPanel = phase !== 'lobby' && phase !== 'game_over'
+  // Trades are allowed in every in-game phase, on and off turn.
+  const showTradePanel = phase !== 'lobby' && phase !== 'game_over'
 
   // Render players panel showing all players' cash and stock holdings
   const renderPlayersPanel = () => {
@@ -682,6 +787,21 @@ export function PlayerPage() {
         )
       }
     >
+      {showTradePanel && myPlayerId && gameState && (
+        <TradeOffers
+          offers={trades}
+          myPlayerId={myPlayerId}
+          players={gameState.players}
+          onAccept={handleAcceptTrade}
+          onReject={handleRejectTrade}
+          onCancel={handleCancelTrade}
+          onPropose={() => {
+            setTradeError('')
+            setShowTradeBuilder(true)
+          }}
+        />
+      )}
+
       <div className={styles.content}>{renderMainContent()}</div>
 
       {showPlayersPanel && renderPlayersPanel()}
@@ -704,9 +824,42 @@ export function PlayerPage() {
             myHoldings={myHoldings.map((h) => ({ chain: h.chain, quantity: h.quantity }))}
             myCash={myPlayerData?.money ?? 0}
             onPropose={handleProposeTrade}
-            onCancel={() => setShowTradeBuilder(false)}
+            onCancel={() => {
+              setShowTradeBuilder(false)
+              setProposing(false)
+            }}
+            serverError={tradeError}
+            submitting={proposing}
+            notice={
+              phase === 'merger' || phase === 'stock_disposition'
+                ? 'A merger is in progress: stock in the merging chains cannot be traded until it ends.'
+                : undefined
+            }
           />
         </Modal>
+      )}
+
+      {showReconnectionOverlay && (
+        <ReconnectionOverlay
+          connectionStatus={connectionStatus === 'disconnected' ? 'disconnected' : 'reconnecting'}
+          playerName={currentPlayer?.name}
+          onReconnect={reconnect}
+          onBackToLobby={() => navigate('/')}
+        />
+      )}
+
+      {showReconnected && !showReconnectionOverlay && gameState && (
+        <div className={styles.reconnectedToast}>
+          <ReconnectedToast
+            playerName={currentPlayer?.name ?? 'Player'}
+            currentTurn={currentPlayerName}
+            phase={getPhaseText(phase, isMyTurn, currentPlayerName)}
+            cash={myPlayerData?.money ?? 0}
+            stockCount={myHoldings.reduce((n, h) => n + h.quantity, 0)}
+            tileCount={yourHand.length}
+            onContinue={() => setShowReconnected(false)}
+          />
+        </div>
       )}
     </PageShell>
   )

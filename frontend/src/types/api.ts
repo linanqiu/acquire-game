@@ -120,6 +120,12 @@ export interface GameStateMessage {
   tile_playability?: Record<string, TilePlayabilityInfo> // Only sent to the owning player
   end_game_available?: boolean // True when current player can declare end game
   awaiting?: AwaitingDecision | null // Who the engine is waiting on (absent on older backends)
+  /** Pending offers addressed to the receiving player (per-player; absent on older backends). */
+  incoming_trades?: TradeOffer[]
+  /** Pending offers the receiving player has made (per-player; absent on older backends). */
+  outgoing_trades?: TradeOffer[]
+  /** All pending offers, public (absent on older backends). */
+  pending_trades?: TradeOffer[]
 }
 
 export interface LobbyUpdateMessage {
