@@ -25,7 +25,7 @@ from tests.llm_support import (
 
 @pytest.fixture(scope="module")
 def game():
-    return bot_game(seed=1, min_turns=40)
+    return bot_game(seed=39, min_turns=30)
 
 
 def test_system_prompt_states_the_implemented_rules():

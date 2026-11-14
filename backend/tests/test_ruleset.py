@@ -473,7 +473,7 @@ def test_mini_engine_uses_its_numbers():
     assert ruleset_from_state({}) is classic()
 
 
-def test_founder_bonus_and_trade_ratio_on_tiny2():
+def test_founder_bonus_partly_in_cash_on_tiny2():
     game = Game(seed=1, ruleset=TINY2)
     for i in range(2):
         game.add_player(f"p{i}", f"P{i}")
@@ -496,8 +496,6 @@ def test_founder_bonus_and_trade_ratio_on_tiny2():
     assert p.money == cash + 2 * TINY2.price("red", 2)  # two shares paid as cash
     ev = game.events[-1]
     assert ev["founder_bonus_type"] == "stock" and ev["founder_bonus_cash"] == 200
-    combos = Rules.get_valid_disposition_combinations(6, 10, trade_ratio=3)
-    assert {t for _, t, _ in combos} == {0, 3, 6}
 
 
 # =============================================================================

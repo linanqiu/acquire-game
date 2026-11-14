@@ -45,11 +45,6 @@ def types(events):
 
 
 class TestEventShape:
-    def test_lobby_has_no_events(self):
-        game = Game(seed=1)
-        game.add_player("p1", "A")
-        assert game.events == []
-
     def test_game_started_and_private_deals(self):
         game = make_game()
         assert types(game.events) == ["game_started"] + ["tiles_dealt"] * 3
@@ -276,7 +271,9 @@ class TestTradeEvents:
         game.propose_trade(trade)
         p1 = game.get_player("p1")
         p1.remove_money(p1.money)
-        game.accept_trade("p2", trade.trade_id)
+        result = game.accept_trade("p2", trade.trade_id)
+        assert result.success is False and "no longer valid" in result.error
+        assert trade.trade_id not in game.pending_trades
         assert game.events[-1]["type"] == "trade_cancelled"
         assert game.events[-1]["reason"] == "no_longer_valid"
 

@@ -1,11 +1,10 @@
 """Game rules and validation logic for Acquire."""
 
 from enum import Enum
-from typing import Union, List, Tuple, TYPE_CHECKING
+from typing import Union, Tuple, TYPE_CHECKING
 from game.board import Board, Tile, TileState
 from game.hotel import Hotel
 from game.action import TradeOffer
-from game.ruleset import classic
 
 if TYPE_CHECKING:
     from game.game import Game
@@ -307,12 +306,6 @@ class Rules:
         return bonuses
 
     @classmethod
-    def _round_up_to_hundred(cls, amount: float) -> int:
-        """Round up like the classic ruleset (to $100). Kept for older callers;
-        the engine uses ``ruleset.round_split``."""
-        return classic().round_split(amount)
-
-    @classmethod
     def check_end_game(cls, board: Board, hotel: Hotel) -> bool:
         """Check if the game can be ended.
 
@@ -386,22 +379,6 @@ class Rules:
             List of tiles that can be legally played
         """
         return [tile for tile in tiles if cls.can_place_tile(board, tile, hotel)]
-
-    @classmethod
-    def get_unplayable_tiles(
-        cls, board: Board, tiles: list[Tile], hotel: Hotel
-    ) -> list[Tile]:
-        """Get list of tiles that cannot be legally played.
-
-        Args:
-            board: The game board
-            tiles: List of tiles to check (e.g., player's hand)
-            hotel: Hotel manager
-
-        Returns:
-            List of tiles that cannot be legally played
-        """
-        return [tile for tile in tiles if not cls.can_place_tile(board, tile, hotel)]
 
     @classmethod
     def are_all_tiles_unplayable(
@@ -510,68 +487,6 @@ class Rules:
         return {
             str(tile): cls.get_tile_playability(board, tile, hotel) for tile in tiles
         }
-
-    @classmethod
-    def get_legal_tile_plays(cls, game: "Game", player_id: str) -> List[Tile]:
-        """Get all tiles the player can legally play.
-
-        This is a convenience method that retrieves the player's hand and
-        filters it to only playable tiles.
-
-        Args:
-            game: The current game instance
-            player_id: ID of the player
-
-        Returns:
-            List of Tile objects that can be legally played
-        """
-        player = game.get_player(player_id)
-        if not player:
-            return []
-        return cls.get_playable_tiles(game.board, player.hand, game.hotel)
-
-    @classmethod
-    def get_valid_disposition_combinations(
-        cls,
-        defunct_count: int,
-        available_to_trade: int | None = None,
-        trade_ratio: int | None = None,
-    ) -> List[Tuple[int, int, int]]:
-        """Generate all valid sell/trade/keep splits for defunct stock.
-
-        In Acquire, when a chain is acquired in a merger, stockholders must
-        decide what to do with their shares:
-        - Sell: Sell shares back to the bank at current price
-        - Trade: Exchange ``trade_ratio`` defunct shares (2 in classic) for 1
-          survivor share
-        - Keep: Hold shares hoping the chain will reform
-
-        Args:
-            defunct_count: Number of defunct stocks the player owns
-            available_to_trade: Survivor stock available for trade (None: the
-                classic bank size)
-            trade_ratio: Defunct shares per survivor share (None: classic)
-
-        Returns:
-            List of (sell, trade, keep) tuples representing all valid combinations.
-            Trade values are always multiples of the ratio.
-        """
-        rs = classic()
-        if available_to_trade is None:
-            available_to_trade = rs.stocks_per_chain
-        ratio = trade_ratio if trade_ratio is not None else rs.merger_trade_ratio
-        combinations = []
-
-        for sell in range(defunct_count + 1):
-            remaining = defunct_count - sell
-            # Trade is a multiple of the ratio, limited by survivor stock
-            max_trade = min(remaining, available_to_trade * ratio)
-            for trade in range(0, max_trade + 1, ratio):
-                keep = remaining - trade
-                if keep >= 0:
-                    combinations.append((sell, trade, keep))
-
-        return combinations
 
     @classmethod
     def validate_trade(cls, game: "Game", trade: TradeOffer) -> Tuple[bool, str]:

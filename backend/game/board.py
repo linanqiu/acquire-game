@@ -180,14 +180,6 @@ class Board:
                 chains.add(cell.chain)
         return sorted(chains)
 
-    def get_chain_tiles(self, chain_name: str) -> list[Tile]:
-        """Get all tiles belonging to a chain."""
-        tiles = []
-        for (col, row), cell in self._grid.items():
-            if cell.chain == chain_name:
-                tiles.append(self.tile(col, row))
-        return tiles
-
     def get_chain_size(self, chain_name: str) -> int:
         """Get the number of tiles in a chain."""
         return sum(1 for cell in self._grid.values() if cell.chain == chain_name)
@@ -220,14 +212,6 @@ class Board:
         for (col, row), cell in self._grid.items():
             if cell.chain == defunct_chain:
                 cell.chain = surviving_chain
-
-    def get_all_chains(self) -> set[str]:
-        """Get all active chain names on the board."""
-        chains = set()
-        for cell in self._grid.values():
-            if cell.chain:
-                chains.add(cell.chain)
-        return chains
 
     def is_tile_played(self, tile: Tile) -> bool:
         """Check if a tile has been played."""

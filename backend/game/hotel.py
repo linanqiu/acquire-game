@@ -154,8 +154,3 @@ class Hotel:
             "available_stocks": dict(self._available_stocks),
             "active_chains": list(self._active_chains),
         }
-
-    def load_state(self, state: dict):
-        """Load state from dict."""
-        self._available_stocks = dict(state["available_stocks"])
-        self._active_chains = set(state["active_chains"])

@@ -1086,6 +1086,28 @@ class TestNoPlayableTile:
         assert pending_decisions(game)[0].kind == BUY_STOCKS
         assert game.events[-1]["type"] == "tile_placement_skipped"
 
+    def test_replacements_also_dead_skip_placement_and_the_hand_stays_full(self):
+        """The fresh tiles are dead too and the bag is not empty: placement is
+        skipped; ending the turn does not draw past a full hand."""
+        game = make_game(seed=5)
+        _p1, p2, _ = game.players
+        _all_seven_chains_with_dead_tile(game)  # lone 10I
+        for lone in ("2G", "2I", "6G", "10G"):
+            game.board.place_tile(Tile.from_string(lone))
+        # each of these touches a lone tile and would found an eighth chain
+        dead = ["5G", "7G", "6H", "6F", "9G", "11G", "10H", "9I", "11I", "1I"]
+        dead += ["3I", "1G", "3G"]
+        game.phase = GamePhase.BUYING_STOCKS
+        set_hand(p2, dead[:6])
+        # drawn from the end: six dead replacements, then 3G and 12A remain
+        game.tile_bag = [Tile.from_string(s) for s in ["12A"] + dead[12:5:-1]]
+        assert apply_action(game, "p1", {"action": "end_turn"})["success"]
+        assert game.get_current_player_id() == "p2"
+        assert game.events[-1]["type"] == "tile_placement_skipped"
+        assert p2.hand_size == 6 and len(game.tile_bag) == 2
+        assert apply_action(game, "p2", {"action": "end_turn"})["success"]
+        assert p2.hand_size == 6 and len(game.tile_bag) == 2
+
     def test_frozen_board_ends_game(self):
         game = make_game(seed=5)
         p1, p2, p3 = game.players

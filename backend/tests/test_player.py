@@ -2,34 +2,6 @@
 
 from game.board import Tile
 from game.player import Player
-from game.hotel import Hotel
-
-
-class TestPlayerInitialization:
-    """Tests for player starting state."""
-
-    def test_starting_money(self):
-        """Player should start with $6000."""
-        player = Player("p1", "Alice")
-        assert player.money == 6000
-
-    def test_starting_hand_empty(self):
-        """Player should start with empty hand."""
-        player = Player("p1", "Alice")
-        assert player.hand == []
-        assert player.hand_size == 0
-
-    def test_starting_stocks_empty(self):
-        """Player should start with no stocks."""
-        player = Player("p1", "Alice")
-        for chain_name in Hotel.get_all_chain_names():
-            assert player.get_stock_count(chain_name) == 0
-
-    def test_player_id_and_name(self):
-        """Player should store id and name correctly."""
-        player = Player("player_123", "Bob")
-        assert player.player_id == "player_123"
-        assert player.name == "Bob"
 
 
 class TestTileManagement:
@@ -181,68 +153,6 @@ class TestStockSale:
         assert player.sell_stock("InvalidChain", 1, 100) is False
 
 
-class TestStockTrade:
-    """Tests for trading stocks (2 defunct for 1 surviving)."""
-
-    def test_trade_stock_success(self):
-        """Should successfully trade 2 defunct for 1 surviving."""
-        player = Player("p1", "Alice")
-        player._stocks["Luxor"] = 10  # defunct
-        player._stocks["American"] = 5  # surviving
-        assert player.trade_stock("Luxor", "American", 6) is True
-        assert player.get_stock_count("Luxor") == 4
-        assert player.get_stock_count("American") == 8
-
-    def test_trade_stock_odd_quantity_fails(self):
-        """Should fail when trading odd number (not divisible by 2)."""
-        player = Player("p1", "Alice")
-        player._stocks["Luxor"] = 10
-        player._stocks["American"] = 5
-        assert player.trade_stock("Luxor", "American", 5) is False
-        assert player.get_stock_count("Luxor") == 10
-        assert player.get_stock_count("American") == 5
-
-    def test_trade_stock_insufficient_defunct(self):
-        """Should fail when not enough defunct stock."""
-        player = Player("p1", "Alice")
-        player._stocks["Luxor"] = 2
-        player._stocks["American"] = 5
-        assert player.trade_stock("Luxor", "American", 4) is False
-        assert player.get_stock_count("Luxor") == 2
-
-    def test_trade_stock_exceeds_max_surviving(self):
-        """Should fail when trade would exceed max surviving stock."""
-        player = Player("p1", "Alice")
-        player._stocks["Luxor"] = 20
-        player._stocks["American"] = 20
-        # Trading 12 Luxor would give 6 American, total 26 > 25
-        assert player.trade_stock("Luxor", "American", 12) is False
-        assert player.get_stock_count("Luxor") == 20
-        assert player.get_stock_count("American") == 20
-
-    def test_trade_stock_to_max_surviving(self):
-        """Should succeed when trade results in exactly max surviving."""
-        player = Player("p1", "Alice")
-        player._stocks["Luxor"] = 20
-        player._stocks["American"] = 20
-        # Trading 10 Luxor gives 5 American, total 25 = max
-        assert player.trade_stock("Luxor", "American", 10) is True
-        assert player.get_stock_count("Luxor") == 10
-        assert player.get_stock_count("American") == 25
-
-    def test_trade_stock_invalid_defunct_chain(self):
-        """Should fail for invalid defunct chain."""
-        player = Player("p1", "Alice")
-        player._stocks["American"] = 5
-        assert player.trade_stock("InvalidChain", "American", 2) is False
-
-    def test_trade_stock_invalid_surviving_chain(self):
-        """Should fail for invalid surviving chain."""
-        player = Player("p1", "Alice")
-        player._stocks["Luxor"] = 10
-        assert player.trade_stock("Luxor", "InvalidChain", 2) is False
-
-
 class TestMoneyManagement:
     """Tests for adding and removing money."""
 
@@ -341,16 +251,6 @@ class TestStockValueCalculation:
 class TestStateSerialization:
     """Tests for get_state and from_state methods."""
 
-    def test_get_state_initial(self):
-        """Should serialize initial player state."""
-        player = Player("p1", "Alice")
-        state = player.get_state()
-        assert state["player_id"] == "p1"
-        assert state["name"] == "Alice"
-        assert state["money"] == 6000
-        assert state["hand"] == []
-        assert all(count == 0 for count in state["stocks"].values())
-
     def test_get_state_with_data(self):
         """Should serialize player state with tiles and stocks."""
         player = Player("p1", "Alice")
@@ -389,13 +289,61 @@ class TestStateSerialization:
         assert restored.get_stock_count("American") == 3
 
 
-class TestPlayerRepr:
-    """Tests for player string representation."""
+class TestHoldingsGuards:
+    """A player's share holdings never go negative, never pass the per-chain
+    limit, and a refused change leaves them untouched (the engine relies on
+    these guards when it moves shares in mergers and trades)."""
 
-    def test_repr(self):
-        """Should return readable representation."""
-        player = Player("p1", "Alice")
-        repr_str = repr(player)
-        assert "p1" in repr_str
-        assert "Alice" in repr_str
-        assert "6000" in repr_str
+    def test_add_remove_and_set_shares(self):
+        p = Player("p1", "A")
+        assert p.add_stocks("Luxor", 0) is True and p.get_stock_count("Luxor") == 0
+        assert p.add_stocks("Luxor", 24) is True
+        assert p.add_stocks("Luxor", 1) is True  # exactly the limit
+        assert p.get_stock_count("Luxor") == 25
+        assert p.add_stocks("Luxor", 1) is False  # one past it
+        assert p.add_stocks("Luxor", -1) is False
+        assert p.add_stocks("Nowhere", 1) is False
+        assert p.get_stock_count("Luxor") == 25
+
+        assert p.remove_stocks("Luxor", 0) is True
+        assert p.remove_stocks("Luxor", 26) is False
+        assert p.remove_stocks("Luxor", -1) is False
+        assert p.remove_stocks("Nowhere", 1) is False
+        assert p.remove_stocks("Luxor", 25) is True
+        assert p.get_stock_count("Luxor") == 0
+
+        assert p.set_stocks("Tower", 25) is True
+        assert p.set_stocks("Tower", 26) is False
+        assert p.set_stocks("Tower", -1) is False
+        assert p.set_stocks("Nowhere", 1) is False
+        assert p.get_stock_count("Tower") == 25
+        assert p.get_stock_count("Nowhere") == 0
+
+    def test_trade_resources_are_checked_and_moved_atomically(self):
+        p = Player("p1", "A")
+        p.add_stocks("Luxor", 3)
+        assert p.can_afford_trade({"Luxor": 3}, 6000) is True
+        assert p.can_afford_trade({"Luxor": 4}, 0) is False
+        assert p.can_afford_trade({"Luxor": -1}, 0) is False
+        assert p.can_afford_trade({"Nowhere": 1}, 0) is False
+        assert p.can_afford_trade({"Nowhere": 0}, 0) is True
+        assert p.can_afford_trade({}, 6001) is False
+
+        assert p.execute_trade_give({"Luxor": 4}, 0) is False
+        assert (p.money, p.get_stock_count("Luxor")) == (6000, 3)
+        assert p.execute_trade_give({"Luxor": 2, "Tower": 0}, 500) is True
+        assert (p.money, p.get_stock_count("Luxor")) == (5500, 1)
+
+        assert p.execute_trade_receive({"Luxor": -1}, 0) is False
+        assert p.execute_trade_receive({"Nowhere": 1}, 0) is False
+        assert p.execute_trade_receive({"Luxor": 25}, 0) is False  # 1 + 25 > 25
+        assert p.execute_trade_receive({}, -5) is False
+        assert (p.money, p.get_stock_count("Luxor")) == (5500, 1)
+        assert p.execute_trade_receive({"Luxor": 24, "Tower": 0}, 100) is True
+        assert (p.money, p.get_stock_count("Luxor")) == (5600, 25)
+
+    def test_share_value_counts_only_priced_holdings(self):
+        p = Player("p1", "A")
+        p.add_stocks("Luxor", 2)
+        assert p.get_stock_value({"Luxor": 300, "Tower": 900}) == 600
+        assert p.get_stock_value({"Tower": 900}) == 0

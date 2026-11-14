@@ -15,7 +15,7 @@ from bench.runner import run_game
 from game.game import Game
 from transcripts import TranscriptStore, TranscriptWriter, read_transcript, redact
 from transcripts.replay import final_scores, replay
-from transcripts.store import HIDDEN_ERROR, has_footer
+from transcripts.store import HIDDEN_ERROR, has_footer, totals_from_entries
 
 ILLEGAL = {"why": "x", "action": {"action": "found_chain", "chain": "Nope"}, "note": ""}
 
@@ -263,3 +263,103 @@ def test_redaction_strips_private_and_prompt_fields(tmp_path):
                     assert a["parsed"] is None and "rejected" in a
                     assert a["error"] in (None, HIDDEN_ERROR)
     assert "# Your seat" not in text
+
+
+def test_redaction_hides_every_trace_of_a_hand_and_keeps_the_public_record():
+    """One decision line with everything that can quote a tile in hand (7C)."""
+    secret = "7C"
+    t = {
+        "header": {"seed": 4, "tile_order": [secret], "seats": []},
+        "entries": [
+            {"type": "event", "event": {"type": "tiles_dealt", "private_to": "p1"}},
+            {"type": "event", "event": {"type": "turn_ended", "private_to": None}},
+            {"type": "chat", "text": "public"},
+            {
+                "type": "decision",
+                "player_id": "p1",
+                "legal": {"action_types": ["place_tile"], "tiles": [secret]},
+                "fallback": {"reason": "illegal", "detail": f"tile {secret}"},
+                "llm": {
+                    "user_prompt": secret,
+                    "why": secret,
+                    "note": secret,
+                    "error": secret,
+                    "model": "m",
+                    "attempts": [
+                        {
+                            "raw": secret,
+                            "retry_prompt": secret,
+                            "parsed": secret,
+                            "error": f"{secret} is not legal",
+                            "ms": 5,
+                        },
+                        {"raw": secret, "parsed": {"tile": secret}, "error": None},
+                    ],
+                },
+            },
+        ],
+        "footer": None,
+    }
+    r = redact(t)
+    assert secret not in json.dumps(r)
+    assert r["header"]["seed"] is None and r["header"]["tile_order"] is None
+    # public lines are kept, in order
+    assert [e["type"] for e in r["entries"]] == ["event", "chat", "decision"]
+    d = r["entries"][2]
+    assert d["fallback"] == {"reason": "illegal"}
+    assert d["legal"] == {"action_types": ["place_tile"]}
+    assert d["llm"]["model"] == "m"
+    assert d["llm"]["attempts"] == [
+        {"ms": 5, "parsed": None, "error": HIDDEN_ERROR, "rejected": True},
+        {"parsed": None, "error": None, "rejected": False},
+    ]
+    # the original is untouched
+    assert t["entries"][3]["fallback"]["detail"] == f"tile {secret}"
+
+
+def test_totals_of_an_abandoned_game_are_rebuilt_from_its_decision_lines():
+    """A game that stopped without a footer (and is not running here): the
+    store recomputes each seat's totals from the decision lines."""
+    t = {
+        "header": {"seats": [{"player_id": "p1"}, {"player_id": "p2"}]},
+        "entries": [
+            {"type": "event", "event": {"type": "turn_ended"}},
+            {
+                "type": "decision",
+                "player_id": "p1",
+                "source": "llm",
+                "latency_s": 1.25,
+                "llm": {
+                    "attempts": [
+                        {"raw": "{}", "error": "illegal", "input_tokens": 100,
+                         "output_tokens": 10},
+                        {"raw": "{}", "error": None, "input_tokens": 120,
+                         "output_tokens": 12, "cache_read_tokens": 80},
+                        {"raw": None, "error": "timeout"},
+                    ]
+                },
+            },
+            {"type": "decision", "player_id": "p1", "source": "fallback",
+             "latency_s": 0.5},
+            {"type": "decision", "player_id": "p2", "source": "human",
+             "latency_s": 30.0},
+            {"type": "decision", "player_id": "ghost", "source": "bot"},
+        ],
+        "footer": None,
+    }  # fmt: skip
+    totals = totals_from_entries(t)
+    assert totals["p1"] == {
+        "decisions": 2,
+        "llm_calls": 2,
+        "retries": 2,
+        "fallbacks": 1,
+        "input_tokens": 220,
+        "output_tokens": 22,
+        "cache_read_tokens": 80,
+        "cache_write_tokens": 0,
+        "cost_usd": None,
+        "latency_s": 1.75,
+    }
+    # a human's thinking time is not agent latency
+    assert totals["p2"]["decisions"] == 1 and totals["p2"]["latency_s"] == 0.0
+    assert set(totals) == {"p1", "p2"}

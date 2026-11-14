@@ -197,11 +197,6 @@ class Game:
         self.current_player_index = value
 
     @property
-    def tile_pool(self) -> list[Tile]:
-        """Get tile pool (alias for tile_bag)."""
-        return self.tile_bag
-
-    @property
     def turn_phase(self) -> str:
         """Get the current turn phase as a string for WebSocket compatibility."""
         # Check pending_action for stock_disposition
@@ -1576,23 +1571,6 @@ class Game:
 
         return CancelTradeResult(success=True, trade_id=trade_id, canceled_by=player_id)
 
-    def get_pending_trades_for_player(self, player_id: str) -> List[TradeOffer]:
-        """Get all pending trades involving a player.
-
-        Returns trades where the player is either the proposer or recipient.
-
-        Args:
-            player_id: ID of the player to get trades for
-
-        Returns:
-            List of TradeOffer objects involving this player
-        """
-        trades = []
-        for trade in self.pending_trades.values():
-            if trade.from_player_id == player_id or trade.to_player_id == player_id:
-                trades.append(trade)
-        return trades
-
     def get_incoming_trades_for_player(self, player_id: str) -> List[TradeOffer]:
         """Get pending trades where the player is the recipient.
 
@@ -1622,101 +1600,6 @@ class Game:
             for trade in self.pending_trades.values()
             if trade.from_player_id == player_id
         ]
-
-    def execute_bot_turn(self, player_id: str) -> list[dict]:
-        """Execute a full turn for a bot player.
-
-        Args:
-            player_id: ID of the bot player
-
-        Returns:
-            List of all actions taken
-        """
-        if player_id not in self.bots:
-            return [{"success": False, "error": "Player is not a bot"}]
-
-        bot = self.bots[player_id]
-        actions = []
-
-        # Play tile phase
-        if self.phase == GamePhase.PLAYING:
-            tile = bot.choose_tile_to_play(self.board, self.hotel)
-            if tile:
-                result = self.play_tile(player_id, tile)
-                actions.append({"action": "play_tile", **result.to_dict()})
-            else:
-                # No playable tiles: let the engine apply the replacement /
-                # skip rules (usually already done at turn start).
-                self.resolve_unplayable_turn()
-                if self.phase == GamePhase.PLAYING:
-                    # Tiles were replaced and one is now playable; the caller
-                    # runs this method again for the placement.
-                    actions.append({"action": "tiles_replaced"})
-                    return actions
-                actions.append({"action": "skip_tile", "reason": "no playable tiles"})
-
-        # Founding chain phase
-        if self.phase == GamePhase.FOUNDING_CHAIN:
-            available = self.pending_action.get("available_chains", [])
-            chain = bot.choose_chain_to_found(available, self.board)
-            result = self.found_chain(player_id, chain)
-            actions.append({"action": "found_chain", **result.to_dict()})
-
-        # Merging phase - handle survivor choice if needed
-        while self.phase == GamePhase.MERGING:
-            if self.pending_action:
-                action_type = self.pending_action.get("type")
-
-                if action_type == "choose_survivor":
-                    tied = self.pending_action.get("tied_chains", [])
-                    choice = bot.choose_merger_survivor(tied, self.board, self.hotel)
-                    result = self.choose_merger_survivor(player_id, choice)
-                    actions.append({"action": "choose_survivor", **result.to_dict()})
-
-                elif action_type == "stock_disposition":
-                    # This might be for another player
-                    disposition_player_id = self.pending_action.get("player_id")
-                    if disposition_player_id in self.bots:
-                        disp_bot = self.bots[disposition_player_id]
-                        defunct = self.pending_action.get("defunct_chain")
-                        survivor = self.pending_action.get("surviving_chain")
-                        count = self.pending_action.get("stock_count")
-
-                        decision = disp_bot.choose_stock_disposition(
-                            defunct, survivor, count, self.board, self.hotel
-                        )
-                        result = self.handle_stock_disposition(
-                            disposition_player_id,
-                            decision["sell"],
-                            decision["trade"],
-                            decision["keep"],
-                        )
-                        actions.append(
-                            {
-                                "action": "stock_disposition",
-                                "player": disposition_player_id,
-                                **result.to_dict(),
-                            }
-                        )
-                    else:
-                        # Human player needs to decide
-                        break
-                else:
-                    break
-            else:
-                break
-
-        # Buying stocks phase
-        if self.phase == GamePhase.BUYING_STOCKS:
-            purchases = bot.choose_stocks_to_buy(self.board, self.hotel)
-            result = self.buy_stocks(player_id, purchases)
-            actions.append({"action": "buy_stocks", **result.to_dict()})
-
-            # End turn
-            result = self.end_turn(player_id)
-            actions.append({"action": "end_turn", **result.to_dict()})
-
-        return actions
 
     def _get_merger_state(self) -> dict | None:
         """Get current merger state for broadcasting.

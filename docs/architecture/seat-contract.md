@@ -124,9 +124,9 @@ playable tile it:
 4. otherwise skips placement: phase -> `BUYING_STOCKS`, event
    `tile_placement_skipped`.
 
-The server no longer has a hack of its own (`process_bot_turns` is gone);
-`Game.execute_bot_turn` calls `resolve_unplayable_turn` and is used only by
-engine tests.
+The server no longer has a hack of its own (`process_bot_turns` is gone).
+`Game.execute_bot_turn` was removed as well (only tests used it); tests drive
+bot seats through the decision seam with `tests/support/drive.py`.
 
 ### Trading during a merger
 

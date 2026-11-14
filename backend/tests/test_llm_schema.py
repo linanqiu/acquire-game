@@ -326,3 +326,110 @@ def test_parse_answer_tolerates_bare_action_and_json_string():
     }
     assert parse_answer({"nothing": 1})[0] is None
     assert parse_answer({"action": 5})[0] is None
+
+
+# ---------------------------------------------------------------------------
+# Boundaries of the pre-check: what is exactly allowed must pass, one more must
+# not (the LLM gets the message and a retry instead of an engine refusal).
+# ---------------------------------------------------------------------------
+
+B_BUY = {
+    "action_types": ["buy_stocks", "end_turn"],
+    "max_total": 3,
+    "money": 900,
+    "options": [{"chain": "Tower", "price": 300, "available": 3, "max_affordable": 3}],
+}
+B_DISPOSE = {
+    "action_types": ["merger_disposition"],
+    "defunct_chain": "Tower",
+    "surviving_chain": "Luxor",
+    "stock_count": 4,
+    "max_trade": 2,
+}
+B_VIEW = {
+    "self_id": "p1",
+    "players": {
+        "p1": {"cash": 500, "shares": {"Luxor": 2}},
+        "p2": {"cash": 100, "shares": {"Tower": 1}},
+    },
+}
+B_PROPOSE = {"action_types": ["propose_trade"]}
+
+
+def _b_propose(**kw):
+    return {"action": "propose_trade", "to_player_id": "p2", **kw}
+
+
+@pytest.mark.parametrize(
+    "legal, action, error",
+    [
+        # spending exactly all your money on exactly what is available
+        (B_BUY, {"action": "buy_stocks", "purchases": {"Tower": 3}}, None),
+        (
+            {**B_BUY, "money": 899},
+            {"action": "buy_stocks", "purchases": {"Tower": 3}},
+            "cost $900",
+        ),
+        (
+            {**B_BUY, "options": [{**B_BUY["options"][0], "available": 2}]},
+            {"action": "buy_stocks", "purchases": {"Tower": 3}},
+            "only 2 Tower",
+        ),
+        (
+            {**B_BUY, "options": [{**B_BUY["options"][0], "max_affordable": 2}]},
+            {"action": "buy_stocks", "purchases": {"Tower": 3}},
+            "at most 2 Tower",
+        ),
+        (B_BUY, {"action": "buy_stocks", "purchases": {"Tower": -1}}, "non-negative"),
+        (B_BUY, {"action": "buy_stocks", "purchases": {"Luxor": 0}}, None),
+        # dispositions: missing keys are 0, trade up to max_trade
+        (B_DISPOSE, {"action": "merger_disposition", "defunct_chain": "Tower",
+                   "disposition": {"sell": 2, "trade": 2}}, None),
+        (B_DISPOSE, {"action": "merger_disposition", "defunct_chain": "Tower",
+                   "disposition": {"hold": 4}}, None),
+        (B_DISPOSE, {"action": "merger_disposition", "defunct_chain": "Tower",
+                   "disposition": {"trade": 4}}, "exceeds the maximum allowed 2"),
+        (B_DISPOSE, {"action": "merger_disposition", "defunct_chain": "Tower",
+                   "disposition": {"sell": 3, "hold": 1, "keep": 0}}, "unknown keys"),
+        (B_DISPOSE, {"action": "merger_disposition", "defunct_chain": "Tower",
+                   "disposition": {"sell": -1, "hold": 5}}, "non-negative"),
+        # proposals: offering exactly what you hold is fine, one more is not
+        (B_PROPOSE, _b_propose(offering_stocks={"Luxor": 2}, offering_money=500), None),
+        (B_PROPOSE, _b_propose(requesting_stocks={"Tower": 1}, requesting_money=100), None),
+        (B_PROPOSE, _b_propose(offering_money=501), "$500, trade needs $501"),
+        (B_PROPOSE, _b_propose(offering_stocks={"Luxor": 3}), "only 2 Luxor shares, trade needs 3"),
+        (B_PROPOSE, _b_propose(requesting_money=101), "p2 only has $100"),
+        (B_PROPOSE, _b_propose(requesting_stocks={"Tower": 2}), "p2 holds only 1 Tower"),
+        (B_PROPOSE, _b_propose(offering_stocks={"Luxor": 0}), "at least one share"),
+        (B_PROPOSE, _b_propose(offering_stocks={"Luxor": -1}), "non-negative"),
+        (B_PROPOSE, _b_propose(offering_money=-1), "non-negative"),
+        (B_PROPOSE, {**_b_propose(offering_money=1), "to_player_id": "p9"},
+         "unknown player 'p9'; players: ['p2']"),
+    ],
+)  # fmt: skip
+def test_pre_check_boundaries(legal, action, error):
+    result = check_against_legal(action, legal, view=B_VIEW)
+    if error is None:
+        assert result is None, result
+    else:
+        assert result is not None and error in result, result
+
+
+def test_trade_ratio_from_legal_defaults_to_two():
+    dispose = {**B_DISPOSE, "stock_count": 3, "max_trade": 3}
+    action = {
+        "action": "merger_disposition",
+        "defunct_chain": "Tower",
+        "disposition": {"trade": 3},
+    }
+    assert "even" in check_against_legal(action, dispose)
+    assert check_against_legal(action, {**dispose, "trade_ratio": 3}) is None
+    assert "even" in check_against_legal(action, {**dispose, "trade_ratio": 0})
+
+
+def test_chains_for_proposals_come_from_the_view():
+    view = {"self_id": "p1", "players": {"p1": {"shares": {"red": 1}}, "p2": {}}}
+    ok = _b_propose(offering_stocks={"red": 1})
+    assert check_against_legal(ok, B_PROPOSE, view=view) is None
+    bad = _b_propose(offering_stocks={"Luxor": 1})
+    assert check_against_legal(bad, B_PROPOSE, view=view) is not None

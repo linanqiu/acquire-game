@@ -140,44 +140,6 @@ class Player:
         self._money += quantity * price_per_share
         return True
 
-    def trade_stock(
-        self, defunct_chain: str, surviving_chain: str, defunct_quantity: int
-    ) -> bool:
-        """Trade defunct stock for surviving stock at the ruleset's ratio (2:1).
-
-        Args:
-            defunct_chain: Name of the defunct chain (being traded away)
-            surviving_chain: Name of the surviving chain (being received)
-            defunct_quantity: Defunct shares to trade (a multiple of the ratio)
-
-        Returns:
-            True if trade successful, False otherwise
-        """
-        # Validate chains exist
-        if defunct_chain not in self._stocks or surviving_chain not in self._stocks:
-            return False
-
-        ratio = self.ruleset.merger_trade_ratio
-        if defunct_quantity % ratio != 0:
-            return False
-
-        # Check if player has enough defunct stock
-        if self._stocks[defunct_chain] < defunct_quantity:
-            return False
-
-        surviving_quantity = defunct_quantity // ratio
-
-        # Check if receiving stock would exceed max
-        if (
-            self._stocks[surviving_chain] + surviving_quantity
-            > self.max_stocks_per_chain
-        ):
-            return False
-
-        self._stocks[defunct_chain] -= defunct_quantity
-        self._stocks[surviving_chain] += surviving_quantity
-        return True
-
     def add_stocks(self, chain_name: str, quantity: int) -> bool:
         """Add stocks with validation (respects the per-chain share limit).
 

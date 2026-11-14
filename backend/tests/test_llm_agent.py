@@ -17,7 +17,7 @@ pytestmark = pytest.mark.asyncio
 
 @pytest.fixture(scope="module")
 def game():
-    return bot_game(seed=1, min_turns=40)
+    return bot_game(seed=39, min_turns=30)
 
 
 def answer(action, why="because", note=""):

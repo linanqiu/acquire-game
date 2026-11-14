@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from agents.base import DecisionContext
 from game.calculator import build_calculator_pack
 from game.game import Game, GamePhase
+from tests.support.drive import HeuristicTable
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,7 @@ def bot_game(seed: int = 3, min_turns: int = 24, players: int = 4) -> Game:
             f"p{i + 1}", ["Alice", "Bob", "Cara", "Dan", "Eve", "Finn"][i], is_bot=True
         )
     g.start_game()
+    table = HeuristicTable(g)
     turns = 0
     while turns < 400:
         pid = g.get_current_player_id()
@@ -40,7 +42,7 @@ def bot_game(seed: int = 3, min_turns: int = 24, players: int = 4) -> Game:
             and g.hotel.get_active_chains()
         ):
             return g
-        g.execute_bot_turn(pid)
+        table.play_turn()
         turns += 1
     raise AssertionError("could not reach a mid-game position")
 

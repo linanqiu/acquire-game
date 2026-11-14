@@ -10,6 +10,9 @@ from game.calculator import build_calculator_pack
 from game.game import Game, GamePhase
 from game.hotel import Hotel
 from game.rules import Rules
+from tests.support.drive import HeuristicTable
+from tests.support.table import Table, grow_two_chains
+from game.ruleset import load_ruleset
 
 # ---------------------------------------------------------------------------
 # Position builders
@@ -329,6 +332,133 @@ class TestBankAndBuying:
         assert "Tower" not in build_calculator_pack(game, "p3")["buy_options"]
 
 
+class TestFollowsPlay:
+    """The pack on positions reached by real moves (tests/support/table.py)."""
+
+    def test_end_game_reason_changes_exactly_at_the_thresholds(self):
+        rs = load_ruleset("classic")
+        t, next_big, _ = grow_two_chains(rs, 40, 2)
+        me = t.current
+        bank = build_calculator_pack(t.game, me)["bank"]
+        assert bank["can_end_game"] is False
+        assert bank["can_end_game_reason"].startswith("not met")
+        assert bank["viewer_can_declare_now"] is False
+        t.place(next_big)  # 41 tiles
+        bank = build_calculator_pack(t.game, me)["bank"]
+        assert bank["can_end_game_reason"] == "chain with 41+ tiles: Luxor"
+        assert bank["viewer_can_declare_now"] is True
+        other = next(p.player_id for p in t.game.players if p.player_id != me)
+        pack = build_calculator_pack(t.game, other)
+        assert pack["bank"]["viewer_can_declare_now"] is False
+        assert pack["viewer_is_current"] is False
+        assert build_calculator_pack(t.game, me)["viewer_is_current"] is True
+
+        t, _, next_small = grow_two_chains(rs, 11, 10)
+        reason = build_calculator_pack(t.game, t.current)["bank"]["can_end_game_reason"]
+        assert reason.endswith("not safe: Tower")
+        t.pass_turn()
+        t.place(next_small)  # Tower 11: every chain safe
+        reason = build_calculator_pack(t.game, t.current)["bank"]["can_end_game_reason"]
+        assert reason == "all active chains are safe"
+
+    def test_buy_options_in_the_buy_phase(self):
+        # Luxor 1A-3A: p2 founder + 2 bought = 3, p3 2; p1 places 12I and buys
+        t = Table([["1A", "12I"], ["2A", "3A"], ["5A"]])
+        t.turn("1A")
+        t.turn("2A", found="Luxor", buy={"Luxor": 2})
+        t.turn("5A", buy={"Luxor": 2})
+        t.place("12I")
+        assert t.current == "p1"
+        pack = build_calculator_pack(t.game, "p1")
+        opt = pack["buy_options"]["Luxor"]
+        assert (opt["price"], opt["max_affordable"], opt["can_buy_now"]) == (
+            200,
+            3,
+            True,
+        )
+        assert sorted(opt["purchases"]) == ["1", "2", "3"]
+        assert opt["standing_now"] == "none" and opt["payout_now"] == 0
+        # 2 shares tie p3 for minority ($1,000 split -> 500), 3 tie p2's
+        # majority: (2000 + 1000) / 2 = 1500
+        assert opt["purchases"]["2"]["payout_after"] == 500
+        assert opt["purchases"]["3"]["standing_after"] == "majority_tied"
+        assert opt["purchases"]["3"]["payout_after"] == 1500
+        # someone who already earns a bonus sees the change, not the total
+        p3 = build_calculator_pack(t.game, "p3")["buy_options"]["Luxor"]
+        assert p3["can_buy_now"] is False
+        assert p3["payout_now"] == 1000
+        assert p3["purchases"]["1"]["payout_change"] == 1500 - 1000
+
+    def test_last_bank_share_is_still_offered_and_bot_seats_are_flagged(self):
+        """Mini: one harbor share left in the bank (bought up by real play)."""
+        t = Table([["1A"], ["2A"]], ruleset=load_ruleset("mini"))
+        t.turn("1A")
+        t.turn("2A", found="harbor", buy={"harbor": 4})
+        for n in (4, 4, 3):
+            t.place_filler()
+            t.buy({"harbor": n})
+            t.end()
+        t.place_filler()
+        pack = build_calculator_pack(t.game, t.current)
+        opt = pack["buy_options"]["harbor"]
+        assert (opt["available"], opt["max_affordable"]) == (1, 1)
+        assert sorted(opt["purchases"]) == ["1"]
+        assert [p["is_bot"] for p in pack["players"]] == [False, False]
+
+        game = Game(seed=2)
+        game.add_player("h", "Human")
+        game.add_player("b", "Bot", is_bot=True)
+        game.add_player("c", "Bot 2", is_bot=True)
+        game.start_game()
+        flags = {
+            p["player_id"]: p["is_bot"]
+            for p in build_calculator_pack(game, "h")["players"]
+        }
+        assert flags == {"h": False, "b": True, "c": True}
+
+    def test_merge_scenario_resolves_defuncts_largest_first(self):
+        """American (4) absorbs Tower (3) and Luxor (2) through 4B; p3 holds
+        2 Tower and 1 Luxor (see tests/gameplay/test_mergers.py)."""
+        t = Table(
+            [
+                ["4C", "1B", "5B", "4F"],
+                ["4D", "2B", "6B", "10I"],
+                ["4E", "3B", "12I", "4B"],
+            ]
+        )
+        t.play(
+            [
+                "4C",
+                ("4D", {"found": "American"}),
+                "4E",
+                "1B",
+                ("2B", {"found": "Tower"}),
+                ("3B", {"buy": {"Tower": 2}}),
+                "5B",
+                ("6B", {"found": "Luxor"}),
+                ("12I", {"buy": {"Luxor": 1}}),
+                "4F",
+                "10I",
+            ]
+        )
+        pack = build_calculator_pack(t.game, "p3")
+        info = {x["tile"]: x for x in pack["viewer"]["tiles"]}["4B"]
+        assert info["effect"] == "merge"
+        assert sorted(info["chains"]) == ["American", "Luxor", "Tower"]
+        (sc,) = info["scenarios"]
+        assert [d["chain"] for d in sc["defunct"]] == ["Tower", "Luxor"]
+        tower, luxor = sc["defunct"]
+        assert tower["trade"]["shares_traded"] == 2
+        assert tower["trade"]["survivor_shares_received"] == 1
+        assert luxor["trade"]["shares_traded"] == 0
+        assert luxor["trade"]["leftover_sale_value"] == 200  # 1 share at $200
+        assert sc["survivor_size_after"] == 10
+        # and the engine agrees once the tile is played
+        t.place("4B")
+        paid = [e for e in t.game.events if e["type"] == "bonuses_paid"]
+        assert paid[0]["bonuses"]["p3"]["majority"] == tower["viewer_bonus"]
+
+
 # ---------------------------------------------------------------------------
 # Privacy
 # ---------------------------------------------------------------------------
@@ -343,8 +473,9 @@ def _hidden_tile_game(seed=5, turns=12):
     for i in range(3):
         game.add_player(f"b{i}", f"Bot {i}", is_bot=True)
     game.start_game()
+    table = HeuristicTable(game)
     for _ in range(turns):
-        game.execute_bot_turn(game.get_current_player_id())
+        table.play_turn()
     return game
 
 
@@ -564,12 +695,13 @@ def test_engine_equality_over_bot_games(seed, players):
     for i in range(players):
         game.add_player(f"bot{i}", f"Bot {i}", is_bot=True)
     game.start_game()
+    table = HeuristicTable(game)
     tally = Tally()
     turns = 0
     while game.phase != GamePhase.GAME_OVER and turns < 160:
         _check_pack_vs_engine(game, tally)
         _check_tile_predictions(game, tally)
-        game.execute_bot_turn(game.get_current_player_id())
+        table.play_turn()
         turns += 1
         if turns > 120 and Rules.check_end_game(game.board, game.hotel):
             break
@@ -588,9 +720,10 @@ def test_mergers_were_exercised_somewhere():
         for i in range(4):
             game.add_player(f"bot{i}", f"Bot {i}", is_bot=True)
         game.start_game()
+        table = HeuristicTable(game)
         for _ in range(140):
             if game.phase == GamePhase.GAME_OVER:
                 break
             _check_tile_predictions(game, total)
-            game.execute_bot_turn(game.get_current_player_id())
+            table.play_turn()
     assert total.merges > 0
