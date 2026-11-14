@@ -18,15 +18,15 @@ Typical driver loop::
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any
 
 from game.action import TradeOffer
 from game.board import Tile
+from game.game import GamePhase
 from game.hotel import Hotel
 from game.rules import PlacementResult, Rules
-
-from game.game import GamePhase
 
 if TYPE_CHECKING:
     from game.game import Game
@@ -96,7 +96,7 @@ class Decision:
 # =============================================================================
 
 
-def _flow_decision(game: "Game") -> Optional[Decision]:
+def _flow_decision(game: Game) -> Decision | None:
     """The single blocking decision for the current game phase, if any."""
     phase = game.phase
     if phase in (GamePhase.LOBBY, GamePhase.GAME_OVER) or not game.players:
@@ -156,7 +156,7 @@ def _flow_decision(game: "Game") -> Optional[Decision]:
     return None
 
 
-def pending_decisions(game: "Game") -> list[Decision]:
+def pending_decisions(game: Game) -> list[Decision]:
     """List the decisions the engine is waiting for.
 
     Returns [] in LOBBY / GAME_OVER. Otherwise element 0 is the blocking flow
@@ -175,7 +175,7 @@ def pending_decisions(game: "Game") -> list[Decision]:
     return decisions
 
 
-def _tile_option(game: "Game", tile: Tile) -> dict:
+def _tile_option(game: Game, tile: Tile) -> dict:
     """Describe what placing ``tile`` would do (tile must be playable)."""
     result = Rules.get_placement_result(game.board, tile)
     if result.result_type == PlacementResult.EXPAND:
@@ -189,14 +189,13 @@ def _tile_option(game: "Game", tile: Tile) -> dict:
     return {"tile": str(tile), "outcome": outcome, "chains": chains}
 
 
-def _can_declare(game: "Game", player_id: str) -> bool:
+def _can_declare(game: Game, player_id: str) -> bool:
     return (
-        game.get_current_player().player_id == player_id
-        and game.can_declare_end_game()
+        game.get_current_player().player_id == player_id and game.can_declare_end_game()
     )
 
 
-def legal_actions(game: "Game", decision: Decision) -> dict:
+def legal_actions(game: Game, decision: Decision) -> dict:
     """Describe every legal answer to ``decision`` (JSON-serialisable).
 
     The ``place_tile`` description lists tiles from the deciding player's
@@ -274,7 +273,9 @@ def legal_actions(game: "Game", decision: Decision) -> dict:
         action_types.append("propose_trade")
         return {
             "action_types": action_types,
-            "max_total": 0 if game.stocks_bought_this_turn else game.MAX_STOCKS_PER_TURN,
+            "max_total": 0
+            if game.stocks_bought_this_turn
+            else game.MAX_STOCKS_PER_TURN,
             "options": options,
             "money": money,
         }
@@ -401,7 +402,7 @@ def _build_trade(player_id: str, action: dict) -> TradeOffer:
 # =============================================================================
 
 
-def _not_flow_turn(game: "Game", player_id: str, kinds: tuple[str, ...]) -> str:
+def _not_flow_turn(game: Game, player_id: str, kinds: tuple[str, ...]) -> str:
     flow = _flow_decision(game)
     if flow is None:
         return "No decision pending"
@@ -412,7 +413,7 @@ def _not_flow_turn(game: "Game", player_id: str, kinds: tuple[str, ...]) -> str:
     return ""
 
 
-def _validate(game: "Game", player_id: str, action: Any) -> Optional[str]:
+def _validate(game: Game, player_id: str, action: Any) -> str | None:
     if not isinstance(action, dict):
         return "Action must be an object"
     action_type = action.get("action")
@@ -540,7 +541,7 @@ def _validate(game: "Game", player_id: str, action: Any) -> Optional[str]:
     return None
 
 
-def validate_action(game: "Game", player_id: str, action: Any) -> Optional[str]:
+def validate_action(game: Game, player_id: str, action: Any) -> str | None:
     """Return an error message if ``action`` is illegal now, else None.
 
     Never mutates the game and never raises.
@@ -549,7 +550,7 @@ def validate_action(game: "Game", player_id: str, action: Any) -> Optional[str]:
         return _validate(game, player_id, action)
     except _ActionError as e:
         return str(e)
-    except Exception as e:  # defensive: malformed input must never raise
+    except Exception as e:  # noqa: BLE001 - malformed input must never raise
         return f"Invalid action: {e}"
 
 
@@ -558,7 +559,7 @@ def validate_action(game: "Game", player_id: str, action: Any) -> Optional[str]:
 # =============================================================================
 
 
-def _dispatch(game: "Game", player_id: str, action: dict):
+def _dispatch(game: Game, player_id: str, action: dict):
     action_type = action["action"]
     if action_type == "place_tile":
         return game.play_tile(player_id, _parse_tile(action["tile"]))
@@ -586,7 +587,7 @@ def _dispatch(game: "Game", player_id: str, action: dict):
     return handlers[action_type](player_id, action["trade_id"])
 
 
-def apply_action(game: "Game", player_id: str, action: Any) -> dict:
+def apply_action(game: Game, player_id: str, action: Any) -> dict:
     """THE single mutation entry point for every seat.
 
     Validates ``action`` (see validate_action), dispatches to the matching
@@ -599,7 +600,7 @@ def apply_action(game: "Game", player_id: str, action: Any) -> dict:
         return {"success": False, "error": error}
     try:
         result = _dispatch(game, player_id, action)
-    except Exception as e:  # pragma: no cover - would be an engine bug
+    except Exception as e:  # noqa: BLE001 - would be an engine bug
         return {"success": False, "error": f"Internal error: {e}"}
     return result.to_dict()
 
@@ -610,7 +611,7 @@ def apply_action(game: "Game", player_id: str, action: Any) -> dict:
 
 
 def public_events(
-    game: "Game", viewer_id: Optional[str] = None, since_seq: int = 0
+    game: Game, viewer_id: str | None = None, since_seq: int = 0
 ) -> list[dict]:
     """Events visible to ``viewer_id`` (None = spectator: public only).
 

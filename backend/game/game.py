@@ -129,8 +129,8 @@ class Game:
     def _emit(
         self,
         event_type: str,
-        player_id: Optional[str] = None,
-        private_to: Optional[str] = None,
+        player_id: str | None = None,
+        private_to: str | None = None,
         **payload,
     ) -> dict:
         """Append an event to the event log.
@@ -343,11 +343,9 @@ class Game:
 
     def _has_playable_tile(self, player: Player) -> bool:
         """Check whether a player holds at least one legally playable tile."""
-        return any(
-            Rules.can_place_tile(self.board, t, self.hotel) for t in player.hand
-        )
+        return any(Rules.can_place_tile(self.board, t, self.hotel) for t in player.hand)
 
-    def resolve_unplayable_turn(self) -> Optional[dict]:
+    def resolve_unplayable_turn(self) -> dict | None:
         """Give the current player a way forward if they cannot place a tile.
 
         Called automatically at the start of every turn (``start_game`` and
@@ -1540,9 +1538,7 @@ class Game:
 
         # Remove the trade
         del self.pending_trades[trade_id]
-        self._emit(
-            "trade_cancelled", player_id, trade_id=trade_id, reason="cancelled"
-        )
+        self._emit("trade_cancelled", player_id, trade_id=trade_id, reason="cancelled")
 
         return CancelTradeResult(success=True, trade_id=trade_id, canceled_by=player_id)
 
