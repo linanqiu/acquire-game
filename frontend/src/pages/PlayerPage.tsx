@@ -647,6 +647,7 @@ export function PlayerPage() {
         onPlayAgain={handlePlayAgain}
         onBackToLobby={handleBackToLobby}
         variant="player"
+        gameId={gameState?.game_id}
       />
     )
   }

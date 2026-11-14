@@ -8,6 +8,7 @@
 //
 // Transformation from api.ts types to these types happens in RT-002 (Real-time Integration)
 export * from './api'
+export * from './transcripts'
 
 // Player's stock holdings (uses ChainName from api.ts)
 import type { ChainName } from './api'

@@ -1,0 +1,96 @@
+import type { ReactNode } from 'react'
+import { Link, NavLink } from 'react-router-dom'
+import { PageShell } from '../ui/PageShell'
+import { Spinner } from '../ui/Spinner'
+import { Button } from '../ui/Button'
+import type { TranscriptApiError } from '../../lib/transcripts'
+import styles from './PageFrame.module.css'
+
+/** Shared chrome for the transcript / benchmark pages: header, section nav, content. */
+export function PageFrame({ children }: { children: ReactNode }) {
+  return (
+    <PageShell>
+      <nav className={styles.nav} aria-label="Transcripts and benchmark">
+        <Link to="/" className={styles.navLink}>
+          Home
+        </Link>
+        <NavLink
+          to="/games"
+          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+        >
+          Games &amp; transcripts
+        </NavLink>
+        <NavLink
+          to="/bench"
+          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+        >
+          Acquire Bench
+        </NavLink>
+      </nav>
+      <div className={styles.content}>{children}</div>
+    </PageShell>
+  )
+}
+
+export function LoadingView({ label = 'Loading' }: { label?: string }) {
+  return (
+    <div className={styles.state} role="status" data-testid="loading-state">
+      <Spinner size="md" />
+      <p>{label}…</p>
+    </div>
+  )
+}
+
+interface ErrorViewProps {
+  error: TranscriptApiError
+  /** What the missing thing is, e.g. "game" or "leaderboard". */
+  what: string
+  /** `true` when a 404 most likely means an unknown id rather than a missing route. */
+  byId?: boolean
+  onRetry?: () => void
+}
+
+/** Friendly not-found / unreachable / server-error states. */
+export function ErrorView({ error, what, byId = false, onRetry }: ErrorViewProps) {
+  let title: string
+  let body: string
+  let testId: string
+  if (error.kind === 'not_found') {
+    testId = 'error-not-found'
+    title = byId ? `We couldn't find that ${what}` : `${cap(what)} not available on this server`
+    body = byId
+      ? 'The id may be wrong, or this server may not record transcripts (older versions do not). Check the link and try again.'
+      : 'This server does not offer transcripts or benchmark results yet. It may be running an older version.'
+  } else if (error.kind === 'network') {
+    testId = 'error-network'
+    title = "Can't reach the server"
+    body = 'Check your connection and try again.'
+  } else {
+    testId = 'error-server'
+    title = `Something went wrong loading the ${what}`
+    body = error.message
+  }
+  return (
+    <div className={styles.state} role="alert" data-testid={testId}>
+      <h2 className={styles.stateTitle}>{title}</h2>
+      <p>{body}</p>
+      <div className={styles.stateActions}>
+        {error.kind !== 'not_found' && onRetry && (
+          <Button variant="secondary" onClick={onRetry} data-testid="retry-button">
+            TRY AGAIN
+          </Button>
+        )}
+        <Link to="/games" className={styles.stateLink}>
+          Games &amp; transcripts
+        </Link>
+        <Link to="/" className={styles.stateLink}>
+          Home
+        </Link>
+      </div>
+    </div>
+  )
+}
+
+function cap(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}

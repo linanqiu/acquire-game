@@ -295,6 +295,7 @@ export function HostPage() {
           onPlayAgain={handlePlayAgain}
           onBackToLobby={handleBackToLobby}
           variant="host"
+          gameId={gameState?.game_id}
         />
       </div>
     )
