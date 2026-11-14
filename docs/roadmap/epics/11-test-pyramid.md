@@ -59,7 +59,7 @@ These are written out in `CLAUDE.md`, Testing section.
 
 | Story | Title | Status | Depends on |
 |-------|-------|--------|------------|
-| [TP-001](../stories/11-test-pyramid/TP-001.md) | Snapshot fixture generator with provenance check | in-progress | ES-003 |
+| [TP-001](../stories/11-test-pyramid/TP-001.md) | Snapshot fixture generator with provenance check | complete | ES-003 |
 | [TP-002](../stories/11-test-pyramid/TP-002.md) | Scripted seats | in-progress | ES-005, ES-006 |
 | [TP-003](../stories/11-test-pyramid/TP-003.md) | Tier-2 protocol suite | in-progress | TP-002 |
 | [TP-004](../stories/11-test-pyramid/TP-004.md) | Tier-3 screen tests | in-progress | TP-001, TP-002 |

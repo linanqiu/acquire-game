@@ -36,10 +36,10 @@ This epic implements it; the contract is authoritative if this text disagrees.
 |-------|-------|--------|------------|
 | [ES-001](../stories/10-engine-seam/ES-001.md) | Decisions API and single apply entry point | in-progress | None |
 | [ES-002](../stories/10-engine-seam/ES-002.md) | Event log (supersedes BL-004) | in-progress | ES-001 |
-| [ES-003](../stories/10-engine-seam/ES-003.md) | Snapshot / restore | in-progress | ES-002 |
+| [ES-003](../stories/10-engine-seam/ES-003.md) | Snapshot / restore | complete | ES-002 |
 | [ES-004](../stories/10-engine-seam/ES-004.md) | Calculator pack | in-progress | ES-001 |
-| [ES-005](../stories/10-engine-seam/ES-005.md) | Seat driver loop, per-room lock, remove duplicated bot paths and send-function monkeypatch | in-progress | ES-001, ES-002 |
-| [ES-006](../stories/10-engine-seam/ES-006.md) | Test-mode endpoints | in-progress | ES-003, ES-005 |
+| [ES-005](../stories/10-engine-seam/ES-005.md) | Seat driver loop, per-room lock, remove duplicated bot paths and send-function monkeypatch | complete | ES-001, ES-002 |
+| [ES-006](../stories/10-engine-seam/ES-006.md) | Test-mode endpoints | complete | ES-003, ES-005 |
 
 ## Non-goals
 
