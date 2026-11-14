@@ -173,8 +173,10 @@
 
 .transcriptLink {
   align-self: center;
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
+  font-size: var(--text-base, 1rem);
+  color: var(--text-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .transcriptLink:hover {

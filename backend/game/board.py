@@ -2,7 +2,26 @@
 
 from enum import Enum
 from typing import Optional
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass
+
+from game.ruleset import BoardSpec, Ruleset, classic, resolve
+
+
+class hybridmethod:
+    """Method callable on the class (classic ruleset) or an instance (its own)."""
+
+    def __init__(self, func):
+        self.func = func
+        self.__doc__ = func.__doc__
+
+    def __get__(self, obj, cls):
+        target = obj if obj is not None else cls
+
+        def bound(*args, **kwargs):
+            return self.func(target, *args, **kwargs)
+
+        bound.__doc__ = self.func.__doc__
+        return bound
 
 
 class TileState(Enum):
@@ -17,14 +36,18 @@ class TileState(Enum):
 class Tile:
     """Represents a single tile."""
 
-    column: int  # 1-12
-    row: str  # A-I
+    column: int  # 1..board columns
+    row: str  # one row letter of the board
+    # Board the tile must fit on (default: the classic ruleset's board).
+    bounds: InitVar[Optional[BoardSpec]] = None
 
-    def __post_init__(self):
-        if not (1 <= self.column <= 12):
-            raise ValueError(f"Column must be 1-12, got {self.column}")
-        if self.row not in "ABCDEFGHI":
-            raise ValueError(f"Row must be A-I, got {self.row}")
+    def __post_init__(self, bounds: Optional[BoardSpec] = None):
+        spec = bounds if bounds is not None else classic().board
+        if not (1 <= self.column <= spec.columns):
+            raise ValueError(f"Column must be 1-{spec.columns}, got {self.column}")
+        letters = spec.row_letters
+        if self.row not in letters:
+            raise ValueError(f"Row must be A-{letters[-1]}, got {self.row}")
 
     @property
     def coords(self) -> tuple[int, str]:
@@ -45,12 +68,12 @@ class Tile:
         return f"Tile({self.column}, '{self.row}')"
 
     @classmethod
-    def from_string(cls, s: str) -> "Tile":
-        """Parse tile from string like '1A' or '12I'."""
+    def from_string(cls, s: str, bounds: Optional[BoardSpec] = None) -> "Tile":
+        """Parse tile from string like '1A' (bounds: the board, default classic)."""
         s = s.strip().upper()
         row = s[-1]
         column = int(s[:-1])
-        return cls(column, row)
+        return cls(column, row, bounds)
 
 
 @dataclass
@@ -62,19 +85,44 @@ class BoardCell:
 
 
 class Board:
-    """12x9 game board for Acquire."""
+    """The game board; its size comes from the ruleset.
 
-    COLUMNS = 12
-    ROWS = "ABCDEFGHI"
+    ``Board.COLUMNS`` / ``Board.ROWS`` are aliases of the classic ruleset's
+    board kept for older callers; an instance uses ``columns`` / ``row_letters``.
+    """
 
-    def __init__(self):
+    ruleset: Ruleset = classic()
+    COLUMNS = classic().board.columns
+    ROWS = classic().board.row_letters
+
+    def __init__(self, ruleset: Optional[Ruleset] = None):
+        self.ruleset = resolve(ruleset)
         self._grid: dict[tuple[int, str], BoardCell] = {}
         self._initialize_grid()
 
+    @property
+    def spec(self) -> BoardSpec:
+        return self.ruleset.board
+
+    @property
+    def columns(self) -> int:
+        return self.ruleset.board.columns
+
+    @property
+    def row_letters(self) -> str:
+        return self.ruleset.board.row_letters
+
+    def tile(self, column: int, row: str) -> Tile:
+        """A Tile validated against this board."""
+        return Tile(column, row, self.ruleset.board)
+
+    def tile_from_string(self, s: str) -> Tile:
+        return Tile.from_string(s, self.ruleset.board)
+
     def _initialize_grid(self):
-        """Create empty 12x9 grid."""
-        for col in range(1, self.COLUMNS + 1):
-            for row in self.ROWS:
+        """Create the empty grid."""
+        for col in range(1, self.columns + 1):
+            for row in self.row_letters:
                 self._grid[(col, row)] = BoardCell()
 
     def get_cell(self, column: int, row: str) -> BoardCell:
@@ -98,21 +146,22 @@ class Board:
     def get_adjacent_tiles(self, tile: Tile) -> list[Tile]:
         """Get all adjacent tiles (up, down, left, right)."""
         col, row = tile.coords
-        row_idx = self.ROWS.index(row)
+        rows = self.row_letters
+        row_idx = rows.index(row)
         adjacent = []
 
         # Up
         if row_idx > 0:
-            adjacent.append(Tile(col, self.ROWS[row_idx - 1]))
+            adjacent.append(self.tile(col, rows[row_idx - 1]))
         # Down
-        if row_idx < len(self.ROWS) - 1:
-            adjacent.append(Tile(col, self.ROWS[row_idx + 1]))
+        if row_idx < len(rows) - 1:
+            adjacent.append(self.tile(col, rows[row_idx + 1]))
         # Left
         if col > 1:
-            adjacent.append(Tile(col - 1, row))
+            adjacent.append(self.tile(col - 1, row))
         # Right
-        if col < self.COLUMNS:
-            adjacent.append(Tile(col + 1, row))
+        if col < self.columns:
+            adjacent.append(self.tile(col + 1, row))
 
         return adjacent
 
@@ -136,7 +185,7 @@ class Board:
         tiles = []
         for (col, row), cell in self._grid.items():
             if cell.chain == chain_name:
-                tiles.append(Tile(col, row))
+                tiles.append(self.tile(col, row))
         return tiles
 
     def get_chain_size(self, chain_name: str) -> int:
@@ -192,11 +241,12 @@ class Board:
                 cells[f"{col}{row}"] = {"state": cell.state.value, "chain": cell.chain}
         return {"cells": cells}
 
-    @classmethod
-    def all_tiles(cls) -> list[Tile]:
-        """Generate all 108 tiles."""
-        tiles = []
-        for col in range(1, cls.COLUMNS + 1):
-            for row in cls.ROWS:
-                tiles.append(Tile(col, row))
-        return tiles
+    @hybridmethod
+    def all_tiles(target) -> list[Tile]:
+        """Every tile of the board (``Board.all_tiles()``: the classic board)."""
+        spec = target.ruleset.board
+        return [
+            Tile(col, row, spec)
+            for col in range(1, spec.columns + 1)
+            for row in spec.row_letters
+        ]

@@ -1,30 +1,40 @@
 """Player state and actions for Acquire."""
 
+from typing import Optional
+
 from game.board import Tile
-from game.hotel import Hotel
+from game.ruleset import Ruleset, classic, resolve
 
 
 class Player:
-    """Represents a player in the Acquire game."""
+    """Represents a player in the Acquire game.
 
-    STARTING_MONEY = 6000
-    MAX_HAND_SIZE = 6
-    MAX_STOCKS_PER_CHAIN = 25
+    Limits come from the ruleset; the class constants are classic aliases.
+    """
 
-    def __init__(self, player_id: str, name: str):
+    STARTING_MONEY = classic().starting_cash
+    MAX_HAND_SIZE = classic().hand_size
+    MAX_STOCKS_PER_CHAIN = classic().stocks_per_chain
+
+    def __init__(self, player_id: str, name: str, ruleset: Optional[Ruleset] = None):
         """Initialize a new player.
 
         Args:
             player_id: Unique identifier for the player
             name: Display name for the player
+            ruleset: Game parameters (default: classic)
         """
+        self.ruleset = resolve(ruleset)
         self.player_id = player_id
         self.name = name
-        self._money = self.STARTING_MONEY
+        self._money = self.ruleset.starting_cash
         self._hand: list[Tile] = []
-        self._stocks: dict[str, int] = {
-            chain: 0 for chain in Hotel.get_all_chain_names()
-        }
+        self._stocks: dict[str, int] = {chain: 0 for chain in self.ruleset.chain_ids}
+
+    @property
+    def max_stocks_per_chain(self) -> int:
+        """A player can hold at most every share of a chain."""
+        return self.ruleset.stocks_per_chain
 
     @property
     def money(self) -> int:
@@ -55,7 +65,7 @@ class Player:
         Returns:
             True if tile was added, False if hand is full
         """
-        if len(self._hand) >= self.MAX_HAND_SIZE:
+        if len(self._hand) >= self.ruleset.hand_size:
             return False
         if tile in self._hand:
             return False
@@ -101,7 +111,7 @@ class Player:
             return False
 
         # Check if purchase would exceed max stocks per chain
-        if self._stocks[chain_name] + quantity > self.MAX_STOCKS_PER_CHAIN:
+        if self._stocks[chain_name] + quantity > self.max_stocks_per_chain:
             return False
 
         self._money -= total_cost
@@ -133,12 +143,12 @@ class Player:
     def trade_stock(
         self, defunct_chain: str, surviving_chain: str, defunct_quantity: int
     ) -> bool:
-        """Trade defunct chain stock for surviving chain stock at 2:1 ratio.
+        """Trade defunct stock for surviving stock at the ruleset's ratio (2:1).
 
         Args:
             defunct_chain: Name of the defunct chain (being traded away)
             surviving_chain: Name of the surviving chain (being received)
-            defunct_quantity: Number of defunct shares to trade (must be even)
+            defunct_quantity: Defunct shares to trade (a multiple of the ratio)
 
         Returns:
             True if trade successful, False otherwise
@@ -147,20 +157,20 @@ class Player:
         if defunct_chain not in self._stocks or surviving_chain not in self._stocks:
             return False
 
-        # Defunct quantity must be even for 2:1 trade
-        if defunct_quantity % 2 != 0:
+        ratio = self.ruleset.merger_trade_ratio
+        if defunct_quantity % ratio != 0:
             return False
 
         # Check if player has enough defunct stock
         if self._stocks[defunct_chain] < defunct_quantity:
             return False
 
-        surviving_quantity = defunct_quantity // 2
+        surviving_quantity = defunct_quantity // ratio
 
         # Check if receiving stock would exceed max
         if (
             self._stocks[surviving_chain] + surviving_quantity
-            > self.MAX_STOCKS_PER_CHAIN
+            > self.max_stocks_per_chain
         ):
             return False
 
@@ -169,7 +179,7 @@ class Player:
         return True
 
     def add_stocks(self, chain_name: str, quantity: int) -> bool:
-        """Add stocks with validation (respects 25 max limit).
+        """Add stocks with validation (respects the per-chain share limit).
 
         Args:
             chain_name: Name of the hotel chain
@@ -185,7 +195,7 @@ class Player:
             return False
         if quantity == 0:
             return True
-        if self._stocks[chain_name] + quantity > self.MAX_STOCKS_PER_CHAIN:
+        if self._stocks[chain_name] + quantity > self.max_stocks_per_chain:
             return False
         self._stocks[chain_name] += quantity
         return True
@@ -217,7 +227,7 @@ class Player:
 
         Args:
             chain_name: Name of the hotel chain
-            quantity: Number of shares to set (must be non-negative and <= 25)
+            quantity: Number of shares to set (0..the per-chain share limit)
 
         Returns:
             True if successful, False if invalid chain or quantity out of range
@@ -226,7 +236,7 @@ class Player:
             return False
         if quantity < 0:
             return False
-        if quantity > self.MAX_STOCKS_PER_CHAIN:
+        if quantity > self.max_stocks_per_chain:
             return False
         self._stocks[chain_name] = quantity
         return True
@@ -369,7 +379,7 @@ class Player:
             if chain_name not in self._stocks:
                 return False
             # Check if receiving would exceed max stocks per chain
-            if self._stocks[chain_name] + quantity > self.MAX_STOCKS_PER_CHAIN:
+            if self._stocks[chain_name] + quantity > self.max_stocks_per_chain:
                 return False
 
         # Add money
@@ -397,18 +407,21 @@ class Player:
         }
 
     @classmethod
-    def from_state(cls, state: dict) -> "Player":
+    def from_state(cls, state: dict, ruleset: Optional[Ruleset] = None) -> "Player":
         """Create a player from serialized state.
 
         Args:
             state: Dict containing player state
+            ruleset: Game parameters (default: classic)
 
         Returns:
             Player instance
         """
-        player = cls(state["player_id"], state["name"])
+        player = cls(state["player_id"], state["name"], ruleset)
         player._money = state["money"]
-        player._hand = [Tile.from_string(s) for s in state["hand"]]
+        player._hand = [
+            Tile.from_string(s, player.ruleset.board) for s in state["hand"]
+        ]
         player._stocks = dict(state["stocks"])
         return player
 

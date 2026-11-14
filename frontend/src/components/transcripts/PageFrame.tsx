@@ -4,6 +4,7 @@ import { PageShell } from '../ui/PageShell'
 import { Spinner } from '../ui/Spinner'
 import { Button } from '../ui/Button'
 import type { TranscriptApiError } from '../../lib/transcripts'
+import { useServerWaking } from '../../lib/http'
 import styles from './PageFrame.module.css'
 
 /** Shared chrome for the transcript / benchmark pages: header, section nav, content. */
@@ -27,8 +28,26 @@ export function PageFrame({ children }: { children: ReactNode }) {
           Acquire Bench
         </NavLink>
       </nav>
-      <div className={styles.content}>{children}</div>
+      <div className={styles.content}>
+        <WakingBanner />
+        {children}
+      </div>
     </PageShell>
+  )
+}
+
+/**
+ * Shown while idempotent GETs are being retried because the (sleeping) host has not answered
+ * yet. Friendly, not an error: the request is still going to succeed in most cases.
+ */
+export function WakingBanner() {
+  const waking = useServerWaking()
+  if (!waking) return null
+  return (
+    <div className={styles.waking} role="status" data-testid="waking-server">
+      <Spinner size="sm" />
+      <span>Waking the server… it sleeps when nobody is around and can take up to a minute.</span>
+    </div>
   )
 }
 

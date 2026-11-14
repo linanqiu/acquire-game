@@ -44,9 +44,8 @@ type Normalized =
   | { kind: 'event'; entry: EngineEvent }
 
 /**
- * Entries are `decision`, `state` or an engine event. The contract says events are
- * stored verbatim (their own `type` is the discriminator); the wrapped form
- * `{type:"event", event:{...}}` is accepted too. Unknown shapes are dropped.
+ * Entries are `{type:"event", event:{...}}`, `decision` and `state` lines in file order
+ * (`decision -> the events it produced -> state`). Anything else is dropped.
  */
 export function normalizeEntries(entries: TranscriptEntry[]): Normalized[] {
   const out: Normalized[] = []
@@ -57,9 +56,6 @@ export function normalizeEntries(entries: TranscriptEntry[]): Normalized[] {
     else if (e.type === 'state') out.push({ kind: 'state', entry: raw as StateEntry })
     else if (e.type === 'event' && e.event && typeof e.event === 'object')
       out.push({ kind: 'event', entry: e.event as EngineEvent })
-    else if (e.type === 'header' || e.type === 'footer') continue
-    else if (typeof e.type === 'string' && typeof e.seq === 'number')
-      out.push({ kind: 'event', entry: raw as EngineEvent })
   }
   return out
 }

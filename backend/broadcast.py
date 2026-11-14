@@ -7,7 +7,9 @@ human action and an agent action produce identical messages.
 Messages (shapes unchanged from the pre-seat server unless noted):
 
 * ``game_state`` - public state; per player ``kind``, ``is_bot``,
-  ``agent_label`` (new); top-level ``awaiting`` and ``pending_trades`` (new);
+  ``agent_label`` (new); top-level ``awaiting``, ``pending_trades`` and
+  ``ruleset`` (the game's ruleset dict + ``fingerprint``) (new); each
+  ``hotel.chains`` entry also carries ``color`` (new);
   to each player also ``your_hand``, ``end_game_available``, and (new)
   ``tile_playability``, ``incoming_trades``, ``outgoing_trades``.
 * ``lobby_update`` - players carry ``kind`` and ``agent_label`` (new).
@@ -72,12 +74,12 @@ def is_human(room: GameRoom, player_id: str) -> bool:
 
 
 def min_to_start(room: GameRoom) -> int:
-    """Seats needed to start: the room's minimum, but never below the engine's
-    (``Game.MIN_PLAYERS`` = 3; starting with fewer used to 500 and leave the
-    room marked started without a game)."""
-    from game.game import Game
+    """Seats needed to start: the room's minimum, but never below the
+    ruleset's ``min_players`` (3 in classic; starting with fewer used to 500
+    and leave the room marked started without a game)."""
+    from game.ruleset import resolve
 
-    return max(room.min_players, Game.MIN_PLAYERS)
+    return max(room.min_players, resolve(room.ruleset).min_players)
 
 
 def lobby_players(room: GameRoom) -> list[dict]:
@@ -124,6 +126,7 @@ def build_public_state(room: GameRoom, game: Game) -> dict:
             "size": data["size"],
             "price": data["stock_price"],
             "stocks_available": data["available_stocks"],
+            "color": data["color"],
         }
         for name, data in game_state["chains"].items()
     ]
@@ -160,6 +163,7 @@ def build_public_state(room: GameRoom, game: Game) -> dict:
         "pending_trades": game_state["pending_trades"],
         "awaiting": compute_awaiting(room, game),
         "game_id": getattr(room, "game_id", None),
+        "ruleset": game_state["ruleset"],
     }
 
 

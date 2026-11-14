@@ -14,7 +14,7 @@ Top-level shape::
       "current_player_id": str|None,
       "viewer_id": str,
       "viewer_is_current": bool,
-      "chains":  {chain_name: ChainInfo},   # all 7 chains, stable keys
+      "chains":  {chain_name: ChainInfo},   # every chain of the ruleset, stable keys
       "players": [PlayerInfo, ...],         # in seating order
       "viewer":  ViewerInfo,
       "bank":    BankInfo,
@@ -28,20 +28,20 @@ ChainInfo (every chain; inactive chains only fill the first few keys)::
     majority_bonus, minority_bonus   (at current size),
     holders: [{player_id, name, shares}]   sorted by shares desc, then seat order
     payouts: {player_id: {majority, minority, total}}   what Rules.calculate_bonuses
-             pays at current size (ties split + rounded up to $100 by the engine)
+             pays at current size (ties split + rounded up by the engine)
     majority_receivers / minority_receivers: [player_id]
     viewer: {shares, sell_value, standing, shares_to_tie_majority,
              shares_to_take_majority, shares_to_reach_minority,
              shares_to_take_minority}
         standing is one of: none, minority_tied, minority_sole, majority_tied,
         majority_sole.  The shares_to_* values are the smallest number of extra
-        shares the viewer must buy (bounded by bank stock and the 25-share cap)
+        shares the viewer must buy (bounded by bank stock and the per-chain cap)
         to reach that status holding everyone else constant, 0 if already there,
         None if not reachable.
 
 PlayerInfo::
 
-    player_id, name, is_bot, cash, tile_count, shares {chain: n} (all 7 chains),
+    player_id, name, is_bot, cash, tile_count, shares {chain: n} (every chain),
     stock_value (current prices), net_worth (cash + stock_value),
     projected_bonuses {chain: total} (active chains, nonzero only),
     projected_bonus_income, projected_stock_sale,
@@ -72,10 +72,10 @@ BankInfo::
 
 BuyOption::
 
-    price, available, max_affordable (limited by cash, bank stock, 3 per turn),
+    price, available, max_affordable (limited by cash, bank stock, per-turn limit),
     can_buy_now (viewer's buy phase), standing_now, payout_now,
-    purchases: {"1"|"2"|"3": {cost, cash_after, standing_after, payout_after,
-                              payout_change}}   (only counts the viewer can afford)
+    purchases: {"1".."n": {cost, cash_after, standing_after, payout_after,
+                           payout_change}}   (only counts the viewer can afford)
     payout_* is what the viewer would receive for that chain's bonuses if it were
     liquidated/acquired at its current size.
 """
@@ -88,9 +88,7 @@ from types import SimpleNamespace
 from game.board import Board, Tile, TileState
 from game.hotel import Hotel
 from game.rules import PlacementResult, Rules
-
-MAX_BUY_PER_TURN = 3
-MAX_STOCKS = 25  # Player.MAX_STOCKS_PER_CHAIN / Hotel.TOTAL_STOCKS_PER_CHAIN
+from game.ruleset import MIN_CHAIN_SIZE
 
 
 # ---------------------------------------------------------------------------
@@ -145,11 +143,11 @@ def _standing(holdings: dict[str, int], me: str) -> str:
 
 
 def _shares_needed(
-    holdings: dict[str, int], me: str, wanted: set[str], cap: int
+    holdings: dict[str, int], me: str, wanted: set[str], cap: int, max_held: int
 ) -> int | None:
     base = holdings.get(me, 0)
     for k in range(cap + 1):
-        if base + k > MAX_STOCKS:
+        if base + k > max_held:
             break
         h = dict(holdings)
         h[me] = base + k
@@ -162,28 +160,22 @@ def _holdings(game, chain: str) -> dict[str, int]:
     return {p.player_id: p.get_stock_count(chain) for p in game.players}
 
 
-def _next_price(chain: str, size: int):
-    table = Hotel.CHAINS[chain].PRICE_TABLE[Hotel.CHAINS[chain].tier]
-    for threshold in sorted(table):
-        if threshold > size:
-            return threshold, table[threshold]
-    return None, None
-
-
 def _end_game_reason(game) -> tuple[bool, str]:
     can = Rules.check_end_game(game.board, game.hotel)
+    rs = game.ruleset
+    end_size = rs.end_game_chain_size
     active = game.hotel.get_active_chains()
     if not active:
         return can, "no chains on the board"
-    big = [c for c in active if game.board.get_chain_size(c) >= Rules.END_GAME_SIZE]
+    big = [c for c in active if game.board.get_chain_size(c) >= end_size]
     if big:
-        return can, f"chain with {Rules.END_GAME_SIZE}+ tiles: {', '.join(big)}"
-    unsafe = [c for c in active if game.board.get_chain_size(c) < Rules.SAFE_SIZE]
+        return can, f"chain with {end_size}+ tiles: {', '.join(big)}"
+    unsafe = [c for c in active if game.board.get_chain_size(c) < rs.safe_chain_size]
     if not unsafe:
         return can, "all active chains are safe"
     return can, (
         "not met: no chain has "
-        f"{Rules.END_GAME_SIZE}+ tiles and these active chains are not safe: "
+        f"{end_size}+ tiles and these active chains are not safe: "
         f"{', '.join(unsafe)}"
     )
 
@@ -209,10 +201,12 @@ def _simulate(board: Board, tile: Tile, chain: str, defunct: list[str] | None = 
 
 
 def _chains_section(game, viewer_id: str) -> dict:
+    rs = game.ruleset
+    max_held = rs.stocks_per_chain
     names = {p.player_id: p.name for p in game.players}
     seat = {p.player_id: i for i, p in enumerate(game.players)}
     out = {}
-    for chain in Hotel.get_all_chain_names():
+    for chain in game.hotel.get_all_chain_names():
         active = game.hotel.is_chain_active(chain)
         size = game.board.get_chain_size(chain)
         info = {
@@ -221,10 +215,10 @@ def _chains_section(game, viewer_id: str) -> dict:
             "safe": bool(active and game.hotel.is_chain_safe(chain, size)),
             "price": _price(game, chain),
             "available_stock": game.hotel.get_available_stocks(chain),
-            "price_if_founded": game.hotel.get_stock_price(chain, 2),
+            "price_if_founded": game.hotel.get_stock_price(chain, MIN_CHAIN_SIZE),
         }
         if active:
-            nsize, nprice = _next_price(chain, size)
+            nsize, nprice = rs.next_price(chain, size)
             holdings = _holdings(game, chain)
             holders = sorted(
                 (
@@ -236,9 +230,9 @@ def _chains_section(game, viewer_id: str) -> dict:
             )
             payouts = _payouts(game.players, chain, size, game.hotel)
             mine = holdings.get(viewer_id, 0)
-            cap = min(game.hotel.get_available_stocks(chain), MAX_STOCKS - mine)
+            cap = min(game.hotel.get_available_stocks(chain), max_held - mine)
             info.update(
-                tiles_to_safe=max(0, Rules.SAFE_SIZE - size),
+                tiles_to_safe=max(0, rs.safe_chain_size - size),
                 next_price_size=nsize,
                 next_price=nprice,
                 majority_bonus=game.hotel.get_majority_bonus(chain, size),
@@ -256,10 +250,14 @@ def _chains_section(game, viewer_id: str) -> dict:
                     "sell_value": mine * info["price"],
                     "standing": _standing(holdings, viewer_id),
                     "shares_to_tie_majority": _shares_needed(
-                        holdings, viewer_id, {"majority_tied", "majority_sole"}, cap
+                        holdings,
+                        viewer_id,
+                        {"majority_tied", "majority_sole"},
+                        cap,
+                        max_held,
                     ),
                     "shares_to_take_majority": _shares_needed(
-                        holdings, viewer_id, {"majority_sole"}, cap
+                        holdings, viewer_id, {"majority_sole"}, cap, max_held
                     ),
                     "shares_to_reach_minority": _shares_needed(
                         holdings,
@@ -271,9 +269,10 @@ def _chains_section(game, viewer_id: str) -> dict:
                             "majority_sole",
                         },
                         cap,
+                        max_held,
                     ),
                     "shares_to_take_minority": _shares_needed(
-                        holdings, viewer_id, {"minority_sole"}, cap
+                        holdings, viewer_id, {"minority_sole"}, cap, max_held
                     ),
                 },
             )
@@ -282,7 +281,8 @@ def _chains_section(game, viewer_id: str) -> dict:
 
 
 def _players_section(game) -> list[dict]:
-    prices = {c: _price(game, c) for c in Hotel.get_all_chain_names()}
+    all_chains = game.hotel.get_all_chain_names()
+    prices = {c: _price(game, c) for c in all_chains}
     # Bonuses per active chain, exactly as Game.end_game pays them.
     bonus_by_chain = {}
     for chain in game.hotel.get_active_chains():
@@ -303,7 +303,7 @@ def _players_section(game) -> list[dict]:
         bonus_income = sum(proj_bonuses.values())
         stock_sale = sum(
             p.get_stock_count(c) * prices[c]
-            for c in Hotel.get_all_chain_names()
+            for c in all_chains
             if game.hotel.is_chain_active(c)
         )
         rows.append(
@@ -313,9 +313,7 @@ def _players_section(game) -> list[dict]:
                 "is_bot": p.player_id in game.bots,
                 "cash": p.money,
                 "tile_count": p.hand_size,
-                "shares": {
-                    c: p.get_stock_count(c) for c in Hotel.get_all_chain_names()
-                },
+                "shares": {c: p.get_stock_count(c) for c in all_chains},
                 "stock_value": p.get_stock_value(prices),
                 "net_worth": p.get_net_worth(prices),
                 "projected_bonuses": proj_bonuses,
@@ -342,6 +340,7 @@ def _merge_scenario(game, tile: Tile, chains: list[str], survivor: str, viewer_i
     size_after = after.get_chain_size(survivor)
     price_after = game.hotel.get_stock_price(survivor, size_after)
     bank_survivor = game.hotel.get_available_stocks(survivor)
+    ratio = game.ruleset.merger_trade_ratio
 
     rows = []
     total_bonus = 0
@@ -352,9 +351,10 @@ def _merge_scenario(game, tile: Tile, chains: list[str], survivor: str, viewer_i
         vb = payouts.get(viewer_id, {}).get("total", 0)
         total_bonus += vb
         shares = me.get_stock_count(d)
-        # Mirrors handle_stock_disposition: trade is even, 2:1, limited by bank.
-        tradable = min(shares - shares % 2, bank_survivor * 2)
-        received = tradable // 2
+        # Mirrors handle_stock_disposition: a multiple of the ratio (2:1 in
+        # classic), limited by bank.
+        tradable = min(shares - shares % ratio, bank_survivor * ratio)
+        received = tradable // ratio
         leftover = shares - tradable
         trade_value = received * price_after
         total_trade = trade_value + leftover * price
@@ -481,7 +481,12 @@ def _buy_options(game, viewer) -> dict:
             .get(viewer.player_id, {})
             .get("total", 0)
         )
-        max_aff = min(viewer.money // price, avail, MAX_BUY_PER_TURN, MAX_STOCKS - mine)
+        max_aff = min(
+            viewer.money // price,
+            avail,
+            game.ruleset.max_stock_purchases_per_turn,
+            game.ruleset.stocks_per_chain - mine,
+        )
         purchases = {}
         for n in range(1, max_aff + 1):
             h = dict(holdings)

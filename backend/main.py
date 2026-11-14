@@ -22,6 +22,7 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from api.games import router as games_router
+from api.config import router as config_router
 from api.rooms import router as rooms_router
 from api.ws import router as ws_router
 from app_state import session_manager
@@ -31,7 +32,7 @@ from broadcast import (
     send_host_state,
     send_player_state,
 )
-from config import get_settings
+from config import get_ruleset, get_settings
 from health import router as health_router
 from lifecycle import end_game, handle_player_action, initialize_game
 from logging_config import setup_logging
@@ -73,6 +74,7 @@ def create_app(frontend_dist: str | Path | None = None) -> FastAPI:
     (single-service deploys). If a built frontend exists (``FRONTEND_DIST``) it
     is served too, with an SPA fallback.
     """
+    get_ruleset()  # fail fast on a bad GAME_RULESET
     application = FastAPI(title="Acquire Board Game", debug=not settings.is_production)
     application.add_middleware(
         CORSMiddleware,
@@ -87,6 +89,8 @@ def create_app(frontend_dist: str | Path | None = None) -> FastAPI:
     application.include_router(rooms_router, prefix="/api")
     application.include_router(games_router)
     application.include_router(games_router, prefix="/api")
+    for prefix in ("", "/api"):
+        application.include_router(config_router, prefix=prefix)
     application.include_router(ws_router)
     if test_mode_enabled():
         from api.testmode import router as test_router

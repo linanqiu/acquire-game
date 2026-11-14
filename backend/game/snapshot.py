@@ -7,6 +7,11 @@ behaves identically to the original under any subsequent action sequence.
 
 The snapshot is plain JSON data: ``json.loads(json.dumps(snap)) == snap``.
 
+Ruleset: a game on any ruleset other than the built-in classic one stores the
+full ruleset dict under ``"ruleset"`` and is restored with it. Classic games
+omit the key (so snapshots written before rulesets existed stay valid and
+byte-identical); a snapshot without it is a classic game.
+
 Drift protection: ``HANDLED_GAME_ATTRS`` lists every instance attribute of
 ``Game`` this module knows about. ``tests/test_snapshot.py`` fails if
 ``vars(Game())`` contains anything else, so new engine state cannot silently
@@ -20,14 +25,15 @@ from game.action import TradeOffer
 from game.board import BoardCell, Tile, TileState
 from game.bot import Bot
 from game.game import Game, GamePhase, MergerState
-from game.hotel import Hotel
 from game.player import Player
+from game.ruleset import Ruleset, RulesetError, classic
 
 SNAPSHOT_VERSION = 1
 
 # Game instance attributes that are serialised (directly or via a sub-object).
 HANDLED_GAME_ATTRS = frozenset(
     {
+        "ruleset",
         "seed",
         "_tile_order",
         "rng",
@@ -47,10 +53,16 @@ HANDLED_GAME_ATTRS = frozenset(
 )
 
 # Attributes of the sub-objects, for drift tests.
-HANDLED_PLAYER_ATTRS = frozenset({"player_id", "name", "_money", "_hand", "_stocks"})
+# ``ruleset`` (and the chain objects derived from it) is restored from the
+# snapshot's ruleset, not stored per sub-object.
+HANDLED_PLAYER_ATTRS = frozenset(
+    {"ruleset", "player_id", "name", "_money", "_hand", "_stocks"}
+)
 HANDLED_BOT_ATTRS = frozenset({"player", "difficulty", "rng"})
-HANDLED_HOTEL_ATTRS = frozenset({"_available_stocks", "_active_chains"})
-HANDLED_BOARD_ATTRS = frozenset({"_grid"})
+HANDLED_HOTEL_ATTRS = frozenset(
+    {"ruleset", "_chains", "_available_stocks", "_active_chains"}
+)
+HANDLED_BOARD_ATTRS = frozenset({"ruleset", "_grid"})
 HANDLED_MERGER_FIELDS = frozenset(
     {
         "chains",
@@ -71,10 +83,10 @@ _TILE_KEY = "__tile__"
 # ---------------------------------------------------------------------------
 
 
-def _tile_from_str(s: Any) -> Tile:
+def _tile_from_str(s: Any, rs: Ruleset | None = None) -> Tile:
     _require(isinstance(s, str), f"Bad tile {s!r}")
     try:
-        tile = Tile.from_string(s)
+        tile = Tile.from_string(s, rs.board if rs is not None else None)
     except (ValueError, IndexError) as e:
         raise ValueError(f"Bad tile {s!r}") from e
     if str(tile) != s:
@@ -100,13 +112,13 @@ def _encode(value: Any) -> Any:
     raise TypeError(f"Cannot snapshot value of type {type(value).__name__}")
 
 
-def _decode(value: Any) -> Any:
+def _decode(value: Any, rs: Ruleset) -> Any:
     if isinstance(value, dict):
         if set(value) == {_TILE_KEY}:
-            return _tile_from_str(value[_TILE_KEY])
-        return {k: _decode(v) for k, v in value.items()}
+            return _tile_from_str(value[_TILE_KEY], rs)
+        return {k: _decode(v, rs) for k, v in value.items()}
     if isinstance(value, list):
-        return [_decode(v) for v in value]
+        return [_decode(v, rs) for v in value]
     return value
 
 
@@ -128,8 +140,8 @@ def _require(cond: bool, msg: str) -> None:
         raise ValueError(msg)
 
 
-def _check_chain(name: Any) -> str:
-    _require(isinstance(name, str) and name in Hotel.CHAINS, f"Unknown chain {name!r}")
+def _check_chain(name: Any, rs: Ruleset) -> str:
+    _require(rs.has_chain(name), f"Unknown chain {name!r}")
     return name
 
 
@@ -171,6 +183,7 @@ def to_snapshot(game: Game) -> dict:
 
     snap: dict = {
         "version": SNAPSHOT_VERSION,
+        **_ruleset_entry(game.ruleset),
         "seed": game.seed,
         "tile_order": list(game._tile_order) if game._tile_order is not None else None,
         "rng_state": _rng_to_json(game.rng),
@@ -203,6 +216,13 @@ def to_snapshot(game: Game) -> dict:
     snap["events"] = _copy_json(game.events)
     snap["stocks_bought_this_turn"] = bool(game.stocks_bought_this_turn)
     return snap
+
+
+def _ruleset_entry(rs: Ruleset) -> dict:
+    """``{"ruleset": {...}}`` unless ``rs`` is the built-in classic ruleset."""
+    if rs.fingerprint == classic().fingerprint:
+        return {}
+    return {"ruleset": rs.to_dict()}
 
 
 def _copy_json(value: Any) -> Any:
@@ -241,16 +261,23 @@ def from_snapshot(data: dict) -> Game:
 
 
 def _build(data: dict) -> Game:
+    if data.get("ruleset") is None:
+        rs = classic()
+    else:
+        try:
+            rs = Ruleset.from_dict(data["ruleset"])
+        except RulesetError as e:
+            raise ValueError(f"Bad ruleset: {e}") from e
     seed = data["seed"]
     _require(seed is None or isinstance(seed, int), "Bad seed")
     tile_order = data["tile_order"]
     if tile_order is not None:
         _require(isinstance(tile_order, list), "Bad tile_order")
         for s in tile_order:
-            _tile_from_str(s)
+            _tile_from_str(s, rs)
         tile_order = list(tile_order)
 
-    game = Game(seed=seed, tile_order=tile_order)
+    game = Game(seed=seed, tile_order=tile_order, ruleset=rs)
     _rng_from_json(data["rng_state"], game.rng)
 
     try:
@@ -262,7 +289,7 @@ def _build(data: dict) -> Game:
     cells = data["board"]["cells"]
     _require(isinstance(cells, dict), "Bad board cells")
     for key, cell in cells.items():
-        tile = _tile_from_str(key)
+        tile = _tile_from_str(key, rs)
         try:
             state = TileState(cell["state"])
         except ValueError as e:
@@ -270,13 +297,13 @@ def _build(data: dict) -> Game:
         _require(state != TileState.EMPTY, "Empty cell must not be serialised")
         chain = cell["chain"]
         if chain is not None:
-            _check_chain(chain)
+            _check_chain(chain, rs)
         game.board._grid[tile.coords] = BoardCell(state=state, chain=chain)
 
     # Hotel
     available = data["hotel"]["available_stocks"]
     _require(
-        isinstance(available, dict) and set(available) == set(Hotel.CHAINS),
+        isinstance(available, dict) and set(available) == set(rs.chain_ids),
         "Bad hotel available_stocks",
     )
     for name, n in available.items():
@@ -284,7 +311,7 @@ def _build(data: dict) -> Game:
     active = data["hotel"]["active_chains"]
     _require(isinstance(active, list), "Bad active_chains")
     for name in active:
-        _check_chain(name)
+        _check_chain(name, rs)
     game.hotel._available_stocks = dict(available)
     game.hotel._active_chains = set(active)
 
@@ -297,16 +324,16 @@ def _build(data: dict) -> Game:
         _require(isinstance(pid, str) and pid not in seen_ids, f"Bad player id {pid!r}")
         seen_ids.add(pid)
         _require(isinstance(p["name"], str), "Bad player name")
-        player = Player(pid, p["name"])
+        player = Player(pid, p["name"], rs)
         player._money = _check_int(p["money"], "money")
         stocks = p["stocks"]
         _require(
-            isinstance(stocks, dict) and set(stocks) == set(Hotel.CHAINS),
+            isinstance(stocks, dict) and set(stocks) == set(rs.chain_ids),
             "Bad player stocks",
         )
         player._stocks = {c: _check_int(n, "stock count") for c, n in stocks.items()}
         _require(isinstance(p["hand"], list), "Bad hand")
-        player._hand = [_tile_from_str(s) for s in p["hand"]]
+        player._hand = [_tile_from_str(s, rs) for s in p["hand"]]
         game.players.append(player)
 
     idx = _check_int(data["current_player_index"], "current_player_index")
@@ -329,26 +356,26 @@ def _build(data: dict) -> Game:
 
     # Tile bag
     _require(isinstance(data["tile_bag"], list), "Bad tile_bag")
-    game.tile_bag = [_tile_from_str(s) for s in data["tile_bag"]]
+    game.tile_bag = [_tile_from_str(s, rs) for s in data["tile_bag"]]
 
     # Pending action
-    pending = _decode(data["pending_action"])
+    pending = _decode(data["pending_action"], rs)
     _require(pending is None or isinstance(pending, dict), "Bad pending_action")
     game.pending_action = pending
 
     # Merger
     m = data["merger"]
     merger = game._merger
-    merger.chains = [_check_chain(c) for c in m["chains"]]
-    merger.survivor = None if m["survivor"] is None else _check_chain(m["survivor"])
-    merger.defunct_queue = [_check_chain(c) for c in m["defunct_queue"]]
+    merger.chains = [_check_chain(c, rs) for c in m["chains"]]
+    merger.survivor = None if m["survivor"] is None else _check_chain(m["survivor"], rs)
+    merger.defunct_queue = [_check_chain(c, rs) for c in m["defunct_queue"]]
     merger.current_defunct = (
-        None if m["current_defunct"] is None else _check_chain(m["current_defunct"])
+        None if m["current_defunct"] is None else _check_chain(m["current_defunct"], rs)
     )
     _require(isinstance(m["stock_players"], list), "Bad merger stock_players")
     merger.stock_players = list(m["stock_players"])
     merger.stock_index = _check_int(m["stock_index"], "stock_index")
-    merger.tile = None if m["tile"] is None else _tile_from_str(m["tile"])
+    merger.tile = None if m["tile"] is None else _tile_from_str(m["tile"], rs)
 
     # Trades
     _require(isinstance(data["pending_trades"], list), "Bad pending_trades")

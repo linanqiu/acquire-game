@@ -25,8 +25,16 @@ export function BenchSeriesPage() {
             <header className={styles.head}>
               <h1 className={styles.title}>{data.matchup}</h1>
               <p className={styles.meta}>
-                Series <code>{data.series_id}</code> · protocol <code>{data.protocol}</code> ·{' '}
-                {data.games.length} games
+                Series <code>{data.series_id}</code> · protocol <code>{data.protocol}</code>
+                {data.track && <> · track {data.track}</>}
+                {data.prompt_version && (
+                  <>
+                    {' '}
+                    · prompt <code>{data.prompt_version}</code>
+                  </>
+                )}{' '}
+                · <span data-testid="series-played">{data.games.length}</span>
+                {data.planned ? ` of ${data.planned}` : ''} games played
               </p>
             </header>
             {data.games.length === 0 ? (
@@ -35,23 +43,31 @@ export function BenchSeriesPage() {
               </p>
             ) : (
               <ul className={styles.list} data-testid="series-games">
-                {data.games.map((g) => (
+                {data.games.map((g, gi) => (
                   <li
-                    key={g.game_id}
+                    key={g.game_id ?? `${g.seed}-${g.rotation}-${gi}`}
                     className={styles.row}
                     data-testid={`series-game-${g.game_id}`}
                   >
                     <div className={styles.rowHead}>
                       <span className={styles.seed}>
-                        Seed {g.seed} · rotation {g.rotation}
+                        Seed {g.seed} · seating {g.rotation}
+                        {g.status && g.status !== 'completed' && ` · ${g.status}`}
+                        {g.seat_order && (
+                          <span className={styles.meta}> · seats: {g.seat_order.join(', ')}</span>
+                        )}
                       </span>
-                      <Link
-                        to={`/games/${encodeURIComponent(g.game_id)}`}
-                        className={styles.view}
-                        data-testid={`series-view-${g.game_id}`}
-                      >
-                        View transcript →
-                      </Link>
+                      {g.game_id ? (
+                        <Link
+                          to={`/games/${encodeURIComponent(g.game_id)}`}
+                          className={styles.view}
+                          data-testid={`series-view-${g.game_id}`}
+                        >
+                          View transcript →
+                        </Link>
+                      ) : (
+                        <span className={styles.meta}>no transcript</span>
+                      )}
                     </div>
                     <ol className={styles.standings}>
                       {[...g.standings]
@@ -62,7 +78,12 @@ export function BenchSeriesPage() {
                             className={`${styles.standing} ${s.rank === 1 ? styles.first : ''}`}
                           >
                             <span className={styles.rank}>{s.rank}.</span>
-                            <span className={styles.sname}>{s.name}</span>
+                            <span className={styles.sname}>
+                              {s.name}
+                              {s.agent_id && s.agent_id !== s.name && (
+                                <span className={styles.meta}> ({s.agent_id})</span>
+                              )}
+                            </span>
                             <span className={styles.score}>${formatNumber(s.score)}</span>
                           </li>
                         ))}

@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     max_agent_actions_per_turn: int = 40
     max_trade_proposals_per_turn: int = 2
 
+    # Game variant / theme (env GAME_RULESET): a name in backend/rulesets/
+    # ("classic", "valley", "mini") or a path to a ruleset JSON file. New
+    # games use it; see game/ruleset.py and docs/architecture/seat-contract.md.
+    game_ruleset: str = "classic"
+
     @property
     def cors_origins(self) -> list[str]:
         """Parse comma-separated origins into a list."""
@@ -62,3 +67,14 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Get cached application settings."""
     return Settings()
+
+
+def get_ruleset():
+    """The server's configured ruleset (``Settings.game_ruleset``).
+
+    Read per call (files are cached by name), so a test may change the
+    setting at runtime. Raises ``RulesetError`` for a bad name or file.
+    """
+    from game.ruleset import load_ruleset
+
+    return load_ruleset(get_settings().game_ruleset)

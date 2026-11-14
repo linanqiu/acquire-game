@@ -209,6 +209,117 @@ def from_snapshot(data) -> Game    # raises ValueError on bad version/shape
 Guarantee: for any reachable game state `g`, `from_snapshot(to_snapshot(g))`
 behaves identically to `g` under any subsequent action sequence.
 
+## Ruleset (`backend/game/ruleset.py`, `backend/rulesets/*.json`)
+
+Every game parameter -- product name, theme words, board size, chains, tiers
+and prices, bonuses, stock counts, limits -- lives in a ruleset file, so a
+variant or a re-theme is a new JSON file, not a code change. The engine is
+parameterised end to end and never reads configuration: `Game(ruleset=...)`
+receives a validated, immutable `Ruleset` (default: the built-in `classic`)
+and hands the same object to its `Board`, `Hotel` and `Player`s; `Rules`,
+`decisions`, the calculator, the bots, snapshots and the LLM prompt all read
+it from there.
+
+Shipped files: `classic` (the game as it has always been: Acquire, 12x9,
+seven hotel chains, $6,000, 25 shares...), `valley` (classic numbers,
+"Acquihire" theme with invented AI-startup chains) and `mini` (a deliberately
+different variant used by the tests: 9x7, five chains, 18 shares, safe at 8,
+end at 25, hand of 5, 2-5 players, 2 founder shares, 8x/4x bonuses rounded to
+$50).
+
+### File format
+
+All keys are required and unknown keys are rejected (at every level).
+
+```jsonc
+{
+  "id": "classic",              // wire-safe id: [A-Za-z][A-Za-z0-9_-]{0,31}
+  "version": 1,                 // bump whenever numbers change
+  "title": "Acquire",           // product / game name
+  "theme": {                    // words for the UI and the LLM prompt
+    "chain_noun": "hotel chain", "chain_noun_plural": "hotel chains",
+    "share_noun": "share", "share_noun_plural": "shares",
+    "stock_label": "Stocks",    // heading for holdings ("Equity" in valley)
+    "merger_noun": "merger", "merger_noun_plural": "mergers",
+    "safe_phrase": "safe",      // "too big to acquire" in valley
+    "currency_symbol": "$",
+    "tagline": "Found hotel chains, buy stock, merge for profit.",
+    "game_description": "Sid Sackson's hotel-chain board game"
+  },
+  "board": {"columns": 12, "rows": 9},   // 2-50 columns, 2-26 rows (A..Z)
+  "tiers": [                             // cheapest first; rank = position
+    {"id": "cheap", "label": "cheap",    // label is display text
+     "prices": [{"from": 2, "price": 200}, {"from": 3, "price": 300}, ...,
+                {"from": 41, "price": 1000}]}   // must start at 2; last is open-ended
+  ],
+  "chains": [                            // order = display/state order
+    {"id": "Luxor", "name": "Luxor", "tier": "cheap",
+     "color": "#FFD700", "abbreviation": "L"}   // id is the state/wire key
+  ],
+  "bonuses": {"majority_multiplier": 10, "minority_multiplier": 5,
+              "tie_round_up_to": 100},   // tie splits round UP to this step
+  "stocks_per_chain": 25,       // bank size per chain = per-player cap
+  "starting_cash": 6000,
+  "hand_size": 6,
+  "max_stock_purchases_per_turn": 3,
+  "safe_chain_size": 11,
+  "end_game_chain_size": 41,
+  "founder_bonus_shares": 1,    // free shares for the founder (price in cash if the bank is short)
+  "merger_trade_ratio": 2,      // defunct shares per survivor share
+  "min_players": 3, "max_players": 6,
+  "max_pending_trades_per_player": 5
+}
+```
+
+Validation (`RulesetError` with the offending path): unknown/missing keys,
+integer types (booleans rejected) and ranges, wire-safe unique chain/tier ids,
+unique chain names, abbreviations (1-3 alphanumerics) and `#RRGGBB` colours,
+2-26 chains, every chain's tier defined, price brackets starting at 2 and
+strictly increasing and reachable on the board, `safe`/`end` sizes within the
+board, `min_players <= max_players`, and board tiles >= `max_players x hand_size`.
+`fingerprint` is the first 12 hex chars of the SHA-256 of the canonical dict
+(sorted keys); results recorded under one fingerprint are comparable.
+
+### Selection
+
+`GAME_RULESET` (setting `game_ruleset` in `backend/config.py`): a file name in
+`backend/rulesets/` (`classic`, `valley`, `mini`) or a path to a JSON file.
+Default `classic`. The app refuses to start on a bad ruleset. Each room is
+created with the configured ruleset (`GameRoom.ruleset`, `max_players` from it)
+and its game uses it. Protocol validation of client messages (chain ids, tile
+pattern, per-turn purchase limit) uses the configured ruleset; the engine's
+`validate_action` remains authoritative.
+
+### What clients get
+
+- `GET /config/game` (also `/api/config/game`): the configured ruleset
+  before any game exists -- the file's dict plus `"fingerprint"`.
+- Every `game_state` message, and `Game.get_public_state()` /
+  `get_player_state()`, carries the same object as `ruleset` (the game's own
+  ruleset). `hotel.chains[]` entries also carry `color`.
+- Coordinates stay `<column><row letter>`; chain keys in state are chain ids;
+  display names, colours, abbreviations, tier labels and theme words come
+  from `ruleset`.
+- `legal_actions` for `stock_disposition` adds `trade_ratio` only when the
+  ruleset's ratio is not 2 (classic output is unchanged).
+
+### Snapshots
+
+A non-classic game's snapshot stores the full ruleset dict under `"ruleset"`
+and `from_snapshot` restores it; classic games omit the key (snapshots and
+generated fixtures from before rulesets stay valid and byte-identical).
+`SNAPSHOT_VERSION` is unchanged.
+
+### Not parameters
+
+Kept as engine rules (not configurable): orthogonal adjacency; a chain needs 2
+tiles; the survivor/tie/defunct-order rules; sole holder takes both bonuses;
+majority tie pools majority + minority; end-game conditions (any chain >= end
+size, or all active chains safe) and the "frozen board ends the game" rule;
+dead-tile replacement; one tile per turn and one tile drawn at end of turn.
+Wire values such as `would_create_eighth_chain` and the classic fixtures'
+criterion names keep their historical names.
+
 ## Calculator pack (`backend/game/calculator.py`)
 
 `build_calculator_pack(game, viewer_id) -> dict` – pure, JSON-serialisable,
@@ -351,6 +462,7 @@ driver, the one action path), `lifecycle.py` (start / host-forced end),
 | `POST /room/{code}/add-bot` | – | Alias for `agent_id="bot"`; returns `{"bot_id", "player_id", "name", "kind"}`. |
 | `POST /room/{code}/remove-seat/{player_id}` | – | Lobby only, AI seats only (400 human / started, 404 unknown). Returns `{"status": "removed", "player_id"}`. |
 | `GET /room/{code}/debug` | – | Driver diagnostics (above). |
+| `GET /config/game` | – | The server's configured ruleset dict + `fingerprint` (see Ruleset). Also under `/api`. |
 
 Lobby updates (and `GET /room/{code}/state`) list each player as
 `{player_id, name, is_bot, kind, agent_label}`. The classic bot has

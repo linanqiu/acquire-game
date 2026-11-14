@@ -3,6 +3,7 @@
  * catalog / add-seat / remove-seat routes (see docs/architecture/seat-contract.md).
  */
 
+import { fetchWithRetry } from './http'
 import type {
   AddSeatResponse,
   AgentCatalogEntry,
@@ -63,7 +64,7 @@ export function isAiThinking(awaiting: AwaitingDecision | null | undefined, play
 
 /** Fetch the AI opponents the server offers. Throws on any failure (old backend: 404). */
 export async function fetchAgentCatalog(signal?: AbortSignal): Promise<AgentCatalogEntry[]> {
-  const res = await fetch('/api/agents/catalog', { signal })
+  const res = await fetchWithRetry('/api/agents/catalog', {}, { signal })
   if (!res.ok) throw new Error(`Catalog request failed (${res.status})`)
   const data: unknown = await res.json()
   if (!Array.isArray(data)) throw new Error('Unexpected catalog response')

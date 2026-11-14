@@ -6,8 +6,8 @@ from typing import Any
 
 from game.decisions import apply_action, legal_actions, pending_decisions
 from game.game import Game, GamePhase
-from game.hotel import Hotel
 from game.rules import Rules
+from game.ruleset import Ruleset
 
 PLAYER_NAMES = ["Alice", "Bob", "Cara", "Dev", "Eli", "Fay"]
 HUMAN_SEAT = "p1"
@@ -22,10 +22,13 @@ def make_players(count: int) -> list[dict]:
 
 
 def new_game(
-    seed: int, players: list[dict], tile_order: list[str] | None = None
+    seed: int,
+    players: list[dict],
+    tile_order: list[str] | None = None,
+    ruleset: Ruleset | None = None,
 ) -> Game:
-    """A freshly started game (hands dealt, turn 1)."""
-    game = Game(seed=seed, tile_order=tile_order)
+    """A freshly started game (hands dealt, turn 1). Fixtures use classic."""
+    game = Game(seed=seed, tile_order=tile_order, ruleset=ruleset)
     for p in players:
         game.add_player(p["player_id"], p["name"])
     game.start_game()
@@ -69,7 +72,8 @@ def build_expect(game: Game, human_seat: str) -> dict:
     human = game.get_player(human_seat)
     decisions = [_decision_entry(game, d) for d in pending_decisions(game)]
     chains = {}
-    for name in Hotel.get_all_chain_names():
+    all_chains = game.hotel.get_all_chain_names()
+    for name in all_chains:
         info = public["chains"][name]
         if info["active"]:
             chains[name] = {
@@ -96,9 +100,7 @@ def build_expect(game: Game, human_seat: str) -> dict:
             "holdings": {k: v for k, v in sorted(human.stocks.items()) if v > 0},
         },
         "active_chains": chains,
-        "inactive_chains": sorted(
-            n for n in Hotel.get_all_chain_names() if n not in chains
-        ),
+        "inactive_chains": sorted(n for n in all_chains if n not in chains),
         "players": [
             {
                 "player_id": p.player_id,
