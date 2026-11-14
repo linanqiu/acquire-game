@@ -37,7 +37,7 @@ def remap_player_ids(data: Any, mapping: dict[str, str]) -> Any:
 def prepare_snapshot(room, snapshot: dict, seat_map: dict | None) -> dict:
     """Map snapshot seats onto the room's seats (raises ValueError)."""
     if not isinstance(snapshot, dict) or not isinstance(snapshot.get("players"), list):
-        raise ValueError("snapshot.players missing")
+        raise ValueError("snapshot.players missing")  # noqa: TRY004 - 400
     snap_ids = [p.get("player_id") for p in snapshot["players"]]
     room_ids = list(room.players)
     if seat_map is None:
@@ -58,7 +58,9 @@ def prepare_snapshot(room, snapshot: dict, seat_map: dict | None) -> dict:
             raise ValueError("seat_map values must be distinct room player ids")
         final = [mapping.get(s, s) for s in snap_ids]
         if sorted(final) != sorted(room_ids):
-            raise ValueError("After mapping, snapshot players must equal the room's seats")
+            raise ValueError(
+                "After mapping, snapshot players must equal the room's seats"
+            )
     out = remap_player_ids(snapshot, mapping)
     # Room seat names and AI seats win over the snapshot's.
     for p in out["players"]:
@@ -73,7 +75,7 @@ def prepare_snapshot(room, snapshot: dict, seat_map: dict | None) -> dict:
 
 
 @router.post("/room/{room_code}/load-snapshot")
-async def load_snapshot(room_code: str, body: dict = Body(...)):
+async def load_snapshot(room_code: str, body: dict = Body(...)):  # noqa: B008
     room = session_manager.get_room(room_code)
     if room is None:
         raise HTTPException(status_code=404, detail="Room not found")

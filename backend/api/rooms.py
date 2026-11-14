@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, Body, Form, HTTPException
 
@@ -134,7 +134,7 @@ def _add_seat(room_code: str, agent_id: Any, name: Any = None, script: Any = Non
 
 
 @router.post("/room/{room_code}/add-seat")
-async def add_seat(room_code: str, body: dict = Body(...)):
+async def add_seat(room_code: str, body: dict = Body(...)):  # noqa: B008
     """Add an AI seat: body `{"agent_id", "name"?, "script"? (scripted, test mode)}`."""
     out = _add_seat(
         room_code, body.get("agent_id"), body.get("name"), body.get("script")
@@ -191,8 +191,8 @@ async def start_game(room_code: str):
 @router.post("/room/{room_code}/configure")
 async def configure_room(
     room_code: str,
-    seed: Optional[int] = Body(None),
-    tile_order: Optional[list[str]] = Body(None),
+    seed: int | None = Body(None),
+    tile_order: list[str] | None = Body(None),  # noqa: B008
 ):
     """Configure room settings (seed, tile order) before game starts."""
     room = _room_or_404(room_code)

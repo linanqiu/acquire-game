@@ -18,25 +18,21 @@ import os
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
-from config import get_settings
-from health import router as health_router
-from logging_config import setup_logging
-from middleware import RequestLoggingMiddleware
-
-# Initialize logging before anything else
-setup_logging()
-
-from api.rooms import router as rooms_router  # noqa: E402
-from api.ws import router as ws_router  # noqa: E402
-from app_state import session_manager  # noqa: E402
-from broadcast import (  # noqa: E402
+from api.rooms import router as rooms_router
+from api.ws import router as ws_router
+from app_state import session_manager
+from broadcast import (
     broadcast_game_state,
     broadcast_lobby_update,
     send_host_state,
     send_player_state,
 )
-from lifecycle import end_game, handle_player_action, initialize_game  # noqa: E402
-from protocol import (  # noqa: E402
+from config import get_settings
+from health import router as health_router
+from lifecycle import end_game, handle_player_action, initialize_game
+from logging_config import setup_logging
+from middleware import RequestLoggingMiddleware
+from protocol import (
     VALID_CHAINS,
     AcceptTradeMessage,
     BuyStocksMessage,
@@ -52,6 +48,10 @@ from protocol import (  # noqa: E402
     WebSocketMessage,
     validate_websocket_message,
 )
+
+# Configure logging before the app is built (module loggers are lazy, so
+# importing the API modules first is fine).
+setup_logging()
 
 settings = get_settings()
 
@@ -85,6 +85,7 @@ def create_app() -> FastAPI:
 app = create_app()
 
 __all__ = [
+    "VALID_CHAINS",
     "AcceptTradeMessage",
     "BuyStocksMessage",
     "CancelTradeMessage",
@@ -96,7 +97,6 @@ __all__ = [
     "PlaceTileMessage",
     "ProposeTradeMessage",
     "RejectTradeMessage",
-    "VALID_CHAINS",
     "WebSocketMessage",
     "app",
     "broadcast_game_state",

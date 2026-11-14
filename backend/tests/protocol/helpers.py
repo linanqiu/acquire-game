@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Callable
+from collections.abc import Callable
 
 
 def create_room(client, name: str = "Alice") -> tuple[str, str]:
@@ -93,7 +93,11 @@ class HumanClient:
                 continue
             self.messages.append(msg)
             t = msg.get("type")
-            if t in ("choose_chain", "choose_merger_survivor", "stock_disposition_required"):
+            if t in (
+                "choose_chain",
+                "choose_merger_survivor",
+                "stock_disposition_required",
+            ):
                 self.prompts[t] = msg
             elif t == "error":
                 self.errors.append(msg["message"])
@@ -111,7 +115,9 @@ class HumanClient:
             return {"action": "declare_end_game"}
         if decision == "place_tile":
             play = state.get("tile_playability") or {}
-            tiles = [t for t in state["your_hand"] if play.get(t, {}).get("playable", True)]
+            tiles = [
+                t for t in state["your_hand"] if play.get(t, {}).get("playable", True)
+            ]
             return {"action": "place_tile", "tile": tiles[0]}
         if decision == "found_chain":
             return {
@@ -121,7 +127,9 @@ class HumanClient:
         if decision == "choose_survivor":
             return {
                 "action": "merger_choice",
-                "surviving_chain": self.prompts["choose_merger_survivor"]["tied_chains"][0],
+                "surviving_chain": self.prompts["choose_merger_survivor"][
+                    "tied_chains"
+                ][0],
             }
         if decision == "stock_disposition":
             p = self.prompts["stock_disposition_required"]

@@ -49,7 +49,7 @@ def hard_timeout():
         raise TimeoutError("protocol test exceeded hard timeout")
 
     old = signal.signal(signal.SIGALRM, _boom)
-    signal.alarm(60)
+    signal.alarm(30)
     yield
     signal.alarm(0)
     signal.signal(signal.SIGALRM, old)

@@ -3,6 +3,11 @@ stock disposition, the game carries on with agent seats."""
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
+import pytest
+
 from app_state import session_manager
 from game.board import Tile
 from game.decisions import apply_action, pending_decisions
@@ -95,8 +100,10 @@ def test_load_snapshot_human_completes_disposition(app_client):
         # The bot (p1) resumes: buys, ends its turn; then it's my turn.
         state = recv_until(
             ws,
-            lambda m: m["type"] == "game_state"
-            and (m.get("awaiting") or {}).get("player_id") == me,
+            lambda m: (
+                m["type"] == "game_state"
+                and (m.get("awaiting") or {}).get("player_id") == me
+            ),
         )
         assert state["awaiting"]["decision"] == "place_tile"
         assert state["players"][me]["stocks"]["Tower"] == 0
@@ -114,14 +121,18 @@ def test_load_snapshot_default_seat_order(app_client):
     add_seat(client, code, "scripted")
     add_seat(client, code, "scripted")
     # p1 -> me (first seat), p2 -> scripted 1 (disposes automatically)
-    r = client.post(f"/test/room/{code}/load-snapshot", json={"snapshot": disposition_snapshot()})
+    r = client.post(
+        f"/test/room/{code}/load-snapshot", json={"snapshot": disposition_snapshot()}
+    )
     assert r.status_code == 200
     assert r.json()["players"][0] == me
     with client.websocket_connect(f"/ws/player/{code}/{me}") as ws:
         state = recv_until(
             ws,
-            lambda m: m["type"] == "game_state"
-            and (m.get("awaiting") or {}).get("player_id") == me,
+            lambda m: (
+                m["type"] == "game_state"
+                and (m.get("awaiting") or {}).get("player_id") == me
+            ),
         )
         # The scripted seat sold its stock; I (the merger maker) now buy.
         assert state["awaiting"]["decision"] == "buy_stocks"
@@ -153,7 +164,7 @@ def test_connecting_later_receives_pending_prompt(app_client):
 
 def test_bad_snapshot_rejected_and_game_untouched(app_client):
     client = app_client
-    code, me = create_room(client)
+    code, _me = create_room(client)
     add_seat(client, code, "bot")
     add_seat(client, code, "bot")
     client.post(f"/room/{code}/start")
@@ -169,3 +180,27 @@ def test_bad_snapshot_rejected_and_game_untouched(app_client):
     assert r.status_code == 400
     after = client.get(f"/test/room/{code}/snapshot").json()
     assert after == before  # the human is up first, so nothing moved
+
+
+FIXTURES = Path(__file__).resolve().parents[3] / "frontend/tests/e2e/fixtures/snapshots"
+
+
+@pytest.mark.parametrize(
+    "name",
+    sorted(p.stem for p in FIXTURES.glob("*.json") if p.stem != "index"),
+)
+def test_every_frontend_fixture_loads(app_client, name):
+    """Each generated fixture loads into a room (human = p1 = room creator,
+    scripted seats for the rest); the human gets a coherent state."""
+    fixture = json.loads((FIXTURES / f"{name}.json").read_text())
+    snap = fixture["snapshot"]
+    code, me = create_room(app_client, "Alice")
+    for _ in snap["players"][1:]:
+        add_seat(app_client, code, "scripted")
+    r = app_client.post(f"/test/room/{code}/load-snapshot", json={"snapshot": snap})
+    assert r.status_code == 200, r.text
+    with app_client.websocket_connect(f"/ws/player/{code}/{me}") as ws:
+        state = recv_until(ws, lambda m: m["type"] == "game_state")
+    assert state["players"][me]["name"] == "Alice"
+    assert isinstance(state["your_hand"], list)
+    assert isinstance(state["incoming_trades"], list)

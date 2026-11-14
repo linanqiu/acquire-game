@@ -7,15 +7,16 @@ human action and an agent action produce identical messages.
 Messages (shapes unchanged from the pre-seat server unless noted):
 
 * ``game_state`` - public state; per player ``kind``, ``is_bot``,
-  ``agent_label`` (new); top-level ``awaiting`` (new); to each player also
-  ``your_hand``, ``end_game_available`` and ``tile_playability`` (new).
+  ``agent_label`` (new); top-level ``awaiting`` and ``pending_trades`` (new);
+  to each player also ``your_hand``, ``end_game_available``, and (new)
+  ``tile_playability``, ``incoming_trades``, ``outgoing_trades``.
 * ``lobby_update`` - players carry ``kind`` and ``agent_label`` (new).
 * ``choose_chain`` / ``choose_merger_survivor`` / ``stock_disposition_required``
   - sent to the human whose decision just became pending.
 * ``can_end_game`` - to the human whose turn just started when declaring is legal.
 * ``all_tiles_unplayable`` (room) / ``tiles_replaced`` (that player).
 * ``trade_proposed`` / ``trade_accepted`` / ``trade_rejected`` /
-  ``trade_canceled`` - to both trade parties.
+  ``trade_canceled`` - to both trade parties and the host.
 * ``game_over`` - room and host.
 * ``error`` - to the acting human only.
 """
@@ -94,7 +95,11 @@ def compute_awaiting(room: GameRoom, game: Game) -> dict | None:
     if not decisions:
         return None
     d = decisions[0]
-    return {"player_id": d.player_id, "kind": seat_kind(room, d.player_id), "decision": d.kind}
+    return {
+        "player_id": d.player_id,
+        "kind": seat_kind(room, d.player_id),
+        "decision": d.kind,
+    }
 
 
 def build_public_state(room: GameRoom, game: Game) -> dict:
@@ -113,7 +118,8 @@ def build_public_state(room: GameRoom, game: Game) -> dict:
     hotel_state = {
         "chains": chains_info,
         "available_stocks": {
-            name: data["available_stocks"] for name, data in game_state["chains"].items()
+            name: data["available_stocks"]
+            for name, data in game_state["chains"].items()
         },
         "active_chains": [
             name for name, data in game_state["chains"].items() if data["active"]
@@ -138,6 +144,7 @@ def build_public_state(room: GameRoom, game: Game) -> dict:
         "phase": game_state["phase"],
         "players": players,
         "tiles_remaining": game_state["tiles_remaining"],
+        "pending_trades": game_state["pending_trades"],
         "awaiting": compute_awaiting(room, game),
     }
 
@@ -156,6 +163,12 @@ def private_fields(game: Game, player_id: str) -> dict:
         "end_game_available": bool(
             current == player_id and game.can_declare_end_game()
         ),
+        "incoming_trades": [
+            t.to_dict() for t in game.get_incoming_trades_for_player(player_id)
+        ],
+        "outgoing_trades": [
+            t.to_dict() for t in game.get_outgoing_trades_for_player(player_id)
+        ],
     }
 
 
@@ -206,9 +219,15 @@ def prompt_for(game: Game, decision: Decision) -> dict | None:
     """The private prompt message a human gets for ``decision``, if any."""
     ctx = decision.context
     if decision.kind == "found_chain":
-        return {"type": "choose_chain", "available_chains": ctx.get("available_chains", [])}
+        return {
+            "type": "choose_chain",
+            "available_chains": ctx.get("available_chains", []),
+        }
     if decision.kind == "choose_survivor":
-        return {"type": "choose_merger_survivor", "tied_chains": ctx.get("tied_chains", [])}
+        return {
+            "type": "choose_merger_survivor",
+            "tied_chains": ctx.get("tied_chains", []),
+        }
     if decision.kind == "stock_disposition":
         return {
             "type": "stock_disposition_required",
@@ -253,8 +272,10 @@ def _trade_parties(game: Game, trade_id: str) -> tuple[str | None, str | None]:
 
 
 async def _send_both(room_code: str, a: str | None, b: str | None, msg: dict) -> None:
+    """Trade notifications go to both parties and the host display."""
     for pid in dict.fromkeys(x for x in (a, b) if x):
         await session_manager.send_to_player(room_code, pid, msg)
+    await session_manager.send_to_host(room_code, msg)
 
 
 async def publish_events(room_code: str, game: Game, since_seq: int) -> None:
@@ -315,7 +336,11 @@ async def publish_events(room_code: str, game: Game, since_seq: int) -> None:
                 room_code,
                 a,
                 b,
-                {"type": "trade_rejected", "trade_id": e["trade_id"], "rejected_by": pid},
+                {
+                    "type": "trade_rejected",
+                    "trade_id": e["trade_id"],
+                    "rejected_by": pid,
+                },
             )
         elif etype == "trade_cancelled":
             a, b = _trade_parties(game, e["trade_id"])
@@ -323,7 +348,11 @@ async def publish_events(room_code: str, game: Game, since_seq: int) -> None:
                 room_code,
                 a,
                 b,
-                {"type": "trade_canceled", "trade_id": e["trade_id"], "canceled_by": pid},
+                {
+                    "type": "trade_canceled",
+                    "trade_id": e["trade_id"],
+                    "canceled_by": pid,
+                },
             )
         elif etype == "end_game_declared":
             declared_by = pid

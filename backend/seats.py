@@ -138,6 +138,21 @@ async def apply_and_publish(room_code: str, player_id: str, action: dict) -> dic
     since = len(game.events)
     result = apply_action(game, player_id, action)
     if not result.get("success"):
+        if (
+            isinstance(action, dict)
+            and action.get("action") == "accept_trade"
+            and str(result.get("error", "")).startswith("Trade is no longer valid")
+        ):
+            # The offer can never be accepted now. Its recipient tried to
+            # accept, so the only remaining legal answer is a rejection:
+            # apply it so the stale offer leaves both players' lists (both
+            # parties and the host get `trade_rejected` + fresh state). The
+            # original error is still returned to the caller.
+            await apply_and_publish(
+                room_code,
+                player_id,
+                {"action": "reject_trade", "trade_id": action.get("trade_id")},
+            )
         return result
     rt = get_runtime(room)
     rt.version += 1
@@ -281,7 +296,7 @@ async def _drive(room_code: str) -> None:
         await _drive_loop(room_code)
     except asyncio.CancelledError:
         raise
-    except Exception:  # noqa: BLE001 - never kill the server; log and stop
+    except Exception:
         logger.exception("Seat driver crashed in room %s", room_code)
         room = session_manager.get_room(room_code)
         if room is not None and room.runtime is not None:
@@ -357,7 +372,13 @@ async def _drive_loop(room_code: str) -> None:
                     result.get("error"),
                 )
                 action = _fallback(
-                    rt, room, game, decision, seat, agent, f"engine: {result.get('error')}"
+                    rt,
+                    room,
+                    game,
+                    decision,
+                    seat,
+                    agent,
+                    f"engine: {result.get('error')}",
                 )
                 result = (
                     await apply_and_publish(room_code, decision.player_id, action)
@@ -422,7 +443,7 @@ def _fallback(rt, room, game, decision, seat, agent, reason: str) -> dict | None
     if callable(note):
         try:
             note(reason)
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.exception("note_fallback failed")
     ctx = build_context(game, decision)
     for candidate in (

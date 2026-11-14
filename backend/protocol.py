@@ -7,7 +7,7 @@ authoritative legality checks.
 """
 
 import re
-from typing import Literal, Optional, Union
+from typing import Literal, Union
 
 from pydantic import BaseModel, ValidationError, field_validator
 
@@ -44,7 +44,7 @@ class PlaceTileMessage(BaseModel):
     def validate_tile(cls, v: str) -> str:
         """Validate tile format (e.g., '1A', '12I')."""
         if not isinstance(v, str):
-            raise ValueError("Tile must be a string")
+            raise ValueError("Tile must be a string")  # noqa: TRY004 - pydantic
         v = v.upper().strip()
         if not re.match(r"^1?[0-9][A-I]$", v):
             raise ValueError("Invalid tile format. Expected format like 1A, 5E, 12I")
@@ -118,7 +118,7 @@ class BuyStocksMessage(BaseModel):
     def validate_purchases(cls, v: dict) -> dict:
         """Validate purchases dictionary."""
         if not isinstance(v, dict):
-            raise ValueError("Purchases must be a dictionary")
+            raise ValueError("Purchases must be a dictionary")  # noqa: TRY004 - pydantic
         total = 0
         for chain, quantity in v.items():
             if chain not in VALID_CHAINS:
@@ -150,6 +150,7 @@ class ProposeTradeMessage(BaseModel):
 
     action: Literal["propose_trade"]
     to_player_id: str
+    trade_id: str | None = None  # client-chosen id (optional)
     offering_stocks: dict[str, int] = {}
     offering_money: int = 0
     requesting_stocks: dict[str, int] = {}
@@ -199,7 +200,7 @@ class CancelTradeMessage(BaseModel):
 
 
 # Union type for all valid message types
-WebSocketMessage = Union[
+WebSocketMessage = Union[  # noqa: UP007
     PlaceTileMessage,
     FoundChainMessage,
     MergerChoiceMessage,
@@ -216,7 +217,7 @@ WebSocketMessage = Union[
 
 def validate_websocket_message(
     data: dict,
-) -> tuple[Optional[WebSocketMessage], Optional[str]]:
+) -> tuple[WebSocketMessage | None, str | None]:
     """Validate incoming WebSocket message data.
 
     Args:
@@ -259,4 +260,7 @@ def validate_websocket_message(
 
 def to_action(msg: BaseModel) -> dict:
     """Engine action dict for a validated message (normalised values)."""
-    return msg.model_dump()
+    action = msg.model_dump()
+    if action.get("action") == "propose_trade" and action.get("trade_id") is None:
+        action.pop("trade_id")
+    return action

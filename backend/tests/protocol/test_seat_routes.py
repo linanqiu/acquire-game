@@ -82,7 +82,7 @@ class TestCatalog:
             return real_import(name, *a, **kw)
 
         monkeypatch.setattr(builtins, "__import__", no_llm)
-        assert [e["id"] for e in registry.catalog()][0] == "bot"
+        assert registry.catalog()[0]["id"] == "bot"
 
 
 class TestAddRemoveSeat:
@@ -170,7 +170,7 @@ class TestAddRemoveSeat:
         assert "full" in r.json()["detail"].lower()
 
     def test_after_start(self, app_client):
-        code, me = create_room(app_client)
+        code, _me = create_room(app_client)
         bot = add_seat(app_client, code, "bot")
         add_seat(app_client, code, "bot")
         start(app_client, code)
@@ -202,7 +202,7 @@ class TestAddRemoveSeat:
         assert r.status_code == 400
 
     def test_human_cannot_act_for_agent_seat(self, app_client):
-        code, me = create_room(app_client)
+        code, _me = create_room(app_client)
         bot = add_seat(app_client, code, "bot")
         add_seat(app_client, code, "bot")
         start(app_client, code)

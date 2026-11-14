@@ -116,7 +116,11 @@ def test_failing_llm_seats_fall_back_and_game_completes(app_client, monkeypatch)
 
     install_fake_llms(
         monkeypatch,
-        {"llm:raise": track(Raiser), "llm:illegal": track(Illegal), "llm:sleep": track(Sleeper)},
+        {
+            "llm:raise": track(Raiser),
+            "llm:illegal": track(Illegal),
+            "llm:sleep": track(Sleeper),
+        },
     )
     code = app_client.post("/create-spectator").json()["room_code"]
     for agent_id in ("llm:raise", "llm:illegal", "llm:sleep"):
@@ -190,8 +194,9 @@ def test_awaiting_and_trade_while_agent_thinks(app_client, monkeypatch):
             start(app_client, code)
             # Play my first turn (place + buy) until the LLM seat is up.
             state = human.play(
-                stop=lambda m: (m.get("awaiting") or {}).get("player_id")
-                == llm["player_id"]
+                stop=lambda m: (
+                    (m.get("awaiting") or {}).get("player_id") == llm["player_id"]
+                )
             )
             assert state["awaiting"] == {
                 "player_id": llm["player_id"],
@@ -232,9 +237,15 @@ def test_bot_answers_human_trade_offers(app_client):
         start(app_client, code)
         recv_until(ws, lambda m: m["type"] == "game_state" and human.my_turn(m))
         ws.send_json(
-            {"action": "propose_trade", "to_player_id": bot["player_id"], "offering_money": 500}
+            {
+                "action": "propose_trade",
+                "to_player_id": bot["player_id"],
+                "offering_money": 500,
+            }
         )
-        acc = recv_until(ws, lambda m: m["type"] in ("trade_accepted", "trade_rejected"))
+        acc = recv_until(
+            ws, lambda m: m["type"] in ("trade_accepted", "trade_rejected")
+        )
         assert acc["type"] == "trade_accepted"
         assert acc["from_player"] == me and acc["to_player"] == bot["player_id"]
         state = recv_until(ws, lambda m: m["type"] == "game_state")
@@ -247,7 +258,9 @@ def test_bot_answers_human_trade_offers(app_client):
                 "requesting_money": 1000,
             }
         )
-        rej = recv_until(ws, lambda m: m["type"] in ("trade_accepted", "trade_rejected"))
+        rej = recv_until(
+            ws, lambda m: m["type"] in ("trade_accepted", "trade_rejected")
+        )
         assert rej["type"] == "trade_rejected"
         assert rej["rejected_by"] == bot["player_id"]
 
@@ -268,7 +281,14 @@ def test_reconnect_mid_game_gets_full_state(app_client):
         )
     with app_client.websocket_connect(f"/ws/player/{code}/{me}") as ws:
         again = recv_until(ws, lambda m: m["type"] == "game_state")
-        for key in ("board", "hotel", "players", "phase", "current_player", "your_hand"):
+        for key in (
+            "board",
+            "hotel",
+            "players",
+            "phase",
+            "current_player",
+            "your_hand",
+        ):
             assert again[key] == before[key], key
         assert again["awaiting"]["player_id"] == me
         assert "tile_playability" in again and "end_game_available" in again
@@ -299,7 +319,9 @@ async def test_concurrent_actions_never_interleave(clean_session_manager):
 
     async def gift(src):
         return await human_action(
-            code, src, {"action": "propose_trade", "to_player_id": bot_id, "offering_money": 1}
+            code,
+            src,
+            {"action": "propose_trade", "to_player_id": bot_id, "offering_money": 1},
         )
 
     results = []

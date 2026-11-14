@@ -51,7 +51,7 @@ def _llm_entries() -> list[dict]:
         return []
     try:
         return [dict(e) for e in llm_config.catalog_entries()]
-    except Exception:  # noqa: BLE001 - a bad LLM config must not break the lobby
+    except Exception:
         logger.exception("Failed to load LLM catalog")
         return []
 

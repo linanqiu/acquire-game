@@ -28,7 +28,7 @@ async def ping_task(ws: WebSocket) -> None:
         while True:
             await asyncio.sleep(get_settings().ws_ping_interval)
             await ws.send_json({"type": "ping"})
-    except Exception:
+    except Exception:  # noqa: BLE001, S110 - socket gone; the receive loop cleans up
         pass
 
 
@@ -56,7 +56,11 @@ async def host_websocket(websocket: WebSocket, room_code: str):
                     await broadcast_lobby_update(room_code)
             elif action == "start_game":
                 room = session_manager.get_room(room_code)
-                if room and not room.started and len(room.players) >= min_to_start(room):
+                if (
+                    room
+                    and not room.started
+                    and len(room.players) >= min_to_start(room)
+                ):
                     session_manager.start_game(room_code)
                     await initialize_game(room_code)
             elif action == "end_game":
@@ -110,7 +114,7 @@ async def player_websocket(websocket: WebSocket, room_code: str, player_id: str)
                 )
     except WebSocketDisconnect:
         pass
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning("WebSocket error for %s/%s: %s", room_code, player_id, e)
     finally:
         ping.cancel()

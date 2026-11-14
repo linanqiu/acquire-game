@@ -112,7 +112,9 @@ class HeuristicAgent:
             return {"action": "found_chain", "chain": choice}
         if kind == "choose_survivor":
             chains = list(legal.get("chains", []))
-            choice = bot.choose_merger_survivor(chains, board, hotel) if chains else None
+            choice = (
+                bot.choose_merger_survivor(chains, board, hotel) if chains else None
+            )
             if choice not in chains:
                 choice = chains[0] if chains else None
             return {"action": "merger_choice", "surviving_chain": choice}
@@ -196,7 +198,8 @@ class HeuristicAgent:
         prices = _chain_prices(ctx)
         # From this seat's point of view: it receives what the proposer offers.
         gain = int(trade.get("offering_money", 0)) + sum(
-            prices.get(c, 0) * n for c, n in (trade.get("offering_stocks") or {}).items()
+            prices.get(c, 0) * n
+            for c, n in (trade.get("offering_stocks") or {}).items()
         )
         cost = int(trade.get("requesting_money", 0)) + sum(
             prices.get(c, 0) * n
