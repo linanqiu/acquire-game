@@ -14,6 +14,7 @@ See docs/architecture/seat-contract.md.
 """
 
 import os
+from pathlib import Path
 
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
@@ -48,6 +49,7 @@ from protocol import (
     WebSocketMessage,
     validate_websocket_message,
 )
+from static_site import mount_frontend, resolve_dist
 
 # Configure logging before the app is built (module loggers are lazy, so
 # importing the API modules first is fine).
@@ -61,8 +63,13 @@ def test_mode_enabled() -> bool:
     return os.environ.get("ACQUIRE_TEST_MODE") == "1"
 
 
-def create_app() -> FastAPI:
-    """Build the application. Test-mode routes are decided at build time."""
+def create_app(frontend_dist: str | Path | None = None) -> FastAPI:
+    """Build the application. Test-mode routes are decided at build time.
+
+    HTTP API routes are served both bare (dev proxy, tests) and under ``/api``
+    (single-service deploys). If a built frontend exists (``FRONTEND_DIST``) it
+    is served too, with an SPA fallback.
+    """
     application = FastAPI(title="Acquire Board Game", debug=not settings.is_production)
     application.add_middleware(
         CORSMiddleware,
@@ -74,11 +81,16 @@ def create_app() -> FastAPI:
     application.add_middleware(RequestLoggingMiddleware)
     application.include_router(health_router)
     application.include_router(rooms_router)
+    application.include_router(rooms_router, prefix="/api")
     application.include_router(ws_router)
     if test_mode_enabled():
         from api.testmode import router as test_router
 
         application.include_router(test_router)
+        application.include_router(test_router, prefix="/api")
+    dist = resolve_dist(frontend_dist or settings.frontend_dist)
+    if dist is not None:
+        mount_frontend(application, dist)  # must be last: catch-all GET
     return application
 
 

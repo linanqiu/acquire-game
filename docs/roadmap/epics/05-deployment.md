@@ -62,3 +62,13 @@ Already configured in `/deploy/`:
 - [deploy/Dockerfile](../../deploy/Dockerfile)
 - [deploy/railway.toml](../../deploy/railway.toml)
 - [Railway Docs](https://docs.railway.app/)
+
+## Update 2026-11-14: single-service frontend serving
+
+The deploy used to ship only the backend. `deploy/Dockerfile` is now multi-stage
+(Node builds `frontend/dist`, the Python image serves it), and the FastAPI app
+serves the built SPA with an `index.html` fallback for client routes. All HTTP API
+routes are also exposed under `/api` (the bare routes remain for tests and the Vite
+dev proxy). One Railway service now serves UI, API and WebSockets from one origin.
+See [deploy/README.md](../../../deploy/README.md). Verified locally (backend only)
+and in a built container: create game, add bots, play turns, reload `/play/<code>`.
