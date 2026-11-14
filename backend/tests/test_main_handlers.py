@@ -678,3 +678,31 @@ class TestConfigureRoomEndpoint:
         )
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()
+
+
+def test_validation_uses_the_ruleset_passed_for_the_game_not_the_server_default():
+    from game.ruleset import load_ruleset
+
+    mini = load_ruleset("mini")
+    # server default is classic: a mini chain and a 4-share buy are refused...
+    _, err = validate_websocket_message({"action": "found_chain", "chain": "harbor"})
+    assert "Invalid chain" in err
+    _, err = validate_websocket_message(
+        {"action": "buy_stocks", "purchases": {"Luxor": 4}}
+    )
+    assert "more than 3" in err
+    # ...but legal for a game created under mini (and classic's are not)
+    ok, err = validate_websocket_message(
+        {"action": "found_chain", "chain": "harbor"}, mini
+    )
+    assert err is None and ok.chain == "harbor"
+    _, err = validate_websocket_message(
+        {"action": "buy_stocks", "purchases": {"harbor": 4}}, mini
+    )
+    assert err is None
+    _, err = validate_websocket_message(
+        {"action": "found_chain", "chain": "Luxor"}, mini
+    )
+    assert "Invalid chain" in err
+    _, err = validate_websocket_message({"action": "place_tile", "tile": "10A"}, mini)
+    assert err and "Invalid tile" in err

@@ -439,6 +439,7 @@ def game_over_message(
         "type": "game_over",
         "scores": scores,
         "winner": ended.get("winner"),
+        "winners": ended.get("winners") or [],
         "game_id": game_id,
     }
     if declared_by is not None:

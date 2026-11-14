@@ -13,6 +13,14 @@ next script entry, in order, when that entry fits the decision:
 Default (script exhausted or entry unusable), no randomness: first legal tile,
 first offered chain, sell every defunct share, buy nothing and end the turn,
 reject trades.
+
+Strict mode (``strict=True``, opt-in; the lenient behaviour above stays the
+default) is for tests that must fail when their script is wrong: an entry whose
+type fits but whose details are illegal is NOT silently dropped. It is
+recorded in ``violations`` and ``decide`` raises ``ScriptViolation`` (reason
+``"script"``), which the seat driver turns into a fallback with the distinct
+reason ``script``. Entries still queued when the game ends are reported by
+``unconsumed()`` / ``assert_consumed()`` and by the room's debug state.
 """
 
 from __future__ import annotations
@@ -23,6 +31,13 @@ from typing import Any
 from agents.base import DecisionContext
 
 logger = logging.getLogger(__name__)
+
+
+class ScriptViolation(Exception):
+    """A strict scripted seat could not play its script entry (see module doc).
+    ``reason`` is what the seat driver reports as the fallback reason."""
+
+    reason = "script"
 
 
 def default_action(ctx: DecisionContext) -> dict:
@@ -113,15 +128,53 @@ class ScriptedAgent:
 
     kind = "scripted"
 
-    def __init__(self, script: list[dict] | None = None, name: str = "Scripted"):
+    def __init__(
+        self,
+        script: list[dict] | None = None,
+        name: str = "Scripted",
+        *,
+        strict: bool = False,
+    ):
         self.name = name
+        self.strict = bool(strict)
         self.script: list[dict] = [dict(a) for a in (script or [])]
         self.played: list[dict] = []  # every action returned, for test assertions
+        # strict mode: {"kind": "illegal_entry", "entry", "decision", "player_id"}
+        self.violations: list[dict] = []
 
     async def decide(self, ctx: DecisionContext) -> dict:
         action = self._next(ctx)
         self.played.append(action)
         return action
+
+    # ------------------------------------------------------------- strictness
+
+    def unconsumed(self) -> list[dict]:
+        """Script entries not played yet (after the game: never consumed)."""
+        return [dict(a) for a in self.script]
+
+    def assert_consumed(self) -> None:
+        """Raise ``ScriptViolation`` if a violation happened or entries remain."""
+        if self.violations:
+            raise ScriptViolation(
+                f"scripted seat {self.name}: {len(self.violations)} illegal "
+                f"script entries, the first: {self.violations[0]['entry']!r}"
+            )
+        if self.script:
+            raise ScriptViolation(
+                f"scripted seat {self.name}: {len(self.script)} script "
+                f"entries never consumed, the first: {self.script[0]!r}"
+            )
+
+    def debug(self) -> dict:
+        """State for the room debug route."""
+        return {
+            "name": self.name,
+            "strict": self.strict,
+            "played": len(self.played),
+            "unconsumed": self.unconsumed(),
+            "violations": [dict(v) for v in self.violations],
+        }
 
     def _next(self, ctx: DecisionContext) -> dict:
         if self.script:
@@ -137,4 +190,16 @@ class ScriptedAgent:
                     entry,
                     ctx.decision.kind,
                 )
+                if self.strict:
+                    self.violations.append(
+                        {
+                            "kind": "illegal_entry",
+                            "entry": entry,
+                            "decision": ctx.decision.kind,
+                            "player_id": ctx.player_id,
+                        }
+                    )
+                    raise ScriptViolation(
+                        f"illegal script entry {entry!r} for {ctx.decision.kind}"
+                    )
         return default_action(ctx)

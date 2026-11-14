@@ -1,3 +1,5 @@
+> **Historical.** This catalogue described the retired browser scenario suite. Current coverage is by surface: [surface-coverage.md](../surface-coverage.md); what happened to each old test: [legacy-suite-retirement.md](../legacy-suite-retirement.md).
+
 # Frontend E2E Test Specifications
 
 This directory contains end-to-end test specifications for the frontend React application. These scenarios test complete user flows with the actual backend.

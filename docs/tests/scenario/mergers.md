@@ -1,3 +1,5 @@
+> **Historical.** This catalogue described the retired browser scenario suite. Current coverage is by surface: [surface-coverage.md](../surface-coverage.md); what happened to each old test: [legacy-suite-retirement.md](../legacy-suite-retirement.md).
+
 # Merger Scenarios
 
 Scenarios covering merger resolution in Acquire, including survivor determination, bonuses, stock disposition, and multi-chain mergers.

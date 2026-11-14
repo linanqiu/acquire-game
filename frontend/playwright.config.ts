@@ -46,13 +46,6 @@ export default defineConfig({
       timeout: 600000,
       use: { ...devices['Desktop Chrome'], ...browserLaunch },
     },
-    {
-      name: 'legacy',
-      testDir: './tests/e2e',
-      // themes/ runs from playwright.themes.config.ts (its own themed servers)
-      testIgnore: ['**/journeys/**', '**/screens/**', '**/transcripts/**', '**/themes/**'],
-      use: { ...devices['Desktop Chrome'], ...browserLaunch },
-    },
   ],
   webServer: [
     {

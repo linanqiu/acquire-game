@@ -870,32 +870,37 @@ class TestBotExecution:
         assert "play_tile" in action_types or "skip_tile" in action_types
         assert "end_turn" in action_types
 
-    @pytest.mark.xfail(reason="Bot founding behavior needs refinement - post-MVP fix")
     def test_execute_bot_turn_handles_founding(self):
-        """Test that bot handles chain founding."""
-        game = Game()
+        """The bot founds a chain when its only playable tile does so.
+
+        (Previously xfail("bot founding needs refinement"): the bot was fine,
+        the test was not. It topped up an already full hand with the adjacent
+        tile -- refused, because a hand holds at most six tiles -- and then
+        removed every other tile, leaving an empty hand. It only "passed"
+        on the ~5% of deals that happened to contain 5F.)
+        """
+        game = Game(seed=1)
         game.add_player("bot1", "Bot Alice", is_bot=True)
         game.add_player("p2", "Bob")
         game.add_player("p3", "Charlie")
         game.start_game()
 
-        # Place a tile that will allow founding when adjacent tile is played
+        # A lone tile on the board; the bot holds only the tile next to it.
         game.board.place_tile(Tile(5, "E"))
-
-        # Give bot an adjacent tile
         bot_player = game.get_player("bot1")
-        adjacent_tile = Tile(5, "F")
-        if adjacent_tile not in bot_player.hand:
-            bot_player.add_tile(adjacent_tile)
-        # Remove other tiles so bot must play this one
         for tile in list(bot_player.hand):
-            if tile != adjacent_tile:
-                bot_player.remove_tile(tile)
+            bot_player.remove_tile(tile)
+        adjacent_tile = Tile(5, "F")
+        bot_player.add_tile(adjacent_tile)
+        assert [str(t) for t in bot_player.hand] == ["5F"]
+        assert game.get_current_player_id() == "bot1"
 
         actions = game.execute_bot_turn("bot1")
 
         action_types = [a.get("action") for a in actions]
-        assert "found_chain" in action_types
+        assert action_types[:2] == ["play_tile", "found_chain"]
+        assert game.hotel.get_active_chains()
+        assert game.board.get_chain_size(game.hotel.get_active_chains()[0]) == 2
 
     def test_non_bot_cannot_use_execute_bot_turn(self):
         """Test that non-bot players cannot use execute_bot_turn."""

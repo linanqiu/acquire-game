@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any
 
@@ -39,7 +40,14 @@ class PromptBudget:
     max_line_chars: int = 220  # per rendered event line
 
 
-def money(n: Any, symbol: str = "$") -> str:
+# Currency symbol used by ``money`` when a caller passes none: set for the
+# duration of ``build_user_prompt`` from the game's ruleset theme.
+_SYMBOL: ContextVar[str] = ContextVar("prompt_currency_symbol", default="$")
+
+
+def money(n: Any, symbol: str | None = None) -> str:
+    if symbol is None:
+        symbol = _SYMBOL.get()
     try:
         return f"{symbol}{int(n):,}"
     except (TypeError, ValueError):
@@ -258,15 +266,24 @@ def _sha(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def system_prompt_id(text: str) -> str:
-    """Stable id of a system prompt text (``sp-`` + 12 hex digits)."""
+def system_prompt_id(text: str, ruleset: Ruleset | None = None) -> str:
+    """Stable id of a system prompt text (``sp-`` + 12 hex digits).
+
+    With ``ruleset`` given, its fingerprint is part of the hash, so the same
+    text under two different rulesets can never share an id."""
+    if ruleset is not None:
+        text = f"{ruleset.fingerprint}\n{text}"
     return "sp-" + _sha(text)[:12]
 
 
-def prompt_version() -> str:
-    """``v<builder version>-<10 hex>``: hash over the system prompt text and
-    ``PROMPT_BUILDER_VERSION``. Stable across processes and machines."""
-    digest = _sha(f"{PROMPT_BUILDER_VERSION}\n{build_system_prompt()}")[:10]
+def prompt_version(ruleset: Ruleset | None = None) -> str:
+    """``v<builder version>-<10 hex>``: hash over the ruleset fingerprint, the
+    system prompt text and ``PROMPT_BUILDER_VERSION``. Stable across processes
+    and machines; different for every ruleset (default: classic)."""
+    rs = ruleset if ruleset is not None else classic()
+    digest = _sha(
+        f"{PROMPT_BUILDER_VERSION}\n{rs.fingerprint}\n{build_system_prompt(rs)}"
+    )[:10]
     return f"v{PROMPT_BUILDER_VERSION}-{digest}"
 
 
@@ -687,7 +704,17 @@ def _notes_block(notes: Any) -> str:
 def build_user_prompt(
     ctx, notes: Any = None, *, budget: PromptBudget | None = None
 ) -> str:
-    """Render the full user prompt for ``ctx`` (see module docstring)."""
+    """Render the full user prompt for ``ctx`` (see module docstring). Money
+    is formatted with the game's theme currency symbol."""
+    symbol = ruleset_from_state(ctx.state).theme.currency_symbol
+    token = _SYMBOL.set(symbol)
+    try:
+        return _build_user_prompt(ctx, notes, budget)
+    finally:
+        _SYMBOL.reset(token)
+
+
+def _build_user_prompt(ctx, notes: Any, budget: PromptBudget | None) -> str:
     budget = budget or PromptBudget()
     kind = ctx.decision.kind
     state, calc = ctx.state or {}, ctx.calc or {}

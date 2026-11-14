@@ -236,7 +236,8 @@ Defined in `backend/bench/protocols.py` (`PROTOCOLS["acquire-bench-v1"]`):
 | Series | 72 games: every distinct seating of the lineup is played on the same deal (seed), seed after seed |
 | vs-baseline | per model, lineup `(model, bot, bot, bot)`: 4 seatings x 18 seeds |
 | head-to-head | 2 models + 2 bots: 12 seatings x 6 seeds; 3 models + 1 bot or 4 models: 24 seatings x 3 seeds; more than 4 models: one series per 4-combination |
-| Prompt | `prompt_version` of `agents.llm` (hash of the system prompt + `PROMPT_BUILDER_VERSION`), recorded in every result |
+| Ruleset | one game variant per run (`--ruleset classic\|valley\|mini\|<path>`; default env `GAME_RULESET`, else classic): `ruleset_id` and `ruleset_fingerprint` are recorded in every result and transcript header, and are part of every game key and series id |
+| Prompt | `prompt_version(ruleset)` of `agents.llm` (hash of the ruleset fingerprint, the system prompt text built for it and `PROMPT_BUILDER_VERSION`), recorded in every result |
 | Retries / timeouts | the server's: `max_illegal_retries` per catalog entry (default 4), `llm_decision_timeout` (130 s per decision) |
 
 Balance: within a series every entrant sits in every position equally often,
@@ -253,9 +254,12 @@ and the verdict will read `inconclusive`. Mean rank and the rating use the
 whole finishing order and separate agents sooner than win rate. Rows with
 fewer than 30 games carry `(only N games; need 30+)` in their verdict.
 
-A result is comparable only with results of the same protocol id AND
-prompt version; the leaderboard never mixes them (it lists the other versions
-under `available` and in `warnings`). Changing seeds, seats, schedule or game
+A result is comparable only with results of the same protocol id, ruleset
+fingerprint AND prompt version; the leaderboard never mixes them (it lists the
+other versions and rulesets under `available` and in `warnings`;
+`GET /bench/leaderboard?ruleset=<id or fingerprint>` and `python -m bench
+leaderboard --ruleset` choose one, default: that of the newest result).
+Records written before rulesets existed count as classic. Changing seeds, seats, schedule or game
 count means a new protocol id; changing what the model sees means bumping
 `PROMPT_BUILDER_VERSION` in `backend/agents/llm/prompt.py` (the system prompt
 text is hashed automatically).
@@ -274,6 +278,8 @@ python -m bench run --protocol acquire-bench-v1 \
     --models llm:claude-haiku-5-5,llm:claude-sonnet-5-5 --track both \
     --out bench_results/claude --max-concurrency 6 --max-decisions 20000
 
+python -m bench run --protocol acquire-bench-v1 --models llm:fake \
+    --ruleset mini --games 4 --out bench_results/mini                # another game variant
 python -m bench leaderboard --out bench_results/claude          # Markdown table
 python -m bench leaderboard --out bench_results/claude --json   # the /bench/leaderboard JSON
 python -m bench list-models [--json]                            # catalog ids + availability
@@ -332,14 +338,14 @@ board = compute_leaderboard(load_results("bench_results/mine"), track="vs-baseli
 * `run_protocol(models, *, out, protocol="acquire-bench-v1", track="both",
   games=None, max_concurrency=4, max_usd=None, max_decisions=None,
   prices=None, fresh=False, transcripts=True, progress=None,
-  prompt_version=None, write_outputs=True) -> ProtocolResult` (async; in a
+  prompt_version=None, write_outputs=True, ruleset=None) -> ProtocolResult` (async; in a
   notebook `await run_protocol(...)`). A `(label, factory)` seat gets a fresh
   agent per game; an Agent instance is reused, so the run drops to one game at
   a time. Raises `BenchError` for configuration errors before any game starts.
 * `run_series(matchups, games, *, results_path, ...)`: ad-hoc matchups.
 * `load_results(path)`: records from a `results.jsonl`, a results directory or
   a parent of several. `compute_leaderboard(records, protocol=None,
-  prompt_version=None, track="all", bootstrap_samples=200, seed=0)`.
+  prompt_version=None, ruleset=None, track="all", bootstrap_samples=200, seed=0)`.
 * Also exported: `run_game`, `run_games`, `schedule`, `get_protocol`,
   `PROTOCOLS`, `bradley_terry`, `bootstrap`, `write_outputs`, `PriceTable`.
 * No global state; importing `bench` starts nothing and imports no web
@@ -351,7 +357,7 @@ board = compute_leaderboard(load_results("bench_results/mine"), track="vs-baseli
 <out>/results.jsonl                 one record per finished game (resumable)
 <out>/transcripts/<game_id>.jsonl   full transcript per game (seat contract format)
 <out>/transcripts/<game_id>.summary.json
-<out>/leaderboard.json              {"generated_at", "boards": [one per protocol + prompt version]}
+<out>/leaderboard.json              {"generated_at", "boards": [one per protocol + ruleset + prompt version]}
 <out>/report.md                     leaderboard tables + per-matchup statistics
 ```
 
@@ -360,7 +366,9 @@ standings, winners, turns, end_reason, decisions, seats[...]`) plus
 `game_id`, `transcript` (relative to `<out>`), `seat_labels`, `started_at`,
 `finished_at`, `rotation` (seating index), `series_id`, and for protocol runs
 `protocol`, `track`, `prompt_version`, `series_games`, `seating_index`,
-`lineup`. The server serves `ACQUIRE_BENCH_DIR` (default
+`lineup`; every record has `ruleset_id` and `ruleset_fingerprint`. Final
+standings use competition ranking (a tie shares the rank; a tie for first is a
+split win and a half-win in the rating). The server serves `ACQUIRE_BENCH_DIR` (default
 `backend/bench_results/`; one results directory or a parent of several) at
 `GET /bench/leaderboard`, `GET /bench/series/{id}` and `GET /games?source=bench`.
 

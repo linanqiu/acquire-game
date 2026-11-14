@@ -735,32 +735,13 @@ def test_disposition_schema_uses_trade_ratio():
     assert "multiple of 3" in check_against_legal(bad, legal)
 
 
-@pytest.mark.slow
-@pytest.mark.parametrize("rs", [MINI, VALLEY], ids=["mini", "valley"])
-def test_fake_llm_agents_play_a_full_game(rs, monkeypatch):
-    """``llm:fake`` (first legal answer from the schema) on every seat.
-
-    ``agents/llm/agent.py`` still calls ``build_system_prompt()`` and
-    ``build_schema(legal, other_player_ids=...)`` without the game's ruleset
-    (that file is owned by another change). The patch below is the intended
-    two-argument wiring (``ruleset_from_state(ctx.state)``); with it the model
-    sees only this ruleset's rules, chains and limits.
-    """
-    from agents.llm import agent as agent_mod
+def _play_fake_llm_game(rs, players, seed):
+    """Whole game with ``llm:fake`` seats, the agent exactly as shipped (no
+    monkeypatching): returns ``(game, providers, agents)``."""
     from agents.llm.agent import LLMAgent
     from agents.llm.providers import FakeProvider
 
-    monkeypatch.setattr(
-        agent_mod, "build_system_prompt", lambda: build_system_prompt(rs)
-    )
-    monkeypatch.setattr(
-        agent_mod,
-        "build_schema",
-        lambda legal, **kw: build_schema(
-            legal, chains=rs.chain_ids, max_shares=rs.stocks_per_chain, **kw
-        ),
-    )
-    game = _new_game(rs, players=3, seed=5)
+    game = _new_game(rs, players=players, seed=seed)
     providers = {p.player_id: FakeProvider() for p in game.players}
     agents = {pid: LLMAgent(prov) for pid, prov in providers.items()}
 
@@ -777,35 +758,105 @@ def test_fake_llm_agents_play_a_full_game(rs, monkeypatch):
 
     asyncio.run(run())
     assert game.phase == GamePhase.GAME_OVER
-    # The schemas the model saw only named this ruleset's chains.
+    return game, providers, agents
+
+
+def _assert_llm_saw_only(rs, providers, agents):
     calls = [c for prov in providers.values() for c in prov.calls]
     assert calls
+    system = build_system_prompt(rs)
     for call in calls:
+        assert call["system"] == system  # the text actually sent
         blob = json.dumps(call["schema"]) + call["user"] + call["system"]
         for c in CLASSIC_NAMES:
             assert _no_word(blob, c), c
+        assert all(c.name in call["system"] for c in rs.chains)
+    # the structured records (transcripts) carry the same prompts
+    from agents.llm.prompt import system_prompt_id
+
+    for agent in agents.values():
+        rec = agent.last_decision_record()
+        assert rec["system_prompt"] == system
+        assert rec["system_prompt_id"] == system_prompt_id(system, rs)
+        for name in CLASSIC_NAMES:
+            assert _no_word(rec["system_prompt"] + rec["user_prompt"], name)
 
 
-def test_fake_llm_seat_unpatched_still_finishes_a_mini_game():
-    """Without the ruleset wiring in agent.py the seat still plays legally
-    (its legal options, user prompt and board come from the game)."""
-    from agents.llm.agent import LLMAgent
-    from agents.llm.providers import FakeProvider
+def _chain_enums(schema) -> set[str]:
+    """Every string enum under a ``chain``-ish key of an answer schema."""
+    found: set[str] = set()
 
-    game = _new_game(MINI, players=2, seed=6)
-    agents = {p.player_id: LLMAgent(FakeProvider()) for p in game.players}
+    def walk(node, key=None):
+        if isinstance(node, dict):
+            enum = node.get("enum")
+            if isinstance(enum, list) and key in ("chain", "surviving_chain"):
+                found.update(enum)
+            for k, v in node.items():
+                walk(v, k)
+        elif isinstance(node, list):
+            for v in node:
+                walk(v, key)
 
-    async def run():
-        for _ in range(3000):
-            decisions = pending_decisions(game)
-            if not decisions:
-                return
-            d = decisions[0]
-            action = await agents[d.player_id].decide(build_context(game, d))
-            assert apply_action(game, d.player_id, action)["success"], action
+    walk(schema)
+    return found
 
-    asyncio.run(run())
-    assert game.phase == GamePhase.GAME_OVER
+
+def test_unpatched_fake_llm_seats_on_mini_use_the_games_ruleset():
+    """The shipped agent builds its system prompt and schema from the game's
+    ruleset: mini's chain names, none of classic's, mini's share cap."""
+    game, providers, agents = _play_fake_llm_game(MINI, players=2, seed=6)
+    _assert_llm_saw_only(MINI, providers, agents)
+    seen = set()
+    for prov in providers.values():
+        for call in prov.calls:
+            seen |= _chain_enums(call["schema"])
+    assert seen and seen <= set(MINI.chain_ids)
+
+
+@pytest.mark.slow
+def test_unpatched_fake_llm_seats_on_valley_use_the_games_ruleset():
+    game, providers, agents = _play_fake_llm_game(VALLEY, players=3, seed=5)
+    _assert_llm_saw_only(VALLEY, providers, agents)
+    seen = set()
+    for prov in providers.values():
+        for call in prov.calls:
+            seen |= _chain_enums(call["schema"])
+    assert seen and seen <= set(VALLEY.chain_ids)
+
+
+def test_prompt_version_and_ids_incorporate_the_ruleset_fingerprint():
+    from agents.llm.prompt import prompt_version, system_prompt_id
+
+    versions = {prompt_version(rs) for rs in (classic(), MINI, VALLEY)}
+    assert len(versions) == 3
+    assert prompt_version() == prompt_version(classic())
+    # same text, different ruleset: never the same id
+    assert system_prompt_id("x", MINI) != system_prompt_id("x", VALLEY)
+    # same words, different numbers: a different fingerprint changes the version
+    d = MINI.to_dict()
+    d["starting_cash"] += 100
+    other = Ruleset.from_dict(d)
+    assert other.id == MINI.id and other.fingerprint != MINI.fingerprint
+    assert prompt_version(other) != prompt_version(MINI)
+
+
+def test_user_prompt_money_uses_the_theme_currency_symbol():
+    """Every amount in the user prompt (not just the system prompt) carries the
+    ruleset's currency symbol."""
+    from agents.llm.prompt import money
+
+    d = MINI.to_dict()
+    d["id"] = "euro"
+    d["theme"]["currency_symbol"] = "\u20ac"
+    euro = Ruleset.from_dict(d)
+    game = _new_game(euro, players=2, seed=6)
+    decision = pending_decisions(game)[0]
+    ctx = build_context(game, decision)
+    user = build_user_prompt(ctx)
+    assert "\u20ac" in user and "$" not in user
+    assert money(1500) == "$1,500"  # the module default is unchanged outside a prompt
+    assert f"\u20ac{euro.starting_cash:,}" in user
+    assert f"\u20ac{euro.starting_cash:,}" in build_system_prompt(euro)
 
 
 def test_legal_disposition_carries_trade_ratio_only_when_not_two():

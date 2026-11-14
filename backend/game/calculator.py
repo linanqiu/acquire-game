@@ -87,6 +87,7 @@ from types import SimpleNamespace
 
 from game.board import Board, Tile, TileState
 from game.hotel import Hotel
+from game.ranking import competition_ranks
 from game.rules import PlacementResult, Rules
 from game.ruleset import MIN_CHAIN_SIZE
 
@@ -322,9 +323,9 @@ def _players_section(game) -> list[dict]:
                 "projected_final_score": p.money + bonus_income + stock_sale,
             }
         )
-    # end_game sorts by money descending with a stable sort (seating order ties)
-    order = sorted(rows, key=lambda r: r["projected_final_score"], reverse=True)
-    for rank, r in enumerate(order, start=1):
+    # Same competition ranking as Game.end_game: tied scores share a rank.
+    ranks = competition_ranks([r["projected_final_score"] for r in rows])
+    for rank, r in zip(ranks, rows, strict=True):
         r["projected_rank"] = rank
     return rows
 

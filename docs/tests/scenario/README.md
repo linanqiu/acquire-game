@@ -1,3 +1,5 @@
+> **Historical.** This catalogue described the retired browser scenario suite. Current coverage is by surface: [surface-coverage.md](../surface-coverage.md); what happened to each old test: [legacy-suite-retirement.md](../legacy-suite-retirement.md).
+
 # Scenario Test Specifications
 
 This directory contains comprehensive end-to-end test specifications for the Acquire board game. These are human-readable specifications that document test scenarios covering all major game mechanics.

@@ -26,7 +26,9 @@ from pathlib import Path
 from agents import registry
 from bench.prices import PriceTable
 from bench.report import build_report, render_markdown
+from bench.runner import resolve_ruleset
 from bench.series import BenchError, run_series
+from game.ruleset import RulesetError
 
 EXIT_OK, EXIT_PARTIAL, EXIT_CONFIG = 0, 1, 2
 SUBCOMMANDS = ("run", "leaderboard", "list-models")
@@ -89,6 +91,22 @@ def _progress(quiet: bool):
     return progress
 
 
+def _ruleset_flag(p: argparse.ArgumentParser) -> None:
+    p.add_argument(
+        "--ruleset",
+        help="game variant: a name in backend/rulesets (classic, valley, mini) "
+        "or a path to a ruleset JSON (default: env GAME_RULESET, else classic)",
+    )
+
+
+def _ruleset(args):
+    """The ``--ruleset`` option as a Ruleset (None: the server default)."""
+    try:
+        return resolve_ruleset(getattr(args, "ruleset", None))
+    except RulesetError as e:
+        raise BenchError(f"bad --ruleset: {e}") from e
+
+
 def _budget_flags(p: argparse.ArgumentParser) -> None:
     p.add_argument("--max-concurrency", type=int, default=4)
     p.add_argument(
@@ -129,6 +147,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--report-json", help="default: <results>.report.json")
     p.add_argument("--report-md", help="default: <results>.report.md")
+    _ruleset_flag(p)
     _budget_flags(p)
     return p
 
@@ -136,6 +155,7 @@ def build_parser() -> argparse.ArgumentParser:
 def _legacy(argv: list[str]) -> int:
     args = build_parser().parse_args(argv)
     try:
+        ruleset = _ruleset(args)
         matchups = [parse_matchup(m) for m in args.matchup]
         if args.games < 1:
             raise BenchError("--games must be >= 1")
@@ -154,6 +174,7 @@ def _legacy(argv: list[str]) -> int:
                 fresh=args.fresh,
                 progress=_progress(args.quiet),
                 transcripts=not args.no_transcripts,
+                ruleset=ruleset,
             )
         )
     except BenchError as e:
@@ -161,6 +182,7 @@ def _legacy(argv: list[str]) -> int:
         return EXIT_CONFIG
 
     meta = {
+        "ruleset": f"{ruleset.id} ({ruleset.fingerprint})",
         "games requested per matchup": args.games,
         "base seed": args.seed,
         "games run now / resumed from file / aborted": f"{res.ran} / {res.skipped} / {res.aborted}",
@@ -204,12 +226,14 @@ def build_cli() -> argparse.ArgumentParser:
     run.add_argument("--seed", type=int, default=1, help="base seed (ad-hoc only)")
     run.add_argument("--out", required=True, help="results directory")
     run.add_argument("--json", action="store_true", help="JSON summary on stdout")
+    _ruleset_flag(run)
     _budget_flags(run)
 
     lb = sub.add_parser("leaderboard", help="show the leaderboard of a results dir")
     lb.add_argument("--out", required=True, help="results directory (or a parent)")
     lb.add_argument("--protocol")
     lb.add_argument("--prompt-version")
+    lb.add_argument("--ruleset", help="ruleset id or fingerprint (default: latest)")
     lb.add_argument(
         "--track", default="all", choices=["all", "vs-baseline", "head-to-head"]
     )
@@ -232,6 +256,7 @@ def _cmd_run(args) -> int:
         if bool(args.protocol) == bool(args.matchup):
             raise BenchError("give either --protocol (with --models) or --matchup")
         prices = PriceTable.load(args.prices)
+        ruleset = _ruleset(args)
         progress = _progress(args.quiet)
         out = Path(args.out)
         if args.protocol:
@@ -252,6 +277,7 @@ def _cmd_run(args) -> int:
                     fresh=args.fresh,
                     transcripts=not args.no_transcripts,
                     progress=progress,
+                    ruleset=ruleset,
                 )
             )
             summary = res.summary()
@@ -274,6 +300,7 @@ def _cmd_run(args) -> int:
                     fresh=args.fresh,
                     progress=progress,
                     transcripts=not args.no_transcripts,
+                    ruleset=ruleset,
                 )
             )
             write_outputs(out, prices=prices)
@@ -282,6 +309,8 @@ def _cmd_run(args) -> int:
                 "status": sr.status,
                 "exit_code": code,
                 "protocol": None,
+                "ruleset_id": ruleset.id,
+                "ruleset_fingerprint": ruleset.fingerprint,
                 "out": str(out),
                 "games": {
                     "planned": sr.planned,
@@ -326,6 +355,7 @@ def _cmd_leaderboard(args) -> int:
         records,
         protocol=args.protocol,
         prompt_version=args.prompt_version,
+        ruleset=args.ruleset,
         track=args.track,
     )
     if args.json:
