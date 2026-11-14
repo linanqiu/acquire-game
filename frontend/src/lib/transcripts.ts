@@ -4,7 +4,9 @@
  * Same-origin `/api/...` calls; the Vite proxy strips the `/api` prefix.
  */
 
+import { fetchWithRetry } from './http'
 import type {
+  BenchTrack,
   GameDetail,
   GamesResponse,
   Leaderboard,
@@ -35,7 +37,11 @@ export class TranscriptApiError extends Error {
 async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   let res: Response
   try {
-    res = await fetch(`/api${path}`, { signal, headers: { Accept: 'application/json' } })
+    res = await fetchWithRetry(
+      `/api${path}`,
+      { headers: { Accept: 'application/json' } },
+      { signal }
+    )
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') throw err
     throw new TranscriptApiError('network', 'Could not reach the server')
@@ -84,9 +90,19 @@ export function transcriptDownloadUrl(gameId: string) {
   return `/api/games/${encodeURIComponent(gameId)}/transcript`
 }
 
-export function fetchLeaderboard(protocol?: string, signal?: AbortSignal) {
-  const q = protocol ? `?protocol=${encodeURIComponent(protocol)}` : ''
-  return getJson<Leaderboard>(`/bench/leaderboard${q}`, signal)
+export interface LeaderboardOptions {
+  protocol?: string
+  promptVersion?: string
+  track?: BenchTrack
+}
+
+export function fetchLeaderboard(opts: LeaderboardOptions = {}, signal?: AbortSignal) {
+  const q = new URLSearchParams()
+  if (opts.protocol) q.set('protocol', opts.protocol)
+  if (opts.promptVersion) q.set('prompt_version', opts.promptVersion)
+  if (opts.track && opts.track !== 'all') q.set('track', opts.track)
+  const qs = q.toString()
+  return getJson<Leaderboard>(`/bench/leaderboard${qs ? `?${qs}` : ''}`, signal)
 }
 
 export function fetchSeries(seriesId: string, signal?: AbortSignal) {

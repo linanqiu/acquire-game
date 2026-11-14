@@ -39,23 +39,48 @@ export interface Standing {
 
 export interface SeatTotals {
   decisions: number
+  /** Attempts that got a model answer (`raw` not null). */
   llm_calls: number
+  /** Attempts with a non-null error (rejected or cut off). */
   retries: number
   fallbacks: number
   input_tokens: number
   output_tokens: number
+  cache_read_tokens: number
+  cache_write_tokens: number
+  /** 0 for seats that used no tokens, null when a price is unknown. */
   cost_usd: number | null
   latency_s: number
+}
+
+/** `header.bench` of a benchmark game. */
+export interface BenchHeader {
+  series_id: string
+  matchup: string
+  seed: number
+  rotation: number
+  protocol?: string
+  track?: string
+  prompt_version?: string
+  series_games?: number
+  seating_index?: number
+  lineup?: string[]
 }
 
 /** `GET /games/{id}`. */
 export interface GameDetail extends GameSummary {
   standings: Standing[]
   totals: Record<string, SeatTotals>
+  end_reason: string | null
+  prompt_version: string | null
+  bench: BenchHeader | null
+  loaded_from_snapshot: boolean
 }
 
 export interface GamesResponse {
   games: GameSummary[]
+  /** `before` cursor for the next page; null on the last page. */
+  next: string | null
 }
 
 // -- Transcript ---------------------------------------------------------------
@@ -70,23 +95,29 @@ export interface TranscriptHeader {
   game_id: string
   source: GameSource
   room_code: string | null
-  bench: { series_id: string; matchup: string; seed: number; rotation: number } | null
+  bench: BenchHeader | null
   started_at: string
+  /** Null while the game is unfinished (it would determine every hand). */
   seed: number | null
+  tile_order?: string[] | null
   seats: TranscriptSeat[]
   prompt_version: string
   system_prompts: Record<string, string>
+  /** True for a transcript that starts at a loaded snapshot (test mode), not at a deal. */
+  loaded_from_snapshot?: boolean
+  start_seq?: number
 }
 
 export interface TranscriptFooter {
   type?: 'footer'
   ended_at: string
   reason: 'declared' | 'no_playable_tiles' | 'forced' | 'abandoned' | string
+  detail?: string
   standings: Standing[]
   totals: Record<string, SeatTotals>
 }
 
-/** An engine event as stored (verbatim from `game.events`). */
+/** An engine event (the `event` of a `{"type":"event","event":{...}}` line, verbatim). */
 export interface EngineEvent {
   seq: number
   type: string
@@ -98,14 +129,19 @@ export interface EngineEvent {
 export type DecisionSource = 'human' | 'bot' | 'scripted' | 'llm' | 'fallback'
 
 export interface LlmAttempt {
-  /** Absent in redacted transcripts. */
-  raw?: string
+  /** Absent in redacted transcripts; null when the attempt was cut off by the timeout. */
+  raw?: string | null
+  /** Always null in redacted transcripts. */
   parsed: Record<string, unknown> | null
+  /** In redacted transcripts a generic text when rejected. */
   error: string | null
-  latency_s: number
+  /** Only in redacted transcripts: whether the attempt was rejected. */
+  rejected?: boolean
+  latency_s: number | null
   input_tokens: number
   output_tokens: number
   cache_read_tokens: number
+  cache_write_tokens?: number
   /** Absent in redacted transcripts. */
   retry_prompt?: string | null
 }
@@ -113,12 +149,17 @@ export interface LlmAttempt {
 export interface LlmRecord {
   model: string
   system_prompt_id: string
+  /** A prompt not in the header (a custom agent) is stored inline. */
+  system_prompt?: string
   /** Absent in redacted transcripts. */
   user_prompt?: string
   attempts: LlmAttempt[]
   /** Absent in redacted transcripts. */
   why?: string | null
   note?: string | null
+  outcome?: 'answered' | 'failed'
+  /** Why the agent gave up (absent in redacted transcripts). */
+  error?: string
 }
 
 export interface DecisionEntry {
@@ -127,11 +168,14 @@ export interface DecisionEntry {
   after_seq: number
   player_id: string
   kind: string
-  legal: Record<string, unknown>
+  /** Null for an out-of-turn action (a trade proposal/cancel). `tiles` is absent in redacted transcripts. */
+  legal: Record<string, unknown> | null
   action: Record<string, unknown>
   source: DecisionSource
-  fallback: { reason: string; message: string } | null
-  latency_s: number
+  /** `detail` (the raw failure) is absent in redacted transcripts. */
+  fallback: { reason: string; message: string; detail?: string } | null
+  /** Null for humans. */
+  latency_s: number | null
   llm: LlmRecord | null
 }
 
@@ -172,18 +216,21 @@ export interface StateEntry {
   public: PublicState
 }
 
-/**
- * An entry of `transcript.entries`. Engine events are stored verbatim, so their own
- * `type` (e.g. `tile_placed`) is the discriminator; `{type:"event", event:{...}}` is
- * also accepted (see `normalizeEntries`).
- */
-export type TranscriptEntry = DecisionEntry | StateEntry | EngineEvent
+export interface EventEntry {
+  type: 'event'
+  event: EngineEvent
+}
+
+/** An entry of `transcript.entries`, in file order: `decision -> its events -> state`. */
+export type TranscriptEntry = DecisionEntry | StateEntry | EventEntry
 
 export interface Transcript {
   header: TranscriptHeader
   entries: TranscriptEntry[]
   footer: TranscriptFooter | null
   redacted: boolean
+  /** Footer-shaped totals so far; only while the game is unfinished. */
+  live_totals?: Record<string, SeatTotals>
 }
 
 // -- Leaderboard --------------------------------------------------------------
@@ -201,46 +248,82 @@ export interface LeaderboardAgent {
   label: string
   model: string | null
   games: number
+  /** Seat-games (a vs-baseline game has three rules-based seats). */
+  seat_games: number
   wins: number
   win_rate: number
   ci_low: number
   ci_high: number
   mean_rank: number
   rating: number
-  rating_ci: [number, number]
+  /** Null when there is nothing to bootstrap (e.g. the anchor). */
+  rating_ci: [number, number] | null
   fallback_rate: number
   retry_rate: number
   tokens_per_game: number
   cost_per_game: number | null
   latency_p50_s: number | null
   verdict: string
+  decisions: number
+  /** The rating anchor (the rules-based bot, fixed at 1500). */
+  is_anchor: boolean
 }
+
+export type BenchTrack = 'all' | 'vs-baseline' | 'head-to-head'
 
 export interface BenchSeriesRow {
   series_id: string
   matchup: string
+  track: string | null
   games: number
+  /** Games the series is meant to have. */
+  planned: number | null
   started_at: string
   finished: boolean
+  /** True when the series ran the protocol's full game count. */
+  full_protocol: boolean
 }
 
 export interface Leaderboard {
   protocol: BenchProtocol
+  prompt_version: string | null
+  track: BenchTrack
   updated_at: string | null
+  games: number
   agents: LeaderboardAgent[]
   series: BenchSeriesRow[]
+  available: { protocols: string[]; prompt_versions: string[] }
+  rating: { method: string; anchor: string; anchor_rating: number; prior: string }
+  /** Shown verbatim. */
+  warnings: string[]
 }
 
 export interface SeriesGame {
-  game_id: string
+  game_id: string | null
   seed: number
+  /** Seating index. */
   rotation: number
-  standings: Standing[]
+  /** The bench runner's status (`completed` or `aborted`). */
+  status: string | null
+  seat_order: string[] | null
+  standings: SeriesStanding[]
+}
+
+export interface SeriesStanding {
+  player_id: string
+  name: string | null
+  agent_id: string | null
+  /** Ties share an average rank (e.g. 1.5). */
+  rank: number
+  score: number
 }
 
 export interface SeriesDetail {
   series_id: string
   matchup: string
   protocol: string
+  track: string | null
+  prompt_version: string | null
+  planned: number | null
   games: SeriesGame[]
 }

@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { PageShell } from '../components/ui/PageShell'
 import { Card } from '../components/ui/Card'
 import { TextInput } from '../components/ui/TextInput'
 import { Button } from '../components/ui/Button'
 import { useToast } from '../components/ui/useToast'
+import { WakingBanner } from '../components/transcripts/PageFrame'
+import { warmUpServer } from '../lib/http'
 import styles from './LobbyPage.module.css'
 
 export function LobbyPage() {
@@ -24,6 +26,18 @@ export function LobbyPage() {
 
   // Spectator mode state
   const [spectatorLoading, setSpectatorLoading] = useState(false)
+
+  // A sleeping host: wake it while the player types their name (retried GET; shows a friendly
+  // "waking the server" note instead of an error).
+  const [serverDown, setServerDown] = useState(false)
+  const [warmNonce, setWarmNonce] = useState(0)
+  useEffect(() => {
+    const ctrl = new AbortController()
+    void warmUpServer(ctrl.signal).then((ok) => {
+      if (!ctrl.signal.aborted) setServerDown(!ok)
+    })
+    return () => ctrl.abort()
+  }, [warmNonce])
 
   const validateName = (name: string): string | null => {
     if (!name.trim()) {
@@ -171,6 +185,23 @@ export function LobbyPage() {
       <div className={styles.lobby}>
         <h1 className={styles.title}>ACQUIRE</h1>
         <p className={styles.subtitle}>A classic board game of hotel chains and mergers</p>
+
+        <WakingBanner />
+        {serverDown && (
+          <p className={styles.meta} role="alert" data-testid="server-down">
+            The server is not answering yet.{' '}
+            <button
+              type="button"
+              onClick={() => {
+                setServerDown(false)
+                setWarmNonce((n) => n + 1)
+              }}
+              data-testid="server-retry"
+            >
+              Try again
+            </button>
+          </p>
+        )}
 
         <div className={styles.forms}>
           <Card title="CREATE GAME" className={styles.card}>
