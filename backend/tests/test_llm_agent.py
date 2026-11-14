@@ -1,0 +1,351 @@
+"""LLMAgent decision loop: validate, repair, fail, notes, trading limits, log."""
+
+import json
+
+import pytest
+from agents.base import Agent
+from agents.llm.agent import LLMAgent
+from agents.llm.decision_log import DecisionLog
+from agents.llm.errors import AgentDecisionError, ProviderError
+from agents.llm.providers import FakeProvider
+
+from tests.llm_support import bot_game, buy_ctx, make_ctx, place_ctx
+
+pytestmark = pytest.mark.asyncio
+
+
+@pytest.fixture(scope="module")
+def game():
+    return bot_game(seed=1, min_turns=40)
+
+
+def answer(action, why="because", note=""):
+    return {"why": why, "action": action, "note": note}
+
+
+def first_tile(ctx):
+    return ctx.legal["tiles"][0]["tile"]
+
+
+async def test_agent_satisfies_seat_protocol():
+    assert isinstance(LLMAgent(FakeProvider()), Agent)
+    assert LLMAgent.kind == "llm"
+
+
+async def test_valid_first_answer_is_one_call(game):
+    ctx = place_ctx(game)
+    tile = first_tile(ctx)
+    prov = FakeProvider([answer({"action": "place_tile", "tile": tile}, note="plan A")])
+    agent = LLMAgent(prov, agent_id="llm:x")
+    action = await agent.decide(ctx)
+    assert action == {"action": "place_tile", "tile": tile}
+    assert len(prov.calls) == 1
+    call = prov.calls[0]
+    assert tile in call["user"] and "ACQUIRE" in call["system"]
+    assert call["timeout"] == 45.0
+    # schema handed to the provider is narrowed to the legal tiles
+    enum = call["schema"]["properties"]["action"]["properties"]["tile"]["enum"]
+    assert enum == [t["tile"] for t in ctx.legal["tiles"]]
+    (rec,) = agent.recent_decisions(5)
+    assert rec["repaired"] is False and rec["error"] is None
+    assert rec["decision_kind"] == "place_tile" and rec["calls"] == 1
+    assert rec["action"] == action and rec["why"] == "because"
+
+
+async def test_illegal_then_legal_triggers_exactly_one_repair(game):
+    ctx = place_ctx(game)
+    tile = first_tile(ctx)
+    prov = FakeProvider(
+        [
+            answer({"action": "place_tile", "tile": "12I"}),  # not in hand
+            answer({"action": "place_tile", "tile": tile}),
+        ]
+    )
+    agent = LLMAgent(prov)
+    action = await agent.decide(ctx)
+    assert action["tile"] == tile
+    assert len(prov.calls) == 2
+    repair = prov.calls[1]["user"]
+    assert "REJECTED" in repair and "12I" in repair and "not playable" in repair
+    assert prov.calls[1]["user"].startswith(
+        prov.calls[0]["user"]
+    )  # same prompt + error
+    (rec,) = agent.recent_decisions(5)
+    assert rec["repaired"] is True and rec["calls"] == 2
+    assert agent.totals["repairs"] == 1 and agent.totals["calls"] == 2
+
+
+async def test_malformed_first_answer_is_repaired(game):
+    ctx = place_ctx(game)
+    prov = FakeProvider(
+        [{"nonsense": True}, answer({"action": "place_tile", "tile": first_tile(ctx)})]
+    )
+    action = await LLMAgent(prov).decide(ctx)
+    assert action["action"] == "place_tile" and len(prov.calls) == 2
+
+
+async def test_two_illegal_answers_raise_and_log_failure(game):
+    ctx = place_ctx(game)
+    prov = FakeProvider([answer({"action": "end_turn"})])  # repeats forever
+    agent = LLMAgent(prov)
+    with pytest.raises(AgentDecisionError, match="illegal answer after repair"):
+        await agent.decide(ctx)
+    assert len(prov.calls) == 2
+    (rec,) = agent.recent_decisions(5)
+    assert rec["error"] and rec["action"] is None and rec["repaired"] is True
+    assert agent.totals["failures"] == 1
+
+
+async def test_provider_error_raises_without_repair(game):
+    prov = FakeProvider([ProviderError("HTTP 500")])
+    agent = LLMAgent(prov)
+    with pytest.raises(AgentDecisionError, match="provider error: HTTP 500"):
+        await agent.decide(place_ctx(game))
+    assert len(prov.calls) == 1
+    assert agent.totals["failures"] == 1
+
+
+async def test_generic_provider_exception_is_wrapped(game):
+    agent = LLMAgent(FakeProvider([RuntimeError("boom")]))
+    with pytest.raises(AgentDecisionError):
+        await agent.decide(place_ctx(game))
+
+
+async def test_timeout_raises(game):
+    # A provider that ignores its own timeout is cut off by the agent's ceiling.
+    prov = FakeProvider([answer({"action": "end_turn"})], delay=0.5)
+    agent = LLMAgent(prov, timeout=0.05, timeout_grace=0.0)
+    with pytest.raises(AgentDecisionError, match="timed out"):
+        await agent.decide(place_ctx(game))
+    assert agent.totals["failures"] == 1
+
+
+async def test_provider_reported_timeout_raises(game):
+    agent = LLMAgent(FakeProvider([ProviderError("slow", timeout=True)]))
+    with pytest.raises(AgentDecisionError, match="slow"):
+        await agent.decide(place_ctx(game))
+
+
+async def test_provider_receives_configured_timeout_and_max_tokens(game):
+    ctx = place_ctx(game)
+    prov = FakeProvider([answer({"action": "place_tile", "tile": first_tile(ctx)})])
+    await LLMAgent(prov, timeout=12.5, max_tokens=777).decide(ctx)
+    assert prov.calls[0]["timeout"] == 12.5 and prov.calls[0]["max_tokens"] == 777
+
+
+async def test_notes_carry_between_decisions(game):
+    ctx = place_ctx(game)
+    tile = first_tile(ctx)
+    prov = FakeProvider(
+        [
+            answer({"action": "place_tile", "tile": tile}, note="first plan"),
+            answer({"action": "place_tile", "tile": tile}, note="second plan"),
+            answer({"action": "place_tile", "tile": tile}, note="x" * 1000),
+        ]
+    )
+    agent = LLMAgent(prov, notes_limit=2)
+    await agent.decide(ctx)
+    assert "(none yet)" in prov.calls[0]["user"]
+    await agent.decide(ctx)
+    assert "first plan" in prov.calls[1]["user"]
+    await agent.decide(ctx)
+    u = prov.calls[2]["user"]
+    assert "first plan" in u and "second plan" in u
+    await agent.decide(ctx)  # 4th call repeats the last scripted answer
+    assert "first plan" not in prov.calls[3]["user"]  # oldest note evicted (limit 2)
+    assert all(len(n) <= 300 for n in agent.notes)
+
+
+async def test_buy_phase_normalises_zero_purchases(game):
+    ctx = buy_ctx(game)
+    chain = ctx.legal["options"][0]["chain"]
+    other = ctx.legal["options"][1]["chain"] if len(ctx.legal["options"]) > 1 else chain
+    prov = FakeProvider(
+        [
+            answer(
+                {
+                    "action": "buy_stocks",
+                    "purchases": {chain: 1, other: 0} if other != chain else {chain: 1},
+                }
+            )
+        ]
+    )
+    action = await LLMAgent(prov).decide(ctx)
+    assert action == {"action": "buy_stocks", "purchases": {chain: 1}}
+
+
+async def test_end_turn_and_declare(game):
+    ctx = buy_ctx(game)
+    prov = FakeProvider([answer({"action": "end_turn"})])
+    assert await LLMAgent(prov).decide(ctx) == {"action": "end_turn"}
+
+
+async def test_buy_over_limit_is_repaired(game):
+    ctx = buy_ctx(game)
+    chain = ctx.legal["options"][0]["chain"]
+    prov = FakeProvider(
+        [
+            answer({"action": "buy_stocks", "purchases": {chain: 9}}),
+            answer({"action": "end_turn"}),
+        ]
+    )
+    assert (await LLMAgent(prov).decide(ctx))["action"] == "end_turn"
+    assert len(prov.calls) == 2
+
+
+# --- trading -----------------------------------------------------------------
+
+
+def proposal(to="p2", **kw):
+    a = {
+        "action": "propose_trade",
+        "to_player_id": to,
+        "offering_stocks": {},
+        "offering_money": 100,
+        "requesting_stocks": {},
+        "requesting_money": 0,
+    }
+    a.update(kw)
+    return a
+
+
+async def test_trade_response_accept_and_reject(game):
+    trade = {
+        "trade_id": "t1",
+        "from_player_id": "p2",
+        "to_player_id": "p1",
+        "offering_stocks": {},
+        "offering_money": 500,
+        "requesting_stocks": {},
+        "requesting_money": 100,
+    }
+    legal = {
+        "action_types": ["accept_trade", "reject_trade"],
+        "trade": trade,
+        "can_accept": True,
+    }
+    ctx = make_ctx(game, "p1", "trade_response", legal)
+    acc = await LLMAgent(
+        FakeProvider([answer({"action": "accept_trade", "trade_id": "t1"})])
+    ).decide(ctx)
+    assert acc == {"action": "accept_trade", "trade_id": "t1"}
+    rej = await LLMAgent(
+        FakeProvider([answer({"action": "reject_trade", "trade_id": "t1"})])
+    ).decide(ctx)
+    assert rej["action"] == "reject_trade"
+    # cannot accept -> accept is not even in the schema; an accept answer is repaired to reject
+    prov = FakeProvider(
+        [
+            answer({"action": "accept_trade", "trade_id": "t1"}),
+            answer({"action": "reject_trade", "trade_id": "t1"}),
+        ]
+    )
+    ctx2 = make_ctx(game, "p1", "trade_response", {**legal, "can_accept": False})
+    assert (await LLMAgent(prov).decide(ctx2))["action"] == "reject_trade"
+    enum = [
+        v["properties"]["action"]["enum"][0]
+        for v in prov.calls[0]["schema"]["properties"]["action"].get(
+            "anyOf", [prov.calls[0]["schema"]["properties"]["action"]]
+        )
+    ]
+    assert enum == ["reject_trade"]
+
+
+async def test_propose_trade_allowed_once_per_turn(game):
+    ctx = buy_ctx(game)
+    prov = FakeProvider([answer(proposal(offering_money=100))])
+    agent = LLMAgent(prov, max_proposals_per_turn=1)
+    first = await agent.decide(ctx)
+    assert first["action"] == "propose_trade" and first["to_player_id"] == "p2"
+    assert "propose_trade" in json.dumps(prov.calls[0]["schema"])
+    # same turn again: propose_trade is withdrawn from legal options AND schema,
+    # so repeating the proposal is rejected (repair) and then fails.
+    with pytest.raises(AgentDecisionError):
+        await agent.decide(ctx)
+    assert "propose_trade" not in json.dumps(prov.calls[1]["schema"])
+    assert '"propose_trade"' not in prov.calls[1]["user"].split("Legal options")[1]
+
+
+async def test_proposal_cap_resets_next_turn(game):
+    ctx = buy_ctx(game)
+    prov = FakeProvider([answer(proposal())])
+    agent = LLMAgent(prov, max_proposals_per_turn=1)
+    await agent.decide(ctx)
+    ctx.events.append(
+        {"seq": 1, "type": "turn_ended", "player_id": "p1", "private_to": None}
+    )
+    again = await agent.decide(ctx)
+    assert again["action"] == "propose_trade"
+
+
+async def test_proposal_must_be_affordable(game):
+    ctx = buy_ctx(game)
+    prov = FakeProvider(
+        [
+            answer(proposal(offering_money=10**9)),
+            answer({"action": "end_turn"}),
+        ]
+    )
+    assert (await LLMAgent(prov).decide(ctx))["action"] == "end_turn"
+    assert "only has" in prov.calls[1]["user"]
+
+
+# --- observability -----------------------------------------------------------
+
+
+async def test_decision_log_ring_buffer_and_totals(game):
+    ctx = place_ctx(game)
+    tile = first_tile(ctx)
+    prov = FakeProvider([answer({"action": "place_tile", "tile": tile}, why="w")])
+    log = DecisionLog("llm:t", "fake", capacity=3)
+    agent = LLMAgent(prov, log=log, agent_id="llm:t")
+    for _ in range(5):
+        await agent.decide(ctx)
+    recs = agent.recent_decisions(10)
+    assert len(recs) == 3  # ring buffer
+    r = recs[-1]
+    assert r["agent_id"] == "llm:t" and r["model"] == "fake"
+    assert r["system_chars"] > 1000 and r["user_chars"] > 1000
+    assert r["input_tokens"] > 0 and r["output_tokens"] > 0 and r["latency_s"] >= 0
+    assert agent.totals["decisions"] == 5 and agent.totals["calls"] == 5
+    assert agent.totals["input_tokens"] > 0
+    agent.note_fallback("driver rejected")
+    assert agent.recent_decisions(1)[0]["fallback"] is True
+
+
+async def test_decision_log_writes_logger_and_jsonl(
+    game, tmp_path, monkeypatch, caplog
+):
+    monkeypatch.setenv("ACQUIRE_LLM_LOG_DIR", str(tmp_path))
+    ctx = place_ctx(game)
+    tile = first_tile(ctx)
+    agent = LLMAgent(
+        FakeProvider([answer({"action": "place_tile", "tile": tile}, why="reason")])
+    )
+    with caplog.at_level("INFO", logger="acquire.llm"):
+        await agent.decide(ctx)
+    assert any(
+        "kind=place_tile" in r.message and "reason" in r.message for r in caplog.records
+    )
+    lines = (tmp_path / "decisions.jsonl").read_text().strip().splitlines()
+    rec = json.loads(lines[0])
+    assert rec["action"]["tile"] == tile
+    assert "ACQUIRE" in rec["system"] and tile in rec["user"] and rec["responses"]
+
+
+async def test_failure_is_also_logged_to_jsonl(game, tmp_path, monkeypatch):
+    monkeypatch.setenv("ACQUIRE_LLM_LOG_DIR", str(tmp_path))
+    agent = LLMAgent(FakeProvider([ProviderError("nope")]))
+    with pytest.raises(AgentDecisionError):
+        await agent.decide(place_ctx(game))
+    rec = json.loads((tmp_path / "decisions.jsonl").read_text().splitlines()[0])
+    assert "nope" in rec["error"]
+
+
+async def test_fake_provider_default_plays_first_legal_action(game):
+    # no script: answers from the schema (this is what llm:fake does)
+    agent = LLMAgent(FakeProvider())
+    ctx = place_ctx(game)
+    assert (await agent.decide(ctx))["tile"] == first_tile(ctx)
+    buy = await agent.decide(buy_ctx(game))
+    assert buy == {"action": "buy_stocks", "purchases": {}}
