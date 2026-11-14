@@ -1,0 +1,129 @@
+.wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.boardBox {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.meta {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.side {
+  flex: 1 1 260px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.h4 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+}
+
+.muted {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.empty {
+  padding: var(--space-6);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.table td {
+  padding: 3px var(--space-2) 3px 0;
+}
+
+.num {
+  text-align: right;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.players {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.player {
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-tertiary);
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+}
+
+.active {
+  border-color: var(--text-accent);
+}
+
+.pHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.pName {
+  font-weight: var(--font-bold);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.turnMark {
+  color: var(--text-positive);
+  margin-right: var(--space-1);
+  font-size: var(--text-xs);
+}
+
+.cash {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-positive);
+  font-size: var(--text-sm);
+}
+
+.holdings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+}
+
+.holding {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.worth {
+  margin-left: auto;
+  color: var(--text-secondary);
+}

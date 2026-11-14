@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { Card } from '../ui/Card'
 import { Button } from '../ui/Button'
 import styles from './GameOver.module.css'
@@ -18,6 +19,8 @@ export interface GameOverProps {
   onPlayAgain: () => void
   onBackToLobby: () => void
   variant?: 'player' | 'host'
+  /** Transcript id; when present a "View full transcript" link is shown. */
+  gameId?: string | null
 }
 
 function calculateRanks(scores: FinalScore[]): Map<string, number> {
@@ -41,6 +44,7 @@ export function GameOver({
   onPlayAgain,
   onBackToLobby,
   variant = 'player',
+  gameId,
 }: GameOverProps) {
   const ranks = useMemo(() => calculateRanks(scores), [scores])
   const sortedScores = useMemo(() => [...scores].sort((a, b) => b.total - a.total), [scores])
@@ -162,6 +166,16 @@ export function GameOver({
               * Defunct stocks worth $0 - only active chains were liquidated
             </p>
           </div>
+        )}
+
+        {gameId && (
+          <Link
+            to={`/games/${encodeURIComponent(gameId)}`}
+            className={styles.transcriptLink}
+            data-testid="view-transcript-link"
+          >
+            View full transcript
+          </Link>
         )}
 
         <div className={styles.actions}>

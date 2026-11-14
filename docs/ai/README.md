@@ -1,3 +1,5 @@
+> **Historical (2026-11-14):** this describes the dropped reinforcement-learning plan (Epic 4, superseded). The current AI work is LLM opponents ([Epic 9](../roadmap/epics/09-llm-bot.md)) and Acquire Bench ([benchmarking.md](benchmarking.md), [Epic 12](../roadmap/epics/12-acquire-bench.md)).
+
 # Acquire AI Training Infrastructure
 
 This document describes the plan for training a neural network-based AI to play Acquire using Reinforcement Learning with Self-Play.
