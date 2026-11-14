@@ -7,6 +7,7 @@ import { create } from 'zustand'
 import type {
   ChainName,
   GameStateMessage,
+  LobbySeat,
   LobbyUpdateMessage,
   TilePlayabilityInfo,
   WebSocketMessage,
@@ -16,11 +17,7 @@ import type {
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 
 // Player info in lobby
-export interface LobbyPlayer {
-  player_id: string
-  name: string
-  is_bot: boolean
-}
+export type LobbyPlayer = LobbySeat
 
 // Current player's info
 export interface CurrentPlayer {

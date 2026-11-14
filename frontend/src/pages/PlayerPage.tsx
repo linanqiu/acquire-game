@@ -16,6 +16,11 @@ import { TradeBuilder } from '../components/game/TradeBuilder'
 import { GameOver, type FinalScore } from '../components/game/GameOver'
 import { StockStepper } from '../components/game/StockStepper'
 import { ChainMarker } from '../components/game/ChainMarker'
+import { AddAiControl } from '../components/game/AddAiControl'
+import { SeatKindBadge } from '../components/game/SeatKindBadge'
+import { RemoveSeatButton } from '../components/game/RemoveSeatButton'
+import { AiThinking } from '../components/game/AiThinking'
+import { isAiThinking, resolveSeatKind } from '../lib/agents'
 import { useGameStore } from '../store/gameStore'
 import { useToast } from '../components/ui/useToast'
 import { useErrorHandler } from '../hooks/useErrorHandler'
@@ -155,9 +160,7 @@ export function PlayerPage() {
   }, [gameState])
 
   const rackTiles: RackTile[] = useMemo(() => {
-    const playabilityMap = tilePlayability
-      ? transformPlayabilityMap(tilePlayability)
-      : undefined
+    const playabilityMap = tilePlayability ? transformPlayabilityMap(tilePlayability) : undefined
     return transformHandToRackTiles(yourHand, playabilityMap)
   }, [yourHand, tilePlayability])
 
@@ -206,25 +209,6 @@ export function PlayerPage() {
     } catch (err) {
       console.error('Failed to start game:', err)
       toast('Failed to start game', 'error')
-      setActionLoading(false)
-    }
-  }, [room, toast])
-
-  const handleAddBot = useCallback(async () => {
-    setActionLoading(true)
-    try {
-      const res = await fetch(`/api/room/${room}/add-bot`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      })
-      if (!res.ok) {
-        throw new Error('Failed to add bot')
-      }
-      toast('Bot added successfully', 'success')
-    } catch (err) {
-      console.error('Failed to add bot:', err)
-      toast('Failed to add bot', 'error')
-    } finally {
       setActionLoading(false)
     }
   }, [room, toast])
@@ -362,20 +346,24 @@ export function PlayerPage() {
         {lobbyPlayers.map((p) => (
           <div key={p.player_id} className={styles.lobbyPlayer}>
             <span>{p.name}</span>
-            {p.is_bot && <span className={styles.botBadge}>BOT</span>}
+            <span className={styles.seatTags}>
+              <SeatKindBadge
+                playerId={p.player_id}
+                kind={p.kind}
+                isBot={p.is_bot}
+                agentLabel={p.agent_label}
+              />
+              {isHost && resolveSeatKind(p) !== 'human' && (
+                <RemoveSeatButton room={room} playerId={p.player_id} playerName={p.name} />
+              )}
+            </span>
           </div>
         ))}
       </div>
       <p className={styles.playerCount}>{lobbyPlayers.length}/6 players</p>
       {isHost && (
         <div className={styles.hostActions}>
-          <Button
-            variant="secondary"
-            onClick={handleAddBot}
-            disabled={lobbyPlayers.length >= 6 || actionLoading}
-          >
-            + ADD BOT
-          </Button>
+          <AddAiControl room={room} disabled={lobbyPlayers.length >= 6 || actionLoading} />
           <Button
             onClick={handleStartGame}
             disabled={!canStart || actionLoading}
@@ -604,7 +592,12 @@ export function PlayerPage() {
     // During game phases
     // Allow rendering merger/disposition content when we have a pending stock
     // disposition or merger choice, even if it's not technically our turn
-    if (!isMyTurn && phase !== 'stock_disposition' && !pendingStockDisposition && !pendingMergerChoice) {
+    if (
+      !isMyTurn &&
+      phase !== 'stock_disposition' &&
+      !pendingStockDisposition &&
+      !pendingMergerChoice
+    ) {
       return renderWaitingContent()
     }
 
@@ -641,16 +634,20 @@ export function PlayerPage() {
             <span className={styles.playerName}>
               {player.name}
               {id === myPlayerId && <span className={styles.youBadge}>YOU</span>}
+              <SeatKindBadge
+                playerId={id}
+                kind={player.kind}
+                isBot={player.is_bot}
+                agentLabel={player.agent_label}
+              />
+              {isAiThinking(gameState.awaiting, id) && <AiThinking />}
             </span>
             <span className={styles.playerCash}>${player.money.toLocaleString()}</span>
             <div className={styles.playerStocks}>
               {Object.entries(player.stocks)
                 .filter(([, count]) => count > 0)
                 .map(([chain, count]) => (
-                  <span
-                    key={chain}
-                    className={`${styles.stockBadge} bg-${chain.toLowerCase()}`}
-                  >
+                  <span key={chain} className={`${styles.stockBadge} bg-${chain.toLowerCase()}`}>
                     {count}
                   </span>
                 ))}
@@ -663,7 +660,13 @@ export function PlayerPage() {
 
   return (
     <PageShell
-      phase={pendingMergerChoice ? 'CHOOSE SURVIVING CHAIN' : pendingStockDisposition ? 'DISPOSE YOUR STOCK' : getPhaseText(phase, isMyTurn, currentPlayerName)}
+      phase={
+        pendingMergerChoice
+          ? 'CHOOSE SURVIVING CHAIN'
+          : pendingStockDisposition
+            ? 'DISPOSE YOUR STOCK'
+            : getPhaseText(phase, isMyTurn, currentPlayerName)
+      }
       roomCode={room}
       cash={myPlayerData?.money}
       playerName={currentPlayer?.name}

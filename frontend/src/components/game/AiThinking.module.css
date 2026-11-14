@@ -1,0 +1,31 @@
+.thinking {
+  font-size: var(--text-xs);
+  font-style: italic;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.dots::after {
+  content: '...';
+  display: inline-block;
+  width: 1.2em;
+  text-align: left;
+  animation: dots 1.4s steps(4, end) infinite;
+  overflow: hidden;
+  vertical-align: bottom;
+}
+
+@keyframes dots {
+  0% {
+    width: 0;
+  }
+  100% {
+    width: 1.2em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dots::after {
+    animation: none;
+  }
+}
