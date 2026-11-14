@@ -4,14 +4,26 @@
 
 ## Direction (owner decisions, 2026-11-14)
 
-1. **No rebuild.** Keep the rules engine (about 600 tests, 2 s). Rebuild the seam between the engine
+1. **No rebuild.** Keep the rules engine (backend suite: 1,090 tests, 12 s without the `slow` ones, about 2 min with them). Rebuild the seam between the engine
    and everything that drives it ([Epic 10](epics/10-engine-seam.md)). Contract:
    [docs/architecture/seat-contract.md](../architecture/seat-contract.md).
 2. **A seat is a human, an LLM, a heuristic bot, or a scripted player.** The engine cannot tell
    which. Mechanistic RL is dropped for good; LLM opponents are first-class
    ([Epic 9](epics/09-llm-bot.md)).
 3. **Player-to-player trading stays**, including for LLM seats.
-4. **Four-tier test pyramid** ([Epic 11](epics/11-test-pyramid.md)). Measured problem: backend tests
+4. **Complete game transcripts** for every game, live and benchmark, including what each AI seat
+   was shown and what it answered ([Epic 12](epics/12-acquire-bench.md)). Users can browse and
+   replay finished games.
+5. **Acquire Bench is a product**: a versioned, standalone-runnable benchmark of models playing
+   each other and the rules-based baseline, with a public leaderboard that links to transcripts
+   ([Epic 12](epics/12-acquire-bench.md)).
+6. **LLM failures are retried, then visible**: an illegal move goes back to the model (default up
+   to 4 retries); only timeout, provider error or exhausted retries hand that decision to the
+   rules-based player, and everyone at the table is told. LLM opponents can be picked only when
+   their API key is configured.
+7. **One Railway service**, single replica; transcripts need a persistent volume to survive
+   redeploys (open item, AB-008).
+8. **Four-tier test pyramid** ([Epic 11](epics/11-test-pyramid.md)). Measured problem: backend tests
    take 2 s; the Playwright scenario suite (62 tests, about 9,300 lines) did not finish in 10
    minutes because tests play 20-40 turns through the browser to reach the screen under test.
 
@@ -36,9 +48,14 @@
 | [Security Hardening](epics/06-security-hardening.md) | 0/5 | SH-002..SH-005 (SH-001 after test pyramid) |
 | [Scenario Tests](epics/07-scenario-tests.md) | 9/10, ST-010 superseded | Strategy replaced by Epic 11; ST-011 flaky-test work is subsumed by TP-007 |
 | [Backlog](epics/08-backlog.md) | 4/6, BL-004 superseded | BL-005 |
-| [LLM Opponents](epics/09-llm-bot.md) | 0/7, all in-progress | LO-001..LO-007 |
-| [Engine Seam](epics/10-engine-seam.md) | 0/6, all in-progress | ES-001..ES-006 |
-| [Test Pyramid](epics/11-test-pyramid.md) | 0/8, all in-progress | TP-001..TP-008 |
+| [LLM Opponents](epics/09-llm-bot.md) | 1/6 (LO-006 harness done; LO-007 superseded) | LO-001..LO-005 partly built; LO-003 needs the 4-retry loop and fallback notice |
+| [Engine Seam](epics/10-engine-seam.md) | 3/6 (ES-003, ES-005, ES-006) | ES-001 (fuzz volume), ES-002, ES-004 (a few criteria open) |
+| [Test Pyramid](epics/11-test-pyramid.md) | 1/8 (TP-001) | TP-002, TP-003 partly built; TP-004..TP-008 wait on the browser tiers being written |
+| [Transcripts & Acquire Bench](epics/12-acquire-bench.md) | 0/9 | AB-001..AB-007 in-progress; AB-008 (blocked: volume), AB-009 (blocked: API key) |
+
+Counts checked against the repo on 2026-11-14 (`pytest backend/tests`: 1,090 passed, 1 xfailed).
+A story is counted done only when every acceptance criterion is ticked; the status note at the
+bottom of each in-progress story says what is open.
 
 ## Story Status Key
 
@@ -67,11 +84,23 @@ ES-006 test-mode endpoints      LO-006 benchmark harness        TP-004 screen te
                                                                 TP-007 retire old suite
                                                                 TP-008 CI wiring
 
+Track F: TRANSCRIPTS & ACQUIRE BENCH (Epic 12)
+──────────────────────────────────────────────
+AB-001 transcript writer  (wants LO-003 attempts data)
+   ↓                 ↘
+AB-002 HTTP API       AB-005 protocol acquire-bench-v1
+   ↓                     ↓
+AB-003 viewer UI      AB-004 standalone eval + CI    AB-006 ratings + leaderboard
+                                                        ↓
+                                                     AB-007 leaderboard UI
+AB-008 persistence (blocked: Railway volume)    AB-009 first results (blocked: API key)
+
 Track D: SECURITY (SH-002..005 can start any time; SH-001 after the test pyramid)
 Track E: DEPLOYMENT (done; production deploy waits for security)
 ```
 
-Tracks A, B and C run at the same time. Within each, follow the dependency column in the epic
+Tracks A, B, C and F run at the same time (F's AB-001 wants the LO-003 retry loop for the
+`attempts` data; the rest can start from the contract). Within each, follow the dependency column in the epic
 table. B depends on A only through ES-001 (interface), ES-002/004 (prompt inputs), ES-005 (driver).
 C depends on A through ES-003, ES-005 and ES-006.
 
@@ -80,21 +109,24 @@ C depends on A through ES-003, ES-005 and ES-006.
 ```
 [DONE] Backend Hardening → Frontend Foundation → Game UI → WebSocket core
                                    ↓
-             Engine seam (Epic 10)  ← YOU ARE HERE
+             Engine seam (Epic 10)  ← mostly built (3/6 complete; others have a few open criteria)
                                    ↓
         ┌──────────────────────────┴──────────────────────────┐
   Seats / LLM opponents (Epic 9)                 Test pyramid (Epic 11)
+  + Transcripts & Acquire Bench (Epic 12)
         └──────────────────────────┬──────────────────────────┘
                                    ↓
                          Security hardening (Epic 6)
                                    ↓
                               Production deploy
+                  (AB-008 volume and AB-009 first real benchmark run need the
+                   owner: a Railway volume and an API key)
 ```
 
 ## How to Claim a Story
 
-1. Check the story's `Dependencies`; verify no other agent has it `in-progress` (the new epics
-   are all `in-progress` as of 2026-11-14 because they are being implemented now; check the
+1. Check the story's `Dependencies`; verify no other agent has it `in-progress` (stories of
+   Epics 9-12 are `in-progress` as of 2026-11-14 because they are being implemented now; check the
    branch/PR before starting one).
 2. Read the story file and the relevant section of the seat contract.
 3. **Verify actual codebase APIs match story examples** (they may be outdated).
@@ -141,15 +173,17 @@ story needed? If a gap is found, create the story immediately.
 | 6 Security Hardening | CORS, rate limiting, validation, session tokens. Must finish before production deploy. |
 | 7 Scenario Tests | Browser suite from the first strategy. Replaced by Epic 11; ST-001..009 kept as history and for reusable helpers. |
 | 8 Backlog | Ideas discovered in use (BL-XXX). |
-| 9 LLM Opponents | LLM seats: provider adapters, prompt builder, single-call decision loop with validate/repair/fallback, trading, lobby UI, benchmark, observability. |
+| 9 LLM Opponents | LLM seats: provider adapters, prompt builder, decision loop with validate/retry/fallback (visible), trading, lobby UI, benchmark harness. Observability moved to Epic 12. |
 | 10 Engine Seam | Decisions API, single apply entry point, event log, snapshots, calculator pack, seat driver, test-mode endpoints. |
 | 11 Test Pyramid | Engine, protocol, screen (snapshots), journey (home page) tiers; surface coverage map. |
+| 12 Transcripts & Acquire Bench | Transcript of every game (prompts, answers, retries, fallbacks), redacted HTTP API, replay viewer, standalone versioned benchmark `acquire-bench-v1`, ratings, leaderboard page, persistence, first results. |
 
 ## Reference Documentation
 
 | Document | Purpose |
 |----------|---------|
 | [docs/architecture/seat-contract.md](../architecture/seat-contract.md) | Seat/engine contract (authoritative) |
+| [docs/ai/benchmarking.md](../ai/benchmarking.md) | Acquire Bench: how to run, read and extend it |
 | [docs/tests/surface-coverage.md](../tests/surface-coverage.md) | Which test covers which user-visible surface |
 | [docs/ui/storyboard.md](../ui/storyboard.md) | Complete UI specification |
 | [docs/ui/design-system.md](../ui/design-system.md) | Colors, typography, spacing |
