@@ -15,6 +15,8 @@ cancel at any time between start and game over; responses never block play).
 
 from __future__ import annotations
 
+import pytest
+
 from game.decisions import legal_actions, pending_decisions
 from tests.support.table import Table
 
@@ -118,6 +120,22 @@ def test_you_cannot_offer_what_you_do_not_have_nor_ask_for_what_they_lack():
     )
     assert not r["success"] and "trade_id" in r["error"]
     assert t.game.pending_trades == {}
+
+
+@pytest.mark.parametrize(
+    "terms",
+    [
+        {"offering_stocks": {"Luxor": 1}},  # a one-share gift
+        {"offering_money": 1},  # a one-dollar gift
+        {"requesting_stocks": {"Tower": 1}},  # asking for one share
+        {"requesting_money": 1},  # asking for one dollar
+    ],
+)
+def test_the_smallest_trade_is_one_share_or_one_dollar_one_way(terms):
+    t = holdings()
+    t.act("p2", action="propose_trade", to_player_id="p3", trade_id="s", **terms)
+    t.act("p3", action="accept_trade", trade_id="s")
+    assert t.events("trade_accepted")[0]["trade"]["trade_id"] == "s"
 
 
 def test_open_proposals_per_player_are_limited_by_the_ruleset():

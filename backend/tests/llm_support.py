@@ -6,6 +6,8 @@ shapes in docs/architecture/seat-contract.md.
 
 from __future__ import annotations
 
+import copy
+import functools
 from dataclasses import dataclass, field
 
 from agents.base import DecisionContext
@@ -24,7 +26,16 @@ class Decision:
 
 
 def bot_game(seed: int = 3, min_turns: int = 24, players: int = 4) -> Game:
-    """A game played by bots until it is p1's turn to place a tile mid-game."""
+    """A game played by bots until it is p1's turn to place a tile mid-game.
+
+    Each call returns a fresh copy; the position itself is played once per
+    process (the bots go through the real decision path, which is not free).
+    """
+    return copy.deepcopy(_played(seed, min_turns, players))
+
+
+@functools.lru_cache(maxsize=None)
+def _played(seed: int, min_turns: int, players: int) -> Game:
     g = Game(seed=seed)
     for i in range(players):
         g.add_player(

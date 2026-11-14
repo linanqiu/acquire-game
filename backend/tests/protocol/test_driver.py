@@ -407,8 +407,9 @@ def test_hanging_seat_times_out_other_rooms_keep_playing(app_client, monkeypatch
         start(app_client, other)
         watch_until_game_over(host)
     hung_info = debug(app_client, hung)
-    # The other room played a whole game while the hung room was still on
-    # its first few (timed-out) decisions.
-    assert 1 <= hung_info["fallback_kinds"].get("timeout", 0) <= 6
+    # The other room played a whole game while the hung room's seat kept
+    # timing out. (How many timeouts fit in that game depends on machine
+    # speed: an upper bound here made the test fail under load.)
+    assert hung_info["fallback_kinds"].get("timeout", 0) >= 1
     assert hung_info["driver_running"] is True
     assert debug(app_client, other)["fallback_count"] == 0

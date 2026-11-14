@@ -8,9 +8,11 @@ driver and the benchmark use for a "bot" seat.
 
 from __future__ import annotations
 
+import random
+
 from agents.base import build_context
 from agents.heuristic import HeuristicAgent
-from game.decisions import apply_action, pending_decisions
+from game.decisions import apply_action, legal_actions, pending_decisions
 from game.game import Game, GamePhase
 
 
@@ -54,6 +56,29 @@ class HeuristicTable:
             self.play_turn()
             turns += 1
         return turns
+
+
+class RandomTable(HeuristicTable):
+    """Seeded random legal play: much cheaper than the heuristic seat (no
+    calculator pack per decision), for tests that need many varied positions
+    rather than good play. Answers are built from ``legal_actions`` like any
+    seat's; the end is declared with probability ``declare_prob`` whenever it
+    may be."""
+
+    def __init__(self, game: Game, seed: int = 0, declare_prob: float = 0.0):
+        self.game = game
+        self.rng = random.Random(seed)
+        self.declare_prob = declare_prob
+
+    def step(self) -> dict:
+        from tests.test_decisions import random_answer
+
+        decision = pending_decisions(self.game)[0]
+        legal = legal_actions(self.game, decision)
+        action = random_answer(self.rng, decision, legal, self.declare_prob)
+        result = apply_action(self.game, decision.player_id, action)
+        assert result["success"], f"random {action} refused: {result}"
+        return action
 
 
 def bot_game(players: int = 3, seed: int = 1, ruleset=None) -> Game:

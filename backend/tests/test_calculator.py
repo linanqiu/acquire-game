@@ -10,7 +10,7 @@ from game.calculator import build_calculator_pack
 from game.game import Game, GamePhase
 from game.hotel import Hotel
 from game.rules import Rules
-from tests.support.drive import HeuristicTable
+from tests.support.drive import HeuristicTable, RandomTable
 from tests.support.table import Table, grow_two_chains
 from game.ruleset import load_ruleset
 
@@ -695,7 +695,7 @@ def test_engine_equality_over_bot_games(seed, players):
     for i in range(players):
         game.add_player(f"bot{i}", f"Bot {i}", is_bot=True)
     game.start_game()
-    table = HeuristicTable(game)
+    table = RandomTable(game, seed, declare_prob=0.5)
     tally = Tally()
     turns = 0
     while game.phase != GamePhase.GAME_OVER and turns < 160:
@@ -720,7 +720,7 @@ def test_mergers_were_exercised_somewhere():
         for i in range(4):
             game.add_player(f"bot{i}", f"Bot {i}", is_bot=True)
         game.start_game()
-        table = HeuristicTable(game)
+        table = RandomTable(game, seed, declare_prob=0.5)
         for _ in range(140):
             if game.phase == GamePhase.GAME_OVER:
                 break

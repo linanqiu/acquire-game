@@ -583,7 +583,14 @@ def main() -> int:
         default=0.1,
         help="--matrix: tests faster than this (s, under coverage) all run",
     )
+    ap.add_argument(
+        "--max-seconds",
+        type=float,
+        default=MAX_SECONDS,
+        help="time limit per mutant run (raise it for the slow tier)",
+    )
     args = ap.parse_args()
+    globals()["MAX_SECONDS"] = args.max_seconds
 
     args.workdir.mkdir(parents=True, exist_ok=True)
     previous = None
