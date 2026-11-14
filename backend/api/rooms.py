@@ -125,7 +125,8 @@ def _add_seat(room_code: str, agent_id: Any, name: Any = None, script: Any = Non
         kind=kind,
         name=name,
         agent_id=agent_id,
-        agent_label=entry.get("label"),
+        # The classic bot keeps its plain "BOT" badge (no label).
+        agent_label=None if kind == "bot" else entry.get("label"),
         agent=agent,
     )
     if seat_id is None:

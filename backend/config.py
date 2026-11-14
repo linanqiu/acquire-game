@@ -27,8 +27,12 @@ class Settings(BaseSettings):
     bot_decision_timeout: float = 10.0
     scripted_decision_timeout: float = 10.0
     llm_decision_timeout: float = 130.0
-    # Pause after each agent action so humans can follow (0 in test mode).
+    # Pause after each agent action so humans can follow (env AGENT_ACTION_DELAY).
     agent_action_delay: float = 0.4
+    # Same pause in test mode (ACQUIRE_TEST_MODE=1). Small but non-zero so
+    # browser tests can still observe an all-bot game in progress; in-process
+    # protocol tests set it to 0.
+    test_mode_agent_action_delay: float = 0.05
     # Runaway guards, per seat per turn.
     max_agent_actions_per_turn: int = 40
     max_trade_proposals_per_turn: int = 2

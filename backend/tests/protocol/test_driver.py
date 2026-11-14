@@ -377,3 +377,38 @@ async def test_two_concurrent_place_tiles_only_one_applies(clean_session_manager
     assert [r1["success"], r2["success"]].count(True) == 1
     placed = [e for e in game.events if e["type"] == "tile_placed"]
     assert len(placed) == 1
+
+
+class Hang:
+    kind = "llm"
+
+    def __init__(self, name):
+        pass
+
+    async def decide(self, ctx):
+        await asyncio.Event().wait()  # never answers
+
+
+@pytest.mark.slow
+def test_hanging_seat_times_out_other_rooms_keep_playing(app_client, monkeypatch):
+    from config import get_settings
+
+    monkeypatch.setattr(get_settings(), "llm_decision_timeout", 0.5)
+    install_fake_llms(monkeypatch, {"llm:hang": Hang})
+    hung = app_client.post("/create-spectator").json()["room_code"]
+    add_seat(app_client, hung, "llm:hang")
+    add_seat(app_client, hung, "bot")
+    add_seat(app_client, hung, "bot")
+    other = app_client.post("/create-spectator").json()["room_code"]
+    for _ in range(3):
+        add_seat(app_client, other, "bot")
+    start(app_client, hung)
+    with app_client.websocket_connect(f"/ws/host/{other}") as host:
+        start(app_client, other)
+        watch_until_game_over(host)
+    hung_info = debug(app_client, hung)
+    # The other room played a whole game while the hung room was still on
+    # its first few (timed-out) decisions.
+    assert 1 <= hung_info["fallback_kinds"].get("timeout", 0) <= 6
+    assert hung_info["driver_running"] is True
+    assert debug(app_client, other)["fallback_count"] == 0

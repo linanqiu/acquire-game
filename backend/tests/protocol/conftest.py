@@ -27,6 +27,7 @@ def fast_settings(monkeypatch):
     monkeypatch.setattr(s, "bot_decision_timeout", 5.0)
     monkeypatch.setattr(s, "scripted_decision_timeout", 5.0)
     monkeypatch.setattr(s, "llm_decision_timeout", 5.0)
+    monkeypatch.setattr(s, "test_mode_agent_action_delay", 0.0)
     return s
 
 

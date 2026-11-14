@@ -122,7 +122,9 @@ def _timeout_for(agent) -> float:
 
 
 def _pacing_delay() -> float:
-    return 0.0 if test_mode() else max(0.0, get_settings().agent_action_delay)
+    s = get_settings()
+    delay = s.test_mode_agent_action_delay if test_mode() else s.agent_action_delay
+    return max(0.0, delay)
 
 
 # ---------------------------------------------------------------------------

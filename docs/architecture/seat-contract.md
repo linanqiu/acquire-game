@@ -124,10 +124,9 @@ playable tile it:
 4. otherwise skips placement: phase -> `BUYING_STOCKS`, event
    `tile_placement_skipped`.
 
-The `game.phase = BUYING_STOCKS` hacks in `main.py::process_bot_turns` and
-`Game.execute_bot_turn` are therefore dead code (the latter now calls
-`resolve_unplayable_turn`); the former can go when main.py moves to
-`apply_action`.
+The server no longer has a hack of its own (`process_bot_turns` is gone);
+`Game.execute_bot_turn` calls `resolve_unplayable_turn` and is used only by
+engine tests.
 
 ### Trading during a merger
 
@@ -138,11 +137,9 @@ holdings and pending dispositions rely on the stock counts.
 Turn shape: after a `buy_stocks` action the turn is **not** over; the seat must
 still send `end_turn` (or `declare_end_game`). `game.stocks_bought_this_turn`
 is set by `buy_stocks` and cleared when the turn advances; a second
-`Game.buy_stocks` in the same turn fails. (Integration note: today
-`main.py::handle_buy_stocks` ends the turn itself and the frontend sends a
-single `buy_stocks`, never `end_turn`; when main.py switches to
-`apply_action`, either keep that auto-`end_turn` for human seats or teach the
-frontend to send `end_turn`.)
+`Game.buy_stocks` in the same turn fails. (The server keeps an
+auto-`end_turn` after a human's `buy_stocks` for the existing frontend; see
+Server.)
 
 ## Event log (`game.events`)
 
@@ -238,36 +235,106 @@ class Agent(Protocol):
     async def decide(self, ctx: DecisionContext) -> dict   # returns an action dict
 ```
 
-Implementations: `agents/heuristic.py` (wraps `game/bot.py`), `agents/scripted.py`
-(deterministic test opponents), `agents/llm/` (LLM opponent). Humans are seats
+Implementations: `agents/heuristic.py` (`HeuristicAgent`, kind `bot`: the
+`game/bot.py` scoring on a board/hotel/player rebuilt from `ctx.state`,
+answers always drawn from `ctx.legal`; RNG seeded by seat name so a seeded
+game is reproducible; declares the end when legal and `ctx.calc` ranks it
+first; accepts a trade only when `can_accept` and what it receives is worth
+strictly more at current prices; it is also the fallback for every other
+seat), `agents/scripted.py` (`ScriptedAgent`, deterministic test
+opponents), `agents/llm/` (LLM opponent). `agents/registry.py`:
+`catalog()` and `create(agent_id, *, name, **opts)` (LLM package imported
+lazily). Humans are seats
 with no `Agent`; the driver simply waits for their message.
 
 ## Server (`backend/main.py` + `backend/seats.py`)
 
-- One per-room `asyncio.Lock` serialises all mutations.
-- One driver loop: `while pending_decisions(game)[0]` belongs to an agent seat:
-  build context -> `await agent.decide()` (with timeout) -> `validate_action` ->
-  on failure fall back to heuristic -> `apply_action` -> broadcast.
-- Human messages go through the same `apply_action`.
-- Game state broadcasts include, per player, `kind` (`human|bot|llm|scripted`)
-  and keep `is_bot` (true for every non-human) for compatibility, plus a
-  top-level `awaiting: {"player_id", "kind", "decision"} | null`.
+Module layout: `protocol.py` (pydantic validation of client messages),
+`broadcast.py` (every server -> client message), `seats.py` (per-room lock,
+driver, the one action path), `lifecycle.py` (start / host-forced end),
+`api/rooms.py`, `api/ws.py`, `api/testmode.py` (routers), `app_state.py`
+(the `SessionManager` singleton). `main:app` stays the uvicorn entry point;
+`main.create_app()` builds the app (test-mode routes are decided at build time).
+
+- One per-room `asyncio.Lock` (`GameRoom.runtime.lock`) serialises all
+  mutations: human WebSocket/HTTP actions, the driver, snapshot loads, the
+  host's forced end.
+- One driver task per room (`seats.kick(room_code)` starts it after any
+  mutation). Loop: under the lock pick the first agent decision -- trade
+  responses addressed to agent seats first, then the flow decision if its
+  seat is an agent -- build its `DecisionContext`, broadcast state with
+  `awaiting`; **release the lock**; `await asyncio.wait_for(agent.decide(ctx),
+  timeout)`; re-acquire; if that exact `Decision` is no longer pending
+  (cancelled trade, snapshot loaded, ...) discard the answer; check it (action
+  type offered in `ctx.legal["action_types"]`, per-turn caps,
+  `validate_action`); on exception / timeout / illegal answer use
+  `HeuristicAgent` for that one decision (`agent.note_fallback(reason)` is
+  called if the agent has it); `apply_action`; publish. Stops when no agent
+  decision is pending.
+- Timeouts per seat kind (`config.py`): `bot_decision_timeout` 10 s,
+  `scripted_decision_timeout` 10 s, `llm_decision_timeout` 130 s (two provider
+  calls), or an agent's own `decision_timeout` attribute. Pacing after each
+  agent action: `agent_action_delay` 0.4 s, `test_mode_agent_action_delay`
+  0.05 s (non-zero so browser tests can watch an all-bot game; protocol tests
+  use 0). Runaway caps per seat per turn: `max_agent_actions_per_turn` 40,
+  `max_trade_proposals_per_turn` 2 (exceeding them counts as a fallback).
+- Fallbacks are logged and counted: `GET /room/{code}/debug` returns
+  `{driver_running, version, awaiting_agent, agent_actions, fallback_count,
+  fallback_kinds: {error|timeout|illegal|cap|engine: n}, fallbacks: [last 50
+  {player_id, seat_kind, decision, reason, category, at}], stalled}`.
+- Human messages go through the same `apply_action`
+  (`seats.human_action`). Human wire convenience: a successful `buy_stocks`
+  from a human also ends their turn (second `apply_action(end_turn)`), because
+  the frontend sends one `buy_stocks` and never `end_turn`; explicit `end_turn`
+  is accepted too. Agents always send `end_turn` themselves. Agent seats cannot
+  be driven by human messages (`error: "This seat is played by an AI agent"`).
+- A recipient's `accept_trade` that fails because the offer is no longer valid
+  is followed by an automatic `reject_trade` from that recipient (the only legal
+  answer left), so the stale offer leaves everyone's lists; the caller still
+  gets the error.
+- Notifications are derived from engine output only (new events since the
+  action + the new flow decision), so human and agent actions produce
+  identical messages (see `broadcast.py`): `choose_chain`,
+  `choose_merger_survivor`, `stock_disposition_required` and `can_end_game` go
+  to the human whose decision just became pending (and again on reconnect);
+  `all_tiles_unplayable` (room) and `tiles_replaced` (player) from
+  `tiles_replaced` events; `trade_proposed|accepted|rejected|canceled` to both
+  parties and the host; `game_over` (room + host) from `game_ended`, with
+  `declared_by` when declared. Every successful action broadcasts `game_state`.
+- `game_state` (JSON-safe; `pending_action` is not sent): per player
+  `name, money, stocks, hand_size, kind, is_bot, agent_label`; top level
+  `board, hotel, turn_order, current_player, phase, tiles_remaining,
+  pending_trades, awaiting`; to each player also `your_hand`,
+  `tile_playability`, `end_game_available`, `incoming_trades`,
+  `outgoing_trades`. `awaiting` is the agent decision being thought about, else
+  the flow decision (`kind` may be `human`), else null.
+- Starting needs `max(room.min_players, Game.MIN_PLAYERS)` = 3 seats (the
+  room said 2; starting with 2 used to 500 and leave the room stuck).
+- Disconnects: unchanged -- a closed socket is dropped; nothing is skipped on a
+  human's behalf. Reconnecting re-sends the full state and any pending prompt.
 
 ### HTTP additions
 
 | Route | Body | Notes |
 |-------|------|-------|
-| `GET /agents/catalog` | – | `[{"id","kind","label","description","available"}]` – AI opponents the lobby can offer. Always includes `{"id":"bot","kind":"bot",...}`; LLM entries are `available` only when their provider key is configured. |
-| `POST /room/{code}/add-seat` | `{"agent_id": "<catalog id>", "name"?: str}` | Adds an AI seat. Returns `{"player_id", "name", "kind"}`. `add-bot` stays as an alias for `agent_id="bot"`. |
-| `POST /room/{code}/remove-seat/{player_id}` | – | Lobby only, AI seats only. |
+| `GET /agents/catalog` | – | `[{"id","kind","label","description","available"}]` – AI opponents the lobby can offer. Always includes `{"id":"bot","kind":"bot",...}`; LLM entries from `agents.llm.config.catalog_entries()` (`available` only when their provider key is configured); `scripted` only in test mode. |
+| `POST /room/{code}/add-seat` | `{"agent_id": "<catalog id>", "name"?: str}` | Adds an AI seat. Returns `{"player_id", "name", "kind"}`. 404 unknown id, 400 unavailable / full / started / name taken, 422 missing id. Names: `Bot 1`, `Bot 2`...; LLM seats use the catalog label, `Label 2` when taken; `Scripted 1`... |
+| `POST /room/{code}/add-bot` | – | Alias for `agent_id="bot"`; returns `{"bot_id", "player_id", "name", "kind"}`. |
+| `POST /room/{code}/remove-seat/{player_id}` | – | Lobby only, AI seats only (400 human / started, 404 unknown). Returns `{"status": "removed", "player_id"}`. |
+| `GET /room/{code}/debug` | – | Driver diagnostics (above). |
 
-Lobby updates list each player with `kind` and `agent_label`.
+Lobby updates (and `GET /room/{code}/state`) list each player as
+`{player_id, name, is_bot, kind, agent_label}`. The classic bot has
+`agent_label: null` (its badge stays "BOT"); other AI seats carry the catalog
+label.
 
 ### Test-mode only (`ACQUIRE_TEST_MODE=1`)
 
 | Route | Body | Notes |
 |-------|------|-------|
-| `POST /test/room/{code}/load-snapshot` | `{"snapshot": {...}, "seat_map"?: {snapshot_player_id: room_player_id}}` | Replaces the room's game with a restored snapshot and broadcasts. |
-| `POST /room/{code}/add-seat` with `{"agent_id":"scripted","script"?: [...actions]}` | | Scripted opponent; with no script it plays the first legal action. |
+| `POST /test/room/{code}/load-snapshot` | `{"snapshot": {...}, "seat_map"?: {snapshot_player_id: room_player_id}}` | Remaps player ids everywhere in the snapshot dict (any string or key equal to a snapshot player id), takes names and AI seats from the room, restores with `from_snapshot`, marks the room started, broadcasts, prompts the human whose decision is pending, kicks the driver. Without `seat_map`, snapshot players map onto room seats in order (counts must match). 400 on a bad snapshot/map; the room's game is untouched. Returns `{status, phase, current_player, players}`. |
+| `GET /test/room/{code}/snapshot` | – | `to_snapshot` of the live game. |
+| `POST /room/{code}/add-seat` with `{"agent_id":"scripted","script"?: [...actions]}` | | `ScriptedAgent`: plays script entries in order when the entry's action type is offered for the decision (otherwise the entry waits and the default is played); an entry of the right type that is illegal is dropped. Default: first legal tile, first chain, sell all, end turn without buying, reject trades. |
 
-These routes do not exist when test mode is off.
+These routes do not exist when test mode is off (404; `scripted` is neither
+offered nor accepted).

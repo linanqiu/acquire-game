@@ -144,7 +144,7 @@ class SessionManager:
             kind="bot",
             name=name,
             agent_id="bot",
-            agent_label="Bot",
+            agent_label=None,
             agent=create("bot", name=name),
         )
 
