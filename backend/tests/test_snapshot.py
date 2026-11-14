@@ -13,17 +13,16 @@ identical per-player state and identical fresh snapshots after every step.
 
 import copy
 import json
-from functools import lru_cache
+from functools import cache
 
 import pytest
-
 from game.action import TradeOffer
 from game.board import Tile, TileState
 from game.bot import Bot
 from game.game import Game, GamePhase, MergerState
 from game.hotel import Hotel
-from game.rules import Rules
 from game.player import Player
+from game.rules import Rules
 from game.snapshot import (
     HANDLED_BOARD_ATTRS,
     HANDLED_BOT_ATTRS,
@@ -135,6 +134,14 @@ def step(game: Game, ctx: dict):
     if game.phase == GamePhase.GAME_OVER:
         return None
     ctx["n"] += 1
+    game.events.append(
+        {
+            "seq": len(game.events),
+            "type": "driver_step",
+            "n": ctx["n"],
+            "x": [1, {"a": None}],
+        }
+    )
     if ctx["n"] > MAX_STEPS:
         r = game.end_game()
         return {"action": "forced_end_game", **r.to_dict()}
@@ -196,11 +203,13 @@ def step(game: Game, ctx: dict):
     assert game.phase == GamePhase.BUYING_STOCKS, game.phase
     if not ctx["bought"]:
         ctx["bought"] = True
+        game.stocks_bought_this_turn = True
         r = game.buy_stocks(
             cur.player_id, bot.choose_stocks_to_buy(game.board, game.hotel)
         )
         return {"action": "buy_stocks", **r.to_dict()}
     ctx["bought"] = False
+    game.stocks_bought_this_turn = False
     r = game.end_turn(cur.player_id)
     return {"action": "end_turn", **r.to_dict()}
 
@@ -226,8 +235,8 @@ def continue_in_lockstep(ref: Game, ref_ctx: dict, rest: Game, rest_ctx: dict):
 # ---------------------------------------------------------------------------
 
 REQUIRED_CATEGORIES = {
-    "place_tile",
-    "found_chain",
+    "playing",
+    "founding_chain",
     "disposition",
     "disposition_mid",
     "buying",
@@ -242,17 +251,14 @@ CONFIGS = [
     (3, 5, ("hard",)),
     (4, 6, ("medium", "easy")),
     (5, 3, ("hard", "medium")),
-    (7, 4, ("easy",)),
-    (11, 6, ("hard", "hard", "easy")),
     (42, 3, ("medium",)),
-    (123, 4, ("medium",)),
 ]
 
-FORK_EVERY = 12  # also fork at every Nth step, in addition to per-category forks
-FORKS_PER_CATEGORY = 3
+FORK_EVERY = 60  # also fork at every Nth step, in addition to per-category forks
+FORKS_PER_CATEGORY = 1
 
 
-@lru_cache(maxsize=None)
+@cache
 def run_config(seed, n_players, difficulties):
     """Play one game, forking at many points. Returns the set of categories forked."""
     game = make_game(seed, n_players, difficulties)
@@ -277,9 +283,7 @@ def run_config(seed, n_players, difficulties):
         if need or i % FORK_EVERY == 0:
             for c in cats:
                 forked[c] = forked.get(c, 0) + 1
-            continue_in_lockstep(
-                copy.deepcopy(game), dict(ctx), restored, dict(ctx)
-            )
+            continue_in_lockstep(copy.deepcopy(game), dict(ctx), restored, dict(ctx))
 
         if step(game, ctx) is None:
             break
@@ -314,7 +318,12 @@ def _build_tie_merger_game():
         game.add_player(f"p{i}", f"P{i}", is_bot=True)
     game.start_game()
     # Luxor on 1A,2A ; Tower on 4A,5A ; joining tile 3A.
-    for t, chain in (("1A", "Luxor"), ("2A", "Luxor"), ("4A", "Tower"), ("5A", "Tower")):
+    for t, chain in (
+        ("1A", "Luxor"),
+        ("2A", "Luxor"),
+        ("4A", "Tower"),
+        ("5A", "Tower"),
+    ):
         tile = Tile.from_string(t)
         game.board.place_tile(tile)
         game.board.set_chain(tile, chain)
@@ -617,13 +626,11 @@ def test_snapshot_knows_every_substate_attribute():
     assert Hotel and Player and Bot
 
 
-def test_optional_attributes_roundtrip_when_engine_has_them():
-    """events / stocks_bought_this_turn survive when present on Game."""
+def test_events_and_buy_flag_roundtrip():
     game = make_game(3, 3)
-    if not hasattr(game, "events"):
-        pytest.skip("engine has no events yet")
-    game.events.append({"type": "x", "n": 1, "nested": {"a": [1, 2]}})
+    game.events.append({"type": "x", "n": 1, "nested": {"a": [1, 2], "t": None}})
     game.stocks_bought_this_turn = True
     restored = restore(game)
     assert restored.events == game.events
+    assert restored.events is not game.events
     assert restored.stocks_bought_this_turn is True

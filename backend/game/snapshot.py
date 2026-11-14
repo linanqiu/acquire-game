@@ -17,7 +17,7 @@ import random
 from typing import Any
 
 from game.action import TradeOffer
-from game.board import Board, BoardCell, Tile, TileState
+from game.board import BoardCell, Tile, TileState
 from game.bot import Bot
 from game.game import Game, GamePhase, MergerState
 from game.hotel import Hotel
@@ -41,13 +41,10 @@ HANDLED_GAME_ATTRS = frozenset(
         "pending_action",
         "_merger",
         "pending_trades",
-        # Optional: present only once the engine emits events / tracks buying.
         "events",
         "stocks_bought_this_turn",
     }
 )
-# Attributes that may legitimately be absent from a Game (older engine).
-OPTIONAL_GAME_ATTRS = ("events", "stocks_bought_this_turn")
 
 # Attributes of the sub-objects, for drift tests.
 HANDLED_PLAYER_ATTRS = frozenset({"player_id", "name", "_money", "_hand", "_stocks"})
@@ -75,8 +72,7 @@ _TILE_KEY = "__tile__"
 
 
 def _tile_from_str(s: Any) -> Tile:
-    if not isinstance(s, str):
-        raise ValueError(f"Bad tile {s!r}")
+    _require(isinstance(s, str), f"Bad tile {s!r}")
     try:
         tile = Tile.from_string(s)
     except (ValueError, IndexError) as e:
@@ -204,19 +200,20 @@ def to_snapshot(game: Game) -> dict:
             for key, trade in game.pending_trades.items()
         ],
     }
-    for name in OPTIONAL_GAME_ATTRS:
-        if hasattr(game, name):
-            snap[name] = _encode(_copy_json(getattr(game, name)))
+    snap["events"] = _copy_json(game.events)
+    snap["stocks_bought_this_turn"] = bool(game.stocks_bought_this_turn)
     return snap
 
 
 def _copy_json(value: Any) -> Any:
-    """Deep copy of plain JSON-style data (so snapshots don't alias the game)."""
+    """Deep copy of plain JSON data (so snapshots don't alias the game)."""
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
     if isinstance(value, dict):
         return {k: _copy_json(v) for k, v in value.items()}
     if isinstance(value, list):
         return [_copy_json(v) for v in value]
-    return value
+    raise TypeError(f"Non-JSON value {type(value).__name__} in snapshot data")
 
 
 # ---------------------------------------------------------------------------
@@ -313,9 +310,7 @@ def _build(data: dict) -> Game:
         game.players.append(player)
 
     idx = _check_int(data["current_player_index"], "current_player_index")
-    _require(
-        0 <= idx < max(len(players), 1), "current_player_index out of range"
-    )
+    _require(0 <= idx < max(len(players), 1), "current_player_index out of range")
     game.current_player_index = idx
 
     # Bots: recreate exactly as Game.add_player(..., is_bot=True) does.
@@ -361,17 +356,23 @@ def _build(data: dict) -> Game:
         trade = TradeOffer.from_dict(item["trade"])
         game.pending_trades[item["key"]] = trade
 
-    # Optional engine attributes (only restored if this engine has them).
-    for name in OPTIONAL_GAME_ATTRS:
-        if name in data and hasattr(game, name):
-            setattr(game, name, _decode(_copy_json(data[name])))
+    # Event log and per-turn buy flag
+    events = data["events"]
+    _require(
+        isinstance(events, list) and all(isinstance(e, dict) for e in events),
+        "Bad events",
+    )
+    game.events = _copy_json(events)
+    flag = data["stocks_bought_this_turn"]
+    _require(isinstance(flag, bool), "Bad stocks_bought_this_turn")
+    game.stocks_bought_this_turn = flag
 
     return game
 
 
 __all__ = [
-    "SNAPSHOT_VERSION",
     "HANDLED_GAME_ATTRS",
-    "to_snapshot",
+    "SNAPSHOT_VERSION",
     "from_snapshot",
+    "to_snapshot",
 ]
