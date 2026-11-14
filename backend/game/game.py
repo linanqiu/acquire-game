@@ -118,6 +118,48 @@ class Game:
         # Player-to-player trading state
         self.pending_trades: Dict[str, TradeOffer] = {}  # trade_id -> TradeOffer
 
+        # Append-only event log (see docs/architecture/seat-contract.md).
+        # Each entry: {"seq": int, "type": str, "player_id": str | None,
+        #              "private_to": str | None, ...payload}
+        self.events: list[dict] = []
+
+        # True once the current player has bought stocks this turn.
+        self.stocks_bought_this_turn: bool = False
+
+    def _emit(
+        self,
+        event_type: str,
+        player_id: Optional[str] = None,
+        private_to: Optional[str] = None,
+        **payload,
+    ) -> dict:
+        """Append an event to the event log.
+
+        Payload values must be JSON-serialisable (tiles as "5C" strings).
+
+        Args:
+            event_type: Event type name (see seat-contract.md)
+            player_id: Player who acted / is concerned, if any
+            private_to: If set, only this player may see the event
+            **payload: Event-specific data
+
+        Returns:
+            The appended event dict
+        """
+        event = {
+            "seq": len(self.events),
+            "type": event_type,
+            "player_id": player_id,
+            "private_to": private_to,
+            **payload,
+        }
+        self.events.append(event)
+        return event
+
+    def _chain_sizes(self, chains: list[str]) -> dict[str, int]:
+        """Get current board sizes for a list of chains."""
+        return {c: self.board.get_chain_size(c) for c in chains}
+
     # Convenience properties for backward compatibility with WebSocket handlers
 
     @property
@@ -231,14 +273,31 @@ class Game:
             self.tile_bag = Board.all_tiles()
             self.rng.shuffle(self.tile_bag)
 
+        self._emit(
+            "game_started",
+            turn_order=self.turn_order,
+            players=[{"player_id": p.player_id, "name": p.name} for p in self.players],
+        )
+
         # Deal starting tiles to each player
         for player in self.players:
+            dealt = []
             for _ in range(self.STARTING_TILES):
-                self.draw_tile(player)
+                tile = self.draw_tile(player)
+                if tile:
+                    dealt.append(str(tile))
+            self._emit(
+                "tiles_dealt",
+                player_id=player.player_id,
+                private_to=player.player_id,
+                tiles=dealt,
+            )
 
         # Set initial game state
         self.current_player_index = 0
         self.phase = GamePhase.PLAYING
+        self.stocks_bought_this_turn = False
+        self.resolve_unplayable_turn()
 
     def get_current_player(self) -> Player:
         """Get the player whose turn it is.
@@ -280,6 +339,61 @@ class Game:
         self.current_player_index = (self.current_player_index + 1) % len(self.players)
         self.phase = GamePhase.PLAYING
         self.pending_action = None
+        self.stocks_bought_this_turn = False
+
+    def _has_playable_tile(self, player: Player) -> bool:
+        """Check whether a player holds at least one legally playable tile."""
+        return any(
+            Rules.can_place_tile(self.board, t, self.hotel) for t in player.hand
+        )
+
+    def resolve_unplayable_turn(self) -> Optional[dict]:
+        """Give the current player a way forward if they cannot place a tile.
+
+        Called automatically at the start of every turn (``start_game`` and
+        ``end_turn``), and safe to call at any time (it is idempotent and a
+        no-op unless the game is in PLAYING phase and the current player holds
+        no playable tile). Drivers only need to call it themselves after
+        mutating game state outside the engine (tests, snapshot surgery).
+
+        Steps, in order:
+        1. If every tile in hand is unplayable, apply the replacement rule
+           (``handle_all_tiles_unplayable``).
+        2. If the player now has a playable tile, nothing else happens.
+        3. If the bag is empty and no player at all holds a playable tile, the
+           board can never change again, so the game ends.
+        4. Otherwise the tile placement step is skipped: phase moves to
+           BUYING_STOCKS and a ``tile_placement_skipped`` event is emitted.
+
+        Returns:
+            None if nothing had to be done, otherwise a dict with keys
+            ``replaced`` (the handle_all_tiles_unplayable result or None),
+            ``skipped`` (bool) and ``game_over`` (bool).
+        """
+        if self.phase != GamePhase.PLAYING or not self.players:
+            return None
+
+        player = self.get_current_player()
+        if self._has_playable_tile(player):
+            return None
+
+        replaced = self.handle_all_tiles_unplayable(player)
+        if self._has_playable_tile(player):
+            return {"replaced": replaced, "skipped": False, "game_over": False}
+
+        if not self.tile_bag and not any(
+            self._has_playable_tile(p) for p in self.players
+        ):
+            self.end_game(reason="no_playable_tiles")
+            return {"replaced": replaced, "skipped": False, "game_over": True}
+
+        self.phase = GamePhase.BUYING_STOCKS
+        self._emit(
+            "tile_placement_skipped",
+            player_id=player.player_id,
+            reason="no_playable_tiles",
+        )
+        return {"replaced": replaced, "skipped": True, "game_over": False}
 
     def handle_all_tiles_unplayable(self, player: Player) -> Optional[dict]:
         """Handle the case where a player has no playable tiles at turn start.
@@ -323,6 +437,23 @@ class Game:
                 new_tiles.append(str(tile))
             else:
                 break
+
+        self._emit(
+            "tiles_replaced",
+            player_id=player.player_id,
+            reason="all_unplayable",
+            revealed_hand=revealed_hand,
+            removed_tiles=removed_tiles,
+            new_tile_count=len(new_tiles),
+        )
+        for tile_str in new_tiles:
+            self._emit(
+                "tile_drawn",
+                player_id=player.player_id,
+                private_to=player.player_id,
+                tile=tile_str,
+                reason="replacement",
+            )
 
         return {
             "revealed_hand": revealed_hand,
@@ -416,6 +547,7 @@ class Game:
 
         if result.result_type == PlacementResult.NOTHING:
             # Just placed, move to buying stocks
+            self._emit("tile_placed", player_id, tile=str(tile), outcome="nothing")
             self.phase = GamePhase.BUYING_STOCKS
             return PlayTileResult(
                 success=True,
@@ -427,7 +559,21 @@ class Game:
         elif result.result_type == PlacementResult.EXPAND:
             # Expand the chain
             chain_name = result.chain
+            self._emit(
+                "tile_placed",
+                player_id,
+                tile=str(tile),
+                outcome="expand",
+                chains=[chain_name],
+            )
             self._expand_chain(tile, chain_name)
+            self._emit(
+                "chain_expanded",
+                player_id,
+                chain=chain_name,
+                tile=str(tile),
+                size=self.board.get_chain_size(chain_name),
+            )
             self.phase = GamePhase.BUYING_STOCKS
             return PlayTileResult(
                 success=True,
@@ -440,6 +586,13 @@ class Game:
         elif result.result_type == PlacementResult.FOUND:
             # Player needs to choose which chain to found
             available = self.hotel.get_inactive_chains()
+            self._emit(
+                "tile_placed",
+                player_id,
+                tile=str(tile),
+                outcome="found",
+                available_chains=list(available),
+            )
             self.phase = GamePhase.FOUNDING_CHAIN
             self.pending_action = {
                 "type": "found_chain",
@@ -460,6 +613,15 @@ class Game:
             self._merger.chains = chains
 
             survivor = Rules.get_merger_survivor(self.board, chains)
+            self._emit(
+                "tile_placed",
+                player_id,
+                tile=str(tile),
+                outcome="merge" if isinstance(survivor, str) else "merge_tie",
+                chains=list(chains),
+                sizes=self._chain_sizes(chains),
+                tied_chains=None if isinstance(survivor, str) else list(survivor),
+            )
 
             if isinstance(survivor, str):
                 # Clear winner
@@ -559,6 +721,16 @@ class Game:
             founder_bonus_type = "cash"
             founder_bonus_value = stock_price
 
+        self._emit(
+            "chain_founded",
+            player_id,
+            chain=chain_name,
+            tile=str(tile),
+            size=chain_size,
+            founder_bonus_type=founder_bonus_type,
+            founder_bonus_value=founder_bonus_value,
+        )
+
         self.phase = GamePhase.BUYING_STOCKS
         self.pending_action = None
 
@@ -580,6 +752,14 @@ class Game:
         self._merger.tile = tile  # Store tile for finalization
         self._merger.defunct_queue = sorted(
             defunct_chains, key=lambda c: self.board.get_chain_size(c), reverse=True
+        )
+        self._emit(
+            "merger_started",
+            self.get_current_player().player_id,
+            tile=str(tile) if tile else None,
+            survivor=survivor,
+            defunct=list(self._merger.defunct_queue),
+            sizes=self._chain_sizes([survivor] + self._merger.defunct_queue),
         )
 
         self._process_next_defunct_chain()
@@ -603,6 +783,13 @@ class Game:
             if player:
                 total = bonus.get("majority", 0) + bonus.get("minority", 0)
                 player.add_money(total)
+        self._emit(
+            "bonuses_paid",
+            chain=defunct,
+            chain_size=chain_size,
+            final=False,
+            bonuses={pid: dict(b) for pid, b in bonuses.items()},
+        )
         # Find players who need to handle stock disposition
         stockholders = []
         current_idx = self.current_player_index
@@ -683,6 +870,12 @@ class Game:
 
         self._merger.survivor = chain_name
         self.pending_action = None
+        self._emit(
+            "survivor_chosen",
+            player_id,
+            survivor=chain_name,
+            tied_chains=list(tied_chains),
+        )
 
         self._start_merger_process(tile, chain_name, defunct)
 
@@ -731,6 +924,11 @@ class Game:
         total_stock = self.pending_action.get("stock_count")
 
         # Validate
+        if sell < 0 or trade < 0 or keep < 0:
+            return StockDispositionResult(
+                success=False, error="Stock counts must be non-negative"
+            )
+
         if sell + trade + keep != total_stock:
             return StockDispositionResult(
                 success=False, error="Stock counts don't add up"
@@ -749,11 +947,13 @@ class Game:
             )
 
         # Execute sell
+        sale_proceeds = 0
         if sell > 0:
             defunct_size = self.board.get_chain_size(defunct)
             sell_price = self.hotel.get_stock_price(defunct, defunct_size)
             player.sell_stock(defunct, sell, sell_price)
             self.hotel.return_stock(defunct, sell)
+            sale_proceeds = sell * sell_price
 
         # Execute trade
         if trade > 0:
@@ -763,6 +963,18 @@ class Game:
             self.hotel.buy_stock(survivor, trade_for)
 
         # Keep is automatic (just don't do anything with them)
+
+        self._emit(
+            "stock_disposition",
+            player_id,
+            defunct_chain=defunct,
+            surviving_chain=survivor,
+            sell=sell,
+            trade=trade,
+            hold=keep,
+            sale_proceeds=sale_proceeds,
+            survivor_shares_received=trade_for,
+        )
 
         # Move to next player or next defunct chain
         self._merger.stock_index += 1
@@ -783,6 +995,8 @@ class Game:
         survivor = self._merger.survivor
         tile = self._merger.tile
 
+        defunct_chains = [c for c in self._merger.chains if c != survivor]
+
         # Merge all defunct chains into survivor on the board
         for defunct in self._merger.chains:
             if defunct != survivor:
@@ -796,6 +1010,14 @@ class Game:
                 cell = self.board.get_cell(t.column, t.row)
                 if cell.chain is None:
                     self.board.set_chain(t, survivor)
+
+        self._emit(
+            "merger_completed",
+            self.get_current_player().player_id,
+            survivor=survivor,
+            defunct=defunct_chains,
+            survivor_size=self.board.get_chain_size(survivor),
+        )
 
         # Reset merger state
         self._merger.reset()
@@ -819,6 +1041,11 @@ class Game:
         player = self.get_player(player_id)
         if not player or player.player_id != self.get_current_player().player_id:
             return BuyStocksResult(success=False, error="Not your turn")
+
+        if self.stocks_bought_this_turn:
+            return BuyStocksResult(
+                success=False, error="Stocks already bought this turn"
+            )
 
         if len(purchases) > self.MAX_STOCKS_PER_TURN:
             return BuyStocksResult(
@@ -858,6 +1085,15 @@ class Game:
             player.buy_stock(chain_name, 1, price)
             bought.append(StockPurchase(chain=chain_name, price=price))
 
+        self.stocks_bought_this_turn = True
+        self._emit(
+            "stocks_purchased",
+            player_id,
+            purchases=dict(chain_counts),
+            prices={b.chain: b.price for b in bought},
+            total_cost=total_cost,
+        )
+
         return BuyStocksResult(
             success=True,
             purchased=bought,
@@ -885,6 +1121,14 @@ class Game:
 
         # Draw a tile if possible
         drawn_tile = self.draw_tile(player)
+        if drawn_tile:
+            self._emit(
+                "tile_drawn",
+                player_id,
+                private_to=player_id,
+                tile=str(drawn_tile),
+                reason="end_turn",
+            )
 
         # Replace any permanently unplayable tiles
         replaced = []
@@ -896,16 +1140,45 @@ class Game:
             ]
             if not unplayable or not self.tile_bag:
                 break
+            removed_now = []
+            drawn_now = []
             for tile in unplayable:
                 player.remove_tile(tile)
                 replaced.append(str(tile))
-                self.draw_tile(player)
+                removed_now.append(str(tile))
+                new_tile = self.draw_tile(player)
+                if new_tile:
+                    drawn_now.append(str(new_tile))
+            self._emit(
+                "tiles_replaced",
+                player_id,
+                reason="permanently_unplayable",
+                revealed_hand=list(removed_now),
+                removed_tiles=removed_now,
+                new_tile_count=len(drawn_now),
+            )
+            for tile_str in drawn_now:
+                self._emit(
+                    "tile_drawn",
+                    player_id,
+                    private_to=player_id,
+                    tile=tile_str,
+                    reason="replacement",
+                )
 
         # Check for end game condition
         can_end = Rules.check_end_game(self.board, self.hotel)
 
         # Move to next player
         self.next_turn()
+        self._emit(
+            "turn_ended",
+            player_id,
+            next_player_id=self.get_current_player().player_id,
+        )
+
+        # Give the next player a way forward if they cannot place a tile
+        self.resolve_unplayable_turn()
 
         return EndTurnResult(
             success=True,
@@ -915,8 +1188,12 @@ class Game:
             next_player=self.get_current_player().player_id,
         )
 
-    def end_game(self) -> EndGameResult:
+    def end_game(self, reason: str = "ended") -> EndGameResult:
         """End the game and calculate final scores.
+
+        Args:
+            reason: Why the game ended, recorded on the ``game_ended`` event
+                ("declared", "no_playable_tiles", or "ended" for direct calls)
 
         Returns:
             EndGameResult with final results
@@ -938,8 +1215,16 @@ class Game:
                 if player:
                     total = bonus.get("majority", 0) + bonus.get("minority", 0)
                     player.add_money(total)
+            self._emit(
+                "bonuses_paid",
+                chain=chain_name,
+                chain_size=chain_size,
+                final=True,
+                bonuses={pid: dict(b) for pid, b in bonuses.items()},
+            )
 
         # Sell all stocks at current prices
+        final_sales: dict[str, int] = {}
         for player in self.players:
             for chain_name in Hotel.get_all_chain_names():
                 count = player.get_stock_count(chain_name)
@@ -951,6 +1236,9 @@ class Game:
                         price = 0
                     player.set_stocks(chain_name, 0)
                     player.add_money(count * price)
+                    final_sales[player.player_id] = (
+                        final_sales.get(player.player_id, 0) + count * price
+                    )
 
         # Calculate final standings
         standings_data = []
@@ -980,8 +1268,16 @@ class Game:
             )
 
         self.phase = GamePhase.GAME_OVER
+        self.pending_action = None
 
         winner = standings[0] if standings else None
+        self._emit(
+            "game_ended",
+            reason=reason,
+            final_sales=final_sales,
+            standings=[s.to_dict() for s in standings],
+            winner=winner.player_id if winner else None,
+        )
         return EndGameResult(
             success=True,
             standings=standings,
@@ -1040,8 +1336,10 @@ class Game:
                 success=False, error="End game conditions are not met"
             )
 
+        self._emit("end_game_declared", player_id)
+
         # End the game (this handles bonuses, stock sales, and standings)
-        end_result = self.end_game()
+        end_result = self.end_game(reason="declared")
 
         if not end_result.success:
             return DeclareEndGameResult(success=False, error=end_result.error)
@@ -1106,6 +1404,7 @@ class Game:
 
         # Add to pending trades
         self.pending_trades[trade.trade_id] = trade
+        self._emit("trade_proposed", trade.from_player_id, trade=trade.to_dict())
 
         return ProposeTradeResult(
             success=True,
@@ -1145,6 +1444,12 @@ class Game:
         if not is_valid:
             # Trade is no longer valid, remove it
             del self.pending_trades[trade_id]
+            self._emit(
+                "trade_cancelled",
+                player_id,
+                trade_id=trade_id,
+                reason="no_longer_valid",
+            )
             return AcceptTradeResult(
                 success=False, error=f"Trade is no longer valid: {error_msg}"
             )
@@ -1166,6 +1471,7 @@ class Game:
 
         # Remove the trade from pending
         del self.pending_trades[trade_id]
+        self._emit("trade_accepted", player_id, trade=trade.to_dict())
 
         return AcceptTradeResult(
             success=True,
@@ -1204,6 +1510,7 @@ class Game:
 
         # Remove the trade
         del self.pending_trades[trade_id]
+        self._emit("trade_rejected", player_id, trade_id=trade_id)
 
         return RejectTradeResult(success=True, trade_id=trade_id, rejected_by=player_id)
 
@@ -1233,6 +1540,9 @@ class Game:
 
         # Remove the trade
         del self.pending_trades[trade_id]
+        self._emit(
+            "trade_cancelled", player_id, trade_id=trade_id, reason="cancelled"
+        )
 
         return CancelTradeResult(success=True, trade_id=trade_id, canceled_by=player_id)
 
@@ -1305,8 +1615,14 @@ class Game:
                 result = self.play_tile(player_id, tile)
                 actions.append({"action": "play_tile", **result.to_dict()})
             else:
-                # No playable tiles, skip to buy stocks
-                self.phase = GamePhase.BUYING_STOCKS
+                # No playable tiles: let the engine apply the replacement /
+                # skip rules (usually already done at turn start).
+                self.resolve_unplayable_turn()
+                if self.phase == GamePhase.PLAYING:
+                    # Tiles were replaced and one is now playable; the caller
+                    # runs this method again for the placement.
+                    actions.append({"action": "tiles_replaced"})
+                    return actions
                 actions.append({"action": "skip_tile", "reason": "no playable tiles"})
 
         # Founding chain phase
