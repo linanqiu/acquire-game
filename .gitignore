@@ -38,3 +38,6 @@ Thumbs.db
 # Playwright MCP
 .playwright-mcp/
 .claude/worktrees/
+
+# Benchmark harness output
+backend/bench_results/
