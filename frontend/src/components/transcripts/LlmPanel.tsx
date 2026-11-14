@@ -32,7 +32,7 @@ function AttemptView({
   decisionIndex: number
   redacted: boolean
 }) {
-  const rejected = !!attempt.error
+  const rejected = attempt.rejected ?? !!attempt.error
   const idBase = `attempt-${decisionIndex}-${index}`
   return (
     <li
@@ -49,14 +49,21 @@ function AttemptView({
           {formatSeconds(attempt.latency_s)} · {formatTokens(attempt.input_tokens)} in /{' '}
           {formatTokens(attempt.output_tokens)} out
           {attempt.cache_read_tokens > 0 && ` · ${formatTokens(attempt.cache_read_tokens)} cached`}
+          {(attempt.cache_write_tokens ?? 0) > 0 &&
+            ` · ${formatTokens(attempt.cache_write_tokens)} cache-written`}
         </span>
       </div>
-      {rejected && (
+      {rejected && attempt.error && (
         <p className={styles.reason} data-testid={`attempt-${index}-error`}>
           Rejected: {attempt.error}
         </p>
       )}
-      {!redacted && attempt.raw !== undefined && (
+      {!redacted && attempt.raw === null && (
+        <p className={styles.muted}>
+          No output: the attempt was cut off before the model answered.
+        </p>
+      )}
+      {!redacted && typeof attempt.raw === 'string' && (
         <TextBlock
           id={`${idBase}-raw`}
           label="Raw model output"
@@ -80,7 +87,7 @@ export function LlmPanel({ decision, systemPrompts, redacted }: LlmPanelProps) {
   const llm = decision.llm
   if (!llm) return null
   const idx = decision.index
-  const systemPrompt = systemPrompts[llm.system_prompt_id]
+  const systemPrompt = systemPrompts[llm.system_prompt_id] ?? llm.system_prompt
   const attempts = llm.attempts ?? []
   const tokensIn = attempts.reduce((n, a) => n + (a.input_tokens ?? 0), 0)
   const tokensOut = attempts.reduce((n, a) => n + (a.output_tokens ?? 0), 0)
@@ -119,6 +126,11 @@ export function LlmPanel({ decision, systemPrompts, redacted }: LlmPanelProps) {
       {!locked && !llm.why && !llm.note && decision.source === 'fallback' && (
         <p className={styles.muted}>
           The model never gave a usable answer, so there is no stated reason.
+        </p>
+      )}
+      {!locked && llm.outcome === 'failed' && llm.error && (
+        <p className={styles.reason} data-testid="llm-gave-up">
+          The model was given up on: {llm.error}
         </p>
       )}
 

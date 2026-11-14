@@ -39,7 +39,7 @@ export function GamesPage() {
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<TranscriptApiError | null>(null)
-  const [hasMore, setHasMore] = useState(false)
+  const [next, setNext] = useState<string | null>(null)
   const gamesRef = useRef<GameSummary[]>([])
   const source = filter === 'benchmark' ? 'bench' : undefined
 
@@ -52,7 +52,7 @@ export function GamesPage() {
         if (signal.aborted) return
         gamesRef.current = res.games
         setGames(res.games)
-        setHasMore(res.games.length >= PAGE_SIZE)
+        setNext(res.next ?? null)
       } catch (err) {
         if (signal.aborted) return
         setError(
@@ -75,14 +75,13 @@ export function GamesPage() {
   }, [load, nonce])
 
   const loadMore = async () => {
-    const last = gamesRef.current[gamesRef.current.length - 1]
-    if (!last) return
+    if (!next) return
     setLoadingMore(true)
     try {
-      const res = await fetchGames({ source, limit: PAGE_SIZE, before: last.game_id })
+      const res = await fetchGames({ source, limit: PAGE_SIZE, before: next })
       gamesRef.current = [...gamesRef.current, ...res.games]
       setGames(gamesRef.current)
-      setHasMore(res.games.length >= PAGE_SIZE)
+      setNext(res.next ?? null)
     } catch (err) {
       setError(
         err instanceof TranscriptApiError
@@ -157,7 +156,7 @@ export function GamesPage() {
           </ul>
         )}
 
-        {hasMore && visible.length > 0 && (
+        {next && (
           <div className={styles.more}>
             <Button
               variant="secondary"

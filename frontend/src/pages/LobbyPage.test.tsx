@@ -35,7 +35,12 @@ describe('LobbyPage', () => {
     mockFetch.mockReset()
     sessionStorage.clear()
     // Use stubGlobal for proper isolation
-    vi.stubGlobal('fetch', mockFetch)
+    // The page wakes the server with GET /api/health on mount; everything else is the test's.
+    vi.stubGlobal('fetch', (url: string, ...rest: unknown[]) =>
+      url === '/api/health'
+        ? Promise.resolve({ ok: true, status: 200 } as Response)
+        : mockFetch(url, ...rest)
+    )
   })
 
   afterEach(async () => {

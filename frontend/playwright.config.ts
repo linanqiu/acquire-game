@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
+import { BENCH_DIR, TRANSCRIPT_DIR } from './tests/e2e/transcripts/dirs'
 
 // Allow overriding the browser binary (e.g. when the pinned Playwright build isn't installed).
 const browserLaunch = process.env.PW_CHROMIUM_PATH
@@ -33,9 +34,16 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], ...browserLaunch },
     },
     {
+      // Transcript viewer + Acquire Bench against the real backend (see tests/e2e/transcripts).
+      name: 'transcripts',
+      testDir: './tests/e2e/transcripts',
+      timeout: 600000,
+      use: { ...devices['Desktop Chrome'], ...browserLaunch },
+    },
+    {
       name: 'legacy',
       testDir: './tests/e2e',
-      testIgnore: ['**/journeys/**', '**/screens/**'],
+      testIgnore: ['**/journeys/**', '**/screens/**', '**/transcripts/**'],
       use: { ...devices['Desktop Chrome'], ...browserLaunch },
     },
   ],
@@ -52,6 +60,10 @@ export default defineConfig({
         ...process.env,
         ACQUIRE_GAME_SEED: '2',
         ACQUIRE_TEST_MODE: '1',
+        // Where the transcripts spec's standalone benchmark run is served from (/bench/*),
+        // and where live games write their transcripts (keeps the source tree clean).
+        ACQUIRE_BENCH_DIR: BENCH_DIR,
+        ACQUIRE_TRANSCRIPT_DIR: TRANSCRIPT_DIR,
       },
     },
     {

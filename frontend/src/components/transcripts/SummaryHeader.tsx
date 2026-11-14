@@ -22,6 +22,8 @@ interface SummaryHeaderProps {
 export function SummaryHeader({ transcript, replay }: SummaryHeaderProps) {
   const { header, footer, redacted } = transcript
   const derived = computeSeatStats(replay)
+  // Totals: the footer's when finished, else the server's running totals.
+  const allTotals = footer?.totals ?? transcript.live_totals
   const standing = new Map(footer?.standings.map((s) => [s.player_id, s]))
   const winnerIds = new Set(footer?.standings.filter((s) => s.rank === 1).map((s) => s.player_id))
   const live = !footer
@@ -49,6 +51,9 @@ export function SummaryHeader({ transcript, replay }: SummaryHeaderProps) {
             )}
             {header.source === 'bench' && <Badge label="BENCH" variant="info" />}
             {header.room_code && <span className={styles.muted}>Room {header.room_code}</span>}
+            {header.loaded_from_snapshot && (
+              <Badge label="LOADED FROM SNAPSHOT" variant="warning" />
+            )}
           </div>
         </div>
         <a
@@ -65,7 +70,13 @@ export function SummaryHeader({ transcript, replay }: SummaryHeaderProps) {
         Started {formatDateTime(header.started_at)}
         {footer && <> · ended {formatDateTime(footer.ended_at)}</>}
         {footer && <> · {END_REASON[footer.reason] ?? footer.reason}</>}
-        {header.seed !== null && <> · seed {header.seed}</>}
+        {header.seed !== null && header.seed !== undefined && <> · seed {header.seed}</>}
+        {header.prompt_version && (
+          <>
+            {' '}
+            · prompt <code>{header.prompt_version}</code>
+          </>
+        )}
         {header.bench && (
           <>
             {' '}
@@ -73,10 +84,21 @@ export function SummaryHeader({ transcript, replay }: SummaryHeaderProps) {
             <Link to={`/bench/series/${encodeURIComponent(header.bench.series_id)}`}>
               {header.bench.series_id}
             </Link>{' '}
-            ({header.bench.matchup}, rotation {header.bench.rotation})
+            ({header.bench.matchup}, seating {header.bench.rotation}
+            {header.bench.protocol && <>, protocol {header.bench.protocol}</>}
+            {header.bench.track && <>, track {header.bench.track}</>})
           </>
         )}
       </p>
+
+      {footer?.detail && <p className={styles.facts}>Ended: {footer.detail}</p>}
+
+      {header.loaded_from_snapshot && (
+        <p className={styles.redacted} role="note" data-testid="snapshot-banner">
+          This game was loaded from a saved snapshot (test mode), so the record starts mid-game
+          rather than at the deal and cannot be replayed from the start.
+        </p>
+      )}
 
       {redacted && (
         <p className={styles.redacted} role="note" data-testid="redacted-banner">
@@ -101,7 +123,7 @@ export function SummaryHeader({ transcript, replay }: SummaryHeaderProps) {
           </thead>
           <tbody>
             {seats.map((seat, i) => {
-              const totals = footer?.totals?.[seat.player_id]
+              const totals = allTotals?.[seat.player_id]
               const d = derived[seat.player_id]
               const decisions = totals?.decisions ?? d?.decisions ?? 0
               const retries = totals?.retries ?? d?.retries ?? 0

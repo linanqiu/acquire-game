@@ -40,7 +40,7 @@ function LegalOptions({
   names: Record<string, string>
   redacted: boolean
 }) {
-  const legal = d.legal as Record<string, unknown>
+  const legal = (d.legal ?? {}) as Record<string, unknown>
   const action = d.action as Record<string, unknown>
   const types = (legal.action_types as string[]) ?? []
   const extras = types.filter(
@@ -193,7 +193,9 @@ export function DecisionPanel({
       <div className={styles.who}>
         {seat ? <SeatChip seat={seat} /> : <span>{names[d.player_id] ?? d.player_id}</span>}
         <span className={styles.kind}>{decisionKindLabel(d.kind)}</span>
-        <span className={styles.latency}>{formatSeconds(d.latency_s)}</span>
+        {d.latency_s !== null && d.latency_s !== undefined && (
+          <span className={styles.latency}>{formatSeconds(d.latency_s)}</span>
+        )}
       </div>
 
       {(d.source === 'fallback' || fb) && (
@@ -207,6 +209,9 @@ export function DecisionPanel({
             </>
           )}
           .{fb?.message && <span className={styles.fbMessage}> {fb.message}</span>}
+          {fb?.detail && (
+            <TextBlock id={`fallback-detail-${d.index}`} label="Raw failure" text={fb.detail} />
+          )}
         </div>
       )}
 
@@ -217,7 +222,13 @@ export function DecisionPanel({
         </p>
       </div>
 
-      <LegalOptions d={d} names={names} redacted={redacted} />
+      {d.legal ? (
+        <LegalOptions d={d} names={names} redacted={redacted} />
+      ) : (
+        <p className={styles.muted}>
+          Not the answer to a pending decision (an out-of-turn action), so there is no option list.
+        </p>
+      )}
 
       {d.llm && <LlmPanel decision={d} systemPrompts={systemPrompts} redacted={redacted} />}
     </section>
