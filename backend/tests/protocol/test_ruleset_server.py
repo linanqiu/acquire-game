@@ -116,3 +116,39 @@ def test_mini_server_all_agent_game(app_client, mini_server):
     assert final["ruleset"]["id"] == "mini"
     assert len(final["players"]) == 3
     assert debug(client, code)["fallback_count"] == 0
+
+
+def test_live_llm_seat_on_mini_transcript_carries_the_text_it_used(
+    app_client, mini_server, tmp_path, monkeypatch
+):
+    """An unpatched ``llm:fake`` seat in a room on ``mini``: the transcript's
+    header ``system_prompts`` is the mini prompt (no classic chain names), the
+    decisions' prompt ids point at it, and the header names the ruleset."""
+    from agents.llm.prompt import build_system_prompt, prompt_version, system_prompt_id
+    from tests.protocol.helpers import watch_until_game_over
+
+    monkeypatch.setenv("ACQUIRE_TRANSCRIPT_DIR", str(tmp_path / "t"))
+    client = app_client
+    code = client.post("/create-spectator").json()["room_code"]
+    add_seat(client, code, "llm:fake")
+    add_seat(client, code, "bot")
+    configure(client, code, 4)
+    with client.websocket_connect(f"/ws/host/{code}") as host:
+        start(client, code)
+        watch_until_game_over(host)
+    game_id = session_manager.get_room(code).game_id
+    t = client.get(f"/api/games/{game_id}/transcript").json()
+    h = t["header"]
+    text = build_system_prompt(MINI)
+    sp = system_prompt_id(text, MINI)
+    assert h["system_prompts"] == {sp: text}
+    assert h["prompt_version"] == prompt_version(MINI)
+    assert h["prompt_version"] != prompt_version(classic())
+    assert h["ruleset_id"] == "mini" and h["ruleset"] == MINI.to_dict()
+    llm = [e["llm"] for e in t["entries"] if e["type"] == "decision" and e["llm"]]
+    assert llm and {d["system_prompt_id"] for d in llm} == {sp}
+    for name in classic().chain_ids:
+        assert name not in text
+        assert all(name not in d["user_prompt"] for d in llm)
+    detail = client.get(f"/api/games/{game_id}").json()
+    assert detail["ruleset_id"] == "mini" and detail["ruleset_title"] == MINI.title

@@ -5,7 +5,7 @@
 | ``GET /games?source=live|bench&limit=50&before=<id>`` | ``{"games": [...], "next"}`` newest first |
 | ``GET /games/{game_id}`` | summary + ``standings``, ``totals`` |
 | ``GET /games/{game_id}/transcript`` | ``{header, entries, footer, redacted}`` (gzip) |
-| ``GET /bench/leaderboard?protocol=&prompt_version=&track=`` | leaderboard |
+| ``GET /bench/leaderboard?protocol=&ruleset=&prompt_version=&track=`` | leaderboard |
 | ``GET /bench/series/{series_id}`` | the series' games |
 
 Unknown ids are JSON 404s; ids are validated before touching the disk (no path
@@ -144,6 +144,7 @@ async def bench_leaderboard(
     request: Request,
     protocol: str | None = None,
     prompt_version: str | None = None,
+    ruleset: str | None = None,
     track: str = Query("all", pattern="^(all|vs-baseline|head-to-head)$"),
 ):
     if (page := _spa(request)) is not None:
@@ -161,6 +162,7 @@ async def bench_leaderboard(
         records,
         protocol=protocol or (None if records else "acquire-bench-v1"),
         prompt_version=prompt_version,
+        ruleset=ruleset,
         track=track,
     )
 
@@ -205,6 +207,8 @@ async def bench_series(request: Request, series_id: str):
             "protocol": first.get("protocol"),
             "track": first.get("track"),
             "prompt_version": first.get("prompt_version"),
+            "ruleset_id": first.get("ruleset_id") or "classic",
+            "ruleset_fingerprint": first.get("ruleset_fingerprint"),
             "planned": first.get("series_games"),
             "games": games,
         }

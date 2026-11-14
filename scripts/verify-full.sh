@@ -13,7 +13,7 @@ cd "$PROJECT_ROOT"
 
 echo ""
 echo "=== All Backend Tests ==="
-cd backend && pytest tests/ -x
+cd backend && pytest tests/ -x -n auto
 cd "$PROJECT_ROOT"
 
 echo ""

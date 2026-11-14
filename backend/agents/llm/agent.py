@@ -17,10 +17,12 @@ import json
 import time
 from collections import deque
 from dataclasses import replace
+from functools import lru_cache
 from typing import Any
 
 from agents.llm.decision_log import DecisionLog
 from agents.llm.errors import AgentDecisionError, ProviderError
+from game.ruleset import Ruleset, ruleset_from_state
 from agents.llm.prompt import (
     PromptBudget,
     build_system_prompt,
@@ -34,6 +36,17 @@ from agents.llm.schema import (
     check_against_legal,
     parse_answer,
 )
+
+
+@lru_cache(maxsize=16)
+def _cached_system_prompt(fingerprint: str, ruleset: Ruleset) -> str:
+    return build_system_prompt(ruleset)
+
+
+def _system_prompt(rs: Ruleset) -> str:
+    """The system prompt for ``rs``, cached per ruleset fingerprint."""
+    return _cached_system_prompt(rs.fingerprint, rs)
+
 
 DEFAULT_TIMEOUT_S = 45.0
 DEFAULT_MAX_TOKENS = 6000
@@ -150,13 +163,19 @@ class LLMAgent:
         history = self._history
         if deadline is None and self.decision_budget:
             deadline = time.monotonic() + self.decision_budget
-        system = build_system_prompt()
+        rs = ruleset_from_state(ctx.state)
+        system = _system_prompt(rs)
         user = build_user_prompt(
             replace(ctx, legal=legal), list(self.notes), budget=self.budget
         )
-        rec = self._start_record(ctx, system, user, engine_rejected)
+        rec = self._start_record(ctx, system, user, engine_rejected, rs)
         try:
-            schema = build_schema(legal, other_player_ids=others)
+            schema = build_schema(
+                legal,
+                other_player_ids=others,
+                chains=rs.chain_ids,
+                max_shares=rs.stocks_per_chain,
+            )
         except ValueError as exc:
             self._log_failure(ctx, 0, "", "", [], f"no answerable action: {exc}", 0.0)
             rec["outcome"], rec["error"] = "failed", f"no answerable action: {exc}"
@@ -296,7 +315,9 @@ class LLMAgent:
 
     # ------------------------------------------------------------ internals
 
-    def _start_record(self, ctx, system: str, user: str, engine_rejected) -> dict:
+    def _start_record(
+        self, ctx, system: str, user: str, engine_rejected, rs: Ruleset
+    ) -> dict:
         """Begin (first call) or continue (driver re-ask) the decision record."""
         rec = self._record
         if engine_rejected and rec is not None and self._record_ctx is ctx:
@@ -308,7 +329,7 @@ class LLMAgent:
         model = getattr(self.provider, "model", "") or ""
         rec = {
             "model": model,
-            "system_prompt_id": system_prompt_id(system),
+            "system_prompt_id": system_prompt_id(system, rs),
             "system_prompt": system,
             "user_prompt": user,
             "attempts": [],

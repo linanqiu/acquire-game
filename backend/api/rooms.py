@@ -15,6 +15,7 @@ from broadcast import (
     lobby_players,
     min_to_start,
 )
+from game.game import GamePhase
 from lifecycle import initialize_game
 from seats import get_runtime, human_action
 
@@ -77,7 +78,13 @@ async def agents_catalog():
     return registry.catalog()
 
 
-def _add_seat(room_code: str, agent_id: Any, name: Any = None, script: Any = None):
+def _add_seat(
+    room_code: str,
+    agent_id: Any,
+    name: Any = None,
+    script: Any = None,
+    strict: Any = None,
+):
     room = _room_or_404(room_code)
     if room.started:
         raise HTTPException(status_code=400, detail="Game already started")
@@ -98,6 +105,10 @@ def _add_seat(room_code: str, agent_id: Any, name: Any = None, script: Any = Non
         isinstance(script, list) and all(isinstance(a, dict) for a in script)
     ):
         raise HTTPException(status_code=422, detail="script must be a list of actions")
+    if strict is not None and agent_id != "scripted":
+        raise HTTPException(status_code=400, detail="Only scripted seats take strict")
+    if strict is not None and not isinstance(strict, bool):
+        raise HTTPException(status_code=422, detail="strict must be a boolean")
     if name is not None:
         if not isinstance(name, str) or not name.strip():
             raise HTTPException(status_code=422, detail="Invalid name")
@@ -114,6 +125,8 @@ def _add_seat(room_code: str, agent_id: Any, name: Any = None, script: Any = Non
         raise HTTPException(status_code=400, detail="Player name already taken")
     try:
         opts = {"script": script} if script is not None else {}
+        if strict:
+            opts["strict"] = True
         agent = registry.create(agent_id, name=name, **opts)
     except registry.UnknownAgentError:
         raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id}")
@@ -136,9 +149,15 @@ def _add_seat(room_code: str, agent_id: Any, name: Any = None, script: Any = Non
 
 @router.post("/room/{room_code}/add-seat")
 async def add_seat(room_code: str, body: dict = Body(...)):  # noqa: B008
-    """Add an AI seat: body `{"agent_id", "name"?, "script"? (scripted, test mode)}`."""
+    """Add an AI seat: body `{"agent_id", "name"?, "script"? (scripted, test
+    mode), "strict"? (scripted: an illegal or never-consumed script entry is
+    reported in the room debug state and makes the seat fall back loudly)}`."""
     out = _add_seat(
-        room_code, body.get("agent_id"), body.get("name"), body.get("script")
+        room_code,
+        body.get("agent_id"),
+        body.get("name"),
+        body.get("script"),
+        body.get("strict"),
     )
     await broadcast_lobby_update(room_code)
     return out
@@ -222,10 +241,31 @@ async def get_room_state(room_code: str):
 
 @router.get("/room/{room_code}/debug")
 async def get_room_debug(room_code: str):
-    """Driver diagnostics: fallback counter and log, awaiting agent, stalls."""
+    """Driver diagnostics: fallback counter and log, awaiting agent, stalls,
+    and per scripted seat its script state (``scripted``)."""
     room = _room_or_404(room_code)
     rt = get_runtime(room)
-    return {"room_code": room_code, "started": room.started, **rt.debug()}
+    scripted = {
+        pid: seat.agent.debug()
+        for pid, seat in room.players.items()
+        if seat.kind == "scripted" and hasattr(seat.agent, "debug")
+    }
+    over = room.game is not None and room.game.phase == GamePhase.GAME_OVER
+    for info in scripted.values():
+        # at game over, what is still queued was never consumed
+        info["unconsumed_at_game_over"] = info["unconsumed"] if over else []
+    problems = [
+        pid
+        for pid, info in scripted.items()
+        if info["strict"] and (info["violations"] or info["unconsumed_at_game_over"])
+    ]
+    return {
+        "room_code": room_code,
+        "started": room.started,
+        **rt.debug(),
+        "scripted": scripted,
+        "script_problems": problems,
+    }
 
 
 @router.post("/room/{room_code}/refresh/{player_id}")

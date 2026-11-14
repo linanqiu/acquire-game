@@ -6,16 +6,20 @@ shape-only filter that produces friendly errors; ``apply_action`` does the
 authoritative legality checks.
 
 Chain ids, the tile pattern and the per-turn purchase limit come from the
-server's configured ruleset (``config.get_ruleset()``, env ``GAME_RULESET``),
-which is the ruleset every game on this server is created with.
+ruleset of the GAME the message is for: ``validate_websocket_message(data,
+ruleset)`` hands it to the validators as pydantic context. Without one
+(``None``) the server's configured ruleset (``config.get_ruleset()``, env
+``GAME_RULESET``) is used. A room's game may have been created under another
+ruleset (a snapshot loaded in test mode), so the seat driver passes
+``room.game.ruleset``.
 """
 
 from typing import Literal, Union
 
-from pydantic import BaseModel, ValidationError, field_validator
+from pydantic import BaseModel, ValidationError, ValidationInfo, field_validator
 
 from config import get_ruleset
-from game.ruleset import classic
+from game.ruleset import Ruleset, classic
 
 # =============================================================================
 # Pydantic Models for WebSocket Message Validation
@@ -25,13 +29,19 @@ from game.ruleset import classic
 VALID_CHAINS = list(classic().chain_ids)
 
 
-def _valid_chains() -> list[str]:
-    return list(get_ruleset().chain_ids)
+def _ruleset(info: ValidationInfo) -> Ruleset:
+    """The game's ruleset from the validation context (server default if none)."""
+    rs = (info.context or {}).get("ruleset") if info is not None else None
+    return rs if rs is not None else get_ruleset()
 
 
-def _validate_chain_name(v: str) -> str:
+def _valid_chains(info: ValidationInfo) -> list[str]:
+    return list(_ruleset(info).chain_ids)
+
+
+def _validate_chain_name(v: str, info: ValidationInfo) -> str:
     """Shared validator for chain names."""
-    chains = _valid_chains()
+    chains = _valid_chains(info)
     if v not in chains:
         raise ValueError(f"Invalid chain: {v}. Must be one of {chains}")
     return v
@@ -45,12 +55,12 @@ class PlaceTileMessage(BaseModel):
 
     @field_validator("tile")
     @classmethod
-    def validate_tile(cls, v: str) -> str:
+    def validate_tile(cls, v: str, info: ValidationInfo) -> str:
         """Validate tile format and board bounds (e.g. '1A')."""
         if not isinstance(v, str):
             raise ValueError("Tile must be a string")  # noqa: TRY004 - pydantic
         v = v.upper().strip()
-        board = get_ruleset().board
+        board = _ruleset(info).board
         if board.parse_tile_coords(v) is None:
             raise ValueError(
                 f"Invalid tile format. Expected format like {board.tile_example()}"
@@ -66,9 +76,9 @@ class FoundChainMessage(BaseModel):
 
     @field_validator("chain")
     @classmethod
-    def validate_chain(cls, v: str) -> str:
+    def validate_chain(cls, v: str, info: ValidationInfo) -> str:
         """Validate chain name."""
-        return _validate_chain_name(v)
+        return _validate_chain_name(v, info)
 
 
 class MergerChoiceMessage(BaseModel):
@@ -79,9 +89,9 @@ class MergerChoiceMessage(BaseModel):
 
     @field_validator("surviving_chain")
     @classmethod
-    def validate_chain(cls, v: str) -> str:
+    def validate_chain(cls, v: str, info: ValidationInfo) -> str:
         """Validate chain name."""
-        return _validate_chain_name(v)
+        return _validate_chain_name(v, info)
 
 
 class DispositionData(BaseModel):
@@ -109,9 +119,9 @@ class MergerDispositionMessage(BaseModel):
 
     @field_validator("defunct_chain")
     @classmethod
-    def validate_chain(cls, v: str) -> str:
+    def validate_chain(cls, v: str, info: ValidationInfo) -> str:
         """Validate chain name."""
-        return _validate_chain_name(v)
+        return _validate_chain_name(v, info)
 
 
 class BuyStocksMessage(BaseModel):
@@ -122,12 +132,13 @@ class BuyStocksMessage(BaseModel):
 
     @field_validator("purchases")
     @classmethod
-    def validate_purchases(cls, v: dict) -> dict:
+    def validate_purchases(cls, v: dict, info: ValidationInfo) -> dict:
         """Validate purchases dictionary."""
         if not isinstance(v, dict):
             raise ValueError("Purchases must be a dictionary")  # noqa: TRY004 - pydantic
-        chains = _valid_chains()
-        limit = get_ruleset().max_stock_purchases_per_turn
+        rs = _ruleset(info)
+        chains = list(rs.chain_ids)
+        limit = rs.max_stock_purchases_per_turn
         total = 0
         for chain, quantity in v.items():
             if chain not in chains:
@@ -167,9 +178,9 @@ class ProposeTradeMessage(BaseModel):
 
     @field_validator("offering_stocks", "requesting_stocks")
     @classmethod
-    def validate_stocks(cls, v: dict) -> dict:
+    def validate_stocks(cls, v: dict, info: ValidationInfo) -> dict:
         """Validate stock dictionaries."""
-        chains = _valid_chains()
+        chains = _valid_chains(info)
         for chain, quantity in v.items():
             if chain not in chains:
                 raise ValueError(f"Invalid chain: {chain}")
@@ -226,12 +237,14 @@ WebSocketMessage = Union[  # noqa: UP007
 
 
 def validate_websocket_message(
-    data: dict,
+    data: dict, ruleset: Ruleset | None = None
 ) -> tuple[WebSocketMessage | None, str | None]:
     """Validate incoming WebSocket message data.
 
     Args:
         data: Raw message data dictionary
+        ruleset: the ruleset of the game the message is for (default: the
+            server's configured ruleset)
 
     Returns:
         Tuple of (validated_message, error_message)
@@ -258,7 +271,9 @@ def validate_websocket_message(
         return None, f"Unknown action: {action}"
 
     try:
-        validated = message_types[action](**data)
+        validated = message_types[action].model_validate(
+            data, context={"ruleset": ruleset}
+        )
         return validated, None
     except ValidationError as e:
         # Extract first error message

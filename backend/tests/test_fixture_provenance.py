@@ -167,8 +167,12 @@ def _claim_game_over(g, h):
 
 def _claim_game_over_tie(g, h):
     assert g.phase == GamePhase.GAME_OVER
-    s = [e for e in g.events if e["type"] == "game_ended"][-1]["standings"]
+    ended = [e for e in g.events if e["type"] == "game_ended"][-1]
+    s = ended["standings"]
     assert s[0]["money"] == s[1]["money"]
+    # a tie shares the rank (competition ranking) and both are winners
+    assert s[0]["rank"] == s[1]["rank"] == 1
+    assert ended["winners"] == [s[0]["player_id"], s[1]["player_id"]]
 
 
 def _claim_low_cash(g, h):

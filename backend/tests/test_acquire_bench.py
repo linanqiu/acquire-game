@@ -278,6 +278,8 @@ def test_http_routes_shapes_pagination_and_404(api, prefix):
         "seats",
         "winners",
         "turns",
+        "ruleset_id",
+        "ruleset_title",
     }
     assert row["status"] == "finished" and row["source"] == "bench"
     assert set(row["seats"][0]) == {"player_id", "name", "kind", "agent_label", "model"}

@@ -12,6 +12,7 @@ from app_state import session_manager
 from game.board import Tile
 from game.decisions import apply_action, pending_decisions
 from game.game import Game
+from game.ruleset import load_ruleset
 from game.snapshot import to_snapshot
 from tests.protocol.helpers import HumanClient, add_seat, create_room, recv_until
 
@@ -204,3 +205,75 @@ def test_every_frontend_fixture_loads(app_client, name):
     assert state["players"][me]["name"] == "Alice"
     assert isinstance(state["your_hand"], list)
     assert isinstance(state["incoming_trades"], list)
+
+
+def mini_snapshot() -> dict:
+    """A game created under the ``mini`` ruleset: p1 holds 2A next to a lone 1A,
+    so placing it founds a chain (ids ``harbor``, ``meadow``, ...)."""
+    mini = load_ruleset("mini")
+    game = Game(seed=1, ruleset=mini)
+    for pid, name in (("p1", "One"), ("p2", "Two"), ("p3", "Three")):
+        game.add_player(pid, name)
+    game.start_game()
+    reserved = {Tile(1, "A"), Tile(2, "A")}
+    for p in game.players:
+        for t in list(p.hand):
+            if t in reserved:
+                p.remove_tile(t)
+    game.tile_bag = [t for t in game.tile_bag if t not in reserved]
+    for p in game.players:
+        while p.hand_size < mini.hand_size:
+            p.add_tile(game.tile_bag.pop())
+    game.board.place_tile(Tile(1, "A"))
+    p1 = game.players[0]
+    p1.remove_tile(p1.hand[0])
+    p1.add_tile(Tile(2, "A"))
+    game.resolve_unplayable_turn()
+    assert game.get_current_player_id() == "p1"
+    return to_snapshot(game)
+
+
+def test_snapshot_of_another_ruleset_is_validated_against_its_own_game(app_client):
+    """Server default is classic; the loaded game is ``mini``. A human's legal
+    mini moves (its own chain ids, 4 shares per buy) must not be refused by the
+    classic chain list / purchase limit."""
+    from config import get_ruleset
+
+    assert get_ruleset().id == "classic"
+    client = app_client
+    code, me = create_room(client, "Human")
+    bot = add_seat(client, code, "bot")
+    other = add_seat(client, code, "bot")
+    with client.websocket_connect(f"/ws/player/{code}/{me}") as ws:
+        human = HumanClient(ws, me)
+        human.recv()  # lobby
+        r = client.post(
+            f"/test/room/{code}/load-snapshot",
+            json={
+                "snapshot": mini_snapshot(),
+                "seat_map": {
+                    "p1": me,
+                    "p2": bot["player_id"],
+                    "p3": other["player_id"],
+                },
+            },
+        )
+        assert r.status_code == 200, r.text
+        game = session_manager.get_room(code).game
+        assert game.ruleset.id == "mini"
+
+        def policy(h, state):
+            if not h.actions:
+                return {"action": "place_tile", "tile": "2A"}  # founds a chain
+            if state["awaiting"]["decision"] == "buy_stocks":
+                # 4 shares in one turn is legal on mini only (classic: 3)
+                founded = h.actions[1]["chain"]
+                return {"action": "buy_stocks", "purchases": {founded: 4}}
+            return None
+
+        human.play(on_state=policy, stop=lambda m: m["current_player"] != me)
+    assert not human.errors, human.errors
+    kinds = [a["action"] for a in human.actions]
+    assert kinds[:3] == ["place_tile", "found_chain", "buy_stocks"], kinds
+    assert human.actions[1]["chain"] in load_ruleset("mini").chain_ids
+    assert game.get_player(me).get_stock_count(human.actions[1]["chain"]) >= 4

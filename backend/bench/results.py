@@ -17,7 +17,11 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from bench.leaderboard import compute_leaderboard, render_leaderboard_md
+from bench.leaderboard import (
+    compute_leaderboard,
+    record_ruleset,
+    render_leaderboard_md,
+)
 from bench.report import build_report, render_markdown
 from bench.series import load_results as _load_keyed
 
@@ -53,13 +57,25 @@ def load_results(path: str | Path) -> list[dict]:
 
 
 def boards_for(records: list[dict], **kw) -> list[dict]:
-    """One leaderboard per (protocol, prompt version) present."""
-    pairs = sorted(
-        {(r["protocol"], r.get("prompt_version")) for r in records if r.get("protocol")}
+    """One leaderboard per (protocol, ruleset fingerprint, prompt version)
+    present: results of different rulesets are never mixed."""
+    groups = sorted(
+        {
+            (r["protocol"], record_ruleset(r), r.get("prompt_version") or "")
+            for r in records
+            if r.get("protocol")
+        },
+        key=lambda g: (g[0], g[1][0], g[1][1] or "", g[2]),
     )
     return [
-        compute_leaderboard(records, protocol=p, prompt_version=v, **kw)
-        for p, v in pairs
+        compute_leaderboard(
+            records,
+            protocol=p,
+            ruleset=rs[1] or rs[0],
+            prompt_version=v or None,
+            **kw,
+        )
+        for p, rs, v in groups
     ]
 
 
