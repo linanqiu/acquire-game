@@ -1,5 +1,5 @@
 // Re-export API types for WebSocket integration
-// Note: ChainName uses Title Case to match backend API ('Luxor', 'Tower', etc.)
+// Note: chain ids (ChainId) are opaque strings from the game's ruleset.
 //
 // Type hierarchy:
 //   - api.ts: Wire format types (what backend sends over WebSocket)
@@ -9,37 +9,30 @@
 // Transformation from api.ts types to these types happens in RT-002 (Real-time Integration)
 export * from './api'
 export * from './transcripts'
+export * from './ruleset'
 
-// Player's stock holdings (uses ChainName from api.ts)
-import type { ChainName } from './api'
-export type Stocks = Record<ChainName, number>
+// Player's stock holdings, keyed by chain id
+import type { ChainId } from './ruleset'
+export type Stocks = Record<ChainId, number>
 
-/**
- * Convert a ChainName to lowercase for CSS class usage.
- * Example: 'Luxor' -> 'luxor' for use with .bg-luxor, .text-luxor classes
- */
-export function chainToCssClass(chain: ChainName): string {
-  return chain.toLowerCase()
-}
-
-// Tile identifier (e.g., "1A", "12L")
+// Tile identifier (e.g., "1A", "12I")
 export type TileId = string
 
 // Board cell state
-export type CellState = ChainName | 'unincorporated' | null
+export type CellState = ChainId | 'unincorporated' | null
 
 // The game board
 export type Board = Record<TileId, CellState>
 
 // Chain information
 export interface Chain {
-  name: ChainName
+  name: ChainId
   tiles: TileId[]
   size: number
 }
 
 // Chains on the board
-export type Chains = Partial<Record<ChainName, Chain>>
+export type Chains = Partial<Record<ChainId, Chain>>
 
 // Player information
 export interface Player {

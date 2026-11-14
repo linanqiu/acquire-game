@@ -46,12 +46,6 @@ export default defineConfig({
       timeout: 600000,
       use: { ...devices['Desktop Chrome'], ...browserLaunch },
     },
-    {
-      name: 'legacy',
-      testDir: './tests/e2e',
-      testIgnore: ['**/journeys/**', '**/screens/**', '**/transcripts/**'],
-      use: { ...devices['Desktop Chrome'], ...browserLaunch },
-    },
   ],
   webServer: [
     {

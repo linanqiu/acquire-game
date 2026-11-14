@@ -17,6 +17,7 @@ coverage/
 
 # Playwright
 playwright-report/
+playwright-report-themes/
 test-results/
 
 # Editor directories and files

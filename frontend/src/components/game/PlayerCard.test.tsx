@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { PlayerCard } from './PlayerCard'
 import type { StockHolding } from './PlayerCard'
 
@@ -35,8 +35,8 @@ describe('PlayerCard', () => {
     render(<PlayerCard {...defaultProps} stocks={stocks} />)
     const stocksArea = screen.getByTestId('player-stocks')
     expect(stocksArea).toBeInTheDocument()
-    expect(screen.getByText(':5')).toBeInTheDocument()
-    expect(screen.getByText(':3')).toBeInTheDocument()
+    expect(within(screen.getByTestId('player-stocks')).getByText('5')).toBeInTheDocument()
+    expect(within(screen.getByTestId('player-stocks')).getByText('3')).toBeInTheDocument()
   })
 
   it('filters out stocks with zero quantity', () => {
@@ -45,7 +45,7 @@ describe('PlayerCard', () => {
       { chain: 'Tower', quantity: 0 },
     ]
     render(<PlayerCard {...defaultProps} stocks={stocks} />)
-    expect(screen.getByText(':5')).toBeInTheDocument()
+    expect(within(screen.getByTestId('player-stocks')).getByText('5')).toBeInTheDocument()
     expect(screen.queryByText(':0')).not.toBeInTheDocument()
   })
 
@@ -162,13 +162,13 @@ describe('PlayerCard', () => {
     ]
     render(<PlayerCard {...defaultProps} stocks={stocks} />)
     expect(screen.getByTestId('player-stocks')).toBeInTheDocument()
-    expect(screen.getByText(':1')).toBeInTheDocument()
-    expect(screen.getByText(':2')).toBeInTheDocument()
-    expect(screen.getByText(':3')).toBeInTheDocument()
-    expect(screen.getByText(':4')).toBeInTheDocument()
-    expect(screen.getByText(':5')).toBeInTheDocument()
-    expect(screen.getByText(':6')).toBeInTheDocument()
-    expect(screen.getByText(':7')).toBeInTheDocument()
+    expect(within(screen.getByTestId('player-stocks')).getByText('1')).toBeInTheDocument()
+    expect(within(screen.getByTestId('player-stocks')).getByText('2')).toBeInTheDocument()
+    expect(within(screen.getByTestId('player-stocks')).getByText('3')).toBeInTheDocument()
+    expect(within(screen.getByTestId('player-stocks')).getByText('4')).toBeInTheDocument()
+    expect(within(screen.getByTestId('player-stocks')).getByText('5')).toBeInTheDocument()
+    expect(within(screen.getByTestId('player-stocks')).getByText('6')).toBeInTheDocument()
+    expect(within(screen.getByTestId('player-stocks')).getByText('7')).toBeInTheDocument()
   })
 
   it('renders with all props combined', () => {

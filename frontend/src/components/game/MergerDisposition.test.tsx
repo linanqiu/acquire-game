@@ -33,14 +33,14 @@ describe('MergerDisposition', () => {
     it('displays survivor stock availability', () => {
       render(<MergerDisposition {...defaultProps} />)
 
-      expect(screen.getByText(/stock available:/)).toBeInTheDocument()
+      expect(screen.getByText(/shares left in the bank:/)).toBeInTheDocument()
       expect(screen.getByText('10')).toBeInTheDocument()
     })
 
     it('displays card title with defunct chain name', () => {
       render(<MergerDisposition {...defaultProps} />)
 
-      expect(screen.getByText('DISPOSE OF YOUR LUXOR STOCK')).toBeInTheDocument()
+      expect(screen.getByText('DISPOSE OF YOUR LUXOR SHARES')).toBeInTheDocument()
     })
 
     it('displays SELL slider', () => {

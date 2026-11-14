@@ -5,10 +5,12 @@ import { Spinner } from '../ui/Spinner'
 import { Button } from '../ui/Button'
 import type { TranscriptApiError } from '../../lib/transcripts'
 import { useServerWaking } from '../../lib/http'
+import { useServerRules } from '../../ruleset/useRules'
 import styles from './PageFrame.module.css'
 
 /** Shared chrome for the transcript / benchmark pages: header, section nav, content. */
 export function PageFrame({ children }: { children: ReactNode }) {
+  const product = useServerRules()
   return (
     <PageShell>
       <nav className={styles.nav} aria-label="Transcripts and benchmark">
@@ -25,7 +27,7 @@ export function PageFrame({ children }: { children: ReactNode }) {
           to="/bench"
           className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
         >
-          Acquire Bench
+          {product.title} Bench
         </NavLink>
       </nav>
       <div className={styles.content}>

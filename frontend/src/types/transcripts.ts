@@ -3,7 +3,8 @@
  * Source of truth: docs/architecture/seat-contract.md, "Game transcripts and Acquire Bench".
  */
 
-import type { ChainName, SeatKind } from './api'
+import type { ChainId, SeatKind } from './api'
+import type { Ruleset } from './ruleset'
 
 export type GameSource = 'live' | 'bench'
 export type GameStatus = 'live' | 'finished' | 'abandoned'
@@ -105,6 +106,8 @@ export interface TranscriptHeader {
   system_prompts: Record<string, string>
   /** True for a transcript that starts at a loaded snapshot (test mode), not at a deal. */
   loaded_from_snapshot?: boolean
+  /** The game's ruleset (current backends); older transcripts were all classic. */
+  ruleset?: Ruleset | null
   start_seq?: number
 }
 
@@ -201,7 +204,7 @@ export interface PublicPlayer {
 export interface PublicState {
   phase: string
   current_player: string | null
-  board: { cells: Record<string, { state: 'played' | 'in_chain'; chain: ChainName | null }> }
+  board: { cells: Record<string, { state: 'played' | 'in_chain'; chain: ChainId | null }> }
   chains: Record<string, PublicChain>
   players: PublicPlayer[]
   tiles_remaining: number

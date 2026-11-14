@@ -82,12 +82,14 @@ This tests the FULL STACK - real browser, real servers, real user experience.
 ### Verification Commands
 | Command | Time | What it checks |
 |---------|------|----------------|
-| `./scripts/verify-change.sh` | ~10s | Lint, format, fast tests, typecheck |
-| `./scripts/verify-full.sh` | ~60s | All above + full backend tests + E2E smoke |
+| `./scripts/verify-change.sh` | ~10s | Lint, format, fast tests, surface coverage check, typecheck |
+| `./scripts/verify-full.sh` | ~60s | All above + full backend tests + frontend unit tests + `@ci` journeys |
 | `pytest backend/tests -q` | ~2s+ | Tier 1 (engine) + tier 2 (protocol) |
 | `npm run e2e:screens` | minutes | Tier 3: screen tests from snapshots (real servers, `ACQUIRE_TEST_MODE=1`) |
 | `npm run e2e:journeys` | minutes | Tier 4: home-page end-to-end journeys (real servers) |
-| `npm run e2e` | - | Legacy scenario suite; being retired (TP-007) |
+| `npm run e2e:ci` | ~1 min | The `@ci`-tagged journeys only |
+| `npm run e2e` | minutes | Screens + journeys + transcripts (the old scenario suite is gone: `docs/tests/legacy-suite-retirement.md`) |
+| `python scripts/check-surface-coverage.py` | ~0.1s | Every surface in `docs/tests/surface-coverage.md` names a test that exists |
 
 ## Git Workflow
 After completing code changes, always follow this sequence before being asked:
@@ -181,7 +183,7 @@ if (mergerGotStuck) {
 - Before/after every action: tile selected, tile placed, chain selector, chain chosen, buy phase,
   merger states, trade modal, final state.
 - Save to `frontend/test-results/<tier>/<test-name>/` with numbered names (`01-lobby.png`,
-  `02-game-created.png`); use the `takeScreenshot()` helper from `helpers/screenshot.ts`.
+  `02-game-created.png`); use the `shots.take()` fixture (screens), `j.shot()` (journeys) or `captureStep()` from `frontend/tests/e2e/support/screenshot.ts`.
 - If tests "pass" but the page is blank or broken, the tests are wrong: add assertions that catch
   render failures.
 

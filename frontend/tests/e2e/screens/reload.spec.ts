@@ -16,7 +16,7 @@ test('reload while choosing a chain: same selector, same options, still answerab
   await shots.take(page, 'before-reload')
 
   await page.reload()
-  await expect(phaseBanner(page)).toHaveText('CHOOSE A CHAIN')
+  await expect(phaseBanner(page)).toHaveText('CHOOSE A HOTEL CHAIN')
   await expect(page.getByTestId('chain-selector')).toBeVisible()
   await expect(page.locator('[data-testid^="chain-button-"]:not([disabled])')).toHaveCount(
     offered.length
@@ -47,9 +47,9 @@ test('reload during a stock disposition: the same card with the same limits come
   await shots.take(page, 'before-reload')
 
   await page.reload()
-  await expect(phaseBanner(page)).toHaveText('DISPOSE YOUR STOCK')
+  await expect(phaseBanner(page)).toHaveText('DISPOSE YOUR SHARES')
   await expect(
-    page.getByText(`DISPOSE OF YOUR ${legal.defunct_chain.toUpperCase()} STOCK`)
+    page.getByText(`DISPOSE OF YOUR ${legal.defunct_chain.toUpperCase()} SHARES`)
   ).toBeVisible()
   await expect(page.getByTestId('merger-disposition')).toContainText(
     `You have: ${legal.stock_count}`

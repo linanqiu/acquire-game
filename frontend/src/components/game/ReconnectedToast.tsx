@@ -1,6 +1,7 @@
 import { Card } from '../ui/Card'
 import { Button } from '../ui/Button'
 import styles from './ReconnectedToast.module.css'
+import { useRules } from '../../ruleset/useRules'
 
 export interface ReconnectedToastProps {
   playerName: string
@@ -21,6 +22,7 @@ export function ReconnectedToast({
   tileCount,
   onContinue,
 }: ReconnectedToastProps) {
+  const rules = useRules()
   return (
     <Card title="RECONNECTED" className={styles.toast}>
       <div className={styles.container} data-testid="reconnected-toast">
@@ -32,10 +34,11 @@ export function ReconnectedToast({
             <span className={styles.label}>Turn:</span> {currentTurn} ({phase})
           </p>
           <p className={styles.stateLine}>
-            <span className={styles.label}>Your cash:</span> ${cash.toLocaleString()}
+            <span className={styles.label}>Your cash:</span> {rules.money(cash)}
           </p>
           <p className={styles.stateLine}>
-            <span className={styles.label}>Your stocks:</span> {stockCount} total
+            <span className={styles.label}>Your {rules.theme.share_noun_plural}:</span> {stockCount}{' '}
+            total
           </p>
           <p className={styles.stateLine}>
             <span className={styles.label}>Your tiles:</span> {tileCount} in hand

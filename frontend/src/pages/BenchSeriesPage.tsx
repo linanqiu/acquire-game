@@ -2,11 +2,14 @@ import { Link, useParams } from 'react-router-dom'
 import { PageFrame, LoadingView, ErrorView } from '../components/transcripts/PageFrame'
 import { useFetch } from '../hooks/useFetch'
 import { fetchSeries } from '../lib/transcripts'
-import { formatNumber } from '../lib/format'
+import { useServerRules } from '../ruleset/useRules'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import styles from './BenchSeriesPage.module.css'
 
 export function BenchSeriesPage() {
   const { seriesId = '' } = useParams()
+  const product = useServerRules()
+  useDocumentTitle(`${product.title} Bench`)
   const { data, error, loading, reload } = useFetch(
     (signal) => fetchSeries(seriesId, signal),
     `series:${seriesId}`
@@ -16,7 +19,7 @@ export function BenchSeriesPage() {
     <PageFrame>
       <div className={styles.page}>
         <Link to="/bench" className={styles.back}>
-          ← Acquire Bench
+          ← {product.title} Bench
         </Link>
         {loading && !data && !error && <LoadingView label="Loading series" />}
         {error && !data && <ErrorView error={error} what="series" byId onRetry={reload} />}
@@ -84,7 +87,7 @@ export function BenchSeriesPage() {
                                 <span className={styles.meta}> ({s.agent_id})</span>
                               )}
                             </span>
-                            <span className={styles.score}>${formatNumber(s.score)}</span>
+                            <span className={styles.score}>{product.money(s.score)}</span>
                           </li>
                         ))}
                     </ol>

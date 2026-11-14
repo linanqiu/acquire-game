@@ -33,7 +33,7 @@ async function expectHostMatchesFixture(host: Page, room: RoomContext) {
   for (const [chain, c] of Object.entries(active_chains)) {
     const marker = host.getByTestId('chain-list').getByTestId(`chain-marker-${chain.toLowerCase()}`)
     await expect(marker).toContainText(`${c.size} tiles`)
-    await expect(marker).toContainText(`${dollars(c.price)}/share`)
+    await expect(marker).toContainText(dollars(c.price))
     await expect(marker).toContainText(`[${c.available}]`)
   }
   await expect(cards(host)).toHaveCount(players.length)
@@ -42,7 +42,7 @@ async function expectHostMatchesFixture(host: Page, room: RoomContext) {
     await expect(card).toBeVisible()
     await expect(card.getByTestId('player-cash')).toHaveText(dollars(p.cash))
     for (const qty of Object.values(p.holdings)) {
-      if (qty > 0) await expect(card.getByTestId('player-stocks')).toContainText(`:${qty}`)
+      if (qty > 0) await expect(card.getByTestId('player-stocks')).toContainText(String(qty))
     }
   }
 }
@@ -123,7 +123,7 @@ test('host view lists a pending trade between two players', async ({ page, openH
   await expect(line).toBeVisible()
   await expect(line).toContainText(from)
   await expect(line).toContainText(to)
-  await expect(line).toContainText('2 LUX')
+  await expect(line).toContainText('2 Luxor')
   await expect(line).toContainText(dollars(trade.requesting_money))
   await shots.take(host, 'host-pending-trade')
 
@@ -158,7 +158,7 @@ test('host view of a finished game shows the full results table', async ({
   // The server's game_over now carries the real end-of-game payouts (re-sent on connect),
   // so the breakdown columns are shown and each row adds up to the final total.
   await expect(table.locator('thead')).toContainText('Bonuses')
-  await expect(table.locator('thead')).toContainText('Stock Sales')
+  await expect(table.locator('thead')).toContainText('Stocks sold')
   const money = (t: string) => Number(t.replace(/[^0-9]/g, ''))
   for (const [i, s] of standings.entries()) {
     const cells = (await rows.nth(i).locator('td').allTextContents()).map((t) => t.trim())

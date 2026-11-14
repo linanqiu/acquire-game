@@ -22,16 +22,14 @@
   --text-positive: #6bff8a; /* muted green for gains */
 
   /* ==========================================================================
-     Colors - Hotel Chains
+     Colors - Chains
+     Chain colours are data: each ruleset gives every chain a colour, applied inline as
+     --chain-bg / --chain-fg (see lib/ruleset.ts chainStyle). Only the neutral
+     "played but in no chain" colour is a token.
      ========================================================================== */
-  --chain-luxor: #c9a227; /* Budget tier */
-  --chain-tower: #7a5c3d; /* Budget tier */
-  --chain-american: #5e7a8a; /* Standard tier */
-  --chain-festival: #8a5e7a; /* Standard tier */
-  --chain-worldwide: #5e8a6a; /* Standard tier */
-  --chain-continental: #8a3d3d; /* Premium tier */
-  --chain-imperial: #3d5e8a; /* Premium tier */
   --chain-orphan: #4a4a5a; /* Orphan/unincorporated tiles */
+  --selection-bg: #3d5e8a; /* Text selection highlight */
+  --accent-gold: #c9a227; /* Winner crown / star */
 
   /* ==========================================================================
      Colors - Interactive States

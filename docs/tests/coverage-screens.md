@@ -1,3 +1,5 @@
+> **Merged.** These tables were merged into [surface-coverage.md](surface-coverage.md), which is checked by `scripts/check-surface-coverage.py`. Where the two differ, the map is right (it also lists tests added later). Kept for the per-journey and per-fixture detail.
+
 # Screen-test coverage (tier 3)
 
 Maps each surface of [surface-coverage.md](surface-coverage.md) (names copied exactly) to the

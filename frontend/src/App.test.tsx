@@ -1,5 +1,7 @@
 import { render, screen } from '@testing-library/react'
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import type { Ruleset } from './types/ruleset'
+import { CLASSIC, VALLEY, classicLeaks } from '../tests/unit/fixtures/rulesets'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { App } from './App'
 import { LobbyPage, PlayerPage, HostPage, NotFoundPage } from './pages'
@@ -70,8 +72,42 @@ describe('App Routing', () => {
 })
 
 describe('App', () => {
-  it('renders app with BrowserRouter', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  function serveRuleset(rs: Ruleset) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: RequestInfo | URL) =>
+        String(url).includes('/api/config/game')
+          ? new Response(JSON.stringify(rs), { status: 200 })
+          : new Response('{}', { status: 200 })
+      )
+    )
+  }
+
+  it("loads the server's ruleset first, then renders the home page with its title", async () => {
+    serveRuleset(CLASSIC)
     render(<App />)
-    expect(screen.getByRole('heading', { name: /acquire/i })).toBeInTheDocument()
+    expect(screen.getByTestId('ruleset-loading')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'ACQUIRE' })).toBeInTheDocument()
+    expect(document.title).toBe('Acquire')
+  })
+
+  it("shows another ruleset's name everywhere, never the classic one", async () => {
+    serveRuleset(VALLEY)
+    render(<App />)
+    expect(await screen.findByRole('heading', { name: 'ACQUIHIRE' })).toBeInTheDocument()
+    expect(document.title).toBe('Acquihire')
+    expect(classicLeaks(document.body.textContent ?? '')).toEqual([])
+  })
+
+  it('offers a retry when the configuration cannot be loaded', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('nope', { status: 404 }))
+    )
+    render(<App />)
+    expect(await screen.findByTestId('ruleset-error')).toBeInTheDocument()
+    expect(screen.getByTestId('ruleset-retry')).toBeInTheDocument()
   })
 })

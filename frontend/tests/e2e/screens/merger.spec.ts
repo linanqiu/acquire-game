@@ -34,8 +34,8 @@ async function expectDispositionCard(page: Page, room: RoomContext) {
   const survivor = legal.surviving_chain
   const card = page.getByTestId('merger-disposition')
 
-  await expect(phaseBanner(page)).toHaveText('DISPOSE YOUR STOCK')
-  await expect(page.getByText(`DISPOSE OF YOUR ${defunct.toUpperCase()} STOCK`)).toBeVisible()
+  await expect(phaseBanner(page)).toHaveText('DISPOSE YOUR SHARES')
+  await expect(page.getByText(`DISPOSE OF YOUR ${defunct.toUpperCase()} SHARES`)).toBeVisible()
   await expect(card).toContainText(`You have: ${legal.stock_count}`)
   await expect(card).toContainText(
     `Price at merger: ${dollars(active_chains[defunct].price)}/share`
@@ -70,7 +70,7 @@ test('merger: tie between two equal chains, human picks the survivor', async ({ 
   const tied = decisions[0].legal.chains as string[]
   await shots.take(page, 'survivor-choice')
 
-  await expect(phaseBanner(page)).toHaveText('CHOOSE SURVIVING CHAIN')
+  await expect(phaseBanner(page)).toHaveText('CHOOSE THE SURVIVING HOTEL CHAIN')
   await expect(page.getByTestId('chain-selector')).toBeVisible()
   // Exactly the tied chains can be picked; the rest are labelled as not part of the tie.
   for (const chain of ALL_CHAINS) {
@@ -91,8 +91,8 @@ test('merger: tie between two equal chains, human picks the survivor', async ({ 
   const [survivor, defunct] = [tied[1], tied[0]]
   await page.getByTestId(`chain-button-${survivor.toLowerCase()}`).click()
   expect(human.holdings[defunct] ?? 0).toBeGreaterThan(0)
-  await expect(phaseBanner(page)).toHaveText('DISPOSE YOUR STOCK')
-  await expect(page.getByText(`DISPOSE OF YOUR ${defunct.toUpperCase()} STOCK`)).toBeVisible()
+  await expect(phaseBanner(page)).toHaveText('DISPOSE YOUR SHARES')
+  await expect(page.getByText(`DISPOSE OF YOUR ${defunct.toUpperCase()} SHARES`)).toBeVisible()
   await expect(page.getByTestId('merger-disposition')).toContainText(
     `You have: ${human.holdings[defunct]}`
   )
@@ -244,14 +244,14 @@ test('disposition (waiting): another stockholder decides first; the page names t
   // No decision for me yet: no disposition card; the page says who the game is waiting for.
   await expect(page.getByTestId('merger-disposition')).toHaveCount(0)
   await expect(page.getByTestId('waiting-message')).toHaveText(
-    `Waiting for ${waitingOn} to dispose of their stock...`
+    `Waiting for ${waitingOn} to dispose of their shares...`
   )
-  await expect(phaseBanner(page)).not.toHaveText('DISPOSE YOUR STOCK')
+  await expect(phaseBanner(page)).not.toHaveText('DISPOSE YOUR SHARES')
   await expect(headerCash(page)).toHaveText(dollars(human.cash))
 
   // p3 answers (what an opponent does outside the browser); then it is my turn to dispose.
   expect(await room.driveIdle()).toBe(true)
-  await expect(phaseBanner(page)).toHaveText('DISPOSE YOUR STOCK')
+  await expect(phaseBanner(page)).toHaveText('DISPOSE YOUR SHARES')
   await expect(page.getByTestId('merger-disposition')).toBeVisible()
   await expect(page.getByTestId('waiting-message')).toHaveCount(0)
   await shots.take(page, 'my-disposition')

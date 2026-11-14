@@ -12,7 +12,7 @@ import type { Journey } from './journey'
 
 /** Phase banner texts that need an action from this seat. */
 export const ACTIONABLE =
-  /^(PLACE A TILE|CHOOSE A CHAIN|CHOOSE SURVIVING CHAIN|DISPOSE YOUR STOCK|BUY STOCKS|GAME OVER)$/
+  /^(PLACE A TILE|CHOOSE A HOTEL CHAIN|CHOOSE THE SURVIVING HOTEL CHAIN|DISPOSE YOUR SHARES|BUY STOCKS|GAME OVER)$/
 
 /**
  * Observation-only instrumentation (no effect on the app): records every value the
@@ -191,13 +191,13 @@ export class Seat {
       case 'PLACE A TILE':
         await this.placeTile()
         break
-      case 'CHOOSE A CHAIN':
+      case 'CHOOSE A HOTEL CHAIN':
         await this.foundChain()
         break
-      case 'CHOOSE SURVIVING CHAIN':
+      case 'CHOOSE THE SURVIVING HOTEL CHAIN':
         await this.chooseSurvivor()
         break
-      case 'DISPOSE YOUR STOCK':
+      case 'DISPOSE YOUR SHARES':
         await this.dispose()
         break
       case 'BUY STOCKS':
@@ -247,7 +247,7 @@ export class Seat {
     const chain = ((await btn.getAttribute('data-testid')) ?? '').replace('chain-button-', '')
     this.log(`found chain ${chain}`)
     await this.press(btn)
-    await this.waitPhaseLeaves('CHOOSE A CHAIN')
+    await this.waitPhaseLeaves('CHOOSE A HOTEL CHAIN')
     this.stats.chainsFounded.push(chain)
     await this.shot(`founded-${chain}`)
     return chain
@@ -261,7 +261,7 @@ export class Seat {
     const chain = ((await btn.getAttribute('data-testid')) ?? '').replace('chain-button-', '')
     this.log(`choose surviving chain ${chain}`)
     await this.press(btn)
-    await this.waitPhaseLeaves('CHOOSE SURVIVING CHAIN')
+    await this.waitPhaseLeaves('CHOOSE THE SURVIVING HOTEL CHAIN')
     this.stats.survivorChoices.push(chain)
     await this.shot(`survivor-${chain}`)
     return chain
@@ -276,7 +276,7 @@ export class Seat {
     const owned = Number(
       ((await form.getByText(/^You have:/).textContent()) ?? '').match(/\d+/)?.[0] ?? '0'
     )
-    const defunct = title.replace('DISPOSE OF YOUR ', '').replace(' STOCK', '')
+    const defunct = title.replace('DISPOSE OF YOUR ', '').replace(' SHARES', '')
     await this.shot(`disposition-${defunct}`)
     const sell = Math.floor(owned / 2)
     const sellSlider = form.getByTestId('slider-sell-to-bank')

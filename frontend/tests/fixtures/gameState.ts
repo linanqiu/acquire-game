@@ -1,6 +1,6 @@
-import type { Player, GameState, Board, ChainName, Stocks } from '@/types'
+import type { Player, GameState, Board, ChainId, Stocks } from '@/types'
 
-export const CHAIN_NAMES: ChainName[] = [
+export const CHAIN_NAMES: ChainId[] = [
   'luxor',
   'tower',
   'american',

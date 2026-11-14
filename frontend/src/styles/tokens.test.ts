@@ -44,30 +44,24 @@ describe('Design Tokens', () => {
   })
 
   describe('Chain Colors', () => {
-    const chains = [
-      'luxor',
-      'tower',
-      'american',
-      'festival',
-      'worldwide',
-      'continental',
-      'imperial',
-    ]
-
-    it('defines all 7 chain color tokens', () => {
-      chains.forEach((chain) => {
-        expect(tokensCSS).toContain(`--chain-${chain}:`)
-      })
+    // Chain colours are data (each ruleset gives every chain its colour, applied inline), so no
+    // chain-specific token may exist; only the neutral orphan colour is a token.
+    it('defines no per-chain colour tokens', () => {
+      for (const name of [
+        'luxor',
+        'tower',
+        'american',
+        'festival',
+        'worldwide',
+        'continental',
+        'imperial',
+      ]) {
+        expect(tokensCSS).not.toContain(`--chain-${name}`)
+      }
     })
 
-    it('has correct chain color values', () => {
-      expect(tokensCSS).toContain('--chain-luxor: #c9a227')
-      expect(tokensCSS).toContain('--chain-tower: #7a5c3d')
-      expect(tokensCSS).toContain('--chain-american: #5e7a8a')
-      expect(tokensCSS).toContain('--chain-festival: #8a5e7a')
-      expect(tokensCSS).toContain('--chain-worldwide: #5e8a6a')
-      expect(tokensCSS).toContain('--chain-continental: #8a3d3d')
-      expect(tokensCSS).toContain('--chain-imperial: #3d5e8a')
+    it('keeps the neutral orphan tile colour', () => {
+      expect(tokensCSS).toContain('--chain-orphan: #4a4a5a')
     })
   })
 

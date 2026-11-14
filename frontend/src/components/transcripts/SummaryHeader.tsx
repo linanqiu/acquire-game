@@ -3,7 +3,8 @@ import { Badge } from '../ui/Badge'
 import { SeatChip } from './SeatChip'
 import { computeSeatStats, type Replay } from '../../lib/replay'
 import { transcriptDownloadUrl } from '../../lib/transcripts'
-import { formatCost, formatDateTime, formatMoney, formatTokens } from '../../lib/format'
+import { formatCost, formatDateTime, formatTokens } from '../../lib/format'
+import { useRules } from '../../ruleset/useRules'
 import type { Transcript } from '../../types/transcripts'
 import styles from './SummaryHeader.module.css'
 
@@ -20,6 +21,7 @@ interface SummaryHeaderProps {
 }
 
 export function SummaryHeader({ transcript, replay }: SummaryHeaderProps) {
+  const rules = useRules()
   const { header, footer, redacted } = transcript
   const derived = computeSeatStats(replay)
   // Totals: the footer's when finished, else the server's running totals.
@@ -140,7 +142,7 @@ export function SummaryHeader({ transcript, replay }: SummaryHeaderProps) {
                   </td>
                   {footer && (
                     <td className={styles.num} data-testid={`score-${seat.player_id}`}>
-                      {formatMoney(s?.score)}
+                      {rules.money(s?.score)}
                     </td>
                   )}
                   <td className={styles.num}>{decisions}</td>

@@ -1,37 +1,23 @@
 import styles from './ChainMarker.module.css'
 import { Badge } from '../ui/Badge'
-import type { ChainName } from '../../types/api'
-import { chainToCssClass } from '../../types'
-
-const CHAIN_ABBREV: Record<ChainName, string> = {
-  Luxor: 'LUX',
-  Tower: 'TWR',
-  American: 'AME',
-  Festival: 'FES',
-  Worldwide: 'WOR',
-  Continental: 'CON',
-  Imperial: 'IMP',
-}
-
-const CHAIN_NAMES: Record<ChainName, string> = {
-  Luxor: 'LUXOR',
-  Tower: 'TOWER',
-  American: 'AMERICAN',
-  Festival: 'FESTIVAL',
-  Worldwide: 'WORLDWIDE',
-  Continental: 'CONTINENTAL',
-  Imperial: 'IMPERIAL',
-}
+import type { ChainId } from '../../types/ruleset'
+import { useRules } from '../../ruleset/useRules'
+import { chainTestId } from '../../lib/ruleset'
 
 export interface ChainMarkerProps {
-  chain: ChainName
+  chain: ChainId
   size?: number
   price?: number
   available?: number
   safe?: boolean
+  /** icon: swatch only; compact: swatch + name; full: swatch + name + numbers. */
   variant?: 'icon' | 'compact' | 'full'
 }
 
+/**
+ * A chain's swatch (ruleset colour with a readable foreground and the chain's abbreviation, so
+ * colour is never the only cue) and, except for `icon`, its display name.
+ */
 export function ChainMarker({
   chain,
   size,
@@ -40,41 +26,55 @@ export function ChainMarker({
   safe = false,
   variant = 'compact',
 }: ChainMarkerProps) {
-  const abbrev = CHAIN_ABBREV[chain]
-  const name = CHAIN_NAMES[chain]
-  const cssClass = chainToCssClass(chain)
+  const rules = useRules()
+  const name = rules.name(chain)
+  const abbrev = rules.abbr(chain)
+  const testId = `chain-marker-${chainTestId(chain)}`
+  const swatch = (
+    <span className={styles.icon} style={rules.style(chain)} aria-hidden={variant !== 'icon'}>
+      {abbrev}
+    </span>
+  )
+  const safeBadge = safe && <Badge label={rules.theme.safe_phrase} variant="safe" />
 
   if (variant === 'icon') {
     return (
-      <div
-        className={`${styles.icon} ${styles[cssClass]}`}
+      <span
+        className={`${styles.icon} ${styles.standalone}`}
+        style={rules.style(chain)}
         title={name}
-        data-testid={`chain-marker-${cssClass}`}
+        role="img"
+        aria-label={name}
+        data-testid={testId}
       >
-        {abbrev[0]}
-      </div>
+        {abbrev}
+      </span>
     )
   }
 
   if (variant === 'compact') {
     return (
-      <span className={styles.compact} data-testid={`chain-marker-${cssClass}`}>
-        <span className={`${styles.icon} ${styles[cssClass]}`}>{abbrev[0]}</span>
-        <span className={styles.abbrev}>{abbrev}</span>
-        {safe && <Badge label="SAFE" variant="safe" />}
+      <span className={styles.compact} data-testid={testId} title={name}>
+        {swatch}
+        <span className={styles.abbrev}>{name}</span>
+        {safeBadge}
       </span>
     )
   }
 
   // Full variant
   return (
-    <div className={styles.full} data-testid={`chain-marker-${cssClass}`}>
-      <span className={`${styles.icon} ${styles[cssClass]}`}>{abbrev[0]}</span>
+    <div className={styles.full} data-testid={testId}>
+      {swatch}
       <span className={styles.name}>{name}</span>
       {size !== undefined && <span className={styles.size}>{size} tiles</span>}
-      {price !== undefined && <span className={styles.price}>${price.toLocaleString()}/share</span>}
+      {price !== undefined && (
+        <span className={styles.price} title={`Price per ${rules.theme.share_noun}`}>
+          {rules.money(price)}
+        </span>
+      )}
       {available !== undefined && <span className={styles.available}>[{available}]</span>}
-      {safe && <Badge label="SAFE" variant="safe" />}
+      {safeBadge}
     </div>
   )
 }

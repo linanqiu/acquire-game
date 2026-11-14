@@ -11,6 +11,8 @@ export interface SeatKindBadgeProps {
   agentLabel?: string | null
   /** When `count > 0` a small marker shows the rules-based bot played for this seat. */
   fallbacks?: SeatFallbacks
+  /** The seat's display name: when the agent label is the same text it is not repeated. */
+  playerName?: string
 }
 
 const VARIANTS: Record<SeatKind, BadgeVariant> = {
@@ -27,8 +29,12 @@ export function SeatKindBadge({
   isBot,
   agentLabel,
   fallbacks,
+  playerName,
 }: SeatKindBadgeProps) {
-  const seat = { kind, is_bot: isBot, agent_label: agentLabel }
+  // An AI seat is usually named after its agent ("Fake LLM (test)"): show the kind, not the
+  // same words twice.
+  const repeatsName = !!agentLabel && !!playerName && agentLabel.trim() === playerName.trim()
+  const seat = { kind, is_bot: isBot, agent_label: repeatsName ? null : agentLabel }
   const resolved = resolveSeatKind(seat)
   if (resolved === 'human') return null
   const fallbackCount = fallbacks?.count ?? 0

@@ -6,6 +6,7 @@
 import { useCallback } from 'react'
 import { useToast } from '../components/ui/useToast'
 import { categorizeError, getToastType, logError, type GameError } from '../lib/errorHandler'
+import { useRuleset } from '../ruleset/useRules'
 
 interface UseErrorHandlerReturn {
   /**
@@ -26,10 +27,11 @@ interface UseErrorHandlerReturn {
 
 export function useErrorHandler(): UseErrorHandlerReturn {
   const { toast } = useToast()
+  const ruleset = useRuleset()
 
   const handleError = useCallback(
     (error: unknown, context?: Record<string, unknown>): GameError => {
-      const gameError = categorizeError(error)
+      const gameError = categorizeError(error, ruleset)
       const toastType = getToastType(gameError.category)
 
       // Show toast to user
@@ -40,7 +42,7 @@ export function useErrorHandler(): UseErrorHandlerReturn {
 
       return gameError
     },
-    [toast]
+    [toast, ruleset]
   )
 
   const handleServerError = useCallback(

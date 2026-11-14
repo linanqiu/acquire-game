@@ -3,10 +3,11 @@ import { Badge } from '../ui/Badge'
 import { SeatKindBadge } from './SeatKindBadge'
 import { AiThinking } from './AiThinking'
 import styles from './PlayerCard.module.css'
-import type { ChainName, SeatFallbacks, SeatKind } from '../../types/api'
+import { useRules } from '../../ruleset/useRules'
+import type { ChainId, SeatFallbacks, SeatKind } from '../../types/api'
 
 export interface StockHolding {
-  chain: ChainName
+  chain: ChainId
   quantity: number
 }
 
@@ -41,13 +42,14 @@ export function PlayerCard({
   thinking = false,
   variant = 'full',
 }: PlayerCardProps) {
+  const rules = useRules()
   const stocksWithQuantity = stocks.filter((s) => s.quantity > 0)
 
   if (variant === 'compact') {
     return (
       <div className={styles.compact} data-testid="player-card-compact">
         <span className={styles.compactName}>{name}</span>
-        <span className={styles.compactCash}>${cash.toLocaleString()}</span>
+        <span className={styles.compactCash}>{rules.money(cash)}</span>
         {stocksWithQuantity.length > 0 && (
           <div className={styles.compactStocks}>
             {stocksWithQuantity.map((s) => (
@@ -86,14 +88,15 @@ export function PlayerCard({
           />
         </div>
         <span className={styles.cash} data-testid="player-cash">
-          ${cash.toLocaleString()}
+          {rules.money(cash)}
         </span>
       </div>
       {stocksWithQuantity.length > 0 && (
         <div className={styles.stocks} data-testid="player-stocks">
           {stocksWithQuantity.map((s) => (
             <span key={s.chain} className={styles.stock}>
-              <ChainMarker chain={s.chain} variant="compact" />:{s.quantity}
+              <ChainMarker chain={s.chain} variant="icon" />
+              <span className={styles.qty}>{s.quantity}</span>
             </span>
           ))}
         </div>

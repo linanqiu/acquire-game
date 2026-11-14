@@ -2,25 +2,10 @@
  * API types matching backend Pydantic models and WebSocket schemas
  */
 
-// Chain names as used by backend (title case)
-export type ChainName =
-  | 'Luxor'
-  | 'Tower'
-  | 'American'
-  | 'Worldwide'
-  | 'Festival'
-  | 'Imperial'
-  | 'Continental'
+import type { ChainId, Ruleset } from './ruleset'
 
-export const VALID_CHAINS: ChainName[] = [
-  'Luxor',
-  'Tower',
-  'American',
-  'Worldwide',
-  'Festival',
-  'Imperial',
-  'Continental',
-]
+// Chain ids are opaque strings defined by the game's ruleset (`ruleset.chains[].id`).
+export type { ChainId, Ruleset }
 
 // =============================================================================
 // Tile Playability Types
@@ -91,7 +76,7 @@ export type GamePhase =
 // Board cell state as sent by backend
 export interface BoardCell {
   state: 'empty' | 'played' | 'in_chain'
-  chain: ChainName | null
+  chain: ChainId | null
 }
 
 export interface GameStateMessage {
@@ -101,13 +86,15 @@ export interface GameStateMessage {
   }
   hotel: {
     chains: Array<{
-      name: ChainName
+      name: ChainId
       size: number
       price: number
       stocks_available: number
+      /** Chain colour (current backends; the ruleset is authoritative). */
+      color?: string
     }>
-    available_stocks: Record<ChainName, number>
-    active_chains: ChainName[]
+    available_stocks: Record<ChainId, number>
+    active_chains: ChainId[]
   }
   turn_order: string[]
   current_player: string
@@ -117,7 +104,7 @@ export interface GameStateMessage {
     {
       name: string
       money: number
-      stocks: Record<ChainName, number>
+      stocks: Record<ChainId, number>
       hand_size: number
       is_bot?: boolean
       kind?: SeatKind
@@ -139,6 +126,8 @@ export interface GameStateMessage {
   outgoing_trades?: TradeOffer[]
   /** All pending offers, public (absent on older backends). */
   pending_trades?: TradeOffer[]
+  /** The game's ruleset (absent on older backends: the server's configured one applies). */
+  ruleset?: Ruleset
 }
 
 export interface LobbyUpdateMessage {
@@ -149,18 +138,18 @@ export interface LobbyUpdateMessage {
 
 export interface ChooseChainMessage {
   type: 'choose_chain'
-  available_chains: ChainName[]
+  available_chains: ChainId[]
 }
 
 export interface ChooseMergerSurvivorMessage {
   type: 'choose_merger_survivor'
-  tied_chains: ChainName[]
+  tied_chains: ChainId[]
 }
 
 export interface StockDispositionMessage {
   type: 'stock_disposition_required'
-  defunct_chain: ChainName
-  surviving_chain: ChainName
+  defunct_chain: ChainId
+  surviving_chain: ChainId
   stock_count: number
   available_to_trade: number
 }
@@ -269,17 +258,17 @@ export interface PlaceTileAction {
 
 export interface FoundChainAction {
   action: 'found_chain'
-  chain: ChainName
+  chain: ChainId
 }
 
 export interface MergerChoiceAction {
   action: 'merger_choice'
-  surviving_chain: ChainName
+  surviving_chain: ChainId
 }
 
 export interface MergerDispositionAction {
   action: 'merger_disposition'
-  defunct_chain: ChainName
+  defunct_chain: ChainId
   disposition: {
     sell: number
     trade: number
@@ -289,7 +278,7 @@ export interface MergerDispositionAction {
 
 export interface BuyStocksAction {
   action: 'buy_stocks'
-  purchases: Partial<Record<ChainName, number>>
+  purchases: Partial<Record<ChainId, number>>
 }
 
 export interface EndTurnAction {
@@ -303,9 +292,9 @@ export interface DeclareEndGameAction {
 export interface ProposeTradeAction {
   action: 'propose_trade'
   to_player_id: string
-  offering_stocks: Partial<Record<ChainName, number>>
+  offering_stocks: Partial<Record<ChainId, number>>
   offering_money: number
-  requesting_stocks: Partial<Record<ChainName, number>>
+  requesting_stocks: Partial<Record<ChainId, number>>
   requesting_money: number
 }
 
@@ -385,9 +374,9 @@ export interface TradeOffer {
   trade_id: string
   from_player_id: string
   to_player_id: string
-  offering_stocks: Partial<Record<ChainName, number>>
+  offering_stocks: Partial<Record<ChainId, number>>
   offering_money: number
-  requesting_stocks: Partial<Record<ChainName, number>>
+  requesting_stocks: Partial<Record<ChainId, number>>
   requesting_money: number
   // Note: status is tracked client-side based on WebSocket messages
   // Backend doesn't send a status field in the trade object

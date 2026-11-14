@@ -1,8 +1,12 @@
+import { useRules } from '../ruleset/useRules'
+
 /**
  * TokenSwatch - A simple component to demonstrate design tokens
- * Used for visual verification and testing that CSS variables apply correctly
+ * Used for visual verification and testing that CSS variables apply correctly.
+ * Chain swatches come from the ruleset in effect (chain colours are data, not tokens).
  */
 export function TokenSwatch() {
+  const rules = useRules()
   return (
     <div
       data-testid="token-swatch"
@@ -32,23 +36,23 @@ export function TokenSwatch() {
           flexWrap: 'wrap',
         }}
       >
-        {['luxor', 'tower', 'american', 'festival', 'worldwide', 'continental', 'imperial'].map(
-          (chain) => (
-            <span
-              key={chain}
-              data-testid={`chain-${chain}`}
-              style={{
-                backgroundColor: `var(--chain-${chain})`,
-                padding: 'var(--space-1) var(--space-2)',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: 'var(--text-sm)',
-                textTransform: 'uppercase',
-              }}
-            >
-              {chain}
-            </span>
-          )
-        )}
+        {rules.rs.chains.map((chain) => (
+          <span
+            key={chain.id}
+            data-testid={`chain-${chain.id}`}
+            style={{
+              ...rules.style(chain.id),
+              backgroundColor: 'var(--chain-bg)',
+              color: 'var(--chain-fg)',
+              padding: 'var(--space-1) var(--space-2)',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: 'var(--text-sm)',
+              textTransform: 'uppercase',
+            }}
+          >
+            {chain.name}
+          </span>
+        ))}
       </div>
     </div>
   )

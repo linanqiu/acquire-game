@@ -174,7 +174,7 @@ describe('HostPage', () => {
     it('shows chains panel', () => {
       useGameStore.setState({ gameState: mockGameState })
       renderHostPage()
-      expect(screen.getByText('CHAINS')).toBeInTheDocument()
+      expect(screen.getByText('HOTEL CHAINS')).toBeInTheDocument()
     })
 
     it('shows scoreboard panel', () => {

@@ -16,8 +16,8 @@ import type { Shots } from './support/test'
 
 /** Copy shown under the rack for each engine reason code. */
 const REASON_TEXT: Record<string, RegExp> = {
-  would_merge_safe_chains: /merge two safe chains/i,
-  would_create_eighth_chain: /8th chain/i,
+  would_merge_safe_chains: /merge two hotel chains that are safe/i,
+  would_create_eighth_chain: /8th hotel chain/i,
 }
 
 async function expectRackMatchesFixture(page: Page, room: RoomContext) {

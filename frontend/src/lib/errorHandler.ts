@@ -3,6 +3,9 @@
  * Categorizes and formats errors for user display and logging.
  */
 
+import type { Ruleset } from '../types/ruleset'
+import { CLASSIC_RULESET } from '../ruleset/classic'
+
 export type ErrorCategory =
   | 'connection'
   | 'validation'
@@ -18,63 +21,67 @@ export interface GameError {
   originalError?: string
 }
 
-// Map backend error messages to user-friendly messages
-const ERROR_MESSAGE_MAP: Record<string, string> = {
-  // Tile placement errors
-  invalid_tile: 'You cannot place a tile there',
-  not_your_tile: 'That tile is not in your hand',
-  tile_creates_illegal_merger: 'This tile would create an illegal merger',
-  tile_permanently_unplayable: 'This tile can never be played',
+// Map backend error codes to user-friendly messages, worded and numbered from the ruleset
+function errorMessages(rs: Ruleset): Record<string, string> {
+  const t = rs.theme
+  return {
+    // Tile placement errors
+    invalid_tile: 'You cannot place a tile there',
+    not_your_tile: 'That tile is not in your hand',
+    tile_creates_illegal_merger: `This tile would create an illegal ${t.merger_noun}`,
+    tile_permanently_unplayable: 'This tile can never be played',
 
-  // Turn errors
-  not_your_turn: "It's not your turn",
-  invalid_phase: 'You cannot do that right now',
-  action_not_allowed: 'That action is not allowed in this phase',
+    // Turn errors
+    not_your_turn: "It's not your turn",
+    invalid_phase: 'You cannot do that right now',
+    action_not_allowed: 'That action is not allowed in this phase',
 
-  // Stock errors
-  insufficient_funds: "You don't have enough cash",
-  stock_unavailable: 'No stock available for that chain',
-  max_stocks_exceeded: 'You can only buy up to 3 stocks per turn',
-  invalid_stock_quantity: 'Invalid stock quantity',
+    // Stock errors
+    insufficient_funds: "You don't have enough cash",
+    stock_unavailable: `No ${t.share_noun_plural} left for that ${t.chain_noun}`,
+    max_stocks_exceeded: `You can only buy up to ${rs.max_stock_purchases_per_turn} ${t.share_noun_plural} per turn`,
+    invalid_stock_quantity: `Invalid number of ${t.share_noun_plural}`,
 
-  // Chain errors
-  chain_not_available: 'That chain is not available to found',
-  chain_already_active: 'That chain is already on the board',
-  invalid_chain: 'Invalid chain name',
+    // Chain errors
+    chain_not_available: `That ${t.chain_noun} is not available to found`,
+    chain_already_active: `That ${t.chain_noun} is already on the board`,
+    invalid_chain: `Invalid ${t.chain_noun}`,
 
-  // Merger errors
-  invalid_disposition: 'Invalid stock disposition',
-  trade_not_even: 'Stock trades must be 2-for-1',
-  insufficient_stock_to_trade: "You don't have enough stock to trade",
+    // Merger errors
+    invalid_disposition: `Invalid ${t.share_noun} disposition`,
+    trade_not_even: `Trades must be ${rs.merger_trade_ratio}-for-1`,
+    insufficient_stock_to_trade: `You don't have enough ${t.share_noun_plural} to trade`,
 
-  // Room/lobby errors
-  room_not_found: 'Game room not found',
-  name_taken: 'That name is already taken in this game',
-  game_full: 'The game is full (max 6 players)',
-  game_started: 'The game has already started',
-  game_not_started: 'The game has not started yet',
-  not_host: 'Only the host can do that',
-  min_players: 'Need at least 3 players to start',
+    // Room/lobby errors
+    room_not_found: 'Game room not found',
+    name_taken: 'That name is already taken in this game',
+    game_full: `The game is full (max ${rs.max_players} players)`,
+    game_started: 'The game has already started',
+    game_not_started: 'The game has not started yet',
+    not_host: 'Only the host can do that',
+    min_players: `Need at least ${rs.min_players} players to start`,
 
-  // Auth errors
-  invalid_token: 'Your session has expired. Please rejoin the game.',
-  unauthorized: 'You are not authorized to do that',
+    // Auth errors
+    invalid_token: 'Your session has expired. Please rejoin the game.',
+    unauthorized: 'You are not authorized to do that',
 
-  // Trade errors
-  trade_not_found: 'Trade offer not found',
-  cannot_trade_with_self: 'You cannot trade with yourself',
-  trade_expired: 'This trade offer has expired',
+    // Trade errors
+    trade_not_found: 'Trade offer not found',
+    cannot_trade_with_self: 'You cannot trade with yourself',
+    trade_expired: 'This trade offer has expired',
 
-  // Connection errors
-  connection_failed: 'Failed to connect to the game server',
-  connection_lost: 'Connection lost. Attempting to reconnect...',
-  reconnection_failed: 'Could not reconnect after multiple attempts',
+    // Connection errors
+    connection_failed: 'Failed to connect to the game server',
+    connection_lost: 'Connection lost. Attempting to reconnect...',
+    reconnection_failed: 'Could not reconnect after multiple attempts',
+  }
 }
 
 /**
  * Categorize an error based on its content
  */
-export function categorizeError(error: unknown): GameError {
+export function categorizeError(error: unknown, rs: Ruleset = CLASSIC_RULESET): GameError {
+  const ERROR_MESSAGE_MAP = errorMessages(rs)
   // Handle string errors (most common from backend)
   if (typeof error === 'string') {
     const lowerError = error.toLowerCase()

@@ -1,4 +1,5 @@
 import styles from './Header.module.css'
+import { useRules, useServerRules } from '../../ruleset/useRules'
 
 interface HeaderProps {
   roomCode?: string
@@ -8,9 +9,14 @@ interface HeaderProps {
 }
 
 export function Header({ roomCode, cash, playerName, tilePool }: HeaderProps) {
+  // Product name: the server's; amounts: the ruleset in effect (a game's own).
+  const product = useServerRules()
+  const rules = useRules()
   return (
     <header className={styles.header}>
-      <div className={styles.logo}>ACQUIRE</div>
+      <div className={styles.logo} data-testid="header-title">
+        {product.title.toUpperCase()}
+      </div>
       <div className={styles.info}>
         {roomCode && (
           <div className={styles.roomCode} data-testid="header-room">
@@ -24,7 +30,7 @@ export function Header({ roomCode, cash, playerName, tilePool }: HeaderProps) {
         )}
         {cash !== undefined && (
           <div className={styles.cash} data-testid="header-cash">
-            ${cash.toLocaleString()}
+            {rules.money(cash)}
           </div>
         )}
         {tilePool !== undefined && (

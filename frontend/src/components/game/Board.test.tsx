@@ -2,6 +2,8 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { Board } from './Board'
 import type { TileState } from '../../types/game'
+import { RulesetScope } from '../../ruleset/RulesetScope'
+import { CLASSIC, MINI, VALLEY } from '../../../tests/unit/fixtures/rulesets'
 
 // Helper to create empty tile matrix
 function createEmptyTiles(): TileState[][] {
@@ -74,10 +76,12 @@ describe('Board', () => {
       render(<Board tiles={tiles} />)
 
       const luxorTile = screen.getByTestId('tile-5C')
-      expect(luxorTile.className).toContain('luxor')
+      expect(luxorTile).toHaveAttribute('data-chain', 'Luxor')
+      expect(luxorTile.style.getPropertyValue('--chain-bg')).toBe('#FFD700')
 
       const towerTile = screen.getByTestId('tile-6C')
-      expect(towerTile.className).toContain('tower')
+      expect(towerTile).toHaveAttribute('data-chain', 'Tower')
+      expect(towerTile.style.getPropertyValue('--chain-bg')).toBe('#8B4513')
     })
 
     it('supports matrix format for tiles', () => {
@@ -175,28 +179,61 @@ describe('Board', () => {
   })
 
   describe('size variants', () => {
-    it('applies sm size class', () => {
-      render(<Board tiles={createEmptyTiles()} size="sm" />)
-      const board = screen.getByTestId('board')
-      expect(board.className).toContain('sm')
-    })
-
-    it('applies md size class (default)', () => {
+    it('sets the size bound on the board frame (sm / md default / lg)', () => {
+      for (const size of ['sm', 'md', 'lg'] as const) {
+        const { unmount } = render(<Board tiles={createEmptyTiles()} size={size} />)
+        const frame = screen.getByTestId('board').parentElement as HTMLElement
+        expect(frame.className).toContain(size)
+        unmount()
+      }
       render(<Board tiles={createEmptyTiles()} />)
-      const board = screen.getByTestId('board')
-      expect(board.className).toContain('md')
+      expect((screen.getByTestId('board').parentElement as HTMLElement).className).toContain('md')
     })
 
-    it('applies lg size class', () => {
+    it('board squares fill their grid cell', () => {
       render(<Board tiles={createEmptyTiles()} size="lg" />)
-      const board = screen.getByTestId('board')
-      expect(board.className).toContain('lg')
+      expect(screen.getByTestId('tile-1A').className).toContain('fluid')
     })
+  })
 
-    it('passes size to Tile components', () => {
-      render(<Board tiles={createEmptyTiles()} size="lg" />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('lg')
+  describe('board size comes from the ruleset', () => {
+    const cases = [
+      ['classic', CLASSIC, '12I'],
+      ['valley', VALLEY, '12I'],
+      ['mini', MINI, '9G'],
+    ] as const
+    for (const [name, rs, last] of cases) {
+      it(`${name}: ${rs.board.columns}x${rs.board.rows}`, () => {
+        render(
+          <RulesetScope ruleset={rs}>
+            <Board tiles={{}} />
+          </RulesetScope>
+        )
+        const board = screen.getByTestId('board')
+        expect(screen.getAllByTestId(/^tile-/)).toHaveLength(rs.board.columns * rs.board.rows)
+        expect(board).toHaveAttribute('data-columns', String(rs.board.columns))
+        expect(board).toHaveAttribute('data-rows', String(rs.board.rows))
+        expect(board.style.getPropertyValue('--cols')).toBe(String(rs.board.columns))
+        expect(screen.getByTestId(`tile-${last}`)).toBeInTheDocument()
+      })
+    }
+
+    it('lays out any grid from 6x6 to 15x12', () => {
+      for (const [columns, rows] of [
+        [6, 6],
+        [15, 12],
+      ]) {
+        const rs = { ...MINI, board: { columns, rows } }
+        const { unmount } = render(
+          <RulesetScope ruleset={rs}>
+            <Board tiles={{}} />
+          </RulesetScope>
+        )
+        expect(screen.getAllByTestId(/^tile-/)).toHaveLength(columns * rows)
+        const lastRow = 'ABCDEFGHIJKL'[rows - 1]
+        expect(screen.getByTestId(`tile-${columns}${lastRow}`)).toBeInTheDocument()
+        unmount()
+      }
     })
   })
 })

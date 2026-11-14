@@ -1,13 +1,15 @@
+import type { CSSProperties } from 'react'
 import { Tile } from './Tile'
 import styles from './Board.module.css'
 import type { Coordinate, TileState } from '../../types/game'
-import { ROWS, COLS } from '../../types/game'
+import { useRules } from '../../ruleset/useRules'
 
 interface BoardProps {
-  /** 9 rows x 12 cols tile state matrix, or a sparse object mapping coordinates to states */
+  /** rows x columns tile state matrix, or a sparse object mapping coordinates to states */
   tiles: TileState[][] | Record<string, TileState>
   highlightedTile?: Coordinate
   onTileClick?: (coord: Coordinate) => void
+  /** Upper bound for the square size; the board always shrinks to fit its container's width. */
   size?: 'sm' | 'md' | 'lg'
   interactive?: boolean
   /** Set of coordinates that are playable (for highlighting valid moves) */
@@ -29,6 +31,11 @@ function getTileState(
   return tiles[coord] ?? { state: 'empty' }
 }
 
+/**
+ * The game board: `columns x rows` from the ruleset. Squares are sized to fit the container's
+ * width (and `--board-max-height` when a page sets it), between a per-size minimum and maximum,
+ * so any board from 6x6 to 15x12 fits a phone and fills a desktop column.
+ */
 export function Board({
   tiles,
   highlightedTile,
@@ -37,23 +44,28 @@ export function Board({
   interactive = false,
   playableTiles,
 }: BoardProps) {
+  const { rows, cols } = useRules()
+  const gridStyle = { '--cols': cols.length, '--rows': rows.length } as CSSProperties
   return (
-    <div className={`${styles.board} ${styles[size]}`} data-testid="board">
-      {/* Column headers */}
-      <div className={styles.header}>
+    <div className={`${styles.frame} ${styles[size]}`}>
+      <div
+        className={styles.board}
+        style={gridStyle}
+        data-testid="board"
+        data-columns={cols.length}
+        data-rows={rows.length}
+      >
         <div className={styles.corner} />
-        {COLS.map((col) => (
-          <div key={col} className={styles.colLabel}>
+        {cols.map((col) => (
+          <div key={`c${col}`} className={styles.colLabel}>
             {col}
           </div>
         ))}
-      </div>
-
-      {/* Grid rows */}
-      {ROWS.map((row, rowIdx) => (
-        <div key={row} className={styles.row}>
-          <div className={styles.rowLabel}>{row}</div>
-          {COLS.map((col, colIdx) => {
+        {rows.map((row, rowIdx) => [
+          <div key={`r${row}`} className={styles.rowLabel}>
+            {row}
+          </div>,
+          ...cols.map((col, colIdx) => {
             const coord = `${col}${row}` as Coordinate
             const tileState = getTileState(tiles, coord, rowIdx, colIdx)
             const isHighlighted = highlightedTile === coord
@@ -75,12 +87,12 @@ export function Board({
                 state="default"
                 highlighted={isHighlighted || isPlayable}
                 onClick={canClick && onTileClick ? () => onTileClick(coord) : undefined}
-                size={size}
+                size="fluid"
               />
             )
-          })}
-        </div>
-      ))}
+          }),
+        ])}
+      </div>
     </div>
   )
 }

@@ -12,6 +12,7 @@ import { GameOver } from '../../src/components/game/GameOver'
 import { ToastProvider } from '../../src/components/ui/ToastProvider'
 import { buildReplay, normalizeEntries, parseStep } from '../../src/lib/replay'
 import { describeEvents } from '../../src/lib/eventText'
+import { CLASSIC } from './fixtures/rulesets'
 import type {
   Transcript,
   DecisionEntry,
@@ -153,7 +154,8 @@ describe('replay building', () => {
         },
         { seq: 3, type: 'martian_landing', player_id: 'p1', private_to: null, where: 'F5' },
       ],
-      names
+      names,
+      CLASSIC
     )
     expect(lines[0].text).toBe('Dan placed 9D — Luxor grows to 4.')
     expect(lines).toHaveLength(2)
@@ -279,6 +281,16 @@ describe('GamesPage', () => {
 })
 
 describe('TranscriptPage replay', () => {
+  it('shows an AI seat named after its agent with one badge, not its name twice', async () => {
+    mockApi(transcriptApi())
+    renderAt('/games/g1?step=1')
+    await screen.findByTestId('transcript-viewer')
+    const card = screen.getByTestId(`replay-player-${llm.player_id}`)
+    expect(llm.name).toBe(llm.agent_label)
+    expect(within(card).getAllByText(llm.name)).toHaveLength(1)
+    expect(within(card).getByTestId(`seat-kind-${llm.player_id}`)).toHaveTextContent('AI')
+  })
+
   it('steps forward and back, changing the board and the event text', async () => {
     mockApi(transcriptApi())
     renderAt('/games/g1')
@@ -304,7 +316,7 @@ describe('TranscriptPage replay', () => {
     for (let i = 0; i < target; i++) fireEvent.click(screen.getByTestId('step-next'))
     expect(screen.getByTestId('step-counter')).toHaveTextContent(`Step ${target} /`)
     expect(cash()).not.toBe(startCash)
-    const sentence = describeEvents(replay.steps[target].events, names)[0].text
+    const sentence = describeEvents(replay.steps[target].events, names, CLASSIC)[0].text
     expect(screen.getByTestId('event-log')).toHaveTextContent(sentence)
     expect(screen.getByTestId('decision-panel')).toHaveTextContent(`STEP ${target}`)
 

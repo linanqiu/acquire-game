@@ -85,13 +85,85 @@
   font-style: italic;
 }
 
-/* Board Container */
-.boardContainer {
+/* In-game layout: board pane + side pane (decision panel, trades, players, portfolio).
+   Phones: one column, the board first (foldable while a decision panel needs the room).
+   Laptops and up: the board keeps its own column and is never hidden. */
+.gameLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.boardPane {
   display: flex;
-  /* safe: when the board is wider than the container, keep its left edge reachable */
-  justify-content: safe center;
-  overflow-x: auto;
-  padding: var(--space-2);
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.boardBody {
+  min-width: 0;
+}
+
+.boardFolded .boardBody {
+  display: none;
+}
+
+.boardToggle {
+  align-self: stretch;
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  min-height: 40px;
+}
+
+.boardToggle:focus-visible {
+  outline: 2px solid var(--text-accent);
+  outline-offset: 2px;
+}
+
+.sidePane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.hintText {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+@media (min-width: 900px) {
+  .gameLayout {
+    grid-template-columns: minmax(0, 3fr) minmax(340px, 2fr);
+  }
+
+  /* The board stays in view while the side pane scrolls, and is sized to leave room for the
+     header, phase bar and the sticky tile rack below it. */
+  .boardPane {
+    position: sticky;
+    top: var(--space-2);
+    --board-max-height: calc(100vh - 250px);
+  }
+
+  .boardToggle {
+    display: none;
+  }
+
+  .boardFolded .boardBody {
+    display: block;
+  }
 }
 
 /* Tile Placement */
@@ -162,6 +234,12 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
+}
+
+/* Chain names differ per ruleset ("Hallucinate.ai"): give them a column that grows, never clip */
+.purchaseChain {
+  flex: 1 1 9em;
+  min-width: 0;
 }
 
 .chainPrice {
@@ -243,7 +321,6 @@
   padding: var(--space-3);
   background-color: var(--bg-secondary);
   border-radius: var(--radius-md);
-  margin-top: var(--space-3);
 }
 
 .playersPanelTitle {
@@ -301,19 +378,32 @@
   flex-wrap: wrap;
 }
 
+/* Colour from the ruleset (inline --chain-bg/--chain-fg); the abbreviation is always shown so
+   colour is never the only cue. */
 .stockBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   font-size: var(--text-xs);
   font-weight: var(--font-bold);
-  color: white;
+  background-color: var(--chain-bg);
+  color: var(--chain-fg);
   padding: 2px 6px;
   border-radius: var(--radius-sm);
   min-width: 20px;
   text-align: center;
+  white-space: nowrap;
+}
+
+/* The abbreviation is drawn from data-abbr so the badge's text stays the plain count */
+.stockBadge::before {
+  content: attr(data-abbr);
+  opacity: 0.85;
+  font-weight: var(--font-medium);
 }
 
 /* Portfolio Strip */
 .portfolioStrip {
-  margin-top: auto;
   padding-top: var(--space-3);
   border-top: var(--border-default);
 }

@@ -19,6 +19,10 @@ cd backend && pytest tests -x -q -m "not slow" -n auto
 cd "$PROJECT_ROOT"
 
 echo ""
+echo "=== Surface Coverage Map ==="
+python3 scripts/check-surface-coverage.py
+
+echo ""
 echo "=== TypeScript Check ==="
 cd frontend && npm run typecheck
 cd "$PROJECT_ROOT"

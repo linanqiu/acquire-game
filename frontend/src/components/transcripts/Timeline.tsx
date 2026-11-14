@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { VirtualList } from './VirtualList'
 import { describeAction } from '../../lib/eventText'
+import { useRules } from '../../ruleset/useRules'
 import type { Replay, ReplayStep } from '../../lib/replay'
 import styles from './Timeline.module.css'
 
@@ -28,6 +29,7 @@ export const TIMELINE_ROW_HEIGHT = 32
 
 /** Decisions grouped by turn, windowed so thousands of rows stay cheap. */
 export function Timeline({ replay, names, current, onSelect }: TimelineProps) {
+  const rules = useRules()
   const { rows, activeIndex } = useMemo(() => {
     const rows: Row[] = [{ kind: 'start' }]
     let activeIndex = 0
@@ -85,7 +87,7 @@ export function Timeline({ replay, names, current, onSelect }: TimelineProps) {
           >
             <span className={styles.num}>{s.step}</span>
             <span className={styles.who}>{names[d.player_id] ?? d.player_id}</span>
-            <span className={styles.text}>{describeAction(d.action)}</span>
+            <span className={styles.text}>{describeAction(d.action, rules.rs)}</span>
             {rejected > 0 && (
               <span className={styles.retry} title={`${rejected} rejected answer(s)`}>
                 ↻{rejected}
