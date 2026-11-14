@@ -127,6 +127,8 @@ export interface GameStateMessage {
     }
   >
   tiles_remaining: number
+  /** Transcript id (see /games/:gameId); absent on older backends. */
+  game_id?: string | null
   your_hand?: string[] // Only sent to the owning player
   tile_playability?: Record<string, TilePlayabilityInfo> // Only sent to the owning player
   end_game_available?: boolean // True when current player can declare end game
@@ -173,6 +175,8 @@ export interface GameOverMessage {
   scores: Record<string, { name: string; money: number }>
   winner: string | null
   declared_by?: string
+  /** Transcript id (see /games/:gameId); absent on older backends. */
+  game_id?: string | null
 }
 
 export interface CanEndGameMessage {
