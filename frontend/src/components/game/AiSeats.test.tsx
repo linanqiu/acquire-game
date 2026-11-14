@@ -288,7 +288,7 @@ describe('HostPage AI seats', () => {
       ],
     })
     renderHost()
-    expect(screen.getByTestId('seat-kind-p2')).toHaveTextContent('AI')
+    expect(screen.getByTestId('seat-kind-p2')).toHaveTextContent('Claude')
     expect(screen.getByTestId('seat-kind-p3')).toHaveAttribute('data-kind', 'bot')
     expect(screen.queryByTestId('seat-kind-p1')).not.toBeInTheDocument()
     expect(screen.getByTestId('remove-seat-p2')).toBeInTheDocument()
@@ -303,8 +303,7 @@ describe('HostPage AI seats', () => {
     })
     renderHost()
     expect(screen.getByTestId('ai-thinking')).toBeInTheDocument()
-    // The seat is named after its agent: the badge shows the kind, not the same word twice
-    expect(screen.getByTestId('seat-kind-p2')).toHaveTextContent('AI')
+    expect(screen.getByTestId('seat-kind-p2')).toHaveTextContent('Claude')
     await waitFor(() => expect(globalThis.fetch).not.toHaveBeenCalled())
   })
 

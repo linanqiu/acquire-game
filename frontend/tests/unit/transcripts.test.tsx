@@ -281,6 +281,16 @@ describe('GamesPage', () => {
 })
 
 describe('TranscriptPage replay', () => {
+  it('shows an AI seat named after its agent with one badge, not its name twice', async () => {
+    mockApi(transcriptApi())
+    renderAt('/games/g1?step=1')
+    await screen.findByTestId('transcript-viewer')
+    const card = screen.getByTestId(`replay-player-${llm.player_id}`)
+    expect(llm.name).toBe(llm.agent_label)
+    expect(within(card).getAllByText(llm.name)).toHaveLength(1)
+    expect(within(card).getByTestId(`seat-kind-${llm.player_id}`)).toHaveTextContent('AI')
+  })
+
   it('steps forward and back, changing the board and the event text', async () => {
     mockApi(transcriptApi())
     renderAt('/games/g1')

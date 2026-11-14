@@ -34,7 +34,7 @@ test('opening turn: no chains to buy, END GAME not offered, hand refills and the
   await rackTile(page, tile).click()
   await page.getByTestId('place-tile-button').click()
   await expect(phaseBanner(page)).toHaveText('BUY STOCKS')
-  await expect(page.getByText('No active chains to purchase')).toBeVisible()
+  await expect(page.getByText('No active hotel chains to buy into')).toBeVisible()
   await expect(page.locator('[data-testid^="buy-row-"]')).toHaveCount(0)
   await expect(page.getByTestId('end-turn-button')).toHaveText('SKIP & END TURN')
   await expect(page.getByTestId('end-game-button')).toHaveCount(0)

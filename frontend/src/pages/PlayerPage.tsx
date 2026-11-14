@@ -532,7 +532,6 @@ export function PlayerPage() {
                 kind={p.kind}
                 isBot={p.is_bot}
                 agentLabel={p.agent_label}
-                playerName={p.name}
               />
               {isHost && resolveSeatKind(p) !== 'human' && (
                 <RemoveSeatButton room={room} playerId={p.player_id} playerName={p.name} />
@@ -896,7 +895,6 @@ export function PlayerPage() {
                 isBot={player.is_bot}
                 agentLabel={player.agent_label}
                 fallbacks={player.fallbacks}
-                playerName={player.name}
               />
               {isAiThinking(gameState.awaiting, id) && <AiThinking />}
             </span>

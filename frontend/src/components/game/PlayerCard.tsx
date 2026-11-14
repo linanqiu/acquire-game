@@ -85,7 +85,6 @@ export function PlayerCard({
             isBot={isBot}
             agentLabel={agentLabel}
             fallbacks={fallbacks}
-            playerName={name}
           />
         </div>
         <span className={styles.cash} data-testid="player-cash">

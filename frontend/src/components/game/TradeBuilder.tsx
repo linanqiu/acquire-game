@@ -197,7 +197,6 @@ export function TradeBuilder({
                     kind={p.kind}
                     isBot={p.isBot}
                     agentLabel={p.agentLabel}
-                    playerName={p.name}
                   />
                 </span>
                 <span className={styles.playerCash}>{rules.money(p.cash)}</span>
