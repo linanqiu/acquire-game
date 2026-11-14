@@ -6,13 +6,16 @@ import tempfile
 import pytest
 
 # Every game the tests play writes a transcript: keep them out of the source
-# tree (tests that inspect transcripts set their own directory per test).
-os.environ.setdefault(
-    "ACQUIRE_TRANSCRIPT_DIR", tempfile.mkdtemp(prefix="acquire-test-transcripts-")
-)
-os.environ.setdefault(
-    "ACQUIRE_BENCH_DIR", tempfile.mkdtemp(prefix="acquire-test-bench-")
-)
+# tree. Each process (and, via the autouse fixture below, each TEST) gets its
+# own directories, so tests never see each other's files, also under
+# ``pytest -n auto`` (workers inherit the master's environment, hence the
+# unconditional override in a worker).
+if os.environ.get("PYTEST_XDIST_WORKER") or "ACQUIRE_TRANSCRIPT_DIR" not in os.environ:
+    os.environ["ACQUIRE_TRANSCRIPT_DIR"] = tempfile.mkdtemp(
+        prefix="acquire-test-transcripts-"
+    )
+if os.environ.get("PYTEST_XDIST_WORKER") or "ACQUIRE_BENCH_DIR" not in os.environ:
+    os.environ["ACQUIRE_BENCH_DIR"] = tempfile.mkdtemp(prefix="acquire-test-bench-")
 from fastapi.testclient import TestClient
 
 from main import app, session_manager
@@ -21,6 +24,14 @@ from game.board import Board, Tile
 from game.hotel import Hotel
 from game.player import Player
 from game.game import Game
+
+
+@pytest.fixture(autouse=True)
+def isolated_data_dirs(tmp_path, monkeypatch):
+    """Transcript and bench directories private to the running test (a test
+    that needs specific ones sets the variables itself, after this)."""
+    monkeypatch.setenv("ACQUIRE_TRANSCRIPT_DIR", str(tmp_path / "transcripts"))
+    monkeypatch.setenv("ACQUIRE_BENCH_DIR", str(tmp_path / "bench"))
 
 
 @pytest.fixture

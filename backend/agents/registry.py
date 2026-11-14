@@ -82,7 +82,11 @@ def create(agent_id: str, *, name: str, **opts: Any):
     if agent_id == "scripted":
         if not test_mode():
             raise UnknownAgentError(agent_id)
-        return ScriptedAgent(script=opts.get("script"), name=name)
+        return ScriptedAgent(
+            script=opts.get("script"),
+            name=name,
+            strict=bool(opts.get("strict", False)),
+        )
 
     found = entry(agent_id)
     if found is None:

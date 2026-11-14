@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from transcripts.paths import valid_game_id
-from transcripts.writer import SUMMARY_SUFFIX, dumps
+from transcripts.writer import SUMMARY_SUFFIX, dumps, ruleset_summary
 
 _REDACT_LLM = ("user_prompt", "why", "note", "error")
 _REDACT_ATTEMPT = ("raw", "retry_prompt")
@@ -42,6 +42,8 @@ _SUMMARY_KEYS = (
     "seats",
     "winners",
     "turns",
+    "ruleset_id",
+    "ruleset_title",
 )
 
 
@@ -129,6 +131,7 @@ def summarize(transcript: dict, path: Path | None = None) -> dict:
         "standings": standings,
         "totals": (footer or {}).get("totals") or {},
         "prompt_version": h.get("prompt_version"),
+        **ruleset_summary(h),
         "bench": h.get("bench"),
         "loaded_from_snapshot": h.get("loaded_from_snapshot", False),
         "finished": footer is not None,
@@ -387,6 +390,7 @@ class TranscriptStore:
             "totals",
             "end_reason",
             "prompt_version",
+            "ruleset_fingerprint",
             "bench",
             "loaded_from_snapshot",
         ):

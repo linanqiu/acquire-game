@@ -23,7 +23,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from bench.prices import PriceTable
-from bench.runner import SeatSpec, matchup_label, run_game, seat_label
+from bench.runner import (
+    SeatSpec,
+    matchup_label,
+    resolve_ruleset,
+    run_game,
+    seat_label,
+)
+from game.ruleset import Ruleset
 
 
 class BenchError(RuntimeError):
@@ -39,24 +46,35 @@ def rotate(seats: list[SeatSpec], rotation: int) -> list[SeatSpec]:
     return seating
 
 
-def game_key(matchup: str, seed: int, rotation: int) -> str:
-    return f"{matchup}|seed={seed}|rot={rotation}"
+def game_key(
+    matchup: str, seed: int, rotation: int, ruleset: Ruleset | None = None
+) -> str:
+    """Unique key of a planned game; with ``ruleset`` it names the variant, so
+    one results file can hold the same matchup under several rulesets."""
+    key = f"{matchup}|seed={seed}|rot={rotation}"
+    if ruleset is not None:
+        key += f"|rs={ruleset.id}:{ruleset.fingerprint}"
+    return key
 
 
 def plan(
-    seats: list[SeatSpec], games: int, base_seed: int
+    seats: list[SeatSpec],
+    games: int,
+    base_seed: int,
+    ruleset: Ruleset | None = None,
 ) -> list[tuple[int, int, str]]:
     """``[(seed, rotation, key)]`` for the first ``games`` games of a matchup."""
     label = matchup_label(seats)
     n = len(seats)
     return [
-        (base_seed + i, i % n, game_key(label, base_seed + i, i % n))
+        (base_seed + i, i % n, game_key(label, base_seed + i, i % n, ruleset))
         for i in range(games)
     ]
 
 
-def adhoc_series_id(matchup: str) -> str:
-    return "matchup-" + hashlib.sha256(matchup.encode()).hexdigest()[:10]
+def adhoc_series_id(matchup: str, ruleset: Ruleset | None = None) -> str:
+    basis = matchup if ruleset is None else f"{matchup}|rs={ruleset.fingerprint}"
+    return "matchup-" + hashlib.sha256(basis.encode()).hexdigest()[:10]
 
 
 @dataclass
@@ -71,6 +89,7 @@ class GameSpec:
     matchup: str  # label of the lineup (not of the seating)
     series_id: str
     meta: dict = field(default_factory=dict)
+    ruleset: Ruleset | None = None  # None: the server's default (see run_game)
 
 
 @dataclass
@@ -218,6 +237,7 @@ async def run_games(
                     **spec.meta,
                 },
                 prompt_version=prompt_version,
+                ruleset=spec.ruleset,
             )
         rec.key = spec.key
         rec.matchup = spec.matchup
@@ -270,14 +290,17 @@ async def run_series(
     progress: Callable[[str], None] | None = None,
     transcripts: bool = True,
     transcript_dir: str | Path | None = None,
+    ruleset: Ruleset | str | Path | None = None,
 ) -> SeriesResult:
     """``games`` games per matchup (ad hoc; see ``run_protocol`` for the
     benchmark protocol). ``result.records`` maps each matchup label to its
-    records in plan order."""
+    records in plan order. ``ruleset``: name, path or object (default: the
+    server's configured ruleset); part of every game key and series id."""
+    rs = resolve_ruleset(ruleset)
     specs = []
     for seats in matchups:
         label = matchup_label(seats)
-        for seed_, rot, key in plan(seats, games, seed):
+        for seed_, rot, key in plan(seats, games, seed, rs):
             specs.append(
                 GameSpec(
                     key=key,
@@ -285,7 +308,8 @@ async def run_series(
                     seed=seed_,
                     rotation=rot,
                     matchup=label,
-                    series_id=adhoc_series_id(label),
+                    series_id=adhoc_series_id(label, rs),
+                    ruleset=rs,
                 )
             )
     result, done = await run_games(
@@ -303,7 +327,7 @@ async def run_series(
     for seats in matchups:
         label = matchup_label(seats)
         result.records[label] = [
-            done[key] for _, _, key in plan(seats, games, seed) if key in done
+            done[key] for _, _, key in plan(seats, games, seed, rs) if key in done
         ]
     return result
 

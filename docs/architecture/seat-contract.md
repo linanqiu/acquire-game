@@ -191,7 +191,7 @@ Payloads as built (beyond `seq/type/player_id/private_to`):
 | `trade_rejected` | `trade_id` |
 | `trade_cancelled` | `trade_id`, `reason` (`cancelled\|no_longer_valid`) |
 | `end_game_declared` | – |
-| `game_ended` | `reason` (`declared\|no_playable_tiles\|ended`), `final_sales: {pid: cash}`, `standings`, `winner` |
+| `game_ended` | `reason` (`declared\|no_playable_tiles\|ended`), `final_sales: {pid: cash}`, `standings` (best first; tied players share a rank, competition ranking 1,1,3), `winner` (first of `winners`), `winners: [pid]` (every rank-1 player; several on a tie) |
 
 Order for a declared end: `end_game_declared`, `bonuses_paid` (final, one per
 active chain), `game_ended`.
@@ -287,8 +287,28 @@ board, `min_players <= max_players`, and board tiles >= `max_players x hand_size
 Default `classic`. The app refuses to start on a bad ruleset. Each room is
 created with the configured ruleset (`GameRoom.ruleset`, `max_players` from it)
 and its game uses it. Protocol validation of client messages (chain ids, tile
-pattern, per-turn purchase limit) uses the configured ruleset; the engine's
-`validate_action` remains authoritative.
+pattern, per-turn purchase limit) uses the ruleset of the room's GAME
+(`validate_websocket_message(data, ruleset)`; the server default only when none
+is passed), so a game loaded from another ruleset's snapshot is validated
+against its own chains; the engine's `validate_action` remains authoritative.
+
+The LLM seat builds its system prompt and answer schema from the game's ruleset
+(`ctx.state["ruleset"]`): chain names and ids, limits, theme words and the
+currency symbol (system and user prompt). `prompt_version(ruleset)` and
+`system_prompt_id(text, ruleset)` include the ruleset fingerprint, so prompt
+versions of different rulesets never coincide.
+
+### Final standings and ties
+
+`Game.end_game` ranks by final cash with competition ranking: players tied on
+money share the rank (1, 1, 3) and keep seating order inside the tie.
+`EndGameResult` / `DeclareEndGameResult` have `winners` (all rank-1 standings)
+besides `winner` (the first of them); the `game_ended` event and the broadcast
+`game_over` message carry `winners: [player_id]` next to `winner`. Transcript
+footers, `GET /games` `winners`, benchmark standings (`bench.runner.assign_ranks`
+is the same function) and the calculator's `projected_rank` all use
+`game.ranking.competition_ranks`; a benchmark tie is a split win and a half-win
+in the rating.
 
 ### What clients get
 
@@ -475,7 +495,7 @@ label.
 |-------|------|-------|
 | `POST /test/room/{code}/load-snapshot` | `{"snapshot": {...}, "seat_map"?: {snapshot_player_id: room_player_id}}` | Remaps player ids everywhere in the snapshot dict (any string or key equal to a snapshot player id), takes names and AI seats from the room, restores with `from_snapshot`, marks the room started, broadcasts, prompts the human whose decision is pending, kicks the driver. Without `seat_map`, snapshot players map onto room seats in order (counts must match). 400 on a bad snapshot/map; the room's game is untouched. Returns `{status, phase, current_player, players}`. |
 | `GET /test/room/{code}/snapshot` | – | `to_snapshot` of the live game. |
-| `POST /room/{code}/add-seat` with `{"agent_id":"scripted","script"?: [...actions]}` | | `ScriptedAgent`: plays script entries in order when the entry's action type is offered for the decision (otherwise the entry waits and the default is played); an entry of the right type that is illegal is dropped. Default: first legal tile, first chain, sell all, end turn without buying, reject trades. |
+| `POST /room/{code}/add-seat` with `{"agent_id":"scripted","script"?: [...actions],"strict"?: bool}` | | `ScriptedAgent`: plays script entries in order when the entry's action type is offered for the decision (otherwise the entry waits and the default is played); an entry of the right type that is illegal is dropped. Default: first legal tile, first chain, sell all, end turn without buying, reject trades. With `"strict": true` an illegal entry is not dropped silently: it is recorded and `decide` raises `ScriptViolation` (reason `script`), so the driver counts a fallback with category/reason `script` and the heuristic plays that move. `GET /room/{code}/debug` lists, per scripted seat, `scripted[player_id] = {strict, played, unconsumed, violations, unconsumed_at_game_over}` and `script_problems: [player_id]` (strict seats with a violation or entries never consumed by game over). |
 
 These routes do not exist when test mode is off (404; `scripted` is neither
 offered nor accepted).
@@ -506,9 +526,11 @@ Lines, in order:
           "protocol":"acquire-bench-v1"|absent,"track":"vs-baseline"|...,"prompt_version":"...",
           "series_games":72,"seating_index":0,"lineup":[...]}|null,
  "started_at":"<ISO-8601 UTC>","seed":1|null,"tile_order":[...]|null,
+ "ruleset_id":"classic","ruleset_fingerprint":"<12 hex>",
+ "ruleset":{...the full ruleset dict (file format); replays use it...},
  "seats":[{"player_id","name","kind","agent_id"|null,"agent_label"|null,"model"|null,"is_bot"}],
  "prompt_version":"v1-<10 hex>",
- "system_prompts":{"sp-<12 hex>":"<full system prompt text>"},   // {} without LLM seats
+ "system_prompts":{"sp-<12 hex>":"<full system prompt text built for this ruleset>"},   // {} without LLM seats
  "loaded_from_snapshot":false,"start_seq":0}
 
 {"type":"event","event":{...the engine event verbatim: seq, type, player_id, private_to, payload}}
@@ -605,11 +627,11 @@ always full. The static system prompt (public rules) stays visible.
 
 | Route | Returns |
 |-------|---------|
-| `GET /games?source=live\|bench&limit=50&before=<id>` | `{"games":[{"game_id","source","status":"live\|finished\|abandoned","started_at","ended_at"\|null,"room_code"\|null,"series_id"\|null,"seats":[{"player_id","name","kind","agent_label","model"}],"winners":[player_id],"turns":int}],"next":"<game_id>"\|null}` newest first; `next` is the `before` cursor of the next page (null on the last page); an unknown `before` id gives an empty page; `limit` 1..500 |
-| `GET /games/{game_id}` | that summary plus `standings`, `totals`, `end_reason`, `prompt_version`, `bench`, `loaded_from_snapshot` |
+| `GET /games?source=live\|bench&limit=50&before=<id>` | `{"games":[{"game_id","source","status":"live\|finished\|abandoned","started_at","ended_at"\|null,"room_code"\|null,"series_id"\|null,"seats":[{"player_id","name","kind","agent_label","model"}],"winners":[player_id],"turns":int,"ruleset_id","ruleset_title"}],"next":"<game_id>"\|null}` newest first; `next` is the `before` cursor of the next page (null on the last page); an unknown `before` id gives an empty page; `limit` 1..500 |
+| `GET /games/{game_id}` | that summary plus `standings`, `totals`, `end_reason`, `prompt_version`, `ruleset_fingerprint`, `bench`, `loaded_from_snapshot` |
 | `GET /games/{game_id}/transcript` | `{"header":{...},"entries":[...event/decision/state lines in order...],"footer":{...}\|null,"redacted":bool}`, plus `live_totals` (footer-shaped totals so far) while unfinished. gzip when the client accepts it. |
-| `GET /bench/leaderboard?protocol=<id>&prompt_version=<v>&track=all\|vs-baseline\|head-to-head` | `{"protocol":{"id","description","players","games_per_matchup","seeds"},"prompt_version","track","updated_at"\|null,"games","agents":[{"agent_id","label","model","games","seat_games","wins","win_rate","ci_low","ci_high","mean_rank","rating","rating_ci":[lo,hi]\|null,"fallback_rate","retry_rate","tokens_per_game","cost_per_game"\|null,"latency_p50_s"\|null,"verdict","decisions","is_anchor"}],"series":[{"series_id","matchup","track","games","planned","started_at","finished":bool,"full_protocol":bool}],"available":{"protocols","prompt_versions"},"rating":{...method...},"warnings":[...]}`. Defaults: the protocol and prompt version of the most recent result. Empty results: the default protocol with `agents: []`, `series: []`, `updated_at: null`. |
-| `GET /bench/series/{series_id}` | `{"series_id","matchup","protocol","track","prompt_version","planned","games":[{"game_id","seed","rotation","status","seat_order","standings":[{"player_id","name","agent_id","rank","score"}]}]}` (`rotation` = seating index) |
+| `GET /bench/leaderboard?protocol=<id>&ruleset=<id or fingerprint>&prompt_version=<v>&track=all\|vs-baseline\|head-to-head` | `{"protocol":{"id","description","players","games_per_matchup","seeds"},"ruleset":{"id","title","fingerprint"},"ruleset_id","ruleset_fingerprint","prompt_version","track","updated_at"\|null,"games","agents":[{"agent_id","label","model","games","seat_games","wins","win_rate","ci_low","ci_high","mean_rank","rating","rating_ci":[lo,hi]\|null,"fallback_rate","retry_rate","tokens_per_game","cost_per_game"\|null,"latency_p50_s"\|null,"verdict","decisions","is_anchor"}],"series":[{"series_id","matchup","track","games","planned","started_at","finished":bool,"full_protocol":bool}],"available":{"protocols","prompt_versions","rulesets":[{"id","fingerprint"}]},"rating":{...method...},"warnings":[...]}`. Defaults: the protocol, then the ruleset, then the prompt version of the most recent result; only records of that protocol + ruleset fingerprint + prompt version are used. Empty results: the default protocol with `agents: []`, `series: []`, `updated_at: null`. |
+| `GET /bench/series/{series_id}` | `{"series_id","matchup","protocol","track","prompt_version","ruleset_id","ruleset_fingerprint","planned","games":[{"game_id","seed","rotation","status","seat_order","standings":[{"player_id","name","agent_id","rank","score"}]}]}` (`rotation` = seating index) |
 
 Unknown ids/protocols are JSON 404s; ids are validated before any file access.
 `status`: `finished` = footer (reason not `abandoned`); `abandoned` = footer
@@ -628,12 +650,16 @@ link to `/games/{game_id}`.
 
 A named, versioned protocol (`acquire-bench-v1`, `backend/bench/protocols.py`):
 fixed seed list (9001-9018), 4 seats, every distinct seating of each lineup
-played on the same deal, 72 games per series, prompt version recorded in
-every result — and two tracks — **vs-baseline** (one model against three
+played on the same deal, 72 games per series, ruleset (`ruleset_id`,
+`ruleset_fingerprint`) and prompt version recorded in every result — and two
+tracks — **vs-baseline** (one model against three
 rules-based bots) and **head-to-head** (the models in one game, bots filling
 empty seats; more than 4 models: every 4-combination). Results are only
-comparable within a protocol id + prompt version; the leaderboard never mixes
-them. Ratings are computed from finishing order across all games of a
+comparable within a protocol id + ruleset fingerprint + prompt version; the
+leaderboard never mixes them. A run plays on one ruleset (`python -m bench run
+--ruleset <name|path>`, `run_protocol(..., ruleset=)`; default the server's
+`GAME_RULESET`, else classic); the ruleset is part of every game key, series id,
+prompt version, transcript header and leaderboard. Ratings are computed from finishing order across all games of a
 protocol + prompt version (pairwise Bradley-Terry on the Elo scale, the
 rules-based bot anchored at 1500, bootstrap CI over games); every leaderboard
 row links to its games' transcripts via `/bench/series/{id}`. Usage, layout of

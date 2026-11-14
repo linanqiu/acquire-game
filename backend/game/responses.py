@@ -299,17 +299,20 @@ class EndGameResult(GameResponse):
 
     Attributes:
         standings: List of players in final order
-        winner: The winning player
+        winner: The first-ranked player (seating order breaks a tie)
+        winners: Every player with rank 1 (several on a tie)
     """
 
     standings: List[PlayerStanding] = field(default_factory=list)
     winner: Optional[PlayerStanding] = None
+    winners: List[PlayerStanding] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         d = super().to_dict()
         if self.success:
             d["standings"] = [s.to_dict() for s in self.standings]
             d["winner"] = self.winner.to_dict() if self.winner else None
+            d["winners"] = [w.to_dict() for w in self.winners]
         return d
 
 
@@ -438,12 +441,14 @@ class DeclareEndGameResult(GameResponse):
     Attributes:
         declared_by: ID of the player who declared the end
         standings: List of players in final order (after finalization)
-        winner: The winning player
+        winner: The first-ranked player (seating order breaks a tie)
+        winners: Every player with rank 1 (several on a tie)
     """
 
     declared_by: Optional[str] = None
     standings: List[PlayerStanding] = field(default_factory=list)
     winner: Optional[PlayerStanding] = None
+    winners: List[PlayerStanding] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         d = super().to_dict()
@@ -452,4 +457,5 @@ class DeclareEndGameResult(GameResponse):
         if self.success:
             d["standings"] = [s.to_dict() for s in self.standings]
             d["winner"] = self.winner.to_dict() if self.winner else None
+            d["winners"] = [w.to_dict() for w in self.winners]
         return d

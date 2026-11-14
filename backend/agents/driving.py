@@ -23,6 +23,7 @@ PUBLIC_REASON = {
     "illegal": "illegal",
     "cap": "cap",
     "engine": "illegal",
+    "script": "script",
 }
 
 # Decision source for a seat kind (transcripts).
@@ -64,9 +65,12 @@ def check_answer(
 
 
 def category(reason: str) -> str:
-    """Fallback category (``timeout`` | ``cap`` | ``engine`` | ``error`` | ``illegal``)."""
+    """Fallback category (``timeout`` | ``cap`` | ``engine`` | ``script`` |
+    ``error`` | ``illegal``)."""
     if reason.startswith("timeout"):
         return "timeout"
+    if reason.startswith("script:"):
+        return "script"
     if "cap reached" in reason:
         return "cap"
     if reason.startswith("engine:"):
@@ -92,6 +96,8 @@ def describe_fallback(label: str, reason: str, attempts: int, elapsed: float) ->
         )
     elif reason == "cap":
         what = "went over the per-turn action limit"
+    elif reason == "script":
+        what = "broke its test script"
     else:
         what = "had a provider error"
     return f"{label} {what} \u2014 the rules-based player made this move."

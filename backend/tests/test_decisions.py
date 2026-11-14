@@ -12,6 +12,7 @@ import random
 import pytest
 
 from game.board import Tile
+from game.calculator import build_calculator_pack
 from game.decisions import (
     BUY_STOCKS,
     CHOOSE_SURVIVOR,
@@ -29,6 +30,7 @@ from game.decisions import (
 from game.game import Game, GamePhase
 from game.hotel import Hotel
 from game.player import Player
+from tests.event_ledger import Ledger
 
 ALL_CHAINS = Hotel.get_all_chain_names()
 TOTAL_STOCK_PER_CHAIN = 25
@@ -329,14 +331,16 @@ def illegal_candidates(game: Game, decision: Decision) -> list[tuple[str, object
         else:
             if legal["options"]:
                 c = legal["options"][0]["chain"]
-                cands.append((pid, {"action": "buy_stocks", "purchases": {c: 4}}))
+                over = game.ruleset.max_stock_purchases_per_turn + 1
+                cands.append((pid, {"action": "buy_stocks", "purchases": {c: over}}))
             inactive = game.hotel.get_inactive_chains()
             if inactive:
                 cands.append(
                     (pid, {"action": "buy_stocks", "purchases": {inactive[0]: 1}})
                 )
             for o in legal["options"]:
-                if o["max_affordable"] < 3 and o["available"] >= 3:
+                max_buy = game.ruleset.max_stock_purchases_per_turn
+                if o["max_affordable"] < max_buy and o["available"] >= max_buy:
                     # Can't afford this many
                     cands.append(
                         (
@@ -385,6 +389,27 @@ def reconstruct_hand(game: Game, player_id: str) -> set[str]:
     return hand
 
 
+def check_calculator_purity_and_leaks(game: Game):
+    """``build_calculator_pack`` never mutates the game and never reveals other
+    players' hands or the bag: for every viewer, no tile that sits in another
+    hand or in the bag appears anywhere in the (JSON) pack."""
+    import re
+
+    for viewer in game.players:
+        before = fingerprint(game)
+        pack = build_calculator_pack(game, viewer.player_id)
+        assert fingerprint(game) == before, "calculator mutated the game"
+        text = json.dumps(pack)
+        hidden = {str(t) for p in game.players if p is not viewer for t in p.hand}
+        hidden |= {str(t) for t in game.tile_bag}
+        hidden -= {str(t) for t in viewer.hand}  # your own tiles are yours to see
+        hidden -= {c for c in game.board.get_state()["cells"]}  # public board
+        for tile in hidden:
+            assert not re.search(rf"(?<![0-9A-Z]){tile}(?![0-9A-Z])", text), (
+                f"{viewer.player_id}'s pack mentions hidden tile {tile}"
+            )
+
+
 def check_invariants(game: Game):
     rs = game.ruleset
     if game.phase != GamePhase.GAME_OVER:
@@ -412,18 +437,50 @@ def check_invariants(game: Game):
 # =============================================================================
 
 
+class FuzzFailure(AssertionError):
+    """A fuzzed game broke an invariant; the message names the seed and lists
+    every action applied so far so the game can be replayed by hand."""
+
+
 def run_random_game(
     seed: int,
     num_players: int,
     declare_prob: float = 0.3,
     max_steps: int = 20000,
     ruleset=None,
+    calc_every: int = 0,
 ):
     """Random legal play to game over with all invariants checked.
 
     ``ruleset``: any ``game.ruleset.Ruleset`` (default classic); every
-    invariant uses the game's own ruleset.
+    invariant uses the game's own ruleset. ``calc_every``: every N-th action
+    the calculator pack is built for every player and checked for purity (the
+    game is unchanged) and leaks (no other hand or bag tile appears in it);
+    0 (default, it is the costly check) turns it off; the volume fuzz in
+    ``test_fuzz_games.py`` uses 120. A failure is re-raised as ``FuzzFailure`` with the seed
+    and the full action list.
     """
+    log: list = []
+    try:
+        return _run_random_game(
+            seed, num_players, declare_prob, max_steps, ruleset, calc_every, log
+        )
+    except FuzzFailure:
+        raise
+    except Exception as exc:
+        rs = "classic" if ruleset is None else ruleset.id
+        text = json.dumps(log)
+        raise FuzzFailure(
+            f"{type(exc).__name__}: {exc}\n"
+            f"seed={seed} players={num_players} declare_prob={declare_prob} "
+            f"ruleset={rs} after {len(log)} actions; "
+            f"actions (player_id, action): {text[:30000]}"
+        ) from exc
+
+
+def _run_random_game(
+    seed, num_players, declare_prob, max_steps, ruleset, calc_every, log
+):
     rng = random.Random(seed * 1000 + num_players)
     game = Game(seed=seed, ruleset=ruleset)
     for i in range(num_players):
@@ -433,19 +490,30 @@ def run_random_game(
     money = sum(p.money for p in game.players)
     seen_events = len(game.events)
     stats = {"actions": 0, "illegal": 0, "trades_proposed": 0, "turns": 0}
+    ledger = Ledger(game.ruleset)
+    ledger.feed(game.events)
+    ledger.check_against(game)
 
     def apply_checked(pid, action):
         nonlocal money, seen_events
         err = validate_action(game, pid, action)
         assert err is None, f"legal action rejected: {action} by {pid}: {err}"
+        log.append((pid, action))
         result = apply_action(game, pid, action)
         assert result["success"], f"apply failed: {action} -> {result}"
+        # every successful action leaves a trace in the event log
+        assert len(game.events) > seen_events, f"no event for {action}"
         new_events = game.events[seen_events:]
         money += money_delta_from_events(new_events)
         seen_events = len(game.events)
         assert sum(p.money for p in game.players) == money, new_events
         check_invariants(game)
+        # cash and holdings rebuilt from the events alone match the engine
+        ledger.feed(game.events)
+        ledger.check_against(game)
         stats["actions"] += 1
+        if calc_every and stats["actions"] % calc_every == 0:
+            check_calculator_purity_and_leaks(game)
         return result
 
     for _step in range(max_steps):
@@ -511,6 +579,17 @@ def run_random_game(
     assert game.phase == GamePhase.GAME_OVER
     assert pending_decisions(game) == []
     assert game.events[-1]["type"] == "game_ended"
+
+    # Final standings and the turn sequence follow from the events alone
+    ended = game.events[-1]
+    assert ledger.final == [
+        {"player_id": s["player_id"], "money": s["money"], "rank": s["rank"]}
+        for s in ended["standings"]
+    ]
+    top = [s["player_id"] for s in ledger.final if s["rank"] == 1]
+    assert ended["winners"] == top and ended["winner"] == top[0]
+    ledger.check_turn_sequence(game)
+    assert len(ledger.turns) == sum(1 for e in game.events if e["type"] == "turn_ended")
 
     # Event log integrity
     assert [e["seq"] for e in game.events] == list(range(len(game.events)))
@@ -1027,3 +1106,60 @@ class TestNoPlayableTile:
         before = fingerprint(game)
         assert game.resolve_unplayable_turn() is None
         assert fingerprint(game) == before
+
+
+# =============================================================================
+# The fuzz checks themselves must be able to fail
+# =============================================================================
+
+
+def test_calculator_is_pure_and_leak_free_over_a_fuzzed_game():
+    """Every 15th action of a whole game (the volume run does this for 600)."""
+    game, stats = run_random_game(8, 4, calc_every=15)
+    assert stats["actions"] > 60 and game.phase == GamePhase.GAME_OVER
+
+
+def test_calculator_checks_catch_a_leak_and_a_mutation(monkeypatch):
+    g = make_game(4, seed=9)
+    check_calculator_purity_and_leaks(g)  # the real calculator is clean
+    other_tile = str(g.players[1].hand[0])
+
+    real = build_calculator_pack
+
+    def leaky(game, viewer_id):
+        pack = real(game, viewer_id)
+        pack["debug"] = {"next": other_tile}
+        return pack
+
+    monkeypatch.setattr("tests.test_decisions.build_calculator_pack", leaky)
+    with pytest.raises(AssertionError, match="hidden tile"):
+        check_calculator_purity_and_leaks(g)
+
+    def mutating(game, viewer_id):
+        game.players[0].add_money(1)
+        return real(game, viewer_id)
+
+    monkeypatch.setattr("tests.test_decisions.build_calculator_pack", mutating)
+    with pytest.raises(AssertionError, match="mutated"):
+        check_calculator_purity_and_leaks(g)
+
+
+def test_ledger_reconstructs_final_standings_from_events_only():
+    game, _ = run_random_game(21, 4, calc_every=0)
+    ledger = Ledger(game.ruleset)
+    ledger.feed(game.events)  # nothing but the events
+    assert ledger.final == [
+        {"player_id": s["player_id"], "money": s["money"], "rank": s["rank"]}
+        for s in game.events[-1]["standings"]
+    ]
+    ledger.check_against(game)
+    # tampering with one event breaks the reconciliation
+    broken = Ledger(game.ruleset)
+    events = [dict(e) for e in game.events]
+    for e in events:
+        if e["type"] == "stocks_purchased":
+            e["total_cost"] += 100
+            break
+    broken.feed(events)
+    with pytest.raises(AssertionError):
+        broken.check_against(game)

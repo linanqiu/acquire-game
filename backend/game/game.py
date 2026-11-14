@@ -10,6 +10,7 @@ from game.action import TradeOffer
 from game.hotel import Hotel
 from game.player import Player
 from game.rules import Rules, PlacementResult
+from game.ranking import competition_ranks
 from game.ruleset import Ruleset, classic, resolve
 from game.bot import Bot
 from game.responses import (
@@ -1278,20 +1279,21 @@ class Game:
                 }
             )
 
+        # Stable sort: players tied on money keep seating order in the list
+        # but share a rank (competition ranking: 1, 1, 3) and all win.
         standings_data.sort(key=lambda x: x["money"], reverse=True)
-
-        # Assign ranks and convert to typed standings
-        standings = []
-        for i, entry in enumerate(standings_data):
-            standings.append(
-                PlayerStanding(
-                    player_id=entry["player_id"],
-                    name=entry["name"],
-                    money=entry["money"],
-                    rank=i + 1,
-                    is_bot=entry["is_bot"],
-                )
+        ranks = competition_ranks([e["money"] for e in standings_data])
+        standings = [
+            PlayerStanding(
+                player_id=entry["player_id"],
+                name=entry["name"],
+                money=entry["money"],
+                rank=ranks[i],
+                is_bot=entry["is_bot"],
             )
+            for i, entry in enumerate(standings_data)
+        ]
+        winners = [s for s in standings if s.rank == 1]
 
         self.phase = GamePhase.GAME_OVER
         self.pending_action = None
@@ -1303,11 +1305,13 @@ class Game:
             final_sales=final_sales,
             standings=[s.to_dict() for s in standings],
             winner=winner.player_id if winner else None,
+            winners=[w.player_id for w in winners],
         )
         return EndGameResult(
             success=True,
             standings=standings,
             winner=winner,
+            winners=winners,
         )
 
     def can_declare_end_game(self) -> bool:
@@ -1375,6 +1379,7 @@ class Game:
             declared_by=player_id,
             standings=end_result.standings,
             winner=end_result.winner,
+            winners=end_result.winners,
         )
 
     # =========================================================================
