@@ -555,6 +555,7 @@ def _check_merge_scenario(game, tile, pid, sc, tally):
         assert me.money - cash0 == d["viewer_bonus"]
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "seed,players", [(42, 3), (123, 4), (456, 5), (789, 6), (7, 4), (99, 3)]
 )
@@ -578,6 +579,7 @@ def test_engine_equality_over_bot_games(seed, players):
     assert tally.expands > 0 and tally.founds > 0
 
 
+@pytest.mark.slow
 def test_mergers_were_exercised_somewhere():
     """Across seeds at least some mergers get predicted-vs-engine checked."""
     total = Tally()

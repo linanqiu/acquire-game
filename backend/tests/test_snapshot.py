@@ -291,6 +291,7 @@ def run_config(seed, n_players, difficulties):
     return frozenset(seen)
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "seed,n_players,difficulties", CONFIGS, ids=[f"seed{c[0]}-{c[1]}p" for c in CONFIGS]
 )

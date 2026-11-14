@@ -14,7 +14,7 @@ cd "$PROJECT_ROOT"
 
 echo ""
 echo "=== Fast Backend Tests ==="
-cd backend && pytest tests/test_board.py tests/test_rules.py -x -q
+cd backend && pytest tests -x -q -m "not slow"
 cd "$PROJECT_ROOT"
 
 echo ""
