@@ -632,6 +632,20 @@ class Rules:
         if not has_offering and not has_requesting:
             return False, "Trade must include at least one item to exchange"
 
+        # Stock of chains in an in-progress merger is frozen: bonuses were paid
+        # on current holdings and pending dispositions rely on the stock counts.
+        merger = getattr(game, "_merger", None)
+        if merger is not None and merger.chains:
+            for chain_name in merger.chains:
+                if (
+                    trade.offering_stocks.get(chain_name, 0) > 0
+                    or trade.requesting_stocks.get(chain_name, 0) > 0
+                ):
+                    return (
+                        False,
+                        f"Cannot trade {chain_name} stock during its merger",
+                    )
+
         # Check that offering player has the resources they're offering
         if not from_player.can_afford_trade(
             trade.offering_stocks, trade.offering_money

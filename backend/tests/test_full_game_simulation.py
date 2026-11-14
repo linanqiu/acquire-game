@@ -70,7 +70,10 @@ class GameStateValidator:
             assert game.get_current_player() is not None
 
         elif phase == GamePhase.GAME_OVER:
-            assert game.winners is not None or len(game.players) > 0
+            # (Game has no ``winners`` attribute; this branch was unreachable
+            # until the engine began ending frozen games on its own.)
+            assert len(game.players) > 0
+            assert game.events and game.events[-1]["type"] == "game_ended"
 
 
 class TestFullGameSimulation:
