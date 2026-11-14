@@ -81,3 +81,26 @@
     gap: 1px;
   }
 }
+
+/* Phones: the md board (player page) must fit the screen width. Without this the 12
+   columns overflowed a 390px screen and the centred scroll container cut off both
+   the row labels and column 12. */
+@media (max-width: 480px) {
+  .md {
+    --tile: min(28px, calc((100vw - 112px) / 12));
+  }
+
+  .md .row > :not(.rowLabel) {
+    width: var(--tile);
+    height: var(--tile);
+    font-size: 9px;
+  }
+
+  .md .colLabel {
+    width: var(--tile);
+  }
+
+  .md .rowLabel {
+    height: var(--tile);
+  }
+}

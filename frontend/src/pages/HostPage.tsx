@@ -9,12 +9,14 @@ import { Spinner } from '../components/ui/Spinner'
 import { Board } from '../components/game/Board'
 import { ChainMarker } from '../components/game/ChainMarker'
 import { PlayerCard, type StockHolding } from '../components/game/PlayerCard'
-import { GameOver, type FinalScore } from '../components/game/GameOver'
+import { GameOver } from '../components/game/GameOver'
 import { AddAiControl } from '../components/game/AddAiControl'
 import { ReconnectionOverlay } from '../components/game/ReconnectionOverlay'
 import { SeatKindBadge } from '../components/game/SeatKindBadge'
 import { RemoveSeatButton } from '../components/game/RemoveSeatButton'
 import { isAiThinking, resolveSeatKind } from '../lib/agents'
+import { buildFinalScores } from '../lib/finalScores'
+import { roomUnavailable } from '../lib/roomAvailability'
 import { useGameStore } from '../store/gameStore'
 import { useToast } from '../components/ui/useToast'
 import { useErrorHandler } from '../hooks/useErrorHandler'
@@ -91,6 +93,11 @@ export function HostPage() {
     [handleServerError]
   )
 
+  // The game store is global: leaving this room (PLAY AGAIN, BACK TO LOBBY, another room)
+  // must not leak its state into the next room, which would otherwise open on the old
+  // game's screen (e.g. a brand-new room showing the previous GAME OVER).
+  useEffect(() => () => useGameStore.getState().reset(), [room])
+
   // Use host WebSocket for receiving state updates
   const { reconnect } = useHostWebSocket({
     roomCode: room,
@@ -98,7 +105,16 @@ export function HostPage() {
   })
 
   // Game store state
-  const { connectionStatus, lobbyPlayers, canStart, gameState, publicTrades } = useGameStore()
+  const {
+    connectionStatus,
+    connectionError,
+    lobbyPlayers,
+    canStart,
+    gameState,
+    publicTrades,
+    gameOver,
+  } = useGameStore()
+  const unavailable = roomUnavailable(connectionStatus, connectionError)
 
   // Show the reconnection overlay only after we have been connected once
   const [hasConnected, setHasConnected] = useState(connectionStatus === 'connected')
@@ -255,7 +271,7 @@ export function HostPage() {
           room={room}
           size="lg"
           disabled={lobbyPlayers.length >= 6 || actionLoading}
-          onAdded={(id) => addActivityLog(`AI added${id ? `: ${id}` : ''}`)}
+          onAdded={(id, name) => addActivityLog(`${name ?? id ?? 'AI'} joined`)}
         />
         <Button
           size="lg"
@@ -277,16 +293,7 @@ export function HostPage() {
 
   // Render game over view
   const renderGameOverView = () => {
-    const scores: FinalScore[] = gameState
-      ? Object.entries(gameState.players).map(([id, p]) => ({
-          playerId: id,
-          name: p.name,
-          cash: p.money,
-          bonuses: 0,
-          stockSales: 0,
-          total: p.money,
-        }))
-      : []
+    const scores = buildFinalScores(gameState, gameOver)
 
     return (
       <div className={styles.gameOverContainer}>
@@ -377,6 +384,17 @@ export function HostPage() {
 
   // Main render
   const renderPage = () => {
+    if (unavailable) {
+      return (
+        <PageShell header={<HostHeader roomCode={room} />}>
+          <div className={styles.error} data-testid="room-unavailable">
+            <p>Game {room} was not found. Check the room code, or the game may have ended.</p>
+            <Button onClick={() => navigate('/')}>BACK TO HOME</Button>
+          </div>
+        </PageShell>
+      )
+    }
+
     if (connectionStatus === 'connecting' && !gameState) {
       return (
         <PageShell header={<HostHeader roomCode={room} />}>
@@ -424,7 +442,7 @@ export function HostPage() {
   return (
     <>
       {renderPage()}
-      {hasConnected && connectionStatus !== 'connected' && (
+      {hasConnected && connectionStatus !== 'connected' && !unavailable && (
         <ReconnectionOverlay
           connectionStatus={connectionStatus === 'disconnected' ? 'disconnected' : 'reconnecting'}
           playerName="Host"

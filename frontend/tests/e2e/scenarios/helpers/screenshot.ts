@@ -6,7 +6,8 @@ let stepCounter = 0
 
 /**
  * Capture a screenshot at a specific step in a test scenario.
- * Screenshots are saved to test-results/scenarios/{category}/{testName}/
+ * Screenshots are saved to test-results/{root}/{category}/{testName}/ (root defaults to
+ * "scenarios"; journeys pass root "journeys" and no category).
  *
  * @param page - Playwright Page object
  * @param stepName - Descriptive name for this step (e.g., "initial-state", "tile-placed")
@@ -17,18 +18,22 @@ let stepCounter = 0
 export async function captureStep(
   page: Page,
   stepName: string,
-  options: { category?: string; testName?: string } = {}
+  options: { category?: string; testName?: string; root?: string } = {}
 ): Promise<string> {
   stepCounter++
   const paddedStep = String(stepCounter).padStart(2, '0')
   const sanitizedName = stepName.toLowerCase().replace(/\s+/g, '-')
 
-  const dir = path.join(
-    'test-results',
-    'scenarios',
-    options.category || 'general',
-    options.testName || 'test'
-  )
+  const root = options.root || 'scenarios'
+  const dir =
+    root === 'scenarios'
+      ? path.join('test-results', root, options.category || 'general', options.testName || 'test')
+      : path.join(
+          'test-results',
+          root,
+          ...(options.category ? [options.category] : []),
+          options.testName || 'test'
+        )
 
   // Ensure directory exists
   if (!fs.existsSync(dir)) {

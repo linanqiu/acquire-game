@@ -6,6 +6,8 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useGameStore } from '../store'
 import type { WebSocketMessage } from '../types/api'
+import { abandonSocket, watchNetwork } from '../lib/network'
+import { NOT_FOUND_CLOSE_CODE, ROOM_NOT_FOUND } from '../lib/roomAvailability'
 
 // Helper to build WebSocket URL for host mode
 function getHostWebSocketUrl(roomCode: string): string {
@@ -141,6 +143,14 @@ export function useHostWebSocket({
       ws.onclose = (event) => {
         wsRef.current = null
 
+        // The server says the room does not exist: retrying cannot help.
+        if (event.code === NOT_FOUND_CLOSE_CODE) {
+          intentionalCloseRef.current = true
+          setConnectionStatus('error', event.reason || ROOM_NOT_FOUND)
+          onClose?.()
+          return
+        }
+
         if (
           intentionalCloseRef.current ||
           event.wasClean ||
@@ -172,7 +182,33 @@ export function useHostWebSocket({
     connectRef.current = connect
     connect()
 
+    // Network lost: the socket may still look open for minutes, so drop it now (the
+    // page shows the reconnection overlay) and reconnect as soon as we are back online.
+    const stopWatchingNetwork = watchNetwork(
+      () => {
+        const ws = wsRef.current
+        if (!ws) return
+        wsRef.current = null
+        abandonSocket(ws)
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current)
+          reconnectTimeoutRef.current = null
+        }
+        setConnectionStatus('connecting')
+      },
+      () => {
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current)
+          reconnectTimeoutRef.current = null
+        }
+        reconnectAttemptsRef.current = 0
+        intentionalCloseRef.current = false
+        connect()
+      }
+    )
+
     return () => {
+      stopWatchingNetwork()
       connectRef.current = null
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)

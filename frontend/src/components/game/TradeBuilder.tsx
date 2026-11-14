@@ -207,7 +207,11 @@ export function TradeBuilder({
           {myHoldingsWithStock.length > 0 ? (
             <div className={styles.stockList}>
               {myHoldingsWithStock.map((h) => (
-                <div key={h.chain} className={styles.stockRow}>
+                <div
+                  key={h.chain}
+                  className={styles.stockRow}
+                  data-testid={`offer-stock-${h.chain}`}
+                >
                   <ChainMarker chain={h.chain} variant="compact" />
                   <StockStepper
                     value={offer.stocks.find((s) => s.chain === h.chain)?.quantity || 0}
@@ -245,7 +249,11 @@ export function TradeBuilder({
             {partnerHoldings.length > 0 ? (
               <div className={styles.stockList}>
                 {partnerHoldings.map((h) => (
-                  <div key={h.chain} className={styles.stockRow}>
+                  <div
+                    key={h.chain}
+                    className={styles.stockRow}
+                    data-testid={`want-stock-${h.chain}`}
+                  >
                     <ChainMarker chain={h.chain} variant="compact" />
                     <StockStepper
                       value={want.stocks.find((s) => s.chain === h.chain)?.quantity || 0}

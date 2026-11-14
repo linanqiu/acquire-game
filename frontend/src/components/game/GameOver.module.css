@@ -64,7 +64,8 @@
   border: 1px solid var(--text-accent);
 }
 
-.rankRow.winner .rank {
+/* Not `.winner`: that class is the centred announcement box above. */
+.rankRow.rankWinner .rank {
   color: var(--chain-luxor);
 }
 

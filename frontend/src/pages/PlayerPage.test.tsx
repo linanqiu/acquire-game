@@ -240,4 +240,72 @@ describe('PlayerPage', () => {
       expect(screen.getByTestId('portfolio-table')).toBeInTheDocument()
     })
   })
+
+  describe('Leaving the room', () => {
+    it('resets the game store on unmount so the next room does not open on the old game', () => {
+      useGameStore.setState({
+        gameState: {
+          type: 'game_state',
+          board: { cells: {} },
+          hotel: { chains: [], available_stocks: {}, active_chains: [] },
+          turn_order: ['p1'],
+          current_player: 'p1',
+          phase: 'game_over',
+          players: { p1: { name: 'Alice', money: 9000, stocks: {}, hand_size: 0 } },
+          tiles_remaining: 0,
+        } as unknown as GameStateMessage,
+        lobbyPlayers: [{ player_id: '1', name: 'Alice', is_bot: false }],
+        yourHand: ['1A'],
+      })
+      const { unmount } = renderPlayerPage('OLDR')
+      expect(screen.getByTestId('game-over')).toBeInTheDocument()
+      unmount()
+      const state = useGameStore.getState()
+      expect(state.gameState).toBeNull()
+      expect(state.lobbyPlayers).toEqual([])
+      expect(state.yourHand).toEqual([])
+    })
+  })
+
+  describe('Room unavailable', () => {
+    it('says the game was not found when the server refuses the room', () => {
+      useGameStore.setState({ connectionStatus: 'error', connectionError: 'Room not found' })
+      renderPlayerPage('QZQZ')
+      expect(screen.getByTestId('room-unavailable')).toHaveTextContent('Game QZQZ was not found')
+      expect(screen.getByText('BACK TO HOME')).toBeInTheDocument()
+    })
+
+    it('says you are not a player when the server refuses the seat', () => {
+      useGameStore.setState({ connectionStatus: 'error', connectionError: 'Player not found' })
+      renderPlayerPage('ABCD')
+      expect(screen.getByTestId('room-unavailable')).toHaveTextContent(
+        'You are not a player in game ABCD'
+      )
+    })
+
+    it('keeps the generic connection error for other failures', () => {
+      useGameStore.setState({ connectionStatus: 'error', connectionError: 'boom' })
+      renderPlayerPage()
+      expect(screen.queryByTestId('room-unavailable')).toBeNull()
+      expect(screen.getByText('Connection error. Please refresh the page.')).toBeInTheDocument()
+    })
+  })
+
+  describe('Start hint', () => {
+    it('tells the host how many more seats are needed', () => {
+      useGameStore.setState({
+        lobbyPlayers: [{ player_id: '1', name: 'Alice', is_bot: false }],
+      })
+      render(
+        <MemoryRouter initialEntries={['/play/TEST?is_host=1']}>
+          <ToastProvider>
+            <Routes>
+              <Route path="/play/:room" element={<PlayerPage />} />
+            </Routes>
+          </ToastProvider>
+        </MemoryRouter>
+      )
+      expect(screen.getByTestId('start-hint')).toHaveTextContent('Need 2 more players to start')
+    })
+  })
 })

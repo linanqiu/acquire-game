@@ -6,9 +6,12 @@ import styles from './GameOver.module.css'
 export interface FinalScore {
   playerId: string
   name: string
+  /** Cash before the end-of-game payouts (equals `total` when the breakdown is unknown). */
   cash: number
-  bonuses: number
-  stockSales: number
+  /** End-of-game majority/minority bonuses; undefined when not known. */
+  bonuses?: number
+  /** Cash from selling stock at game end; undefined when not known. */
+  stockSales?: number
   total: number
 }
 
@@ -51,6 +54,7 @@ export function GameOver({
   )
 
   const isTie = winners.length > 1
+  const money = (n: number | undefined) => (n === undefined ? '—' : `+$${n.toLocaleString()}`)
   const myScore = myPlayerId ? scores.find((s) => s.playerId === myPlayerId) : undefined
 
   return (
@@ -83,7 +87,7 @@ export function GameOver({
               return (
                 <div
                   key={score.playerId}
-                  className={`${styles.rankRow} ${isMe ? styles.you : ''} ${isWinner ? styles.winner : ''}`}
+                  className={`${styles.rankRow} ${isMe ? styles.you : ''} ${isWinner ? styles.rankWinner : ''}`}
                   data-testid={`rank-${score.playerId}`}
                 >
                   <span className={styles.rank}>
@@ -107,18 +111,26 @@ export function GameOver({
             <h3 className={styles.sectionTitle}>YOUR BREAKDOWN</h3>
             <table className={styles.breakdownTable}>
               <tbody>
-                <tr>
-                  <td>Cash on hand:</td>
-                  <td className={styles.amount}>${myScore.cash.toLocaleString()}</td>
-                </tr>
-                <tr>
-                  <td>Final bonuses:</td>
-                  <td className={styles.amount}>+${myScore.bonuses.toLocaleString()}</td>
-                </tr>
-                <tr>
-                  <td>Stock liquidation:</td>
-                  <td className={styles.amount}>+${myScore.stockSales.toLocaleString()}</td>
-                </tr>
+                {myScore.bonuses !== undefined && myScore.stockSales !== undefined && (
+                  <>
+                    <tr>
+                      <td>Cash on hand:</td>
+                      <td className={styles.amount}>${myScore.cash.toLocaleString()}</td>
+                    </tr>
+                    <tr>
+                      <td>Final bonuses:</td>
+                      <td className={styles.amount} data-testid="breakdown-bonuses">
+                        +${myScore.bonuses.toLocaleString()}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Stock liquidation:</td>
+                      <td className={styles.amount} data-testid="breakdown-stock-sales">
+                        +${myScore.stockSales.toLocaleString()}
+                      </td>
+                    </tr>
+                  </>
+                )}
                 <tr className={styles.totalRow}>
                   <td>TOTAL:</td>
                   <td className={styles.amount}>${myScore.total.toLocaleString()}</td>
@@ -150,8 +162,8 @@ export function GameOver({
                     <tr key={score.playerId} className={isWinner ? styles.winnerRow : ''}>
                       <td>{score.name}</td>
                       <td>${score.cash.toLocaleString()}</td>
-                      <td>+${score.bonuses.toLocaleString()}</td>
-                      <td>+${score.stockSales.toLocaleString()}</td>
+                      <td>{money(score.bonuses)}</td>
+                      <td>{money(score.stockSales)}</td>
                       <td className={styles.totalCell}>${score.total.toLocaleString()}</td>
                     </tr>
                   )

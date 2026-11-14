@@ -159,7 +159,9 @@ export interface ErrorMessage {
 
 export interface GameOverMessage {
   type: 'game_over'
-  scores: Record<string, { name: string; money: number }>
+  /** Final money per player; `bonuses` / `stock_sales` (end-of-game payouts, already
+   * included in `money`) are sent by current backends. */
+  scores: Record<string, { name: string; money: number; bonuses?: number; stock_sales?: number }>
   winner: string | null
   declared_by?: string
 }

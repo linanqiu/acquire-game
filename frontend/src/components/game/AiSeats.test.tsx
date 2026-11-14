@@ -93,7 +93,7 @@ describe('AddAiControl', () => {
     fireEvent.click(await screen.findByTestId('add-ai-button'))
     fireEvent.click(screen.getByTestId('ai-option-claude'))
 
-    await waitFor(() => expect(onAdded).toHaveBeenCalledWith('p9'))
+    await waitFor(() => expect(onAdded).toHaveBeenCalledWith('p9', 'Claude'))
     const call = fetchMock.mock.calls.find((c) => String(c[0]).endsWith('/add-seat'))!
     expect(call[1]?.method).toBe('POST')
     expect(JSON.parse(String(call[1]?.body))).toEqual({ agent_id: 'claude' })
@@ -125,7 +125,7 @@ describe('AddAiControl', () => {
     expect(screen.queryByTestId('add-ai-button')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: '+ ADD BOT' }))
-    await waitFor(() => expect(onAdded).toHaveBeenCalledWith('bot-1'))
+    await waitFor(() => expect(onAdded).toHaveBeenCalledWith('bot-1', undefined))
     expect(fetchMock.mock.calls.some((c) => c[0] === '/api/room/ABCD/add-bot')).toBe(true)
   })
 

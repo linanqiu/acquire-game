@@ -6,17 +6,23 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useGameStore } from '../store'
 import type { GameAction, WebSocketMessage } from '../types/api'
+import { abandonSocket, watchNetwork } from '../lib/network'
+import { NOT_FOUND_CLOSE_CODE, ROOM_NOT_FOUND } from '../lib/roomAvailability'
+
+// Player id used when this browser has no credentials: the server answers "Player not
+// found" (or "Room not found"), which the page turns into a clear message.
+const NO_PLAYER = '-'
 
 // Helper to build WebSocket URL
 // Use relative path to go through Vite proxy in dev, works in prod too
 function getWebSocketUrl(roomCode: string, playerId: string, token: string): string {
   // If explicit WS URL is configured, use it (bypasses Vite proxy)
   if (import.meta.env.VITE_WS_URL) {
-    return `${import.meta.env.VITE_WS_URL}/ws/player/${roomCode}/${playerId}?token=${token}`
+    return `${import.meta.env.VITE_WS_URL}/ws/player/${roomCode}/${playerId || NO_PLAYER}?token=${token}`
   }
   // Otherwise, use relative URL (goes through Vite proxy in dev)
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${protocol}//${window.location.host}/ws/player/${roomCode}/${playerId}?token=${token}`
+  return `${protocol}//${window.location.host}/ws/player/${roomCode}/${playerId || NO_PLAYER}?token=${token}`
 }
 
 interface UseWebSocketOptions {
@@ -144,6 +150,14 @@ export function useWebSocket({
 
         wsRef.current = null
 
+        // The server refused the room or seat: retrying cannot help.
+        if (event.code === NOT_FOUND_CLOSE_CODE) {
+          intentionalCloseRef.current = true
+          setConnectionStatus('error', event.reason || ROOM_NOT_FOUND)
+          onClose?.()
+          return
+        }
+
         // Don't reconnect if it was intentional, clean close, or we've exceeded attempts
         if (
           intentionalCloseRef.current ||
@@ -177,7 +191,33 @@ export function useWebSocket({
     connectRef.current = connect
     connect()
 
+    // Network lost: the socket may still look open for minutes, so drop it now (the
+    // page shows the reconnection overlay) and reconnect as soon as we are back online.
+    const stopWatchingNetwork = watchNetwork(
+      () => {
+        const ws = wsRef.current
+        if (!ws) return
+        wsRef.current = null
+        abandonSocket(ws)
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current)
+          reconnectTimeoutRef.current = null
+        }
+        setConnectionStatus('connecting')
+      },
+      () => {
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current)
+          reconnectTimeoutRef.current = null
+        }
+        reconnectAttemptsRef.current = 0
+        intentionalCloseRef.current = false
+        connect()
+      }
+    )
+
     return () => {
+      stopWatchingNetwork()
       connectRef.current = null
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)

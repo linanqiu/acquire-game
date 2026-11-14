@@ -32,12 +32,28 @@ async def ping_task(ws: WebSocket) -> None:
         pass
 
 
+# Close code for "this room / seat does not exist" (application range 4000-4999).
+NOT_FOUND_CLOSE_CODE = 4004
+
+
+async def _refuse(ws: WebSocket, reason: str) -> None:
+    """Accept, then close with ``NOT_FOUND_CLOSE_CODE`` and ``reason``.
+
+    Closing before accepting turns into an HTTP 403 handshake failure, which the
+    browser reports only as a failed connection (no code, no reason): the page then
+    retried for about a minute and fell back to an empty lobby. Accepting first lets
+    the client read the code and show "game not found" instead.
+    """
+    await ws.accept()
+    await ws.close(code=NOT_FOUND_CLOSE_CODE, reason=reason)
+
+
 @router.websocket("/ws/host/{room_code}")
 async def host_websocket(websocket: WebSocket, room_code: str):
     """WebSocket for host display (also used by spectators)."""
     room = session_manager.get_room(room_code)
     if room is None:
-        await websocket.close(code=4004, reason="Room not found")
+        await _refuse(websocket, "Room not found")
         return
 
     await websocket.accept()
@@ -79,10 +95,10 @@ async def player_websocket(websocket: WebSocket, room_code: str, player_id: str)
     any prompt still pending for this player (e.g. stock disposition)."""
     room = session_manager.get_room(room_code)
     if room is None:
-        await websocket.close(code=4004, reason="Room not found")
+        await _refuse(websocket, "Room not found")
         return
     if player_id not in room.players:
-        await websocket.close(code=4004, reason="Player not found")
+        await _refuse(websocket, "Player not found")
         return
 
     await websocket.accept()

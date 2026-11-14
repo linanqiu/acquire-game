@@ -176,9 +176,13 @@ export function LobbyPage() {
           <Card title="CREATE GAME" className={styles.card}>
             <div className={styles.formContent}>
               <TextInput
+                id="create-name"
                 label="Your Name"
                 value={createName}
-                onChange={(e) => setCreateName(e.target.value)}
+                onChange={(e) => {
+                  setCreateName(e.target.value)
+                  setCreateError('')
+                }}
                 onKeyDown={handleCreateKeyDown}
                 maxLength={20}
                 error={createError}
@@ -199,18 +203,26 @@ export function LobbyPage() {
           <Card title="JOIN GAME" className={styles.card}>
             <div className={styles.formContent}>
               <TextInput
+                id="join-name"
                 label="Your Name"
                 value={joinName}
-                onChange={(e) => setJoinName(e.target.value)}
+                onChange={(e) => {
+                  setJoinName(e.target.value)
+                  setJoinError('')
+                }}
                 onKeyDown={handleJoinKeyDown}
                 maxLength={20}
                 placeholder="Enter your name"
                 data-testid="join-name-input"
               />
               <TextInput
+                id="join-room"
                 label="Room Code"
                 value={joinRoom}
-                onChange={(e) => setJoinRoom(e.target.value)}
+                onChange={(e) => {
+                  setJoinRoom(e.target.value)
+                  setJoinError('')
+                }}
                 onKeyDown={handleJoinKeyDown}
                 maxLength={4}
                 autoCapitalize

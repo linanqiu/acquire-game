@@ -60,6 +60,7 @@
 
 .full {
   display: flex;
+  flex-wrap: wrap; /* narrow host sidebar: wrap instead of clipping the SAFE badge */
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2);
@@ -77,6 +78,7 @@
 .available {
   font-size: var(--text-sm);
   color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .available {

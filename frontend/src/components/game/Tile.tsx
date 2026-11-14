@@ -55,6 +55,7 @@ export function Tile({
       tabIndex={onClick && state !== 'disabled' ? 0 : undefined}
       onKeyDown={onClick ? handleKeyDown : undefined}
       data-testid={`tile-${coordinate}`}
+      data-chain={chain ?? 'empty'}
     >
       {showLabel && <span className={styles.label}>{coordinate}</span>}
       {state === 'merger' && <span className={styles.indicator}>!!</span>}

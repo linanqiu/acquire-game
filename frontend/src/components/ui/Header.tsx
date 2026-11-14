@@ -14,7 +14,11 @@ export function Header({ roomCode, cash, playerName, tilePool }: HeaderProps) {
       <div className={styles.info}>
         {roomCode && <div className={styles.roomCode}>Room: {roomCode}</div>}
         {playerName && <div className={styles.playerName}>{playerName}</div>}
-        {cash !== undefined && <div className={styles.cash}>${cash.toLocaleString()}</div>}
+        {cash !== undefined && (
+          <div className={styles.cash} data-testid="header-cash">
+            ${cash.toLocaleString()}
+          </div>
+        )}
         {tilePool !== undefined && (
           <div className={styles.tilePool}>
             [{typeof tilePool === 'number' ? tilePool : tilePool}]

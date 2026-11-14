@@ -263,4 +263,17 @@ describe('HostPage', () => {
       expect(screen.getByTestId('back-to-lobby')).toBeInTheDocument()
     })
   })
+
+  describe('Leaving the room', () => {
+    it('resets the game store on unmount', () => {
+      useGameStore.setState({
+        lobbyPlayers: [{ player_id: '1', name: 'Bot 1', is_bot: true }],
+        canStart: true,
+      })
+      const { unmount } = renderHostPage('OLDR')
+      unmount()
+      expect(useGameStore.getState().lobbyPlayers).toEqual([])
+      expect(useGameStore.getState().canStart).toBe(false)
+    })
+  })
 })

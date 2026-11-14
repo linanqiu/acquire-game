@@ -357,25 +357,67 @@ async def publish_events(room_code: str, game: Game, since_seq: int) -> None:
         elif etype == "end_game_declared":
             declared_by = pid
         elif etype == "game_ended":
-            scores = {
-                s["player_id"]: {"name": s["name"], "money": s["money"]}
-                for s in e.get("standings", [])
-            }
-            msg = {"type": "game_over", "scores": scores, "winner": e.get("winner")}
-            if declared_by is not None:
-                msg["declared_by"] = declared_by
+            msg = game_over_message(game, e, declared_by)
             await session_manager.broadcast_to_room(room_code, msg)
             await session_manager.send_to_host(room_code, msg)
 
 
+def game_over_message(game: Game, ended: dict, declared_by: str | None) -> dict:
+    """The ``game_over`` message for a ``game_ended`` event.
+
+    Each score carries the final ``money`` plus its breakdown: ``bonuses`` (final
+    majority/minority bonuses paid at game end) and ``stock_sales`` (cash from
+    liquidating stock), so clients can show cash before / bonuses / sales without
+    guessing. ``money`` already includes both.
+    """
+    bonuses: dict[str, int] = {}
+    for ev in game.events:
+        if ev["type"] == "bonuses_paid" and ev.get("final"):
+            for pid, b in ev.get("bonuses", {}).items():
+                bonuses[pid] = (
+                    bonuses.get(pid, 0) + b.get("majority", 0) + b.get("minority", 0)
+                )
+    sales = ended.get("final_sales", {})
+    scores = {
+        s["player_id"]: {
+            "name": s["name"],
+            "money": s["money"],
+            "bonuses": bonuses.get(s["player_id"], 0),
+            "stock_sales": sales.get(s["player_id"], 0),
+        }
+        for s in ended.get("standings", [])
+    }
+    msg = {"type": "game_over", "scores": scores, "winner": ended.get("winner")}
+    if declared_by is not None:
+        msg["declared_by"] = declared_by
+    return msg
+
+
+def final_game_over(game: Game) -> dict | None:
+    """The ``game_over`` message of a finished game (re-sent on reconnect), else None."""
+    ended = next((e for e in reversed(game.events) if e["type"] == "game_ended"), None)
+    if ended is None:
+        return None
+    declared = next(
+        (e for e in reversed(game.events) if e["type"] == "end_game_declared"), None
+    )
+    return game_over_message(
+        game, ended, declared.get("player_id") if declared else None
+    )
+
+
 async def send_player_state(room_code: str, player_id: str) -> None:
-    """State for a (re)connecting player, plus any prompt still pending for them."""
+    """State for a (re)connecting player, plus any prompt still pending for them
+    (and the final scores when the game is already over)."""
     room = session_manager.get_room(room_code)
     if room is None:
         return
     if room.started and room.game:
         await broadcast_game_state(room_code)
         await send_prompts(room_code, room.game, _decision_for(room.game, player_id))
+        over = final_game_over(room.game)
+        if over is not None:
+            await session_manager.send_to_player(room_code, player_id, over)
     else:
         await broadcast_lobby_update(room_code)
 
@@ -391,5 +433,8 @@ async def send_host_state(room_code: str) -> None:
         return
     if room.started and room.game:
         await broadcast_game_state(room_code)
+        over = final_game_over(room.game)
+        if over is not None:
+            await session_manager.send_to_host(room_code, over)
     else:
         await broadcast_lobby_update(room_code)

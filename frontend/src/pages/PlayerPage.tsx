@@ -16,7 +16,7 @@ import { TradeBuilder } from '../components/game/TradeBuilder'
 import { TradeOffers } from '../components/game/TradeOffers'
 import { ReconnectionOverlay } from '../components/game/ReconnectionOverlay'
 import { ReconnectedToast } from '../components/game/ReconnectedToast'
-import { GameOver, type FinalScore } from '../components/game/GameOver'
+import { GameOver } from '../components/game/GameOver'
 import { StockStepper } from '../components/game/StockStepper'
 import { ChainMarker } from '../components/game/ChainMarker'
 import { AddAiControl } from '../components/game/AddAiControl'
@@ -24,6 +24,8 @@ import { SeatKindBadge } from '../components/game/SeatKindBadge'
 import { RemoveSeatButton } from '../components/game/RemoveSeatButton'
 import { AiThinking } from '../components/game/AiThinking'
 import { isAiThinking, resolveSeatKind } from '../lib/agents'
+import { buildFinalScores } from '../lib/finalScores'
+import { roomUnavailable } from '../lib/roomAvailability'
 import { useGameStore } from '../store/gameStore'
 import { useToast } from '../components/ui/useToast'
 import { useErrorHandler } from '../hooks/useErrorHandler'
@@ -35,6 +37,9 @@ import {
 import type { ChainName, GamePhase } from '../types/api'
 import type { Coordinate } from '../types/game'
 import styles from './PlayerPage.module.css'
+
+/** Seats the server needs before a game can start (backend `min_to_start`). */
+const MIN_PLAYERS_TO_START = 3
 
 // Phase display text
 function getPhaseText(phase: GamePhase, isMyTurn: boolean, currentPlayerName: string): string {
@@ -89,6 +94,11 @@ export function PlayerPage() {
     [handleServerError]
   )
 
+  // The game store is global: leaving this room (PLAY AGAIN, BACK TO LOBBY, another room)
+  // must not leak its state into the next room, which would otherwise open on the old
+  // game's screen (e.g. a brand-new room showing the previous GAME OVER).
+  useEffect(() => () => useGameStore.getState().reset(), [room])
+
   // WebSocket connection for game actions
   const { sendAction, reconnect } = useWebSocket({
     roomCode: room,
@@ -100,6 +110,7 @@ export function PlayerPage() {
   // Game store state
   const {
     connectionStatus,
+    connectionError,
     currentPlayer,
     lobbyPlayers,
     canStart,
@@ -111,6 +122,7 @@ export function PlayerPage() {
     pendingStockDisposition,
     trades,
     lastTradeEvent,
+    gameOver,
     setCurrentPlayer,
   } = useGameStore()
 
@@ -207,7 +219,9 @@ export function PlayerPage() {
       setShowReconnected(false)
     }
   }, [connectionStatus, hasConnected])
-  const showReconnectionOverlay = hasConnected && connectionStatus !== 'connected'
+  const unavailable = roomUnavailable(connectionStatus, connectionError)
+  const showReconnectionOverlay =
+    hasConnected && connectionStatus !== 'connected' && unavailable === null
 
   // --- Trade notifications (toast) and builder lifecycle ---
   const seenTradeSeq = useRef(lastTradeEvent?.seq ?? 0)
@@ -454,7 +468,11 @@ export function PlayerPage() {
       </p>
       <div className={styles.playerList}>
         {lobbyPlayers.map((p) => (
-          <div key={p.player_id} className={styles.lobbyPlayer}>
+          <div
+            key={p.player_id}
+            className={styles.lobbyPlayer}
+            data-testid={`lobby-player-${p.player_id}`}
+          >
             <span>{p.name}</span>
             <span className={styles.seatTags}>
               <SeatKindBadge
@@ -482,6 +500,15 @@ export function PlayerPage() {
             START GAME
           </Button>
         </div>
+      )}
+      {isHost && (
+        <p className={styles.waitingText} data-testid="start-hint">
+          {lobbyPlayers.length < MIN_PLAYERS_TO_START
+            ? `Need ${MIN_PLAYERS_TO_START - lobbyPlayers.length} more player${
+                MIN_PLAYERS_TO_START - lobbyPlayers.length > 1 ? 's' : ''
+              } to start`
+            : 'Ready to start!'}
+        </p>
       )}
       {!isHost && <p className={styles.waitingText}>Waiting for host to start...</p>}
     </div>
@@ -577,7 +604,13 @@ export function PlayerPage() {
                 const maxBuyable = Math.min(available, 3 - totalSharesPurchased + currentQty)
 
                 return (
-                  <div key={chain.name} className={styles.purchaseRow}>
+                  <div
+                    key={chain.name}
+                    className={styles.purchaseRow}
+                    data-testid={`buy-row-${chain.name}`}
+                    data-price={chain.price}
+                    data-available={available}
+                  >
                     <ChainMarker chain={chain.name} variant="compact" price={chain.price} />
                     <StockStepper
                       value={currentQty}
@@ -625,20 +658,7 @@ export function PlayerPage() {
 
   // Render game over content
   const renderGameOverContent = () => {
-    // TODO: Backend should provide final scores with bonus breakdown in game_over phase.
-    // Currently we only show cash. The actual breakdown (bonuses, stockSales) needs to
-    // come from the game_over message or be calculated from the final game state.
-    // See: RT-002 for WebSocket message handling
-    const scores: FinalScore[] = gameState
-      ? Object.entries(gameState.players).map(([id, p]) => ({
-          playerId: id,
-          name: p.name,
-          cash: p.money,
-          bonuses: 0, // TODO: Get from backend game_over message
-          stockSales: 0, // TODO: Get from backend game_over message
-          total: p.money, // TODO: Should be cash + bonuses + stockSales
-        }))
-      : []
+    const scores = buildFinalScores(gameState, gameOver)
 
     return (
       <GameOver
@@ -666,6 +686,19 @@ export function PlayerPage() {
 
   // Main content renderer
   const renderMainContent = () => {
+    if (unavailable) {
+      return (
+        <div className={styles.error} data-testid="room-unavailable">
+          <p>
+            {unavailable === 'room'
+              ? `Game ${room} was not found. Check the room code, or the game may have ended.`
+              : `You are not a player in game ${room}. Join it from the home page.`}
+          </p>
+          <Button onClick={() => navigate('/')}>BACK TO HOME</Button>
+        </div>
+      )
+    }
+
     if (connectionStatus === 'connecting' && !gameState) {
       return (
         <div className={styles.connecting}>
@@ -735,6 +768,8 @@ export function PlayerPage() {
           <div
             key={id}
             className={`${styles.playerRow} ${id === currentTurnPlayerId ? styles.activePlayer : ''}`}
+            data-testid={`player-row-${id}`}
+            data-current={id === currentTurnPlayerId ? 'true' : undefined}
           >
             <span className={styles.playerName}>
               {player.name}
@@ -747,12 +782,19 @@ export function PlayerPage() {
               />
               {isAiThinking(gameState.awaiting, id) && <AiThinking />}
             </span>
-            <span className={styles.playerCash}>${player.money.toLocaleString()}</span>
+            <span className={styles.playerCash} data-testid={`player-cash-${id}`}>
+              ${player.money.toLocaleString()}
+            </span>
             <div className={styles.playerStocks}>
               {Object.entries(player.stocks)
                 .filter(([, count]) => count > 0)
                 .map(([chain, count]) => (
-                  <span key={chain} className={`${styles.stockBadge} bg-${chain.toLowerCase()}`}>
+                  <span
+                    key={chain}
+                    className={`${styles.stockBadge} bg-${chain.toLowerCase()}`}
+                    data-testid={`player-stock-${id}-${chain}`}
+                    title={`${chain}: ${count}`}
+                  >
                     {count}
                   </span>
                 ))}
@@ -766,11 +808,13 @@ export function PlayerPage() {
   return (
     <PageShell
       phase={
-        pendingMergerChoice
-          ? 'CHOOSE SURVIVING CHAIN'
-          : pendingStockDisposition
-            ? 'DISPOSE YOUR STOCK'
-            : getPhaseText(phase, isMyTurn, currentPlayerName)
+        unavailable
+          ? undefined
+          : pendingMergerChoice
+            ? 'CHOOSE SURVIVING CHAIN'
+            : pendingStockDisposition
+              ? 'DISPOSE YOUR STOCK'
+              : getPhaseText(phase, isMyTurn, currentPlayerName)
       }
       roomCode={room}
       cash={myPlayerData?.money}
@@ -818,6 +862,7 @@ export function PlayerPage() {
           open={showTradeBuilder}
           onClose={() => setShowTradeBuilder(false)}
           title="Propose Trade"
+          cancelLabel=""
         >
           <TradeBuilder
             players={otherPlayers}

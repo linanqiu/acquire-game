@@ -6,6 +6,7 @@
 import { create } from 'zustand'
 import type {
   ChainName,
+  GameOverMessage,
   GameStateMessage,
   LobbySeat,
   LobbyUpdateMessage,
@@ -62,6 +63,9 @@ export interface GameStoreState {
   publicTrades: TradeOffer[]
   lastTradeEvent: TradeEvent | null
 
+  /** The final `game_over` message (scores with their breakdown), once the game ended. */
+  gameOver: GameOverMessage | null
+
   // Pending actions
   pendingChainChoice: ChainName[] | null
   pendingMergerChoice: ChainName[] | null
@@ -105,6 +109,7 @@ const initialState = {
   trades: [] as TradeOffer[],
   publicTrades: [] as TradeOffer[],
   lastTradeEvent: null as TradeEvent | null,
+  gameOver: null as GameOverMessage | null,
   pendingChainChoice: null,
   pendingMergerChoice: null,
   pendingStockDisposition: null,
@@ -172,6 +177,22 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         }
         if (message.phase !== 'merger' && message.phase !== 'stock_disposition') {
           set({ pendingMergerChoice: null, pendingStockDisposition: null })
+        } else {
+          // The merger goes on after my answer (e.g. another human now disposes of their
+          // stock): once the table waits on a different flow decision, my prompt is done
+          // and must not stay on screen (it would invite a second, refused answer).
+          // Trade responses run beside the flow decision, so they never clear a prompt.
+          const awaiting = message.awaiting
+          const me = get().currentPlayer?.id
+          if (awaiting && me && awaiting.decision !== 'trade_response') {
+            const mine = awaiting.player_id === me
+            if (!(mine && awaiting.decision === 'choose_survivor')) {
+              set({ pendingMergerChoice: null })
+            }
+            if (!(mine && awaiting.decision === 'stock_disposition')) {
+              set({ pendingStockDisposition: null })
+            }
+          }
         }
         break
 
@@ -237,6 +258,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         })
         break
       }
+
+      case 'game_over':
+        set({ gameOver: message })
+        break
 
       case 'tiles_replaced':
         set({ yourHand: message.new_hand })

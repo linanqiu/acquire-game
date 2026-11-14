@@ -10,8 +10,8 @@ export interface AddAiControlProps {
   /** Disable all controls (e.g. lobby full or another action in flight). */
   disabled?: boolean
   size?: 'sm' | 'md' | 'lg'
-  /** Called with the new seat's player id after a successful add. */
-  onAdded?: (playerId: string | undefined) => void
+  /** Called with the new seat's player id (and display name) after a successful add. */
+  onAdded?: (playerId: string | undefined, name?: string) => void
 }
 
 /**
@@ -45,7 +45,7 @@ export function AddAiControl({ room, disabled = false, size = 'md', onAdded }: A
       if (!res.ok) throw new Error('Failed to add bot')
       const data = await res.json().catch(() => ({}))
       toast('Bot added successfully', 'success')
-      onAdded?.(data?.bot_id)
+      onAdded?.(data?.bot_id, data?.name)
     } catch (err) {
       console.error('Failed to add bot:', err)
       toast('Failed to add bot', 'error')
@@ -60,7 +60,7 @@ export function AddAiControl({ room, disabled = false, size = 'md', onAdded }: A
       const data = await addSeat(room, entry.id)
       setOpen(false)
       toast(`${entry.label} added`, 'success')
-      onAdded?.(data?.player_id)
+      onAdded?.(data?.player_id, data?.name)
     } catch (err) {
       console.error('Failed to add AI opponent:', err)
       toast('Failed to add AI opponent', 'error')
