@@ -18,31 +18,33 @@ from __future__ import annotations
 import random
 
 from agents.base import DecisionContext
-from game.board import Board, Tile, TileState
+from game.board import Board, TileState
 from game.bot import Bot
 from game.hotel import Hotel
 from game.player import Player
+from game.ruleset import classic, ruleset_from_state
 
 
 def _rebuild(ctx: DecisionContext) -> tuple[Board, Hotel, Player]:
     """Rebuild board, hotel and the viewer's player from public state."""
     state = ctx.state
-    board = Board()
+    rs = ruleset_from_state(state)
+    board = Board(rs)
     for key, cell in (state.get("board", {}).get("cells") or {}).items():
-        tile = Tile.from_string(key)
+        tile = board.tile_from_string(key)
         board.place_tile(tile)
         if cell.get("state") == TileState.IN_CHAIN.value and cell.get("chain"):
             board.set_chain(tile, cell["chain"])
 
-    hotel = Hotel()
+    hotel = Hotel(rs)
     for name, info in (state.get("chains") or {}).items():
-        if name not in Hotel.CHAINS:
+        if not rs.has_chain(name):
             continue
         if info.get("active"):
             hotel.activate_chain(name)
         hotel._available_stocks[name] = int(info.get("available_stocks", 0))
 
-    player = Player(ctx.player_id, "")
+    player = Player(ctx.player_id, "", rs)
     for p in state.get("players", []):
         if p.get("player_id") == ctx.player_id:
             player._money = int(p.get("money", 0))
@@ -50,7 +52,7 @@ def _rebuild(ctx: DecisionContext) -> tuple[Board, Hotel, Player]:
                 if chain in player._stocks:
                     player._stocks[chain] = int(n)
     for t in state.get("hand", []):
-        player._hand.append(Tile.from_string(t))
+        player._hand.append(board.tile_from_string(t))
     return board, hotel, player
 
 
@@ -132,7 +134,7 @@ class HeuristicAgent:
             if "declare_end_game" in ctx.legal.get("action_types", []):
                 return {"action": "declare_end_game"}
             return {"action": "place_tile", "tile": None}
-        tiles = [Tile.from_string(t) for t in options]
+        tiles = [board.tile_from_string(t) for t in options]
         if self.difficulty == "easy":
             return {"action": "place_tile", "tile": str(self.rng.choice(tiles))}
         scored = sorted(
@@ -172,7 +174,7 @@ class HeuristicAgent:
             return {"action": "end_turn"}
         options = {o["chain"]: o for o in legal.get("options", [])}
         money = int(legal.get("money", 0))
-        max_total = int(legal.get("max_total", 3))
+        max_total = int(legal.get("max_total", classic().max_stock_purchases_per_turn))
         wanted = bot.choose_stocks_to_buy(board, hotel, max_total)
         counts: dict[str, int] = {}
         spent = 0

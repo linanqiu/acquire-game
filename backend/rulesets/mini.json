@@ -1,0 +1,191 @@
+{
+  "id": "mini",
+  "version": 1,
+  "title": "Harborline",
+  "theme": {
+    "chain_noun": "shipping line",
+    "chain_noun_plural": "shipping lines",
+    "share_noun": "share",
+    "share_noun_plural": "shares",
+    "stock_label": "Shares",
+    "merger_noun": "takeover",
+    "merger_noun_plural": "takeovers",
+    "safe_phrase": "secure",
+    "currency_symbol": "$",
+    "tagline": "A compact variant: a small harbor and five shipping lines.",
+    "game_description": "a compact board game about shipping lines on a small harbor grid"
+  },
+  "board": {
+    "columns": 9,
+    "rows": 7
+  },
+  "tiers": [
+    {
+      "id": "budget",
+      "label": "budget",
+      "prices": [
+        {
+          "from": 2,
+          "price": 100
+        },
+        {
+          "from": 3,
+          "price": 150
+        },
+        {
+          "from": 4,
+          "price": 200
+        },
+        {
+          "from": 6,
+          "price": 300
+        },
+        {
+          "from": 8,
+          "price": 400
+        },
+        {
+          "from": 14,
+          "price": 500
+        },
+        {
+          "from": 20,
+          "price": 600
+        },
+        {
+          "from": 25,
+          "price": 700
+        }
+      ]
+    },
+    {
+      "id": "standard",
+      "label": "standard",
+      "prices": [
+        {
+          "from": 2,
+          "price": 200
+        },
+        {
+          "from": 3,
+          "price": 250
+        },
+        {
+          "from": 4,
+          "price": 300
+        },
+        {
+          "from": 6,
+          "price": 400
+        },
+        {
+          "from": 8,
+          "price": 500
+        },
+        {
+          "from": 14,
+          "price": 600
+        },
+        {
+          "from": 20,
+          "price": 700
+        },
+        {
+          "from": 25,
+          "price": 800
+        }
+      ]
+    },
+    {
+      "id": "premium",
+      "label": "premium",
+      "prices": [
+        {
+          "from": 2,
+          "price": 300
+        },
+        {
+          "from": 3,
+          "price": 350
+        },
+        {
+          "from": 4,
+          "price": 400
+        },
+        {
+          "from": 6,
+          "price": 500
+        },
+        {
+          "from": 8,
+          "price": 600
+        },
+        {
+          "from": 14,
+          "price": 700
+        },
+        {
+          "from": 20,
+          "price": 800
+        },
+        {
+          "from": 25,
+          "price": 1000
+        }
+      ]
+    }
+  ],
+  "chains": [
+    {
+      "id": "harbor",
+      "name": "Harbor",
+      "tier": "budget",
+      "color": "#2E86AB",
+      "abbreviation": "H"
+    },
+    {
+      "id": "meadow",
+      "name": "Meadow",
+      "tier": "budget",
+      "color": "#7FB800",
+      "abbreviation": "M"
+    },
+    {
+      "id": "summit",
+      "name": "Summit",
+      "tier": "standard",
+      "color": "#F18F01",
+      "abbreviation": "S"
+    },
+    {
+      "id": "quarry",
+      "name": "Quarry",
+      "tier": "standard",
+      "color": "#8E6C8A",
+      "abbreviation": "Q"
+    },
+    {
+      "id": "beacon",
+      "name": "Beacon",
+      "tier": "premium",
+      "color": "#C73E1D",
+      "abbreviation": "B"
+    }
+  ],
+  "bonuses": {
+    "majority_multiplier": 8,
+    "minority_multiplier": 4,
+    "tie_round_up_to": 50
+  },
+  "stocks_per_chain": 18,
+  "starting_cash": 4000,
+  "hand_size": 5,
+  "max_stock_purchases_per_turn": 4,
+  "safe_chain_size": 8,
+  "end_game_chain_size": 25,
+  "founder_bonus_shares": 2,
+  "merger_trade_ratio": 2,
+  "min_players": 2,
+  "max_players": 5,
+  "max_pending_trades_per_player": 3
+}

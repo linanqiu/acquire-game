@@ -482,7 +482,12 @@ FIXTURES: list[Fixture] = [
         (4, 3, 5),
         [
             req("human_to_place_tile", lambda c: c.flow_is(PLACE_TILE)),
-            req("a_safe_chain", lambda c: any(s >= 11 for s in c.active().values())),
+            req(
+                "a_safe_chain",
+                lambda c: any(
+                    s >= c.game.ruleset.safe_chain_size for s in c.active().values()
+                ),
+            ),
             ideal(
                 "human_holds_merge_safe_tile",
                 lambda c: _has_reason(c, UnplayableReason.MERGE_SAFE_CHAINS),
@@ -497,7 +502,10 @@ FIXTURES: list[Fixture] = [
         (4, 3, 5),
         [
             req("human_to_place_tile", lambda c: c.flow_is(PLACE_TILE)),
-            req("seven_chains", lambda c: len(c.active()) == 7),
+            req(
+                "seven_chains",  # name kept: fixtures are classic (7 chains)
+                lambda c: len(c.active()) == len(c.game.ruleset.chains),
+            ),
             req(
                 "human_holds_eighth_chain_tile",
                 lambda c: _has_reason(c, UnplayableReason.EIGHTH_CHAIN),

@@ -1,13 +1,15 @@
 """Context synthesis: turn a ``DecisionContext`` into prompts.
 
-``build_system_prompt()`` is static (identical for every decision, so it can be
-prompt-cached): the rules AS IMPLEMENTED by this engine, the answer format and
-the instruction to trust the calculator data.
+``build_system_prompt(ruleset)`` is static per ruleset (identical for every
+decision, so it can be prompt-cached): the rules AS IMPLEMENTED by this engine,
+with every number, name and theme word generated from the ruleset, the answer
+format and the instruction to trust the calculator data.
 
 ``build_user_prompt(ctx, notes)`` renders only what is in ``ctx`` (public
 information plus the seat's own hand): the position, the relevant slice of the
 calculator pack, a bounded event log, the seat's private notes, and finally the
-decision with the engine's legal options verbatim.
+decision with the engine's legal options verbatim. The board size and chain
+glyphs come from ``ctx.state["ruleset"]`` (the public game state).
 """
 
 from __future__ import annotations
@@ -17,10 +19,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
-from game.hotel import Hotel, HotelChain, HotelTier
-
-ROWS = "ABCDEFGHI"
-COLUMNS = 12
+from game.ruleset import MIN_CHAIN_SIZE, Ruleset, classic, ruleset_from_state
 
 _STANDING = {
     "none": "no bonus position",
@@ -40,9 +39,9 @@ class PromptBudget:
     max_line_chars: int = 220  # per rendered event line
 
 
-def money(n: Any) -> str:
+def money(n: Any, symbol: str = "$") -> str:
     try:
-        return f"${int(n):,}"
+        return f"{symbol}{int(n):,}"
     except (TypeError, ValueError):
         return str(n)
 
@@ -55,12 +54,39 @@ def _compact(obj: Any) -> str:
 # System prompt
 # ---------------------------------------------------------------------------
 
+_NUMBER_WORDS = (
+    "zero one two three four five six seven eight nine ten eleven twelve "
+    "thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty"
+).split()
 
-def _price_table_text() -> str:
-    table = HotelChain.PRICE_TABLE
-    thresholds = sorted(table[HotelTier.CHEAP])
+
+def _num_word(n: int) -> str:
+    return _NUMBER_WORDS[n] if 0 <= n < len(_NUMBER_WORDS) else str(n)
+
+
+def _article(noun: str) -> str:
+    return "an" if noun[:1].lower() in "aeiou" else "a"
+
+
+def _cap(s: str) -> str:
+    return s[:1].upper() + s[1:]
+
+
+def _chain_label(rs: Ruleset, chain_id: str) -> str:
+    """Display name, with the id the answer must use when they differ."""
+    c = rs.chain(chain_id)
+    return c.name if c.name == c.id else f"{c.name} (id {c.id})"
+
+
+def _price_table_text(rs: Ruleset) -> str:
+    sym = rs.theme.currency_symbol
+    b = rs.bonuses
+    thresholds = sorted({start for t in rs.tiers for start, _ in t.prices})
+    head = " | ".join(t.label for t in rs.tiers)
     lines = [
-        "Tiles in chain | cheap | medium | expensive   (price per share; majority bonus = 10x price, minority = 5x price)"
+        f"Tiles in chain | {head}   (price per {rs.theme.share_noun}; majority "
+        f"bonus = {b.majority_multiplier}x price, minority = "
+        f"{b.minority_multiplier}x price)"
     ]
     for i, t in enumerate(thresholds):
         if i + 1 < len(thresholds):
@@ -68,104 +94,154 @@ def _price_table_text() -> str:
             label = str(t) if nxt == t else f"{t}-{nxt}"
         else:
             label = f"{t}+"
-        lines.append(
-            f"{label:>14} | {money(table[HotelTier.CHEAP][t]):>6} | "
-            f"{money(table[HotelTier.MEDIUM][t]):>6} | {money(table[HotelTier.EXPENSIVE][t]):>6}"
-        )
+        cells = " | ".join(f"{money(rs.tier_price(x.id, t), sym):>6}" for x in rs.tiers)
+        lines.append(f"{label:>14} | {cells}")
     return "\n".join(lines)
 
 
-def _chains_by_tier() -> str:
+def _chains_by_tier(rs: Ruleset) -> str:
     out = []
-    for tier in HotelTier:
-        names = [n for n, c in Hotel.CHAINS.items() if c.tier == tier]
-        out.append(f"{tier.value}: {', '.join(names)}")
+    for tier in rs.tiers:
+        names = [_chain_label(rs, c.id) for c in rs.chains if c.tier == tier.id]
+        if names:
+            out.append(f"{tier.label}: {', '.join(names)}")
     return "; ".join(out)
 
 
 _SYSTEM_TEMPLATE = """\
-You are one seat at an online table playing ACQUIRE (Sid Sackson's hotel-chain board game), 3-6 players. The other seats may be humans or other AIs. Your objective: finish with the MOST MONEY. Final score = cash after the end-game payout (described below). Play to win, not merely to survive.
+You are one seat at an online table playing {TITLE} ({description}), {min_players}-{max_players} players. The other seats may be humans or other AIs. Your objective: finish with the MOST MONEY. Final score = cash after the end-game payout (described below). Play to win, not merely to survive.
 
 # Rules as implemented by this server
 
 Board and setup
-- 12 columns (1-12) x 9 rows (A-I). A tile name is column then row, e.g. "5C". 108 tiles, each in the bag, in a hand, or on the board.
-- Every player starts with $6,000, no shares, and a private hand of 6 tiles.
-- Seven chains, 25 shares each in the bank at the start. Tiers: {tiers}.
+- {columns} columns (1-{columns}) x {rows} rows (A-{last_row}). A tile name is column then row, e.g. "{example_tile}". {area} tiles, each in the bag, in a hand, or on the board.
+- Every player starts with {cash}, no {shares}, and a private hand of {hand} tiles.
+- {Nchains} {chains}, {stocks} {shares} each in the bank at the start. Tiers: {tiers}.
 - Tiles "touch" orthogonally (up, down, left, right; never diagonally).
-- A "chain" is a connected group of 2+ tiles belonging to a named company. A "lone tile" is a played tile touching no chain (shown "#" on the map).
+- A "{chain}" is a connected group of {min_size}+ tiles belonging to a named company. A "lone tile" is a played tile touching no {chain} (shown "#" on the map).
 
 Your turn, in order
 1. Place exactly one tile from your hand (mandatory if you have any playable tile; if none is playable the turn skips to buying). You may instead declare the game over, if the end-game condition holds (see End of game).
-2. Resolve the tile's effect (a chain-founding choice or a merger, below).
-3. Buy shares: 0 to 3 shares in total, any mix of chains that are on the board, at their current price, paying cash. You cannot buy more than the bank has, and you cannot buy a chain that is not on the board. Buying is optional, and after buying you must still send end_turn.
-4. end_turn: you draw a tile (if the bag is not empty) and play passes clockwise. Tiles in your hand that can never be played (they would merge two safe chains) are discarded and replaced automatically.
+2. Resolve the tile's effect (founding {a_chain} or {a_merger}, below).
+3. Buy {shares}: 0 to {max_buy} {shares} in total, any mix of {chains} that are on the board, at their current price, paying cash. You cannot buy more than the bank has, and you cannot buy {a_chain} that is not on the board. Buying is optional, and after buying you must still send end_turn.
+4. end_turn: you draw a tile (if the bag is not empty) and play passes clockwise. Tiles in your hand that can never be played (they would merge two {chains} that are both {safe}) are discarded and replaced automatically.
 
 What a tile does (tile = the one you place)
 - nothing: it touches no other tile. It becomes a lone tile.
-- expand: it touches exactly one chain (and perhaps lone tiles). The chain grows by that tile plus every lone tile connected to it.
-- found: it touches lone tile(s) but no chain. It creates a new chain (size >= 2). You choose which chain that is, from the chains not currently on the board, and you receive 1 free share of it (if the bank has none left you receive its price in cash instead). If all 7 chains are on the board, such a tile is unplayable for now (it stays in your hand).
-- merge: it touches two or more different chains.
-- A tile that would merge two or more SAFE chains can never be played.
+- expand: it touches exactly one {chain} (and perhaps lone tiles). The {chain} grows by that tile plus every lone tile connected to it.
+- found: it touches lone tile(s) but no {chain}. It creates a new {chain} (size >= {min_size}). You choose which {chain} that is, from the {chains} not currently on the board, and you receive {founder_text} of it (if the bank has none left you receive its price in cash instead). If all {n_chains} {chains} are on the board, such a tile is unplayable for now (it stays in your hand).
+- merge: it touches two or more different {chains}.
+- A tile that would merge two or more {chains} that are each {safe} can NEVER be played.
 
-Safe chains: a chain with 11 or more tiles is safe. It can never be absorbed.
+Size {safe_size}+: {a_chain} with {safe_size} or more tiles is {safe}. It can never be absorbed.
 
-Mergers (resolved in this order)
-1. The chain with the most tiles survives; the others are defunct. If exactly one touched chain is safe it survives whatever the sizes. If the largest chains tie, the player who placed the tile chooses the survivor.
-2. Defunct chains are resolved one at a time, largest first. For each defunct chain:
-   a. Bonuses are paid by the bank immediately, based on the defunct chain's size before the merger (table below). The player with the most shares in it gets the majority bonus, the player with the second most gets the minority bonus. A sole shareholder gets both. If players tie for most shares, majority + minority are pooled and split equally among them (rounded UP to the next $100) and no minority bonus is paid. If players tie for second most, the minority bonus is split equally among them (rounded up to $100).
-   b. Then every player holding shares of that defunct chain decides, starting with the player who placed the tile and continuing clockwise, how to split their shares among: SELL (bank pays the defunct chain's price, from its size before the merger), TRADE (two defunct shares for one share of the survivor, even numbers only, limited by the survivor shares still in the bank) and HOLD (keep them; a defunct chain's shares are worth nothing unless that chain is founded again later). sell + trade + hold must equal the number of shares held.
-3. The surviving chain absorbs all tiles (including the merger tile and any lone tiles touching it), so its size and price jump. The defunct chains leave the board and can be founded again.
+{Mergers} (resolved in this order)
+1. The {chain} with the most tiles survives; the others are defunct. If exactly one touched {chain} is {safe} it survives whatever the sizes. If the largest {chains} tie, the player who placed the tile chooses the survivor.
+2. Defunct {chains} are resolved one at a time, largest first. For each defunct {chain}:
+   a. Bonuses are paid by the bank immediately, based on the defunct {chain}'s size before the {merger} (table below). The player with the most {shares} in it gets the majority bonus, the player with the second most gets the minority bonus. A sole shareholder gets both. If players tie for most {shares}, majority + minority are pooled and split equally among them (rounded UP to the next {round_to}) and no minority bonus is paid. If players tie for second most, the minority bonus is split equally among them (rounded up to {round_to}).
+   b. Then every player holding {shares} of that defunct {chain} decides, starting with the player who placed the tile and continuing clockwise, how to split their {shares} among: SELL (bank pays the defunct {chain}'s price, from its size before the {merger}), TRADE ({ratio_word} defunct {shares} for one {share} of the survivor, {trade_multiple} only, limited by the survivor {shares} still in the bank) and HOLD (keep them; a defunct {chain}'s {shares} are worth nothing unless that {chain} is founded again later). sell + trade + hold must equal the number of {shares} held.
+3. The surviving {chain} absorbs all tiles (including the {merger} tile and any lone tiles touching it), so its size and price jump. The defunct {chains} leave the board and can be founded again.
 
-Prices and bonuses depend only on the number of tiles in the chain:
+Prices and bonuses depend only on the number of tiles in the {chain}:
 {price_table}
 
 Player-to-player trading (a house feature of this server)
-- Any player may propose a trade to another: any mix of shares and cash offered, any mix requested. The recipient may accept or reject (no counter-offers); on accept it executes immediately if both sides still hold what is listed. Offers can arrive during anyone's turn, so you may be asked to respond even when it is not your turn.
-- A trade moves money/shares between two players, so it only helps you if what you receive is worth more TO YOU than what you give (consider majority/minority positions, merger prospects and current prices), and it also helps the other side. You may propose at most one trade per turn here, and only during the buy step; "no trade" is the normal choice.
+- Any player may propose a trade to another: any mix of {shares} and cash offered, any mix requested. The recipient may accept or reject (no counter-offers); on accept it executes immediately if both sides still hold what is listed. Offers can arrive during anyone's turn, so you may be asked to respond even when it is not your turn.
+- A trade moves money/{shares} between two players, so it only helps you if what you receive is worth more TO YOU than what you give (consider majority/minority positions, {merger} prospects and current prices), and it also helps the other side. You may propose at most one trade per turn here, and only during the buy step; "no trade" is the normal choice.
 
 End of game
-- Either of these makes the game endable: any chain has 41+ tiles, OR at least one chain is on the board and every chain on the board is safe (11+).
+- Either of these makes the game endable: any {chain} has {end_size}+ tiles, OR at least one {chain} is on the board and every {chain} on the board is {safe} ({safe_size}+).
 - Ending is optional and only the player whose turn it is may declare (action declare_end_game, offered in the legal options when allowed). The game does not end by itself.
-- On declaring, immediately: no more tiles or purchases; the majority/minority bonuses of every chain on the board are paid as for a merger; then all shares in chains on the board are sold at current prices. Shares in chains not on the board are worthless. Most money wins.
+- On declaring, immediately: no more tiles or purchases; the majority/minority bonuses of every {chain} on the board are paid as for {a_merger}; then all {shares} in {chains} on the board are sold at current prices. {Shares} in {chains} not on the board are worthless. Most money wins.
 - The calculator data includes each player's exact projected final score if the game ended right now.
 
 # What you are shown
-- Only public information plus your own hand. You cannot see other players' tiles; the bag order is unknown. Cash and share holdings are public.
-- ALL arithmetic is already done in the "calculator" data (prices, bonuses and who would receive them, shares needed to take majority, merger and purchase outcomes, projected final scores). Trust those numbers; do not recompute them. Your job is judgment: which option gives you the best chance to finish first.
+- Only public information plus your own hand. You cannot see other players' tiles; the bag order is unknown. Cash and {share} holdings are public.
+- ALL arithmetic is already done in the "calculator" data (prices, bonuses and who would receive them, {shares} needed to take majority, {merger} and purchase outcomes, projected final scores). Trust those numbers; do not recompute them. Your job is judgment: which option gives you the best chance to finish first.
 - The "legal options" block lists exactly what you may do now. Any answer outside it is rejected.
 
 # How to answer
 Reply with ONE JSON object and nothing else:
 {{"why": "<one sentence: the reason for this choice>", "action": <one action object>, "note": "<private plan for your later decisions, at most 300 characters>"}}
 
-Action objects (use only those allowed by the legal options):
-- {{"action":"place_tile","tile":"5C"}}
-- {{"action":"found_chain","chain":"Tower"}}
-- {{"action":"merger_choice","surviving_chain":"Tower"}}   (tied merger: you pick the survivor)
-- {{"action":"merger_disposition","defunct_chain":"Luxor","disposition":{{"sell":2,"trade":2,"hold":1}}}}
-- {{"action":"buy_stocks","purchases":{{"Tower":2,"Luxor":1}}}}   ({{}} buys nothing; at most 3 shares in total)
+Action objects (use only those allowed by the legal options; always name a {chain} by its id):
+- {{"action":"place_tile","tile":"{example_tile}"}}
+- {{"action":"found_chain","chain":"{ex1}"}}
+- {{"action":"merger_choice","surviving_chain":"{ex1}"}}   (tied {merger}: you pick the survivor)
+- {{"action":"merger_disposition","defunct_chain":"{ex0}","disposition":{{"sell":2,"trade":{ex_trade},"hold":1}}}}
+- {{"action":"buy_stocks","purchases":{{"{ex1}":2,"{ex0}":1}}}}   ({{}} buys nothing; at most {max_buy} {shares} in total)
 - {{"action":"end_turn"}}   (required after the buy step)
 - {{"action":"declare_end_game"}}
-- {{"action":"propose_trade","to_player_id":"<id>","offering_stocks":{{"Tower":1}},"offering_money":0,"requesting_stocks":{{}},"requesting_money":500}}
+- {{"action":"propose_trade","to_player_id":"<id>","offering_stocks":{{"{ex1}":1}},"offering_money":0,"requesting_stocks":{{}},"requesting_money":500}}
 - {{"action":"accept_trade","trade_id":"<id>"}} or {{"action":"reject_trade","trade_id":"<id>"}}
 
-The "note" is shown back to you (and only you) at your next decisions: use it for plans such as which chains you are building toward, who you expect to be majority holder, or when you intend to end the game.
+The "note" is shown back to you (and only you) at your next decisions: use it for plans such as which {chains} you are building toward, who you expect to be majority holder, or when you intend to end the game.
 
 # Strategy guidance
-- Money comes from bonuses and share appreciation far more than from cash on hand. Hold shares in chains that will grow and be acquired, and fight for majority or minority positions where it is affordable (the calculator tells you how many shares each takes).
-- Small chains are merger targets (their bonuses pay when they are absorbed); safe chains cannot be acquired, so their bonuses pay at game end.
-- Founding a chain gives a free share and often the first majority position; extending or merging chains you hold majority in raises your wealth.
-- At a merger, compare sell, trade and hold using the numbers provided: trade beats selling only when the survivor's price after the merger is more than twice the defunct chain's price; hold only pays if the chain is likely to be founded again.
-- Idle cash counts toward your final score, but shares in growing chains usually earn more; keep enough cash to cover opportunities and mergers.
+- Money comes from bonuses and {share} appreciation far more than from cash on hand. Hold {shares} in {chains} that will grow and be acquired, and fight for majority or minority positions where it is affordable (the calculator tells you how many {shares} each takes).
+- Small {chains} are {merger} targets (their bonuses pay when they are absorbed); {chains} that are {safe} cannot be acquired, so their bonuses pay at game end.
+- Founding {a_chain} gives {founder_text} and often the first majority position; extending or merging {chains} you hold majority in raises your wealth.
+- At {a_merger}, compare sell, trade and hold using the numbers provided: trade beats selling only when the survivor's price after the {merger} is more than {ratio_times} the defunct {chain}'s price; hold only pays if the {chain} is likely to be founded again.
+- Idle cash counts toward your final score, but {shares} in growing {chains} usually earn more; keep enough cash to cover opportunities and {mergers}.
 - Before ending the game, compare projected final scores: declare when you are ahead and unlikely to be overtaken, and avoid declaring when you are behind.
 """
 
+_TIMES = {1: "equal to", 2: "twice", 3: "three times", 4: "four times"}
 
-def build_system_prompt() -> str:
-    return _SYSTEM_TEMPLATE.format(
-        tiers=_chains_by_tier(), price_table=_price_table_text()
-    )
+
+def build_system_prompt(ruleset: Ruleset | None = None) -> str:
+    """The system prompt for ``ruleset`` (default classic). Deterministic, so
+    it is identical for every decision of a game (prompt-cacheable)."""
+    rs = ruleset if ruleset is not None else classic()
+    th = rs.theme
+    letters = rs.board.row_letters
+    ratio = rs.merger_trade_ratio
+    founder = rs.founder_bonus_shares
+    chain_ids = rs.chain_ids
+    words = {
+        "TITLE": rs.title.upper(),
+        "description": th.game_description,
+        "min_players": rs.min_players,
+        "max_players": rs.max_players,
+        "columns": rs.board.columns,
+        "rows": rs.board.rows,
+        "last_row": letters[-1],
+        "example_tile": f"{min(5, rs.board.columns)}{letters[min(2, len(letters) - 1)]}",
+        "area": rs.board.area,
+        "cash": money(rs.starting_cash, th.currency_symbol),
+        "hand": rs.hand_size,
+        "Nchains": _cap(_num_word(len(chain_ids))),
+        "n_chains": len(chain_ids),
+        "stocks": rs.stocks_per_chain,
+        "tiers": _chains_by_tier(rs),
+        "chain": th.chain_noun,
+        "chains": th.chain_noun_plural,
+        "a_chain": f"{_article(th.chain_noun)} {th.chain_noun}",
+        "share": th.share_noun,
+        "shares": th.share_noun_plural,
+        "Shares": _cap(th.share_noun_plural),
+        "merger": th.merger_noun,
+        "mergers": th.merger_noun_plural,
+        "Mergers": _cap(th.merger_noun_plural),
+        "a_merger": f"{_article(th.merger_noun)} {th.merger_noun}",
+        "safe": th.safe_phrase,
+        "min_size": MIN_CHAIN_SIZE,
+        "max_buy": rs.max_stock_purchases_per_turn,
+        "founder_text": (
+            f"{founder} free {th.share_noun if founder == 1 else th.share_noun_plural}"
+        ),
+        "safe_size": rs.safe_chain_size,
+        "end_size": rs.end_game_chain_size,
+        "round_to": money(rs.bonuses.tie_round_up_to, th.currency_symbol),
+        "ratio_word": _num_word(ratio),
+        "ratio_times": _TIMES.get(ratio, f"{ratio} times"),
+        "trade_multiple": "even numbers" if ratio == 2 else f"multiples of {ratio}",
+        "ex_trade": ratio,
+        "ex0": chain_ids[0],
+        "ex1": chain_ids[1],
+        "price_table": _price_table_text(rs),
+    }
+    return _SYSTEM_TEMPLATE.format(**words)
 
 
 # Bump by hand whenever ``build_user_prompt`` (or anything else that shapes
@@ -294,13 +370,15 @@ def _tile_key(t: str) -> tuple[int, str]:
 
 
 def render_board(state: dict) -> str:
+    rs = ruleset_from_state(state)
     cells = (state.get("board") or {}).get("cells") or {}
-    initial = {n: n[0] for n in Hotel.get_all_chain_names()}
-    header = "    " + "".join(f"{c:>3}" for c in range(1, COLUMNS + 1))
+    initial = {c.id: c.abbreviation for c in rs.chains}
+    columns = rs.board.columns
+    header = "    " + "".join(f"{c:>3}" for c in range(1, columns + 1))
     rows = [header]
-    for r in ROWS:
+    for r in rs.board.row_letters:
         glyphs = []
-        for c in range(1, COLUMNS + 1):
+        for c in range(1, columns + 1):
             cell = cells.get(f"{c}{r}")
             if not cell:
                 g = "."
@@ -454,7 +532,7 @@ def render_tile_analysis(calc: dict) -> str:
                 for c, p in prices.items()
             )
             out.append(
-                f"- {name}: FOUNDS a chain of {t.get('new_size')} tiles (you get 1 free share). "
+                f"- {name}: FOUNDS a chain of {t.get('new_size')} tiles (you get the founder's free shares). "
                 f"You would choose from: {opts}"
             )
         elif eff == "merge":
@@ -563,6 +641,8 @@ def render_trade(trade: dict, calc: dict, names: dict[str, str]) -> str:
 
 
 def render_disposition(ctx, calc: dict) -> str:
+    ratio = ruleset_from_state(ctx.state).merger_trade_ratio
+    times = _TIMES.get(ratio, f"{ratio} times")
     lg = ctx.legal
     d, s, n = lg.get("defunct_chain"), lg.get("surviving_chain"), lg.get("stock_count")
     chains = calc.get("chains") or {}
@@ -576,10 +656,10 @@ def render_disposition(ctx, calc: dict) -> str:
         )
     ]
     lines.append(
-        f"Trading gives 1 {s} share per 2 {d} shares, at most {lg.get('max_trade')} {d} shares "
+        f"Trading gives 1 {s} share per {ratio} {d} shares, at most {lg.get('max_trade')} {d} shares "
         f"(survivor shares left in bank limit this). {s} is {money(ps)}/share now and will be worth "
         f"more once the merged tiles join it; trading beats selling only if {s}'s price after the "
-        f"merger is more than {money(2 * pd)} (twice {d}'s price). Holding {d} shares is worth "
+        f"merger is more than {money(ratio * pd)} ({times} {d}'s price). Holding {d} shares is worth "
         f"nothing unless {d} is founded again."
     )
     return "\n".join(lines)
@@ -587,11 +667,11 @@ def render_disposition(ctx, calc: dict) -> str:
 
 _DECISION_TEXT = {
     "place_tile": "Choose which tile from your hand to place (or take another action if the legal options offer one).",
-    "found_chain": "Your tile founded a new chain. Choose which available chain to found (you receive one free share).",
+    "found_chain": "Your tile founded a new chain. Choose which available chain to found (you receive the founder's free shares).",
     "choose_survivor": "Your tile merged chains of equal size. Choose which chain survives.",
     "stock_disposition": "Decide what to do with your shares in the defunct chain.",
-    "buy_stocks": "Buy step. Buy up to 3 shares (or none), then you must end your turn "
-    "(or declare the game over, if allowed).",
+    "buy_stocks": "Buy step. Buy up to max_total shares (see the legal options; or none), "
+    "then you must end your turn (or declare the game over, if allowed).",
     "trade_response": "Another player proposed a trade to you. Accept or reject it.",
 }
 
