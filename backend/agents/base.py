@@ -35,6 +35,15 @@ class Agent(Protocol):
     async def decide(self, ctx: DecisionContext) -> dict: ...
 
 
+# Optional extension (not part of the Protocol, so heuristic and scripted agents
+# stay valid): an agent with a truthy ``accepts_rejections`` attribute is called
+# as ``decide(ctx, rejected=[{"action": ..., "error": ...}, ...], deadline=t)``
+# by the seat driver after the engine refused its answer, and is expected to
+# answer again (or raise). ``deadline`` is a ``time.monotonic()`` instant.
+def accepts_rejections(agent: object) -> bool:
+    return bool(getattr(agent, "accepts_rejections", False))
+
+
 def build_context(game: Game, decision: Decision) -> DecisionContext:
     """Assemble the context for `decision` from the engine. Never includes
     other players' hands or the tile bag order."""

@@ -1,6 +1,7 @@
 """LLMAgent decision loop: validate, repair, fail, notes, trading limits, log."""
 
 import json
+import time
 
 import pytest
 from agents.base import Agent
@@ -52,7 +53,7 @@ async def test_valid_first_answer_is_one_call(game):
     assert rec["action"] == action and rec["why"] == "because"
 
 
-async def test_illegal_then_legal_triggers_exactly_one_repair(game):
+async def test_illegal_then_legal_is_retried_with_the_reason(game):
     ctx = place_ctx(game)
     tile = first_tile(ctx)
     prov = FakeProvider(
@@ -84,19 +85,121 @@ async def test_malformed_first_answer_is_repaired(game):
     assert action["action"] == "place_tile" and len(prov.calls) == 2
 
 
-async def test_two_illegal_answers_raise_and_log_failure(game):
+async def test_always_illegal_raises_after_exactly_the_configured_retries(game):
     ctx = place_ctx(game)
     prov = FakeProvider([answer({"action": "end_turn"})])  # repeats forever
-    agent = LLMAgent(prov)
-    with pytest.raises(AgentDecisionError, match="illegal answer after repair"):
+    agent = LLMAgent(prov)  # default: 1 answer + 4 retries
+    with pytest.raises(AgentDecisionError, match="illegal answers: 5 tries") as ei:
         await agent.decide(ctx)
-    assert len(prov.calls) == 2
+    assert ei.value.reason == "illegal" and ei.value.attempts == 5
+    assert len(prov.calls) == 5
     (rec,) = agent.recent_decisions(5)
     assert rec["error"] and rec["action"] is None and rec["repaired"] is True
-    assert agent.totals["failures"] == 1
+    assert len(rec["attempts"]) == 5 and all(a["error"] for a in rec["attempts"])
+    assert agent.totals["failures"] == 1 and agent.totals["calls"] == 5
+    assert agent.totals["attempts"] == 5 and agent.totals["illegal_answers"] == 5
 
 
-async def test_provider_error_raises_without_repair(game):
+@pytest.mark.parametrize("retries", [0, 1, 2])
+async def test_max_illegal_retries_is_configurable(game, retries):
+    prov = FakeProvider([answer({"action": "end_turn"})])
+    agent = LLMAgent(prov, max_illegal_retries=retries)
+    with pytest.raises(AgentDecisionError):
+        await agent.decide(place_ctx(game))
+    assert len(prov.calls) == 1 + retries
+
+
+async def test_several_illegal_answers_then_a_legal_one_succeeds(game):
+    ctx = place_ctx(game)
+    tile = first_tile(ctx)
+    prov = FakeProvider(
+        [
+            answer({"action": "end_turn"}),
+            answer({"action": "place_tile", "tile": "12I"}),
+            {"nonsense": True},
+            answer({"action": "place_tile", "tile": tile}),
+        ]
+    )
+    agent = LLMAgent(prov)
+    assert (await agent.decide(ctx))["tile"] == tile
+    assert len(prov.calls) == 4
+    (rec,) = agent.recent_decisions(5)
+    assert rec["error"] is None and rec["calls"] == 4
+    assert [bool(a["error"]) for a in rec["attempts"]] == [True, True, True, False]
+    assert agent.totals["illegal_answers"] == 3
+
+
+async def test_later_retry_prompts_list_every_earlier_rejected_answer(game):
+    ctx = place_ctx(game)
+    tile = first_tile(ctx)
+    prov = FakeProvider(
+        [
+            answer({"action": "end_turn"}),
+            answer({"action": "place_tile", "tile": "12I"}),
+            answer({"action": "place_tile", "tile": tile}),
+        ]
+    )
+    await LLMAgent(prov).decide(ctx)
+    first, second, third = (c["user"] for c in prov.calls)
+    assert "REJECTED" not in first
+    assert "end_turn" in second and "12I" not in second
+    assert "end_turn" in third and "12I" in third
+    assert third.count("Rejected because") == 2
+    assert "Legal action types: ['place_tile']" in third
+
+
+async def test_engine_rejection_is_retried_with_the_engine_error(game):
+    ctx = place_ctx(game)
+    tiles = [t["tile"] for t in ctx.legal["tiles"]]
+    prov = FakeProvider(
+        [
+            answer({"action": "place_tile", "tile": tiles[0]}),
+            answer({"action": "place_tile", "tile": tiles[1]}),
+        ]
+    )
+    agent = LLMAgent(prov)
+    first = await agent.decide(ctx)
+    second = await agent.decide(
+        ctx, rejected=[{"action": first, "error": "engine says no: cursed tile"}]
+    )
+    assert second["tile"] == tiles[1]
+    assert "engine says no: cursed tile" in prov.calls[1]["user"]
+    assert tiles[0] in prov.calls[1]["user"].split("REJECTED")[1]
+
+
+async def test_engine_rejections_share_the_retry_budget(game):
+    ctx = place_ctx(game)
+    tile = first_tile(ctx)
+    prov = FakeProvider([answer({"action": "place_tile", "tile": tile})])
+    agent = LLMAgent(prov, max_illegal_retries=2)
+    rej = []
+    for _ in range(3):  # answers 1..3 each refused by the engine
+        a = await agent.decide(ctx, rejected=list(rej))
+        rej.append({"action": a, "error": "no"})
+    assert len(prov.calls) == 3
+    with pytest.raises(AgentDecisionError) as ei:
+        await agent.decide(ctx, rejected=list(rej))
+    assert ei.value.reason == "illegal" and len(prov.calls) == 3  # no 4th call
+
+
+async def test_retries_stop_when_the_time_budget_is_exhausted(game):
+    prov = FakeProvider([answer({"action": "end_turn"})], delay=0.03)
+    agent = LLMAgent(prov, decision_budget=0.08, max_illegal_retries=50)
+    with pytest.raises(AgentDecisionError, match="time budget") as ei:
+        await agent.decide(place_ctx(game))
+    assert ei.value.reason == "timeout"
+    assert 1 <= len(prov.calls) < 6
+
+
+async def test_each_retry_call_is_capped_to_the_time_left(game):
+    prov = FakeProvider([answer({"action": "end_turn"})])
+    agent = LLMAgent(prov, timeout=45.0, max_illegal_retries=1)
+    with pytest.raises(AgentDecisionError):
+        await agent.decide(place_ctx(game), deadline=time.monotonic() + 7.0)
+    assert all(c["timeout"] <= 7.0 for c in prov.calls)
+
+
+async def test_provider_error_raises_without_retry(game):
     prov = FakeProvider([ProviderError("HTTP 500")])
     agent = LLMAgent(prov)
     with pytest.raises(AgentDecisionError, match="provider error: HTTP 500"):
@@ -115,8 +218,9 @@ async def test_timeout_raises(game):
     # A provider that ignores its own timeout is cut off by the agent's ceiling.
     prov = FakeProvider([answer({"action": "end_turn"})], delay=0.5)
     agent = LLMAgent(prov, timeout=0.05, timeout_grace=0.0)
-    with pytest.raises(AgentDecisionError, match="timed out"):
+    with pytest.raises(AgentDecisionError, match="timed out") as ei:
         await agent.decide(place_ctx(game))
+    assert ei.value.reason == "timeout" and len(prov.calls) == 1
     assert agent.totals["failures"] == 1
 
 

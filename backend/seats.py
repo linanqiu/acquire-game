@@ -16,7 +16,10 @@ task. The driver loop:
    ``validate_action``, per-turn runaway caps); on exception, timeout or an
    illegal answer use ``HeuristicAgent`` for this one decision and record the
    fallback (log + ``RoomRuntime.fallback_count``, visible at
-   ``GET /room/{code}/debug``);
+   ``GET /room/{code}/debug``). An agent that accepts rejections (LLM seats)
+   is first told why its answer was illegal and asked again, within its retry
+   and time budget; only then, or on timeout / provider error, the bot decides
+   and an ``agent_fallback`` message goes to the table (LLM seats);
 5. ``apply_action`` and publish (same code path as human actions).
 
 It stops when no agent decision is pending (a human must act, or the game is
@@ -33,11 +36,12 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
-from agents.base import build_context
+from agents.base import accepts_rejections, build_context
 from agents.heuristic import HeuristicAgent
 from agents.scripted import default_action
 from app_state import session_manager
 from broadcast import (
+    broadcast_agent_fallback,
     broadcast_game_state,
     flow_decision,
     publish_events,
@@ -55,6 +59,7 @@ from game.game import GamePhase
 from protocol import to_action, validate_websocket_message
 
 logger = logging.getLogger(__name__)
+llm_logger = logging.getLogger("acquire.llm")
 
 
 @dataclass
@@ -69,6 +74,8 @@ class RoomRuntime:
     fallback_count: int = 0
     fallbacks: deque = field(default_factory=lambda: deque(maxlen=50))  # recent
     fallback_kinds: dict = field(default_factory=dict)  # category -> count
+    # player_id -> {count, last_reason}; surfaced in game_state (``fallbacks``)
+    seat_fallbacks: dict = field(default_factory=dict)
     agent_actions: int = 0
     # (turn number, player_id) -> {"actions": n, "proposals": n}
     turn_counts: dict = field(default_factory=dict)
@@ -99,6 +106,7 @@ def get_runtime(room) -> RoomRuntime:
             rt.fallback_count = old.fallback_count
             rt.fallbacks = old.fallbacks
             rt.fallback_kinds = old.fallback_kinds
+            rt.seat_fallbacks = old.seat_fallbacks
             rt.agent_actions = old.agent_actions
         room.runtime = rt
     return rt
@@ -332,72 +340,133 @@ async def _drive_loop(room_code: str) -> None:
             }
             await broadcast_game_state(room_code)
 
-        # 2. ask the agent without holding the lock
-        action: Any = None
-        failure: str | None = None
+        # 2. ask the agent without holding the lock; an illegal answer is sent
+        #    back to agents that accept rejections (retry budget and time
+        #    budget are shared by every attempt at this decision)
         started = time.monotonic()
-        try:
-            action = await asyncio.wait_for(agent.decide(ctx), _timeout_for(agent))
-        except asyncio.TimeoutError:
-            failure = f"timeout after {time.monotonic() - started:.1f}s"
-        except asyncio.CancelledError:
-            raise
-        except Exception as e:  # noqa: BLE001 - any agent failure falls back
-            failure = f"error: {type(e).__name__}: {e}"[:300]
+        deadline = started + _timeout_for(agent)
+        retry_ok = accepts_rejections(agent)
+        max_rejections = 1 + max(0, int(getattr(agent, "max_illegal_retries", 0)))
+        rejected: list[dict] = []
+        superseded = False
+        while True:
+            action: Any = None
+            failure: str | None = None
+            reason: str | None = None
+            attempts = len(rejected) + 1
+            remaining = deadline - time.monotonic()
+            try:
+                if remaining <= 0:
+                    raise asyncio.TimeoutError
+                kwargs = (
+                    {"rejected": list(rejected), "deadline": deadline}
+                    if retry_ok and rejected
+                    else ({"deadline": deadline} if retry_ok else {})
+                )
+                action = await asyncio.wait_for(agent.decide(ctx, **kwargs), remaining)
+            except asyncio.TimeoutError:
+                reason = "timeout"
+                failure = f"timeout after {time.monotonic() - started:.1f}s"
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:  # noqa: BLE001 - any agent failure falls back
+                reason = getattr(e, "reason", None) or "error"
+                attempts = max(attempts, int(getattr(e, "attempts", 0) or 0))
+                if reason == "timeout":
+                    failure = f"timeout after {time.monotonic() - started:.1f}s"
+                elif reason == "illegal":
+                    failure = f"illegal: {e}"[:300]
+                else:
+                    failure = f"error: {type(e).__name__}: {e}"[:300]
 
-        # 3. re-check and apply
-        async with rt.lock:
-            rt.thinking = None
-            if room.game is not game or session_manager.get_room(room_code) is not room:
-                continue
-            if decision not in pending_decisions(game):
-                await broadcast_game_state(room_code)  # clears `awaiting`
-                continue
-            key = _turn_key(game, decision.player_id)
-            counts = rt.turn_counts.setdefault(key, {"actions": 0, "proposals": 0})
-            if failure is None:
-                failure = _check(game, decision, ctx, action, counts)
-            if failure is not None:
-                action = _fallback(rt, room, game, decision, seat, agent, failure)
-                if action is None:
-                    rt.stalled = f"no legal fallback for {decision.kind}"
-                    logger.error("Room %s: %s", room_code, rt.stalled)
-                    await broadcast_game_state(room_code)
-                    return
-            result = await apply_and_publish(room_code, decision.player_id, action)
-            if not result.get("success"):
-                # validated but the engine refused: engine/validator mismatch
-                logger.error(
-                    "Room %s: engine rejected validated action %r: %s",
-                    room_code,
-                    action,
-                    result.get("error"),
-                )
-                action = _fallback(
-                    rt,
-                    room,
-                    game,
-                    decision,
-                    seat,
-                    agent,
-                    f"engine: {result.get('error')}",
-                )
-                result = (
-                    await apply_and_publish(room_code, decision.player_id, action)
-                    if action is not None
-                    else {"success": False}
-                )
+            # 3. re-check and apply
+            async with rt.lock:
+                if (
+                    room.game is not game
+                    or session_manager.get_room(room_code) is not room
+                ):
+                    rt.thinking = None
+                    superseded = True
+                    break
+                if decision not in pending_decisions(game):
+                    rt.thinking = None
+                    await broadcast_game_state(room_code)  # clears `awaiting`
+                    superseded = True
+                    break
+                key = _turn_key(game, decision.player_id)
+                counts = rt.turn_counts.setdefault(key, {"actions": 0, "proposals": 0})
+                if failure is None:
+                    failure = _check(game, decision, ctx, action, counts)
+                    if failure is not None:
+                        reason = _category(failure)
+                        if (
+                            reason == "illegal"
+                            and retry_ok
+                            and len(rejected) + 1 < max_rejections
+                        ):
+                            # not a fallback yet: tell the agent and ask again
+                            rejected.append({"action": action, "error": failure})
+                            continue
+                        attempts = len(rejected) + 1
+                rt.thinking = None
+                fb = None
+                if failure is not None:
+                    action = _fallback(rt, room, game, decision, seat, agent, failure)
+                    fb = _announcement(
+                        room, seat, decision, reason or "error", attempts, started
+                    )
+                    if action is None:
+                        rt.stalled = f"no legal fallback for {decision.kind}"
+                        logger.error("Room %s: %s", room_code, rt.stalled)
+                        await broadcast_game_state(room_code)
+                        return
+                    await _announce(room_code, rt, seat, fb)
+                result = await apply_and_publish(room_code, decision.player_id, action)
                 if not result.get("success"):
-                    rt.stalled = f"engine rejected every answer for {decision.kind}"
-                    await broadcast_game_state(room_code)
-                    return
-            rt.agent_actions += 1
-            counts["actions"] += 1
-            if action.get("action") == "propose_trade":
-                counts["proposals"] += 1
-            if len(rt.turn_counts) > 64:
-                for k in list(rt.turn_counts)[:-16]:
-                    del rt.turn_counts[k]
+                    # validated but the engine refused: engine/validator mismatch
+                    logger.error(
+                        "Room %s: engine rejected validated action %r: %s",
+                        room_code,
+                        action,
+                        result.get("error"),
+                    )
+                    action = _fallback(
+                        rt,
+                        room,
+                        game,
+                        decision,
+                        seat,
+                        agent,
+                        f"engine: {result.get('error')}",
+                    )
+                    if action is not None:
+                        await _announce(
+                            room_code,
+                            rt,
+                            seat,
+                            _announcement(
+                                room, seat, decision, "illegal", attempts, started
+                            ),
+                        )
+                    result = (
+                        await apply_and_publish(room_code, decision.player_id, action)
+                        if action is not None
+                        else {"success": False}
+                    )
+                    if not result.get("success"):
+                        rt.stalled = f"engine rejected every answer for {decision.kind}"
+                        await broadcast_game_state(room_code)
+                        return
+                rt.agent_actions += 1
+                counts["actions"] += 1
+                if action.get("action") == "propose_trade":
+                    counts["proposals"] += 1
+                if len(rt.turn_counts) > 64:
+                    for k in list(rt.turn_counts)[:-16]:
+                        del rt.turn_counts[k]
+                break
+        if superseded:
+            continue
 
         delay = _pacing_delay()
         if delay:
@@ -407,6 +476,7 @@ async def _drive_loop(room_code: str) -> None:
 
 
 def _category(reason: str) -> str:
+    """Fallback category (``timeout`` | ``cap`` | ``engine`` | ``error`` | ``illegal``)."""
     if reason.startswith("timeout"):
         return "timeout"
     if "cap reached" in reason:
@@ -416,6 +486,64 @@ def _category(reason: str) -> str:
     if reason.startswith("error:"):
         return "error"
     return "illegal"
+
+
+_REASON_TEXT = {
+    "timeout": "timed out",
+    "error": "had a provider error",
+    "illegal": "kept answering illegally",
+    "cap": "went over the per-turn action limit",
+}
+
+
+def _announcement(room, seat, decision, reason: str, attempts: int, started) -> dict:
+    """The ``agent_fallback`` message for a fallback of an LLM seat."""
+    label = seat.agent_label or seat.name
+    elapsed = time.monotonic() - started
+    if reason == "timeout":
+        what = (
+            f"timed out after {elapsed:.0f} s"
+            if elapsed >= 10
+            else f"timed out after {elapsed:.1f} s"
+        )
+    elif reason == "illegal":
+        what = (
+            f"kept answering illegally after {attempts} tries"
+            if attempts > 1
+            else "gave an illegal answer"
+        )
+    elif reason == "cap":
+        what = "went over the per-turn action limit"
+    else:
+        what = "had a provider error"
+    return {
+        "player_id": seat.player_id,
+        "player_name": seat.name,
+        "agent_label": label,
+        "reason": reason,
+        "decision": decision.kind,
+        "message": f"{label} {what} \u2014 the rules-based player made this move.",
+    }
+
+
+async def _announce(room_code: str, rt, seat, info: dict) -> None:
+    """Record the per-seat fallback and (LLM seats only) tell the table."""
+    rec = rt.seat_fallbacks.setdefault(
+        seat.player_id, {"count": 0, "last_reason": None}
+    )
+    rec["count"] += 1
+    rec["last_reason"] = info["reason"]
+    if seat.kind != "llm":
+        return
+    llm_logger.warning(
+        "fallback agent=%s seat=%s decision=%s reason=%s: %s",
+        seat.agent_id,
+        seat.name,
+        info["decision"],
+        info["reason"],
+        info["message"],
+    )
+    await broadcast_agent_fallback(room_code, **info)
 
 
 def _fallback(rt, room, game, decision, seat, agent, reason: str) -> dict | None:

@@ -1,16 +1,19 @@
 """``LLMAgent``: an Acquire seat backed by a language model.
 
-v0 is ONE model call per decision (plus at most one repair call when the first
-answer is structurally illegal). The agent only returns an action dict; it holds
-no game reference and never mutates state. On provider failure, timeout or a
-second illegal answer it raises ``AgentDecisionError``; the server's driver
-catches that and falls back to the heuristic agent for that one decision.
+An illegal or unparseable answer is sent back to the model (its answer, the
+exact reason, every earlier rejected answer, the legal options restated) up to
+``max_illegal_retries`` times, all within the decision's time budget. The agent
+only returns an action dict; it holds no game reference and never mutates
+state. On provider failure, timeout or an exhausted retry budget it raises
+``AgentDecisionError`` (with a ``reason``); the server's driver catches that and
+lets the rules-based bot take that one decision.
 """
 
 from __future__ import annotations
 
 import asyncio
 import copy
+import json
 import time
 from collections import deque
 from dataclasses import replace
@@ -29,10 +32,13 @@ from agents.llm.schema import (
 
 DEFAULT_TIMEOUT_S = 45.0
 DEFAULT_MAX_TOKENS = 6000
+DEFAULT_MAX_ILLEGAL_RETRIES = 4
 
 
 class LLMAgent:
     kind = "llm"
+    # The driver may pass ``rejected=`` / ``deadline=`` to ``decide``.
+    accepts_rejections = True
 
     def __init__(
         self,
@@ -45,6 +51,8 @@ class LLMAgent:
         max_proposals_per_turn: int = 1,
         notes_limit: int = 6,
         timeout_grace: float = 2.0,
+        max_illegal_retries: int = DEFAULT_MAX_ILLEGAL_RETRIES,
+        decision_budget: float | None = None,
         budget: PromptBudget | None = None,
         log: DecisionLog | None = None,
     ):
@@ -55,6 +63,10 @@ class LLMAgent:
         self.max_tokens = max_tokens
         self.max_proposals_per_turn = max_proposals_per_turn
         self.timeout_grace = timeout_grace
+        self.max_illegal_retries = max_illegal_retries
+        # Overall seconds per decision when the caller passes no ``deadline``.
+        self.decision_budget = decision_budget
+        self._history: list[dict] = []  # rejected answers of the current decision
         self.budget = budget or PromptBudget()
         self.notes: deque[str] = deque(maxlen=notes_limit)
         self.log = log or DecisionLog(agent_id, getattr(provider, "model", ""))
@@ -73,11 +85,35 @@ class LLMAgent:
         """Called by the driver when it replaced this agent's answer."""
         self.log.annotate_last(fallback=True, fallback_reason=reason)
 
-    async def decide(self, ctx) -> dict:
+    async def decide(
+        self,
+        ctx,
+        rejected: list[dict] | None = None,
+        *,
+        deadline: float | None = None,
+    ) -> dict:
+        """One legal action for ``ctx``.
+
+        Total model answers per decision: 1 + ``max_illegal_retries``.
+
+        ``rejected`` is how the driver says "the engine refused your last
+        answer": ``[{"action": ..., "error": ...}, ...]``, oldest first. Each
+        entry counts as a used attempt, and this agent's own earlier
+        structurally-rejected answers for the same decision are remembered and
+        listed too. A call without ``rejected`` starts a new decision.
+        ``deadline`` is a ``time.monotonic()`` instant: no model call starts
+        after it, and the call in flight is capped to the time left.
+        """
         kind = ctx.decision.kind
         legal = self._effective_legal(ctx)
         view = self._trade_view(ctx)
         others = tuple(p for p in (view or {}).get("players", {}) if p != ctx.player_id)
+        engine_rejected = [dict(r) for r in (rejected or [])]
+        if not engine_rejected:
+            self._history = []
+        history = self._history
+        if deadline is None and self.decision_budget:
+            deadline = time.monotonic() + self.decision_budget
         try:
             schema = build_schema(legal, other_player_ids=others)
         except ValueError as exc:
@@ -92,25 +128,58 @@ class LLMAgent:
         t0 = time.monotonic()
         results: list[ProviderResult] = []
         raws: list[str] = []
-        error: str | None = None
+        attempts: list[dict] = []
+        max_answers = 1 + max(0, self.max_illegal_retries)
         action = note = why = None
-        repaired = False
         prompt = user
-        for attempt in (1, 2):
-            try:
-                res = await self._call(system, prompt, schema)
-            except ProviderError as exc:
-                self._log_failure(
-                    ctx,
-                    len(raws),
-                    system,
-                    user,
-                    raws,
-                    f"provider error: {exc}",
-                    time.monotonic() - t0,
-                    results,
+
+        def used() -> int:
+            return len(history) + len(engine_rejected) + len(attempts)
+
+        def fail(message: str, reason: str) -> AgentDecisionError:
+            self._log_failure(
+                ctx,
+                len(raws),
+                system,
+                user,
+                raws,
+                message,
+                time.monotonic() - t0,
+                results,
+                attempts,
+            )
+            return AgentDecisionError(message, reason=reason, attempts=used())
+
+        while True:
+            earlier = [
+                *history,
+                *engine_rejected,
+                *({"action": a["action"], "error": a["error"]} for a in attempts),
+            ]
+            if earlier:
+                prompt = self._retry_prompt(user, earlier, legal)
+            if used() >= max_answers:
+                last = str(earlier[-1]["error"])[:300] if earlier else "no answer"
+                raise fail(
+                    f"illegal answers: {used()} tries, the last was rejected: {last}",
+                    "illegal",
                 )
-                raise AgentDecisionError(f"provider error: {exc}") from exc
+            call_timeout = None
+            if deadline is not None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise fail(
+                        f"decision time budget exhausted after {used()} tries",
+                        "timeout",
+                    )
+                call_timeout = min(self.timeout, remaining)
+            t_call = time.monotonic()
+            try:
+                res = await self._call(system, prompt, schema, call_timeout)
+            except ProviderError as exc:
+                raise fail(
+                    f"provider error: {exc}", "timeout" if exc.timeout else "error"
+                ) from exc
             results.append(res)
             raws.append(res.raw)
             action, note, why = parse_answer(res.data)
@@ -119,24 +188,16 @@ class LLMAgent:
                 if action is None
                 else check_against_legal(action, legal, view=view)
             )
+            attempts.append(
+                {
+                    "n": used() + 1,
+                    "action": action if action is not None else res.raw[:300],
+                    "error": error,
+                    "latency_s": round(time.monotonic() - t_call, 4),
+                }
+            )
             if error is None:
                 break
-            if attempt == 1:
-                repaired = True
-                prompt = self._repair_prompt(user, res.raw, error)
-
-        if error is not None:
-            self._log_failure(
-                ctx,
-                len(raws),
-                system,
-                user,
-                raws,
-                f"illegal answer after repair: {error}",
-                time.monotonic() - t0,
-                results,
-            )
-            raise AgentDecisionError(f"illegal answer after repair: {error}")
 
         if note:
             self.notes.append(note[:NOTE_MAX_CHARS])
@@ -157,14 +218,23 @@ class LLMAgent:
             action=action,
             why=why,
             note=note,
-            repaired=repaired,
+            repaired=used() > 1,
+            attempts=attempts,
+            engine_rejections=len(engine_rejected),
             full={"system": system, "user": user, "responses": raws},
+        )
+        # If the engine refuses this answer, the retry lists these too.
+        history.extend(
+            {"action": a["action"], "error": a["error"]} for a in attempts if a["error"]
         )
         return action
 
     # ------------------------------------------------------------ internals
 
-    async def _call(self, system: str, user: str, schema: dict) -> ProviderResult:
+    async def _call(
+        self, system: str, user: str, schema: dict, timeout: float | None = None
+    ) -> ProviderResult:
+        timeout = self.timeout if timeout is None else timeout
         try:
             # Hard ceiling in case a provider ignores its own timeout.
             return await asyncio.wait_for(
@@ -173,28 +243,42 @@ class LLMAgent:
                     user=user,
                     schema=schema,
                     max_tokens=self.max_tokens,
-                    timeout=self.timeout,
+                    timeout=timeout,
                 ),
-                timeout=self.timeout + self.timeout_grace,
+                timeout=timeout + self.timeout_grace,
             )
         except asyncio.TimeoutError as exc:
             raise ProviderError(
-                f"timed out after {self.timeout:.0f}s", timeout=True
+                f"timed out after {timeout:.0f}s", timeout=True
             ) from exc
 
     @staticmethod
-    def _repair_prompt(user: str, raw: str, error: str) -> str:
-        return (
-            user
-            + "\n# Your previous answer was REJECTED\n"
-            + f"Your answer was:\n{raw[:1500]}\n"
-            + f"Problem: {error}\n"
-            + "Answer again with ONE JSON object whose action is exactly one of the legal "
-            + "options above and fixes this problem.\n"
-        )
+    def _retry_prompt(user: str, earlier: list[dict], legal: dict) -> str:
+        lines = [
+            "",
+            "# Your earlier answers to this decision were REJECTED",
+            "Do NOT repeat any of them.",
+        ]
+        for i, r in enumerate(earlier, 1):
+            raw = r["action"]
+            if not isinstance(raw, str):
+                raw = json.dumps(raw, default=str)
+            lines.append(f"Answer {i}: {raw[:600]}")
+            lines.append(f"  Rejected because: {r['error']}")
+        types = list(legal.get("action_types", []))
+        lines += [
+            f"Legal action types: {types}",
+            (
+                "Answer again with ONE JSON object whose action is exactly one of "
+                "the legal options listed above, and that avoids every problem "
+                "listed here."
+            ),
+            "",
+        ]
+        return user + "\n".join(lines)
 
     def _log_failure(
-        self, ctx, calls, system, user, raws, error, latency, results=()
+        self, ctx, calls, system, user, raws, error, latency, results=(), attempts=()
     ) -> None:
         self.log.record(
             decision_kind=ctx.decision.kind,
@@ -210,6 +294,7 @@ class LLMAgent:
             action=None,
             why="",
             repaired=calls > 1,
+            attempts=list(attempts),
             error=error,
             full={"system": system, "user": user, "responses": list(raws)},
         )

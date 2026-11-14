@@ -166,3 +166,19 @@ async def test_fake_agent_plays_first_legal_action(monkeypatch):
         "tile": ctx.legal["tiles"][0]["tile"],
     }
     assert (await agent.decide(buy_ctx(game)))["action"] == "buy_stocks"
+
+
+def test_catalog_overrides_max_illegal_retries(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
+    entries = [
+        {"id": "llm:a", "provider": "anthropic", "model": "m"},
+        {
+            "id": "llm:b",
+            "provider": "anthropic",
+            "model": "m",
+            "max_illegal_retries": 7,
+        },
+    ]
+    monkeypatch.setenv("ACQUIRE_LLM_CATALOG", json.dumps(entries))
+    assert create_agent("llm:a", name="A").max_illegal_retries == 4
+    assert create_agent("llm:b", name="B").max_illegal_retries == 7

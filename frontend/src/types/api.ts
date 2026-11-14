@@ -47,6 +47,15 @@ export interface AwaitingDecision {
   decision: string
 }
 
+/** Why the rules-based bot decided for an LLM seat. */
+export type FallbackReason = 'timeout' | 'error' | 'illegal' | 'cap'
+
+/** Per-seat count of decisions the rules-based bot made instead of the AI. */
+export interface SeatFallbacks {
+  count: number
+  last_reason: FallbackReason | null
+}
+
 /** One entry of `GET /api/agents/catalog`. */
 export interface AgentCatalogEntry {
   id: string
@@ -113,6 +122,8 @@ export interface GameStateMessage {
       is_bot?: boolean
       kind?: SeatKind
       agent_label?: string | null
+      /** Rules-based-bot takeovers for this seat (absent on older backends). */
+      fallbacks?: SeatFallbacks
     }
   >
   tiles_remaining: number
@@ -208,6 +219,17 @@ export interface TradeCanceledMessage {
   canceled_by: string
 }
 
+/** The rules-based bot made a decision on behalf of an LLM seat (room + host). */
+export interface AgentFallbackMessage {
+  type: 'agent_fallback'
+  player_id: string
+  player_name: string
+  agent_label: string
+  reason: FallbackReason
+  decision: string
+  message: string
+}
+
 export interface PingMessage {
   type: 'ping'
 }
@@ -227,6 +249,7 @@ export type WebSocketMessage =
   | TradeAcceptedMessage
   | TradeRejectedMessage
   | TradeCanceledMessage
+  | AgentFallbackMessage
   | PingMessage
 
 // =============================================================================

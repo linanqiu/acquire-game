@@ -26,6 +26,7 @@ import { AiThinking } from '../components/game/AiThinking'
 import { isAiThinking, resolveSeatKind } from '../lib/agents'
 import { useGameStore } from '../store/gameStore'
 import { useToast } from '../components/ui/useToast'
+import { useFallbackToasts } from '../hooks/useFallbackToasts'
 import { useErrorHandler } from '../hooks/useErrorHandler'
 import {
   transformBoardToTileStates,
@@ -67,6 +68,7 @@ export function PlayerPage() {
   const [searchParams] = useSearchParams()
   const isHost = searchParams.get('is_host') === '1'
   const { toast } = useToast()
+  useFallbackToasts()
   const { handleServerError } = useErrorHandler()
 
   // Set while a propose_trade is in flight so a server refusal can be shown inside the builder
@@ -744,6 +746,7 @@ export function PlayerPage() {
                 kind={player.kind}
                 isBot={player.is_bot}
                 agentLabel={player.agent_label}
+                fallbacks={player.fallbacks}
               />
               {isAiThinking(gameState.awaiting, id) && <AiThinking />}
             </span>
