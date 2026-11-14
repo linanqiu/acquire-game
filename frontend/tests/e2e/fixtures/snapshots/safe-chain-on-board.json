@@ -1,0 +1,4526 @@
+{
+  "criteria": {
+    "met": [
+      "human_to_place_tile",
+      "a_safe_chain",
+      "human_holds_merge_safe_tile",
+      "human_also_has_playable_tile"
+    ],
+    "missed": []
+  },
+  "description": "A safe chain (11+ tiles) is on the board and the human holds a tile that cannot be played because it would merge two safe chains.",
+  "expect": {
+    "active_chains": {
+      "American": {
+        "available": 14,
+        "price": 400,
+        "safe": false,
+        "size": 3
+      },
+      "Festival": {
+        "available": 17,
+        "price": 300,
+        "safe": false,
+        "size": 2
+      },
+      "Luxor": {
+        "available": 0,
+        "price": 800,
+        "safe": true,
+        "size": 21
+      },
+      "Tower": {
+        "available": 8,
+        "price": 700,
+        "safe": true,
+        "size": 15
+      },
+      "Worldwide": {
+        "available": 15,
+        "price": 300,
+        "safe": false,
+        "size": 2
+      }
+    },
+    "current_player": "p1",
+    "decisions": [
+      {
+        "context": {},
+        "kind": "place_tile",
+        "legal": {
+          "action_types": [
+            "place_tile"
+          ],
+          "tiles": [
+            {
+              "chains": [],
+              "outcome": "nothing",
+              "tile": "11A"
+            },
+            {
+              "chains": [],
+              "outcome": "nothing",
+              "tile": "1H"
+            },
+            {
+              "chains": [],
+              "outcome": "nothing",
+              "tile": "12B"
+            },
+            {
+              "chains": [],
+              "outcome": "nothing",
+              "tile": "2G"
+            },
+            {
+              "chains": [
+                "Tower"
+              ],
+              "outcome": "expand",
+              "tile": "4B"
+            }
+          ]
+        },
+        "player_id": "p1"
+      }
+    ],
+    "flow_decision": {
+      "context": {},
+      "kind": "place_tile",
+      "legal": {
+        "action_types": [
+          "place_tile"
+        ],
+        "tiles": [
+          {
+            "chains": [],
+            "outcome": "nothing",
+            "tile": "11A"
+          },
+          {
+            "chains": [],
+            "outcome": "nothing",
+            "tile": "1H"
+          },
+          {
+            "chains": [],
+            "outcome": "nothing",
+            "tile": "12B"
+          },
+          {
+            "chains": [],
+            "outcome": "nothing",
+            "tile": "2G"
+          },
+          {
+            "chains": [
+              "Tower"
+            ],
+            "outcome": "expand",
+            "tile": "4B"
+          }
+        ]
+      },
+      "player_id": "p1"
+    },
+    "human": {
+      "cash": 4800,
+      "hand": [
+        "11A",
+        "1H",
+        "12B",
+        "2G",
+        "4B",
+        "7D"
+      ],
+      "holdings": {
+        "American": 7,
+        "Festival": 8,
+        "Luxor": 7,
+        "Tower": 7,
+        "Worldwide": 8
+      },
+      "name": "Alice",
+      "player_id": "p1",
+      "unplayable_tiles": {
+        "7D": "would_merge_safe_chains"
+      }
+    },
+    "human_decisions": [
+      {
+        "context": {},
+        "kind": "place_tile",
+        "legal": {
+          "action_types": [
+            "place_tile"
+          ],
+          "tiles": [
+            {
+              "chains": [],
+              "outcome": "nothing",
+              "tile": "11A"
+            },
+            {
+              "chains": [],
+              "outcome": "nothing",
+              "tile": "1H"
+            },
+            {
+              "chains": [],
+              "outcome": "nothing",
+              "tile": "12B"
+            },
+            {
+              "chains": [],
+              "outcome": "nothing",
+              "tile": "2G"
+            },
+            {
+              "chains": [
+                "Tower"
+              ],
+              "outcome": "expand",
+              "tile": "4B"
+            }
+          ]
+        },
+        "player_id": "p1"
+      }
+    ],
+    "inactive_chains": [
+      "Continental",
+      "Imperial"
+    ],
+    "pending_trades": [],
+    "phase": "place_tile",
+    "players": [
+      {
+        "cash": 4800,
+        "holdings": {
+          "American": 7,
+          "Festival": 8,
+          "Luxor": 7,
+          "Tower": 7,
+          "Worldwide": 8
+        },
+        "name": "Alice",
+        "player_id": "p1",
+        "tile_count": 6
+      },
+      {
+        "cash": 200,
+        "holdings": {
+          "American": 2,
+          "Luxor": 9,
+          "Tower": 5,
+          "Worldwide": 1
+        },
+        "name": "Bob",
+        "player_id": "p2",
+        "tile_count": 6
+      },
+      {
+        "cash": 0,
+        "holdings": {
+          "American": 2,
+          "Luxor": 9,
+          "Tower": 5,
+          "Worldwide": 1
+        },
+        "name": "Cara",
+        "player_id": "p3",
+        "tile_count": 6
+      }
+    ],
+    "tiles_on_board": 48,
+    "tiles_remaining": 42,
+    "turns_completed": 48
+  },
+  "format_version": 1,
+  "human_seat": "p1",
+  "name": "safe-chain-on-board",
+  "recipe": {
+    "actions": [
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "6E"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "7I"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "4A"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "6I"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "found_chain",
+          "chain": "Luxor"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {
+            "Luxor": 3
+          }
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "7H"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {
+            "Luxor": 3
+          }
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "8B"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {
+            "Luxor": 3
+          }
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "8C"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "found_chain",
+          "chain": "Tower"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {
+            "Tower": 3
+          }
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "9C"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {
+            "Luxor": 2,
+            "Tower": 1
+          }
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "2I"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {
+            "Luxor": 2,
+            "Tower": 1
+          }
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "11H"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {
+            "Luxor": 3
+          }
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "6G"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {
+            "Luxor": 2,
+            "Tower": 1
+          }
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "11D"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {
+            "Luxor": 2,
+            "Tower": 1
+          }
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "7G"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {
+            "Tower": 3
+          }
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "8I"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {
+            "Luxor": 1,
+            "Tower": 2
+          }
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "5G"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {
+            "Luxor": 1,
+            "Tower": 2
+          }
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "12H"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "found_chain",
+          "chain": "American"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {
+            "American": 3
+          }
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "7B"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {
+            "American": 1,
+            "Luxor": 1,
+            "Tower": 1
+          }
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "10C"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {
+            "American": 1,
+            "Luxor": 1,
+            "Tower": 1
+          }
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "3I"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "found_chain",
+          "chain": "Worldwide"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {
+            "American": 3
+          }
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "8H"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {
+            "American": 1,
+            "Worldwide": 1
+          }
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "11I"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {
+            "American": 1,
+            "Worldwide": 1
+          }
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "4G"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {
+            "Worldwide": 3
+          }
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "4F"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "2D"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "9H"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {
+            "Worldwide": 1
+          }
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "8D"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "8F"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "9F"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "found_chain",
+          "chain": "Festival"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "5C"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "8A"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "7C"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "9E"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "12E"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "6H"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "6B"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "3C"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "10F"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "6A"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "5A"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "9G"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "merger_disposition",
+          "defunct_chain": "Festival",
+          "disposition": {
+            "hold": 1,
+            "sell": 0,
+            "trade": 0
+          }
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {
+            "Worldwide": 3
+          }
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "3A"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "1E"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "1F"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "found_chain",
+          "chain": "Festival"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {
+            "Festival": 3
+          }
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "2A"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "4H"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "7F"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {
+            "Festival": 3
+          }
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p1"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "1A"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p2"
+      },
+      {
+        "action": {
+          "action": "place_tile",
+          "tile": "7E"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "buy_stocks",
+          "purchases": {}
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
+          "action": "end_turn"
+        },
+        "player_id": "p3"
+      }
+    ],
+    "players": [
+      {
+        "name": "Alice",
+        "player_id": "p1"
+      },
+      {
+        "name": "Bob",
+        "player_id": "p2"
+      },
+      {
+        "name": "Cara",
+        "player_id": "p3"
+      }
+    ],
+    "seed": 0,
+    "tile_order": null
+  },
+  "snapshot": {
+    "board": {
+      "cells": {
+        "10C": {
+          "chain": "Tower",
+          "state": "in_chain"
+        },
+        "10F": {
+          "chain": "Luxor",
+          "state": "in_chain"
+        },
+        "11D": {
+          "chain": null,
+          "state": "played"
+        },
+        "11H": {
+          "chain": "American",
+          "state": "in_chain"
+        },
+        "11I": {
+          "chain": "American",
+          "state": "in_chain"
+        },
+        "12E": {
+          "chain": null,
+          "state": "played"
+        },
+        "12H": {
+          "chain": "American",
+          "state": "in_chain"
+        },
+        "1A": {
+          "chain": "Tower",
+          "state": "in_chain"
+        },
+        "1E": {
+          "chain": "Festival",
+          "state": "in_chain"
+        },
+        "1F": {
+          "chain": "Festival",
+          "state": "in_chain"
+        },
+        "2A": {
+          "chain": "Tower",
+          "state": "in_chain"
+        },
+        "2D": {
+          "chain": null,
+          "state": "played"
+        },
+        "2I": {
+          "chain": "Worldwide",
+          "state": "in_chain"
+        },
+        "3A": {
+          "chain": "Tower",
+          "state": "in_chain"
+        },
+        "3C": {
+          "chain": null,
+          "state": "played"
+        },
+        "3I": {
+          "chain": "Worldwide",
+          "state": "in_chain"
+        },
+        "4A": {
+          "chain": "Tower",
+          "state": "in_chain"
+        },
+        "4F": {
+          "chain": "Luxor",
+          "state": "in_chain"
+        },
+        "4G": {
+          "chain": "Luxor",
+          "state": "in_chain"
+        },
+        "4H": {
+          "chain": "Luxor",
+          "state": "in_chain"
+        },
+        "5A": {
+          "chain": "Tower",
+          "state": "in_chain"
+        },
+        "5C": {
+          "chain": null,
+          "state": "played"
+        },
+        "5G": {
+          "chain": "Luxor",
+          "state": "in_chain"
+        },
+        "6A": {
+          "chain": "Tower",
+          "state": "in_chain"
+        },
+        "6B": {
+          "chain": "Tower",
+          "state": "in_chain"
+        },
+        "6E": {
+          "chain": "Luxor",
+          "state": "in_chain"
+        },
+        "6G": {
+          "chain": "Luxor",
+          "state": "in_chain"
+        },
+        "6H": {
+          "chain": "Luxor",
+          "state": "in_chain"
+        },
+        "6I": {
+          "chain": "Luxor",
+          "state": "in_chain"
+        },
+        "7B": {
+          "chain": "Tower",
+          "state": "in_chain"
+        },
+        "7C": {
+          "chain": "Tower",
+          "state": "in_chain"
+        },
+        "7E": {
+          "chain": "Luxor",
+          "state": "in_chain"
+        },
+        "7F": {
+          "chain": "Luxor",
+          "state": "in_chain"
+        },
+        "7G": {
+          "chain": "Luxor",
+          "state": "in_chain"
+        },
+        "7H": {
+          "chain": "Luxor",
+          "state": "in_chain"
+        },
+        "7I": {
+          "chain": "Luxor",
+          "state": "in_chain"
+        },
+        "8A": {
+          "chain": "Tower",
+          "state": "in_chain"
+        },
+        "8B": {
+          "chain": "Tower",
+          "state": "in_chain"
+        },
+        "8C": {
+          "chain": "Tower",
+          "state": "in_chain"
+        },
+        "8D": {
+          "chain": "Tower",
+          "state": "in_chain"
+        },
+        "8F": {
+          "chain": "Luxor",
+          "state": "in_chain"
+        },
+        "8H": {
+          "chain": "Luxor",
+          "state": "in_chain"
+        },
+        "8I": {
+          "chain": "Luxor",
+          "state": "in_chain"
+        },
+        "9C": {
+          "chain": "Tower",
+          "state": "in_chain"
+        },
+        "9E": {
+          "chain": "Luxor",
+          "state": "in_chain"
+        },
+        "9F": {
+          "chain": "Luxor",
+          "state": "in_chain"
+        },
+        "9G": {
+          "chain": "Luxor",
+          "state": "in_chain"
+        },
+        "9H": {
+          "chain": "Luxor",
+          "state": "in_chain"
+        }
+      }
+    },
+    "bots": {},
+    "current_player_index": 0,
+    "events": [
+      {
+        "player_id": null,
+        "players": [
+          {
+            "name": "Alice",
+            "player_id": "p1"
+          },
+          {
+            "name": "Bob",
+            "player_id": "p2"
+          },
+          {
+            "name": "Cara",
+            "player_id": "p3"
+          }
+        ],
+        "private_to": null,
+        "seq": 0,
+        "turn_order": [
+          "p1",
+          "p2",
+          "p3"
+        ],
+        "type": "game_started"
+      },
+      {
+        "player_id": "p1",
+        "private_to": "p1",
+        "seq": 1,
+        "tiles": [
+          "6E",
+          "11H",
+          "6I",
+          "1F",
+          "4G",
+          "8C"
+        ],
+        "type": "tiles_dealt"
+      },
+      {
+        "player_id": "p2",
+        "private_to": "p2",
+        "seq": 2,
+        "tiles": [
+          "7I",
+          "6G",
+          "5C",
+          "7H",
+          "6A",
+          "9C"
+        ],
+        "type": "tiles_dealt"
+      },
+      {
+        "player_id": "p3",
+        "private_to": "p3",
+        "seq": 3,
+        "tiles": [
+          "4A",
+          "8B",
+          "2I",
+          "5A",
+          "11D",
+          "2D"
+        ],
+        "type": "tiles_dealt"
+      },
+      {
+        "outcome": "nothing",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 4,
+        "tile": "6E",
+        "type": "tile_placed"
+      },
+      {
+        "player_id": "p1",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 5,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p1",
+        "private_to": "p1",
+        "reason": "end_turn",
+        "seq": 6,
+        "tile": "9H",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p2",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 7,
+        "type": "turn_ended"
+      },
+      {
+        "outcome": "nothing",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 8,
+        "tile": "7I",
+        "type": "tile_placed"
+      },
+      {
+        "player_id": "p2",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 9,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p2",
+        "private_to": "p2",
+        "reason": "end_turn",
+        "seq": 10,
+        "tile": "4F",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p3",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 11,
+        "type": "turn_ended"
+      },
+      {
+        "outcome": "nothing",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 12,
+        "tile": "4A",
+        "type": "tile_placed"
+      },
+      {
+        "player_id": "p3",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 13,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p3",
+        "private_to": "p3",
+        "reason": "end_turn",
+        "seq": 14,
+        "tile": "8F",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p1",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 15,
+        "type": "turn_ended"
+      },
+      {
+        "available_chains": [
+          "Luxor",
+          "Tower",
+          "American",
+          "Worldwide",
+          "Festival",
+          "Imperial",
+          "Continental"
+        ],
+        "outcome": "found",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 16,
+        "tile": "6I",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Luxor",
+        "founder_bonus_type": "stock",
+        "founder_bonus_value": 1,
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 17,
+        "size": 2,
+        "tile": "6I",
+        "type": "chain_founded"
+      },
+      {
+        "player_id": "p1",
+        "prices": {
+          "Luxor": 200
+        },
+        "private_to": null,
+        "purchases": {
+          "Luxor": 3
+        },
+        "seq": 18,
+        "total_cost": 600,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p1",
+        "private_to": "p1",
+        "reason": "end_turn",
+        "seq": 19,
+        "tile": "9F",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p2",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 20,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Luxor"
+        ],
+        "outcome": "expand",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 21,
+        "tile": "7H",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Luxor",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 22,
+        "size": 3,
+        "tile": "7H",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p2",
+        "prices": {
+          "Luxor": 300
+        },
+        "private_to": null,
+        "purchases": {
+          "Luxor": 3
+        },
+        "seq": 23,
+        "total_cost": 900,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p2",
+        "private_to": "p2",
+        "reason": "end_turn",
+        "seq": 24,
+        "tile": "3A",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p3",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 25,
+        "type": "turn_ended"
+      },
+      {
+        "outcome": "nothing",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 26,
+        "tile": "8B",
+        "type": "tile_placed"
+      },
+      {
+        "player_id": "p3",
+        "prices": {
+          "Luxor": 300
+        },
+        "private_to": null,
+        "purchases": {
+          "Luxor": 3
+        },
+        "seq": 27,
+        "total_cost": 900,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p3",
+        "private_to": "p3",
+        "reason": "end_turn",
+        "seq": 28,
+        "tile": "5D",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p1",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 29,
+        "type": "turn_ended"
+      },
+      {
+        "available_chains": [
+          "Tower",
+          "American",
+          "Worldwide",
+          "Festival",
+          "Imperial",
+          "Continental"
+        ],
+        "outcome": "found",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 30,
+        "tile": "8C",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Tower",
+        "founder_bonus_type": "stock",
+        "founder_bonus_value": 1,
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 31,
+        "size": 2,
+        "tile": "8C",
+        "type": "chain_founded"
+      },
+      {
+        "player_id": "p1",
+        "prices": {
+          "Tower": 200
+        },
+        "private_to": null,
+        "purchases": {
+          "Tower": 3
+        },
+        "seq": 32,
+        "total_cost": 600,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p1",
+        "private_to": "p1",
+        "reason": "end_turn",
+        "seq": 33,
+        "tile": "11A",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p2",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 34,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Tower"
+        ],
+        "outcome": "expand",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 35,
+        "tile": "9C",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Tower",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 36,
+        "size": 3,
+        "tile": "9C",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p2",
+        "prices": {
+          "Luxor": 300,
+          "Tower": 300
+        },
+        "private_to": null,
+        "purchases": {
+          "Luxor": 2,
+          "Tower": 1
+        },
+        "seq": 37,
+        "total_cost": 900,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p2",
+        "private_to": "p2",
+        "reason": "end_turn",
+        "seq": 38,
+        "tile": "2A",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p3",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 39,
+        "type": "turn_ended"
+      },
+      {
+        "outcome": "nothing",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 40,
+        "tile": "2I",
+        "type": "tile_placed"
+      },
+      {
+        "player_id": "p3",
+        "prices": {
+          "Luxor": 300,
+          "Tower": 300
+        },
+        "private_to": null,
+        "purchases": {
+          "Luxor": 2,
+          "Tower": 1
+        },
+        "seq": 41,
+        "total_cost": 900,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p3",
+        "private_to": "p3",
+        "reason": "end_turn",
+        "seq": 42,
+        "tile": "5G",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p1",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 43,
+        "type": "turn_ended"
+      },
+      {
+        "outcome": "nothing",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 44,
+        "tile": "11H",
+        "type": "tile_placed"
+      },
+      {
+        "player_id": "p1",
+        "prices": {
+          "Luxor": 300
+        },
+        "private_to": null,
+        "purchases": {
+          "Luxor": 3
+        },
+        "seq": 45,
+        "total_cost": 900,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p1",
+        "private_to": "p1",
+        "reason": "end_turn",
+        "seq": 46,
+        "tile": "7G",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p2",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 47,
+        "type": "turn_ended"
+      },
+      {
+        "outcome": "nothing",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 48,
+        "tile": "6G",
+        "type": "tile_placed"
+      },
+      {
+        "player_id": "p2",
+        "prices": {
+          "Luxor": 300,
+          "Tower": 300
+        },
+        "private_to": null,
+        "purchases": {
+          "Luxor": 2,
+          "Tower": 1
+        },
+        "seq": 49,
+        "total_cost": 900,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p2",
+        "private_to": "p2",
+        "reason": "end_turn",
+        "seq": 50,
+        "tile": "8I",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p3",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 51,
+        "type": "turn_ended"
+      },
+      {
+        "outcome": "nothing",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 52,
+        "tile": "11D",
+        "type": "tile_placed"
+      },
+      {
+        "player_id": "p3",
+        "prices": {
+          "Luxor": 300,
+          "Tower": 300
+        },
+        "private_to": null,
+        "purchases": {
+          "Luxor": 2,
+          "Tower": 1
+        },
+        "seq": 53,
+        "total_cost": 900,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p3",
+        "private_to": "p3",
+        "reason": "end_turn",
+        "seq": 54,
+        "tile": "10C",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p1",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 55,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Luxor"
+        ],
+        "outcome": "expand",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 56,
+        "tile": "7G",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Luxor",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 57,
+        "size": 5,
+        "tile": "7G",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p1",
+        "prices": {
+          "Tower": 300
+        },
+        "private_to": null,
+        "purchases": {
+          "Tower": 3
+        },
+        "seq": 58,
+        "total_cost": 900,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p1",
+        "private_to": "p1",
+        "reason": "end_turn",
+        "seq": 59,
+        "tile": "12H",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p2",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 60,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Luxor"
+        ],
+        "outcome": "expand",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 61,
+        "tile": "8I",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Luxor",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 62,
+        "size": 6,
+        "tile": "8I",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p2",
+        "prices": {
+          "Luxor": 600,
+          "Tower": 300
+        },
+        "private_to": null,
+        "purchases": {
+          "Luxor": 1,
+          "Tower": 2
+        },
+        "seq": 63,
+        "total_cost": 1200,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p2",
+        "private_to": "p2",
+        "reason": "end_turn",
+        "seq": 64,
+        "tile": "7B",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p3",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 65,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Luxor"
+        ],
+        "outcome": "expand",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 66,
+        "tile": "5G",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Luxor",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 67,
+        "size": 7,
+        "tile": "5G",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p3",
+        "prices": {
+          "Luxor": 600,
+          "Tower": 300
+        },
+        "private_to": null,
+        "purchases": {
+          "Luxor": 1,
+          "Tower": 2
+        },
+        "seq": 68,
+        "total_cost": 1200,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p3",
+        "private_to": "p3",
+        "reason": "end_turn",
+        "seq": 69,
+        "tile": "5E",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p1",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 70,
+        "type": "turn_ended"
+      },
+      {
+        "available_chains": [
+          "American",
+          "Worldwide",
+          "Festival",
+          "Imperial",
+          "Continental"
+        ],
+        "outcome": "found",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 71,
+        "tile": "12H",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "American",
+        "founder_bonus_type": "stock",
+        "founder_bonus_value": 1,
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 72,
+        "size": 2,
+        "tile": "12H",
+        "type": "chain_founded"
+      },
+      {
+        "player_id": "p1",
+        "prices": {
+          "American": 300
+        },
+        "private_to": null,
+        "purchases": {
+          "American": 3
+        },
+        "seq": 73,
+        "total_cost": 900,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p1",
+        "private_to": "p1",
+        "reason": "end_turn",
+        "seq": 74,
+        "tile": "3I",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p2",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 75,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Tower"
+        ],
+        "outcome": "expand",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 76,
+        "tile": "7B",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Tower",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 77,
+        "size": 4,
+        "tile": "7B",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p2",
+        "prices": {
+          "American": 300,
+          "Luxor": 600,
+          "Tower": 400
+        },
+        "private_to": null,
+        "purchases": {
+          "American": 1,
+          "Luxor": 1,
+          "Tower": 1
+        },
+        "seq": 78,
+        "total_cost": 1300,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p2",
+        "private_to": "p2",
+        "reason": "end_turn",
+        "seq": 79,
+        "tile": "8H",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p3",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 80,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Tower"
+        ],
+        "outcome": "expand",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 81,
+        "tile": "10C",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Tower",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 82,
+        "size": 5,
+        "tile": "10C",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p3",
+        "prices": {
+          "American": 300,
+          "Luxor": 600,
+          "Tower": 500
+        },
+        "private_to": null,
+        "purchases": {
+          "American": 1,
+          "Luxor": 1,
+          "Tower": 1
+        },
+        "seq": 83,
+        "total_cost": 1400,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p3",
+        "private_to": "p3",
+        "reason": "end_turn",
+        "seq": 84,
+        "tile": "11I",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p1",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 85,
+        "type": "turn_ended"
+      },
+      {
+        "available_chains": [
+          "Worldwide",
+          "Festival",
+          "Imperial",
+          "Continental"
+        ],
+        "outcome": "found",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 86,
+        "tile": "3I",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Worldwide",
+        "founder_bonus_type": "stock",
+        "founder_bonus_value": 1,
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 87,
+        "size": 2,
+        "tile": "3I",
+        "type": "chain_founded"
+      },
+      {
+        "player_id": "p1",
+        "prices": {
+          "American": 300
+        },
+        "private_to": null,
+        "purchases": {
+          "American": 3
+        },
+        "seq": 88,
+        "total_cost": 900,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p1",
+        "private_to": "p1",
+        "reason": "end_turn",
+        "seq": 89,
+        "tile": "7C",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p2",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 90,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Luxor"
+        ],
+        "outcome": "expand",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 91,
+        "tile": "8H",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Luxor",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 92,
+        "size": 8,
+        "tile": "8H",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p2",
+        "prices": {
+          "American": 300,
+          "Worldwide": 300
+        },
+        "private_to": null,
+        "purchases": {
+          "American": 1,
+          "Worldwide": 1
+        },
+        "seq": 93,
+        "total_cost": 600,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p2",
+        "private_to": "p2",
+        "reason": "end_turn",
+        "seq": 94,
+        "tile": "8D",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p3",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 95,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "American"
+        ],
+        "outcome": "expand",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 96,
+        "tile": "11I",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "American",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 97,
+        "size": 3,
+        "tile": "11I",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p3",
+        "prices": {
+          "American": 400,
+          "Worldwide": 300
+        },
+        "private_to": null,
+        "purchases": {
+          "American": 1,
+          "Worldwide": 1
+        },
+        "seq": 98,
+        "total_cost": 700,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p3",
+        "private_to": "p3",
+        "reason": "end_turn",
+        "seq": 99,
+        "tile": "12E",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p1",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 100,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Luxor"
+        ],
+        "outcome": "expand",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 101,
+        "tile": "4G",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Luxor",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 102,
+        "size": 9,
+        "tile": "4G",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p1",
+        "prices": {
+          "Worldwide": 300
+        },
+        "private_to": null,
+        "purchases": {
+          "Worldwide": 3
+        },
+        "seq": 103,
+        "total_cost": 900,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p1",
+        "private_to": "p1",
+        "reason": "end_turn",
+        "seq": 104,
+        "tile": "1H",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p2",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 105,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Luxor"
+        ],
+        "outcome": "expand",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 106,
+        "tile": "4F",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Luxor",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 107,
+        "size": 10,
+        "tile": "4F",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p2",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 108,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p2",
+        "private_to": "p2",
+        "reason": "end_turn",
+        "seq": 109,
+        "tile": "1B",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p3",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 110,
+        "type": "turn_ended"
+      },
+      {
+        "outcome": "nothing",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 111,
+        "tile": "2D",
+        "type": "tile_placed"
+      },
+      {
+        "player_id": "p3",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 112,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p3",
+        "private_to": "p3",
+        "reason": "end_turn",
+        "seq": 113,
+        "tile": "2C",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p1",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 114,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Luxor"
+        ],
+        "outcome": "expand",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 115,
+        "tile": "9H",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Luxor",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 116,
+        "size": 11,
+        "tile": "9H",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p1",
+        "prices": {
+          "Worldwide": 300
+        },
+        "private_to": null,
+        "purchases": {
+          "Worldwide": 1
+        },
+        "seq": 117,
+        "total_cost": 300,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p1",
+        "private_to": "p1",
+        "reason": "end_turn",
+        "seq": 118,
+        "tile": "12B",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p2",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 119,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Tower"
+        ],
+        "outcome": "expand",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 120,
+        "tile": "8D",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Tower",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 121,
+        "size": 6,
+        "tile": "8D",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p2",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 122,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p2",
+        "private_to": "p2",
+        "reason": "end_turn",
+        "seq": 123,
+        "tile": "1A",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p3",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 124,
+        "type": "turn_ended"
+      },
+      {
+        "outcome": "nothing",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 125,
+        "tile": "8F",
+        "type": "tile_placed"
+      },
+      {
+        "player_id": "p3",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 126,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p3",
+        "private_to": "p3",
+        "reason": "end_turn",
+        "seq": 127,
+        "tile": "8A",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p1",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 128,
+        "type": "turn_ended"
+      },
+      {
+        "available_chains": [
+          "Festival",
+          "Imperial",
+          "Continental"
+        ],
+        "outcome": "found",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 129,
+        "tile": "9F",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Festival",
+        "founder_bonus_type": "stock",
+        "founder_bonus_value": 1,
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 130,
+        "size": 2,
+        "tile": "9F",
+        "type": "chain_founded"
+      },
+      {
+        "player_id": "p1",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 131,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p1",
+        "private_to": "p1",
+        "reason": "end_turn",
+        "seq": 132,
+        "tile": "6H",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p2",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 133,
+        "type": "turn_ended"
+      },
+      {
+        "outcome": "nothing",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 134,
+        "tile": "5C",
+        "type": "tile_placed"
+      },
+      {
+        "player_id": "p2",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 135,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p2",
+        "private_to": "p2",
+        "reason": "end_turn",
+        "seq": 136,
+        "tile": "9E",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p3",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 137,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Tower"
+        ],
+        "outcome": "expand",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 138,
+        "tile": "8A",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Tower",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 139,
+        "size": 7,
+        "tile": "8A",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p3",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 140,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p3",
+        "private_to": "p3",
+        "reason": "end_turn",
+        "seq": 141,
+        "tile": "3D",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p1",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 142,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Tower"
+        ],
+        "outcome": "expand",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 143,
+        "tile": "7C",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Tower",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 144,
+        "size": 8,
+        "tile": "7C",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p1",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 145,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p1",
+        "private_to": "p1",
+        "reason": "end_turn",
+        "seq": 146,
+        "tile": "2G",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p2",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 147,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Festival"
+        ],
+        "outcome": "expand",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 148,
+        "tile": "9E",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Festival",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 149,
+        "size": 3,
+        "tile": "9E",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p2",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 150,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p2",
+        "private_to": "p2",
+        "reason": "end_turn",
+        "seq": 151,
+        "tile": "6B",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p3",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 152,
+        "type": "turn_ended"
+      },
+      {
+        "outcome": "nothing",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 153,
+        "tile": "12E",
+        "type": "tile_placed"
+      },
+      {
+        "player_id": "p3",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 154,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p3",
+        "private_to": "p3",
+        "reason": "end_turn",
+        "seq": 155,
+        "tile": "3C",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p1",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 156,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Luxor"
+        ],
+        "outcome": "expand",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 157,
+        "tile": "6H",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Luxor",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 158,
+        "size": 12,
+        "tile": "6H",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p1",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 159,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p1",
+        "private_to": "p1",
+        "reason": "end_turn",
+        "seq": 160,
+        "tile": "10F",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p2",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 161,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Tower"
+        ],
+        "outcome": "expand",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 162,
+        "tile": "6B",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Tower",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 163,
+        "size": 9,
+        "tile": "6B",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p2",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 164,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p2",
+        "private_to": "p2",
+        "reason": "end_turn",
+        "seq": 165,
+        "tile": "9A",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p3",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 166,
+        "type": "turn_ended"
+      },
+      {
+        "outcome": "nothing",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 167,
+        "tile": "3C",
+        "type": "tile_placed"
+      },
+      {
+        "player_id": "p3",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 168,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p3",
+        "private_to": "p3",
+        "reason": "end_turn",
+        "seq": 169,
+        "tile": "1E",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p1",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 170,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Festival"
+        ],
+        "outcome": "expand",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 171,
+        "tile": "10F",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Festival",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 172,
+        "size": 4,
+        "tile": "10F",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p1",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 173,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p1",
+        "private_to": "p1",
+        "reason": "end_turn",
+        "seq": 174,
+        "tile": "9G",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p2",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 175,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Tower"
+        ],
+        "outcome": "expand",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 176,
+        "tile": "6A",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Tower",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 177,
+        "size": 10,
+        "tile": "6A",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p2",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 178,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p2",
+        "private_to": "p2",
+        "reason": "end_turn",
+        "seq": 179,
+        "tile": "11C",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p3",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 180,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Tower"
+        ],
+        "outcome": "expand",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 181,
+        "tile": "5A",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Tower",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 182,
+        "size": 12,
+        "tile": "5A",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p3",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 183,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p3",
+        "private_to": "p3",
+        "reason": "end_turn",
+        "seq": 184,
+        "tile": "2F",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p1",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 185,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Festival",
+          "Luxor"
+        ],
+        "outcome": "merge",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 186,
+        "sizes": {
+          "Festival": 4,
+          "Luxor": 12
+        },
+        "tied_chains": null,
+        "tile": "9G",
+        "type": "tile_placed"
+      },
+      {
+        "defunct": [
+          "Festival"
+        ],
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 187,
+        "sizes": {
+          "Festival": 4,
+          "Luxor": 12
+        },
+        "survivor": "Luxor",
+        "tile": "9G",
+        "type": "merger_started"
+      },
+      {
+        "bonuses": {
+          "p1": {
+            "majority": 5000,
+            "minority": 2500
+          }
+        },
+        "chain": "Festival",
+        "chain_size": 4,
+        "final": false,
+        "player_id": null,
+        "private_to": null,
+        "seq": 188,
+        "type": "bonuses_paid"
+      },
+      {
+        "defunct_chain": "Festival",
+        "hold": 1,
+        "player_id": "p1",
+        "private_to": null,
+        "sale_proceeds": 0,
+        "sell": 0,
+        "seq": 189,
+        "surviving_chain": "Luxor",
+        "survivor_shares_received": 0,
+        "trade": 0,
+        "type": "stock_disposition"
+      },
+      {
+        "defunct": [
+          "Festival"
+        ],
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 190,
+        "survivor": "Luxor",
+        "survivor_size": 17,
+        "type": "merger_completed"
+      },
+      {
+        "player_id": "p1",
+        "prices": {
+          "Worldwide": 300
+        },
+        "private_to": null,
+        "purchases": {
+          "Worldwide": 3
+        },
+        "seq": 191,
+        "total_cost": 900,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p1",
+        "private_to": "p1",
+        "reason": "end_turn",
+        "seq": 192,
+        "tile": "7F",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p2",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 193,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Tower"
+        ],
+        "outcome": "expand",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 194,
+        "tile": "3A",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Tower",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 195,
+        "size": 13,
+        "tile": "3A",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p2",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 196,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p2",
+        "private_to": "p2",
+        "reason": "end_turn",
+        "seq": 197,
+        "tile": "10B",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p3",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 198,
+        "type": "turn_ended"
+      },
+      {
+        "outcome": "nothing",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 199,
+        "tile": "1E",
+        "type": "tile_placed"
+      },
+      {
+        "player_id": "p3",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 200,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p3",
+        "private_to": "p3",
+        "reason": "end_turn",
+        "seq": 201,
+        "tile": "4H",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p1",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 202,
+        "type": "turn_ended"
+      },
+      {
+        "available_chains": [
+          "Festival",
+          "Imperial",
+          "Continental"
+        ],
+        "outcome": "found",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 203,
+        "tile": "1F",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Festival",
+        "founder_bonus_type": "stock",
+        "founder_bonus_value": 1,
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 204,
+        "size": 2,
+        "tile": "1F",
+        "type": "chain_founded"
+      },
+      {
+        "player_id": "p1",
+        "prices": {
+          "Festival": 300
+        },
+        "private_to": null,
+        "purchases": {
+          "Festival": 3
+        },
+        "seq": 205,
+        "total_cost": 900,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p1",
+        "private_to": "p1",
+        "reason": "end_turn",
+        "seq": 206,
+        "tile": "4B",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p2",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 207,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Tower"
+        ],
+        "outcome": "expand",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 208,
+        "tile": "2A",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Tower",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 209,
+        "size": 14,
+        "tile": "2A",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p2",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 210,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p2",
+        "private_to": "p2",
+        "reason": "end_turn",
+        "seq": 211,
+        "tile": "12F",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p3",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 212,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Luxor"
+        ],
+        "outcome": "expand",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 213,
+        "tile": "4H",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Luxor",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 214,
+        "size": 18,
+        "tile": "4H",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p3",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 215,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p3",
+        "private_to": "p3",
+        "reason": "end_turn",
+        "seq": 216,
+        "tile": "7E",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p1",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 217,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Luxor"
+        ],
+        "outcome": "expand",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 218,
+        "tile": "7F",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Luxor",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 219,
+        "size": 19,
+        "tile": "7F",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p1",
+        "prices": {
+          "Festival": 300
+        },
+        "private_to": null,
+        "purchases": {
+          "Festival": 3
+        },
+        "seq": 220,
+        "total_cost": 900,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p1",
+        "private_to": "p1",
+        "reason": "end_turn",
+        "seq": 221,
+        "tile": "7D",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p2",
+        "player_id": "p1",
+        "private_to": null,
+        "seq": 222,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Tower"
+        ],
+        "outcome": "expand",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 223,
+        "tile": "1A",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Tower",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 224,
+        "size": 15,
+        "tile": "1A",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p2",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 225,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p2",
+        "private_to": "p2",
+        "reason": "end_turn",
+        "seq": 226,
+        "tile": "10H",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p3",
+        "player_id": "p2",
+        "private_to": null,
+        "seq": 227,
+        "type": "turn_ended"
+      },
+      {
+        "chains": [
+          "Luxor"
+        ],
+        "outcome": "expand",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 228,
+        "tile": "7E",
+        "type": "tile_placed"
+      },
+      {
+        "chain": "Luxor",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 229,
+        "size": 21,
+        "tile": "7E",
+        "type": "chain_expanded"
+      },
+      {
+        "player_id": "p3",
+        "prices": {},
+        "private_to": null,
+        "purchases": {},
+        "seq": 230,
+        "total_cost": 0,
+        "type": "stocks_purchased"
+      },
+      {
+        "player_id": "p3",
+        "private_to": "p3",
+        "reason": "end_turn",
+        "seq": 231,
+        "tile": "4E",
+        "type": "tile_drawn"
+      },
+      {
+        "next_player_id": "p1",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 232,
+        "type": "turn_ended"
+      }
+    ],
+    "hotel": {
+      "active_chains": [
+        "American",
+        "Festival",
+        "Luxor",
+        "Tower",
+        "Worldwide"
+      ],
+      "available_stocks": {
+        "American": 14,
+        "Continental": 25,
+        "Festival": 17,
+        "Imperial": 25,
+        "Luxor": 0,
+        "Tower": 8,
+        "Worldwide": 15
+      }
+    },
+    "merger": {
+      "chains": [],
+      "current_defunct": null,
+      "defunct_queue": [],
+      "stock_index": 0,
+      "stock_players": [],
+      "survivor": null,
+      "tile": null
+    },
+    "pending_action": null,
+    "pending_trades": [],
+    "phase": "playing",
+    "players": [
+      {
+        "hand": [
+          "11A",
+          "1H",
+          "12B",
+          "2G",
+          "4B",
+          "7D"
+        ],
+        "money": 4800,
+        "name": "Alice",
+        "player_id": "p1",
+        "stocks": {
+          "American": 7,
+          "Continental": 0,
+          "Festival": 8,
+          "Imperial": 0,
+          "Luxor": 7,
+          "Tower": 7,
+          "Worldwide": 8
+        }
+      },
+      {
+        "hand": [
+          "1B",
+          "9A",
+          "11C",
+          "10B",
+          "12F",
+          "10H"
+        ],
+        "money": 200,
+        "name": "Bob",
+        "player_id": "p2",
+        "stocks": {
+          "American": 2,
+          "Continental": 0,
+          "Festival": 0,
+          "Imperial": 0,
+          "Luxor": 9,
+          "Tower": 5,
+          "Worldwide": 1
+        }
+      },
+      {
+        "hand": [
+          "5D",
+          "5E",
+          "2C",
+          "3D",
+          "2F",
+          "4E"
+        ],
+        "money": 0,
+        "name": "Cara",
+        "player_id": "p3",
+        "stocks": {
+          "American": 2,
+          "Continental": 0,
+          "Festival": 0,
+          "Imperial": 0,
+          "Luxor": 9,
+          "Tower": 5,
+          "Worldwide": 1
+        }
+      }
+    ],
+    "rng_state": [
+      3,
+      [
+        1372342863,
+        3221959423,
+        4180954279,
+        3990540705,
+        1021773023,
+        2223090966,
+        3843864895,
+        597749037,
+        4038628808,
+        2184695301,
+        2599863370,
+        1285463076,
+        3619013288,
+        3445797418,
+        662770754,
+        586125062,
+        1346770502,
+        3658746180,
+        3438111236,
+        309182431,
+        3796115977,
+        3396521978,
+        406330169,
+        2387780391,
+        2469455462,
+        2266287431,
+        1699932795,
+        4049251296,
+        2880579946,
+        2212080061,
+        3732465507,
+        2085677040,
+        3780473213,
+        2666506866,
+        2546029306,
+        3062944794,
+        3831291871,
+        2699197260,
+        1538606110,
+        2628704661,
+        2899336459,
+        3451611859,
+        99931860,
+        1959678400,
+        1104806618,
+        222110430,
+        2129932650,
+        956476906,
+        1123944865,
+        4148113835,
+        3692694084,
+        1144181241,
+        329767184,
+        3790223790,
+        2243139411,
+        3664375038,
+        1649616822,
+        2085955322,
+        878670707,
+        427637247,
+        1097949229,
+        3413060003,
+        2868874638,
+        714350532,
+        2486509003,
+        3288554389,
+        1763249054,
+        3065280929,
+        3617934738,
+        630740700,
+        76720155,
+        3508325981,
+        3932676767,
+        1329309665,
+        1100166609,
+        3150737391,
+        3713849116,
+        1027154122,
+        621059281,
+        2649419324,
+        1724153688,
+        787407208,
+        2006574677,
+        2947315466,
+        1182636319,
+        3824689780,
+        1212132099,
+        4044342334,
+        315023297,
+        3553864982,
+        1157225958,
+        1432164329,
+        1160723985,
+        371272026,
+        927525248,
+        1908778666,
+        1373080387,
+        1470677278,
+        801074131,
+        3914200339,
+        3381407135,
+        2878632719,
+        3924891213,
+        4265632409,
+        2538399467,
+        2281243182,
+        3528786809,
+        875255179,
+        900526794,
+        3848503840,
+        1800107094,
+        99435770,
+        2252333719,
+        459600575,
+        3980788272,
+        642015534,
+        3185107417,
+        3358361764,
+        109426005,
+        1526990449,
+        2897953574,
+        735827974,
+        292571356,
+        656909865,
+        1811241718,
+        3852326868,
+        935626136,
+        576421325,
+        428560518,
+        2760997449,
+        2373789786,
+        2483545676,
+        990053668,
+        4260816364,
+        2400672108,
+        931204375,
+        1656208850,
+        1752543171,
+        3393345042,
+        2975883932,
+        3535909646,
+        441369518,
+        1875275912,
+        3788298971,
+        1604151293,
+        3265285628,
+        3389517324,
+        1129673657,
+        158637840,
+        3401368526,
+        3511603269,
+        1365694929,
+        2076135726,
+        144518747,
+        1738447909,
+        3315335210,
+        696514991,
+        2903756646,
+        1692635312,
+        2492835022,
+        793066282,
+        3701291598,
+        1682146840,
+        2833764772,
+        1874922241,
+        1109375682,
+        2157966518,
+        2136578897,
+        2614256798,
+        2861779371,
+        2698885417,
+        160504417,
+        554219202,
+        1430333145,
+        716754647,
+        529846619,
+        3482487583,
+        829954169,
+        2479439816,
+        1934256524,
+        140815401,
+        1125214395,
+        1642506558,
+        1276896160,
+        3983009834,
+        1007760484,
+        3281113000,
+        139221400,
+        361504304,
+        3713284634,
+        2928612637,
+        935745191,
+        4151018351,
+        3848439956,
+        3104510935,
+        615014456,
+        2939062496,
+        1306813042,
+        2930774231,
+        1126465550,
+        39679357,
+        4157006879,
+        3487860998,
+        4211840723,
+        4199318320,
+        3081958281,
+        1231549084,
+        114041891,
+        1456998828,
+        4027354301,
+        779738931,
+        2010884098,
+        3007041435,
+        1711812332,
+        1173077090,
+        2341061349,
+        2446045442,
+        3860139934,
+        3135005041,
+        1937407922,
+        4130038091,
+        4004503321,
+        3899652703,
+        1806610961,
+        3173634158,
+        3201508203,
+        1971746461,
+        2278546448,
+        2657844960,
+        2678611962,
+        2241832425,
+        1883633391,
+        3181942897,
+        2792225916,
+        1475682425,
+        1169520747,
+        176579167,
+        3554068333,
+        4262273005,
+        2352440083,
+        1253626969,
+        572672438,
+        1524846517,
+        1147813165,
+        3942527944,
+        3167059431,
+        1688983706,
+        463078297,
+        3955475903,
+        894345047,
+        3894065346,
+        1892851780,
+        1869067318,
+        3416414633,
+        2408185539,
+        2584178019,
+        1536598083,
+        1738798172,
+        212705107,
+        3295820959,
+        2164521947,
+        1063447507,
+        4125226161,
+        1611652661,
+        2186239661,
+        43480999,
+        3233893377,
+        1157189060,
+        3865800845,
+        2580347146,
+        3522458126,
+        3833272017,
+        2577087932,
+        3480966526,
+        3731431004,
+        1721158498,
+        1011307417,
+        3952810466,
+        2262537757,
+        642429441,
+        971181236,
+        362223105,
+        1255663603,
+        146673027,
+        2069157663,
+        1273202481,
+        120747504,
+        3207942888,
+        3721730895,
+        3643503245,
+        3816306763,
+        3137048487,
+        2860458877,
+        1819115946,
+        230113293,
+        3614309992,
+        916806549,
+        923982787,
+        2460427649,
+        467621168,
+        934475584,
+        1085334794,
+        3075553476,
+        2827600963,
+        614120395,
+        763452512,
+        3876411276,
+        42356791,
+        149721240,
+        3427418988,
+        3168682449,
+        3386540377,
+        3369227246,
+        3430314618,
+        585185811,
+        3994790629,
+        1295417371,
+        3112055284,
+        3311144040,
+        1059910922,
+        3540388763,
+        455829500,
+        3061532685,
+        2182265378,
+        607235460,
+        3248562707,
+        3580560719,
+        3868768753,
+        740125315,
+        4068402071,
+        4048707696,
+        3779755980,
+        2863645708,
+        3854638905,
+        3401978190,
+        2702849333,
+        2769927328,
+        1519450755,
+        84928381,
+        1224162609,
+        1520368433,
+        480115764,
+        37675693,
+        657908362,
+        3808994824,
+        1171659743,
+        2699029399,
+        2015754554,
+        2753802761,
+        2050370709,
+        1273170742,
+        2140991184,
+        4266961092,
+        1786701666,
+        3880429141,
+        759425704,
+        45926880,
+        836647469,
+        1573125967,
+        1163571132,
+        203220878,
+        861333837,
+        4060383179,
+        2628819199,
+        3536629941,
+        2457334432,
+        1867577917,
+        3536511998,
+        3697335810,
+        3133380389,
+        1404482804,
+        881246958,
+        4135024728,
+        534752881,
+        595543441,
+        33441746,
+        4269857928,
+        1314335199,
+        2505095316,
+        1578860014,
+        1875057095,
+        509159986,
+        1944155236,
+        70374715,
+        2945217752,
+        4041521547,
+        2966052890,
+        145655727,
+        714593746,
+        1002319513,
+        519269594,
+        2926922359,
+        944143625,
+        3916879502,
+        2378371484,
+        912744193,
+        3910705684,
+        2276700770,
+        4142358138,
+        3964824208,
+        2780717615,
+        4081508385,
+        236938235,
+        3840831868,
+        647425534,
+        2210040950,
+        2279462069,
+        168097603,
+        1461160443,
+        1580267216,
+        2324105764,
+        2690677560,
+        1690421599,
+        3577506112,
+        738462960,
+        2274273062,
+        2504137643,
+        3265350434,
+        1366106822,
+        2974016022,
+        1988817242,
+        797755685,
+        2403760280,
+        641540828,
+        3788701957,
+        2779856144,
+        2104598935,
+        3745352634,
+        1577129078,
+        1373804927,
+        3903547821,
+        2872229328,
+        3056383831,
+        3072291562,
+        2275982065,
+        1522674624,
+        3582423212,
+        3669935104,
+        3633938225,
+        629521463,
+        1238893987,
+        3075431842,
+        813637316,
+        3510510638,
+        2917340917,
+        2768681237,
+        1942077161,
+        3758057471,
+        1933876081,
+        2244433730,
+        1480577031,
+        1351970442,
+        396252158,
+        4175666695,
+        1357894203,
+        234330270,
+        3181220453,
+        1331961817,
+        784329267,
+        779668731,
+        2328048439,
+        1103091157,
+        3004928118,
+        1162468270,
+        3007103493,
+        2725514842,
+        274062491,
+        3149489948,
+        2987599126,
+        3292515534,
+        282168320,
+        959822509,
+        2291575880,
+        3673412248,
+        162691783,
+        1230667779,
+        2485346968,
+        2008336037,
+        3320353719,
+        3822671307,
+        3089220377,
+        3503681079,
+        1302975933,
+        3327766732,
+        3674135615,
+        1073069922,
+        2772807178,
+        3196662328,
+        1713328812,
+        1475744247,
+        1685385181,
+        1643753643,
+        3794162811,
+        2190568646,
+        2689827007,
+        3126829736,
+        2761526147,
+        2511266684,
+        1782816864,
+        2926893516,
+        3512983057,
+        2661970973,
+        2689095779,
+        1199154380,
+        382426272,
+        643849114,
+        807267160,
+        1518924385,
+        1695080083,
+        2934795830,
+        4181065090,
+        3342589537,
+        2406648073,
+        1186040699,
+        2721983068,
+        2970957157,
+        3556085447,
+        3070386458,
+        3046088386,
+        1804573955,
+        2003863284,
+        4166932229,
+        2182095175,
+        2134701977,
+        911628328,
+        2867572258,
+        1276531023,
+        518250163,
+        2617826095,
+        21746525,
+        2080648289,
+        1970004495,
+        2621101460,
+        3726800574,
+        155341573,
+        2577500508,
+        1723761283,
+        3633471938,
+        222521000,
+        2717308343,
+        4013182446,
+        2258756213,
+        771120786,
+        815922213,
+        3754576141,
+        2998487214,
+        3115409480,
+        3002705922,
+        1074978656,
+        3006531599,
+        823178279,
+        416424292,
+        43442668,
+        1726938224,
+        3934805529,
+        161873912,
+        2803348707,
+        1043589181,
+        102006005,
+        1730373835,
+        1210399249,
+        2434080783,
+        2191863758,
+        3057527658,
+        3614195070,
+        3229819907,
+        334710481,
+        2664502177,
+        1325604787,
+        3988671798,
+        2576445889,
+        2959706600,
+        2017397749,
+        1080624230,
+        903812120,
+        1214058725,
+        1799750730,
+        3417289034,
+        807297012,
+        1437878312,
+        2645448696,
+        2089144691,
+        1348214076,
+        2839011040,
+        648098687,
+        4294223352,
+        3774352159,
+        968459174,
+        396311303,
+        1631056285,
+        3504308190,
+        1279074970,
+        1878080429,
+        2991953531,
+        3355603528,
+        1614988643,
+        388314152,
+        964861631,
+        3836107078,
+        126268069,
+        1350108355,
+        1730114235,
+        926577527,
+        430314525,
+        756676482,
+        2364788864,
+        3573266150,
+        2877606665,
+        2554592887,
+        2297285047,
+        4155839037,
+        1342607531,
+        1587367306,
+        1366061151,
+        1625602653,
+        1519619151,
+        150082289,
+        2420444017,
+        2103580590,
+        1875045396,
+        3514756929,
+        3527524385,
+        3119378202,
+        418789356,
+        174
+      ],
+      null
+    ],
+    "seed": 0,
+    "stocks_bought_this_turn": false,
+    "tile_bag": [
+      "3F",
+      "12D",
+      "1D",
+      "9B",
+      "7A",
+      "5I",
+      "3G",
+      "12C",
+      "10A",
+      "4C",
+      "11E",
+      "8G",
+      "11B",
+      "11F",
+      "11G",
+      "2H",
+      "4D",
+      "6F",
+      "1I",
+      "8E",
+      "3E",
+      "5F",
+      "10I",
+      "12I",
+      "5B",
+      "5H",
+      "2B",
+      "12G",
+      "3H",
+      "9D",
+      "1C",
+      "6C",
+      "12A",
+      "2E",
+      "6D",
+      "9I",
+      "10D",
+      "10G",
+      "10E",
+      "4I",
+      "3B",
+      "1G"
+    ],
+    "tile_order": null,
+    "version": 1
+  },
+  "turns_completed": 48
+}
