@@ -52,6 +52,10 @@ class GameRoom:
     # Per-room driver state (lock, driver task, fallback counters); created
     # lazily by seats.get_runtime().
     runtime: Any = None
+    # Id of the current game (transcripts, ``/games/{game_id}``) and its
+    # transcripts.TranscriptWriter (None when transcripts are disabled).
+    game_id: Optional[str] = None
+    transcript: Any = None
 
 
 class SessionManager:

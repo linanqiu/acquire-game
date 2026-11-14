@@ -6,7 +6,7 @@ import os
 
 from app_state import session_manager
 from game.game import Game
-from seats import human_action, run_locked
+from seats import human_action, open_transcript, run_locked
 
 
 async def initialize_game(room_code: str) -> None:
@@ -29,6 +29,7 @@ async def initialize_game(room_code: str) -> None:
             game.add_player(player_id, seat.name, is_bot=seat.is_agent or seat.is_bot)
         game.start_game()
         room.game = game
+        open_transcript(room)
 
     await run_locked(room_code, build)
     # Events from start_game (e.g. an opening hand replaced) are announced

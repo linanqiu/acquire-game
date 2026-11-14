@@ -37,8 +37,15 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from agents.base import accepts_rejections, build_context
+from agents.driving import (
+    SOURCE_FOR_KIND,
+    category,
+    check_answer,
+    fallback_action,
+    llm_record,
+    timeout_for,
+)
 from agents.heuristic import HeuristicAgent
-from agents.scripted import default_action
 from app_state import session_manager
 from broadcast import (
     broadcast_agent_fallback,
@@ -52,11 +59,13 @@ from game.decisions import (
     TRADE_RESPONSE,
     Decision,
     apply_action,
+    legal_actions,
     pending_decisions,
     validate_action,
 )
 from game.game import GamePhase
 from protocol import to_action, validate_websocket_message
+from transcripts.writer import TranscriptWriter
 
 logger = logging.getLogger(__name__)
 llm_logger = logging.getLogger("acquire.llm")
@@ -116,17 +125,14 @@ def test_mode() -> bool:
     return os.environ.get("ACQUIRE_TEST_MODE") == "1"
 
 
-def _timeout_for(agent) -> float:
-    override = getattr(agent, "decision_timeout", None)
-    if isinstance(override, (int, float)) and override > 0:
-        return float(override)
-    s = get_settings()
-    kind = getattr(agent, "kind", "bot")
-    if kind == "llm":
-        return s.llm_decision_timeout
-    if kind == "scripted":
-        return s.scripted_decision_timeout
-    return s.bot_decision_timeout
+# The pure driver rules live in agents/driving.py (shared with bench/).
+_timeout_for = timeout_for
+_category = category
+
+
+def _check(game, decision: Decision, ctx, action: Any, counts: dict) -> str | None:
+    # validate_action looked up here at call time (tests patch seats.validate_action)
+    return check_answer(game, decision, ctx, action, counts, validate=validate_action)
 
 
 def _pacing_delay() -> float:
@@ -140,12 +146,28 @@ def _pacing_delay() -> float:
 # ---------------------------------------------------------------------------
 
 
-async def apply_and_publish(room_code: str, player_id: str, action: dict) -> dict:
-    """``apply_action`` + notifications + state broadcast. Caller holds the lock."""
+async def apply_and_publish(
+    room_code: str, player_id: str, action: dict, record: dict | None = None
+) -> dict:
+    """``apply_action`` + transcript + notifications + state broadcast.
+
+    The one place every action of every seat is applied (caller holds the
+    lock). ``record`` describes the decision for the transcript (``source``,
+    ``kind``, ``legal``, ``fallback``, ``latency_s``, ``llm``); without it the
+    action is a human's and kind/legal are derived from the pending decisions.
+    """
     room = session_manager.get_room(room_code)
     game = room.game
     before = flow_decision(game)
     since = len(game.events)
+    writer = room.transcript
+    if writer is not None and (writer.game is not game or writer.closed):
+        writer = None
+    info = dict(record or {})
+    if writer is not None and ("kind" not in info or "legal" not in info):
+        kind, legal = _decision_info(game, player_id, action)
+        info.setdefault("kind", kind)
+        info.setdefault("legal", legal)
     result = apply_action(game, player_id, action)
     if not result.get("success"):
         if (
@@ -162,16 +184,141 @@ async def apply_and_publish(room_code: str, player_id: str, action: dict) -> dic
                 room_code,
                 player_id,
                 {"action": "reject_trade", "trade_id": action.get("trade_id")},
+                {"source": info.get("source", "human")},
             )
         return result
     rt = get_runtime(room)
     rt.version += 1
+    if writer is not None:
+        # before publishing, so `game_over` arrives with the transcript final
+        writer.record_decision(
+            player_id=player_id,
+            kind=info.get("kind") or "out_of_turn",
+            legal=info.get("legal"),
+            action=action,
+            source=info.get("source") or "human",
+            after_seq=since - 1,
+            fallback=info.get("fallback"),
+            latency_s=info.get("latency_s"),
+            llm=info.get("llm"),
+        )
+        if game.phase == GamePhase.GAME_OVER:
+            writer.close_from_game()
     await publish_events(room_code, game, since)
     after = flow_decision(game)
     if after is not None and after != before:
         await send_prompts(room_code, game, after)
     await broadcast_game_state(room_code)
     return result
+
+
+def _decision_info(game, player_id: str, action: Any) -> tuple[str, dict | None]:
+    """Decision kind and legal options a human action answers (transcripts).
+
+    Out-of-turn actions that answer no pending decision (``propose_trade``
+    or ``cancel_trade`` while someone else decides) get kind ``out_of_turn``.
+    """
+    atype = action.get("action") if isinstance(action, dict) else None
+    for d in pending_decisions(game):
+        if d.player_id != player_id:
+            continue
+        if d.kind == TRADE_RESPONSE:
+            trade = (d.context or {}).get("trade") or {}
+            if atype not in ("accept_trade", "reject_trade") or trade.get(
+                "trade_id"
+            ) != action.get("trade_id"):
+                continue
+        legal = legal_actions(game, d)
+        if atype in legal.get("action_types", []):
+            return d.kind, legal
+    return "out_of_turn", None
+
+
+def seat_descriptions(room) -> list[dict]:
+    """Transcript header seats, in ``Game.add_player`` (room) order."""
+    out = []
+    for pid, seat in room.players.items():
+        agent = seat.agent
+        provider = getattr(agent, "provider", None)
+        out.append(
+            {
+                "player_id": pid,
+                "name": seat.name,
+                "kind": seat.kind,
+                "agent_id": seat.agent_id,
+                "agent_label": seat.agent_label,
+                "model": getattr(provider, "model", None)
+                or getattr(agent, "model", None),
+                "is_bot": bool(seat.is_agent or seat.is_bot),
+            }
+        )
+    return out
+
+
+def _system_prompts(room) -> tuple[str | None, dict]:
+    """``(prompt_version, {id: text})`` for the header (text only with LLM seats)."""
+    try:
+        from agents.llm.prompt import build_system_prompt, prompt_version
+        from agents.llm.prompt import system_prompt_id as sp_id
+    except ImportError:  # pragma: no cover
+        return None, {}
+    version = prompt_version()
+    if not any(seat.kind == "llm" for seat in room.players.values()):
+        return version, {}
+    text = build_system_prompt()
+    return version, {sp_id(text): text}
+
+
+def open_transcript(room, *, loaded_from_snapshot: bool = False) -> None:
+    """Start the transcript of ``room.game`` (caller holds the lock) and give
+    the game its ``game_id``. A previous unfinished transcript of the room is
+    closed as ``abandoned``. Transcripts disabled -> ``game_id`` only."""
+    from transcripts.paths import new_game_id
+
+    old = room.transcript
+    if old is not None and not old.closed:
+        old.close("abandoned", detail="replaced by a new game in the room")
+    room.transcript = None
+    room.game_id = new_game_id()
+    if room.game is None:
+        return
+    version, prompts = _system_prompts(room)
+    room.transcript = TranscriptWriter.open(
+        room.game,
+        seats=seat_descriptions(room),
+        source="live",
+        game_id=room.game_id,
+        room_code=room.room_code,
+        prompt_version=version,
+        system_prompts=prompts,
+        loaded_from_snapshot=loaded_from_snapshot,
+        prices=_prices(),
+    )
+
+
+_PRICES: list = []
+
+
+def _prices():
+    """The bench price table (for ``cost_usd`` in footers), loaded once."""
+    if not _PRICES:
+        try:
+            from bench.prices import PriceTable
+
+            _PRICES.append(PriceTable.load())
+        except Exception:  # noqa: BLE001 - costs are optional
+            _PRICES.append(None)
+    return _PRICES[0]
+
+
+def _sync_transcript(room, game) -> None:
+    """After a non-seat mutation (host forced end...): write its events."""
+    writer = room.transcript
+    if writer is None or writer.closed or writer.game is not game:
+        return
+    writer.sync()
+    if game.phase == GamePhase.GAME_OVER:
+        writer.close_from_game()
 
 
 async def human_action(room_code: str, player_id: str, data: Any) -> dict:
@@ -284,23 +431,6 @@ def _heuristic_for(rt: RoomRuntime, room, player_id: str) -> HeuristicAgent:
     return agent
 
 
-def _check(game, decision: Decision, ctx, action: Any, counts: dict) -> str | None:
-    """Why ``action`` cannot be applied for ``decision`` (None if it can)."""
-    if not isinstance(action, dict):
-        return f"answer is not an action object: {action!r}"[:200]
-    if action.get("action") not in ctx.legal.get("action_types", []):
-        return f"action {action.get('action')!r} not offered for {decision.kind}"
-    s = get_settings()
-    if counts["actions"] >= s.max_agent_actions_per_turn:
-        return "per-turn action cap reached"
-    if (
-        action.get("action") == "propose_trade"
-        and counts["proposals"] >= s.max_trade_proposals_per_turn
-    ):
-        return "per-turn trade proposal cap reached"
-    return validate_action(game, decision.player_id, action)
-
-
 async def _drive(room_code: str) -> None:
     try:
         await _drive_loop(room_code)
@@ -410,6 +540,12 @@ async def _drive_loop(room_code: str) -> None:
                         attempts = len(rejected) + 1
                 rt.thinking = None
                 fb = None
+                record = {
+                    "kind": decision.kind,
+                    "legal": ctx.legal,
+                    "source": SOURCE_FOR_KIND.get(seat.kind, seat.kind),
+                    "latency_s": time.monotonic() - started,
+                }
                 if failure is not None:
                     action = _fallback(rt, room, game, decision, seat, agent, failure)
                     fb = _announcement(
@@ -421,7 +557,16 @@ async def _drive_loop(room_code: str) -> None:
                         await broadcast_game_state(room_code)
                         return
                     await _announce(room_code, rt, seat, fb)
-                result = await apply_and_publish(room_code, decision.player_id, action)
+                    record["source"] = "fallback"
+                    record["fallback"] = {
+                        "reason": fb["reason"],
+                        "message": fb["message"],
+                        "detail": failure,
+                    }
+                record["llm"] = llm_record(agent, ctx)
+                result = await apply_and_publish(
+                    room_code, decision.player_id, action, record
+                )
                 if not result.get("success"):
                     # validated but the engine refused: engine/validator mismatch
                     logger.error(
@@ -448,8 +593,19 @@ async def _drive_loop(room_code: str) -> None:
                                 room, seat, decision, "illegal", attempts, started
                             ),
                         )
+                    if action is not None:
+                        record["source"] = "fallback"
+                        record["fallback"] = {
+                            "reason": "illegal",
+                            "message": "the engine refused a validated answer; "
+                            "the rules-based player made this move",
+                            "detail": f"engine: {result.get('error')}",
+                        }
+                        record["llm"] = llm_record(agent, ctx)
                     result = (
-                        await apply_and_publish(room_code, decision.player_id, action)
+                        await apply_and_publish(
+                            room_code, decision.player_id, action, record
+                        )
                         if action is not None
                         else {"success": False}
                     )
@@ -473,19 +629,6 @@ async def _drive_loop(room_code: str) -> None:
             await asyncio.sleep(delay)
         else:
             await asyncio.sleep(0)  # let humans' handlers in between actions
-
-
-def _category(reason: str) -> str:
-    """Fallback category (``timeout`` | ``cap`` | ``engine`` | ``error`` | ``illegal``)."""
-    if reason.startswith("timeout"):
-        return "timeout"
-    if "cap reached" in reason:
-        return "cap"
-    if reason.startswith("engine:"):
-        return "engine"
-    if reason.startswith("error:"):
-        return "error"
-    return "illegal"
 
 
 _REASON_TEXT = {
@@ -576,16 +719,13 @@ def _fallback(rt, room, game, decision, seat, agent, reason: str) -> dict | None
         except Exception:
             logger.exception("note_fallback failed")
     ctx = build_context(game, decision)
-    for candidate in (
-        _heuristic_for(rt, room, decision.player_id).choose(ctx),
-        default_action(ctx),
-    ):
-        if (
-            candidate.get("action") in ctx.legal.get("action_types", [])
-            and validate_action(game, decision.player_id, candidate) is None
-        ):
-            return candidate
-    return None
+    return fallback_action(
+        game,
+        decision,
+        ctx,
+        _heuristic_for(rt, room, decision.player_id),
+        validate=validate_action,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -611,6 +751,7 @@ async def run_locked(room_code: str, fn) -> Any:
         game = room.game
         if game is not None:
             if game is old_game:
+                _sync_transcript(room, game)
                 await publish_events(room_code, game, since)
             await send_prompts(room_code, game, flow_decision(game))
             await broadcast_game_state(room_code)

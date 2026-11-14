@@ -13,7 +13,7 @@ from fastapi import APIRouter, Body, HTTPException
 
 from app_state import session_manager
 from game.snapshot import from_snapshot, to_snapshot
-from seats import get_runtime, run_locked
+from seats import get_runtime, open_transcript, run_locked
 
 router = APIRouter(prefix="/test")
 
@@ -92,6 +92,7 @@ async def load_snapshot(room_code: str, body: dict = Body(...)):  # noqa: B008
         rt.thinking = None
         rt.stalled = None
         rt.turn_counts.clear()
+        open_transcript(room, loaded_from_snapshot=True)
 
     get_runtime(room)
     await run_locked(room_code, install)

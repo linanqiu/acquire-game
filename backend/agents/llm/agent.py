@@ -21,7 +21,12 @@ from typing import Any
 
 from agents.llm.decision_log import DecisionLog
 from agents.llm.errors import AgentDecisionError, ProviderError
-from agents.llm.prompt import PromptBudget, build_system_prompt, build_user_prompt
+from agents.llm.prompt import (
+    PromptBudget,
+    build_system_prompt,
+    build_user_prompt,
+    system_prompt_id,
+)
 from agents.llm.providers import Provider, ProviderResult
 from agents.llm.schema import (
     NOTE_MAX_CHARS,
@@ -71,8 +76,33 @@ class LLMAgent:
         self.notes: deque[str] = deque(maxlen=notes_limit)
         self.log = log or DecisionLog(agent_id, getattr(provider, "model", ""))
         self._proposals: dict[Any, int] = {}
+        # Structured record of the current/last decision (transcripts); see
+        # ``last_decision_record``.
+        self._record: dict | None = None
+        self._record_ctx: Any = None
 
     # ------------------------------------------------------------------ API
+
+    def last_decision_record(self, ctx: Any = None) -> dict | None:
+        """Everything about the latest decision, for transcripts.
+
+        ``{"model", "system_prompt_id", "system_prompt", "user_prompt",
+        "attempts": [{"raw", "parsed", "error", "latency_s", "input_tokens",
+        "output_tokens", "cache_read_tokens", "cache_write_tokens",
+        "retry_prompt"}], "why", "note", "outcome": "answered"|"failed"|None,
+        "error"}``. Attempts span every ``decide`` call for the same decision
+        (the driver's ``rejected=`` re-asks included): an answer the engine
+        refused gets the engine's error, an answer cut off by a timeout keeps
+        ``raw: None``. With ``ctx`` given, returns None unless the record is
+        for that same context object (guards against a stale record). The
+        result is a copy.
+        """
+        rec = self._record
+        if rec is None or (ctx is not None and self._record_ctx is not ctx):
+            return None
+        out = dict(rec)
+        out["attempts"] = [dict(a) for a in rec["attempts"]]
+        return out
 
     def recent_decisions(self, n: int = 20) -> list[dict]:
         return self.log.recent(n)
@@ -84,6 +114,12 @@ class LLMAgent:
     def note_fallback(self, reason: str = "") -> None:
         """Called by the driver when it replaced this agent's answer."""
         self.log.annotate_last(fallback=True, fallback_reason=reason)
+        rec = self._record
+        if rec is not None:
+            rec["fallback_reason"] = reason
+            if rec["attempts"] and rec["attempts"][-1]["error"] is None:
+                # the answer looked legal to the agent; the driver refused it
+                rec["attempts"][-1]["error"] = reason
 
     async def decide(
         self,
@@ -114,16 +150,17 @@ class LLMAgent:
         history = self._history
         if deadline is None and self.decision_budget:
             deadline = time.monotonic() + self.decision_budget
-        try:
-            schema = build_schema(legal, other_player_ids=others)
-        except ValueError as exc:
-            self._log_failure(ctx, 0, "", "", [], f"no answerable action: {exc}", 0.0)
-            raise AgentDecisionError(str(exc)) from exc
-
         system = build_system_prompt()
         user = build_user_prompt(
             replace(ctx, legal=legal), list(self.notes), budget=self.budget
         )
+        rec = self._start_record(ctx, system, user, engine_rejected)
+        try:
+            schema = build_schema(legal, other_player_ids=others)
+        except ValueError as exc:
+            self._log_failure(ctx, 0, "", "", [], f"no answerable action: {exc}", 0.0)
+            rec["outcome"], rec["error"] = "failed", f"no answerable action: {exc}"
+            raise AgentDecisionError(str(exc)) from exc
 
         t0 = time.monotonic()
         results: list[ProviderResult] = []
@@ -137,6 +174,7 @@ class LLMAgent:
             return len(history) + len(engine_rejected) + len(attempts)
 
         def fail(message: str, reason: str) -> AgentDecisionError:
+            rec["outcome"], rec["error"] = "failed", message
             self._log_failure(
                 ctx,
                 len(raws),
@@ -174,9 +212,25 @@ class LLMAgent:
                     )
                 call_timeout = min(self.timeout, remaining)
             t_call = time.monotonic()
+            # Recorded before the call so an attempt cut off by the decision
+            # timeout (task cancelled) still shows up in the transcript.
+            rec_attempt = {
+                "raw": None,
+                "parsed": None,
+                "error": "no answer (the call was cut off by the decision timeout)",
+                "latency_s": None,
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "cache_read_tokens": 0,
+                "cache_write_tokens": 0,
+                "retry_prompt": prompt if earlier else None,
+            }
+            rec["attempts"].append(rec_attempt)
             try:
                 res = await self._call(system, prompt, schema, call_timeout)
             except ProviderError as exc:
+                rec_attempt["error"] = f"provider error: {exc}"
+                rec_attempt["latency_s"] = round(time.monotonic() - t_call, 4)
                 raise fail(
                     f"provider error: {exc}", "timeout" if exc.timeout else "error"
                 ) from exc
@@ -187,6 +241,16 @@ class LLMAgent:
                 "the answer has no valid 'action' object"
                 if action is None
                 else check_against_legal(action, legal, view=view)
+            )
+            rec_attempt.update(
+                raw=res.raw,
+                parsed=res.data if isinstance(res.data, dict) else None,
+                error=error,
+                latency_s=round(time.monotonic() - t_call, 4),
+                input_tokens=int(res.input_tokens or 0),
+                output_tokens=int(res.output_tokens or 0),
+                cache_read_tokens=int(res.cache_read_tokens or 0),
+                cache_write_tokens=int(res.cache_write_tokens or 0),
             )
             attempts.append(
                 {
@@ -199,6 +263,7 @@ class LLMAgent:
             if error is None:
                 break
 
+        rec.update(outcome="answered", why=why, note=note, error=None)
         if note:
             self.notes.append(note[:NOTE_MAX_CHARS])
         if action["action"] == "propose_trade":
@@ -230,6 +295,30 @@ class LLMAgent:
         return action
 
     # ------------------------------------------------------------ internals
+
+    def _start_record(self, ctx, system: str, user: str, engine_rejected) -> dict:
+        """Begin (first call) or continue (driver re-ask) the decision record."""
+        rec = self._record
+        if engine_rejected and rec is not None and self._record_ctx is ctx:
+            last = rec["attempts"][-1] if rec["attempts"] else None
+            if last is not None and last["error"] is None:
+                last["error"] = str(engine_rejected[-1].get("error"))
+            rec["outcome"] = None
+            return rec
+        model = getattr(self.provider, "model", "") or ""
+        rec = {
+            "model": model,
+            "system_prompt_id": system_prompt_id(system),
+            "system_prompt": system,
+            "user_prompt": user,
+            "attempts": [],
+            "why": None,
+            "note": None,
+            "outcome": None,
+            "error": None,
+        }
+        self._record, self._record_ctx = rec, ctx
+        return rec
 
     async def _call(
         self, system: str, user: str, schema: dict, timeout: float | None = None

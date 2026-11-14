@@ -20,7 +20,8 @@ Messages (shapes unchanged from the pre-seat server unless noted):
 * ``agent_fallback`` - room and host: the rules-based bot decided for an LLM
   seat (``player_id, player_name, agent_label, reason, decision, message``);
   ``game_state`` players also carry ``fallbacks: {count, last_reason}``.
-* ``game_over`` - room and host.
+* ``game_over`` - room and host; carries ``game_id`` (also in ``game_state``)
+  so clients can link to ``/games/{game_id}``.
 * ``error`` - to the acting human only.
 """
 
@@ -158,6 +159,7 @@ def build_public_state(room: GameRoom, game: Game) -> dict:
         "tiles_remaining": game_state["tiles_remaining"],
         "pending_trades": game_state["pending_trades"],
         "awaiting": compute_awaiting(room, game),
+        "game_id": getattr(room, "game_id", None),
     }
 
 
@@ -398,7 +400,13 @@ async def publish_events(room_code: str, game: Game, since_seq: int) -> None:
                 s["player_id"]: {"name": s["name"], "money": s["money"]}
                 for s in e.get("standings", [])
             }
-            msg = {"type": "game_over", "scores": scores, "winner": e.get("winner")}
+            room = session_manager.get_room(room_code)
+            msg = {
+                "type": "game_over",
+                "scores": scores,
+                "winner": e.get("winner"),
+                "game_id": getattr(room, "game_id", None),
+            }
             if declared_by is not None:
                 msg["declared_by"] = declared_by
             await session_manager.broadcast_to_room(room_code, msg)
