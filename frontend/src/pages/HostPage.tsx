@@ -10,6 +10,10 @@ import { Board } from '../components/game/Board'
 import { ChainMarker } from '../components/game/ChainMarker'
 import { PlayerCard, type StockHolding } from '../components/game/PlayerCard'
 import { GameOver, type FinalScore } from '../components/game/GameOver'
+import { AddAiControl } from '../components/game/AddAiControl'
+import { SeatKindBadge } from '../components/game/SeatKindBadge'
+import { RemoveSeatButton } from '../components/game/RemoveSeatButton'
+import { isAiThinking, resolveSeatKind } from '../lib/agents'
 import { useGameStore } from '../store/gameStore'
 import { useToast } from '../components/ui/useToast'
 import { useErrorHandler } from '../hooks/useErrorHandler'
@@ -119,7 +123,10 @@ export function HostPage() {
         cash: player.money,
         stocks,
         isCurrentTurn: playerId === currentTurnPlayerId,
-        isBot: false, // TODO: Backend should include is_bot in game state
+        isBot: resolveSeatKind(player) !== 'human',
+        kind: player.kind,
+        agentLabel: player.agent_label,
+        thinking: isAiThinking(gameState.awaiting, playerId),
       }
     })
   }, [gameState, currentTurnPlayerId])
@@ -140,27 +147,6 @@ export function HostPage() {
     } catch (err) {
       console.error('Failed to start game:', err)
       toast('Failed to start game', 'error')
-    } finally {
-      setActionLoading(false)
-    }
-  }, [room, toast, addActivityLog])
-
-  const handleAddBot = useCallback(async () => {
-    setActionLoading(true)
-    try {
-      const res = await fetch(`/api/room/${room}/add-bot`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      })
-      if (!res.ok) {
-        throw new Error('Failed to add bot')
-      }
-      const data = await res.json()
-      addActivityLog(`Bot added: ${data.bot_id}`)
-      toast('Bot added successfully', 'success')
-    } catch (err) {
-      console.error('Failed to add bot:', err)
-      toast('Failed to add bot', 'error')
     } finally {
       setActionLoading(false)
     }
@@ -209,7 +195,15 @@ export function HostPage() {
           {lobbyPlayers.map((p) => (
             <div key={p.player_id} className={styles.lobbyPlayerCard}>
               <span className={styles.playerName}>{p.name}</span>
-              {p.is_bot && <span className={styles.botBadge}>BOT</span>}
+              <SeatKindBadge
+                playerId={p.player_id}
+                kind={p.kind}
+                isBot={p.is_bot}
+                agentLabel={p.agent_label}
+              />
+              {resolveSeatKind(p) !== 'human' && (
+                <RemoveSeatButton room={room} playerId={p.player_id} playerName={p.name} />
+              )}
             </div>
           ))}
           {lobbyPlayers.length < 6 && (
@@ -221,14 +215,12 @@ export function HostPage() {
       </div>
 
       <div className={styles.lobbyActions}>
-        <Button
-          variant="secondary"
+        <AddAiControl
+          room={room}
           size="lg"
-          onClick={handleAddBot}
           disabled={lobbyPlayers.length >= 6 || actionLoading}
-        >
-          + ADD BOT
-        </Button>
+          onAdded={(id) => addActivityLog(`AI added${id ? `: ${id}` : ''}`)}
+        />
         <Button
           size="lg"
           onClick={handleStartGame}
@@ -310,6 +302,10 @@ export function HostPage() {
                 stocks={p.stocks}
                 isCurrentTurn={p.isCurrentTurn}
                 isBot={p.isBot}
+                playerId={p.id}
+                kind={p.kind}
+                agentLabel={p.agentLabel}
+                thinking={p.thinking}
                 variant="full"
               />
             ))}

@@ -1,5 +1,10 @@
 import { defineConfig, devices } from '@playwright/test'
 
+// Allow overriding the browser binary (e.g. when the pinned Playwright build isn't installed).
+const browserLaunch = process.env.PW_CHROMIUM_PATH
+  ? { launchOptions: { executablePath: process.env.PW_CHROMIUM_PATH } }
+  : {}
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
@@ -18,15 +23,20 @@ export default defineConfig({
   },
   projects: [
     {
-      name: 'chromium',
-      testIgnore: '**/scenarios/**',
-      use: { ...devices['Desktop Chrome'] },
+      name: 'journeys',
+      testDir: './tests/e2e/journeys',
+      use: { ...devices['Desktop Chrome'], ...browserLaunch },
     },
     {
-      name: 'scenarios',
-      testDir: './tests/e2e/scenarios',
-      fullyParallel: true,
-      use: { ...devices['Desktop Chrome'] },
+      name: 'screens',
+      testDir: './tests/e2e/screens',
+      use: { ...devices['Desktop Chrome'], ...browserLaunch },
+    },
+    {
+      name: 'legacy',
+      testDir: './tests/e2e',
+      testIgnore: ['**/journeys/**', '**/screens/**'],
+      use: { ...devices['Desktop Chrome'], ...browserLaunch },
     },
   ],
   webServer: [
@@ -41,6 +51,7 @@ export default defineConfig({
       env: {
         ...process.env,
         ACQUIRE_GAME_SEED: '2',
+        ACQUIRE_TEST_MODE: '1',
       },
     },
     {

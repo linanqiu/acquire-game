@@ -52,6 +52,12 @@
   border-radius: var(--radius-sm);
 }
 
+.seatTags {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .botBadge {
   font-size: var(--text-xs);
   font-weight: var(--font-medium);

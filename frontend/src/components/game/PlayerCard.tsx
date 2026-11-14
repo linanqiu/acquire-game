@@ -1,7 +1,9 @@
 import { ChainMarker } from './ChainMarker'
 import { Badge } from '../ui/Badge'
+import { SeatKindBadge } from './SeatKindBadge'
+import { AiThinking } from './AiThinking'
 import styles from './PlayerCard.module.css'
-import type { ChainName } from '../../types/api'
+import type { ChainName, SeatKind } from '../../types/api'
 
 export interface StockHolding {
   chain: ChainName
@@ -15,6 +17,11 @@ export interface PlayerCardProps {
   isCurrentTurn?: boolean
   isHost?: boolean
   isBot?: boolean
+  playerId?: string
+  kind?: SeatKind
+  agentLabel?: string | null
+  /** True while the engine is waiting on this (AI) seat. */
+  thinking?: boolean
   variant?: 'full' | 'compact'
 }
 
@@ -25,6 +32,10 @@ export function PlayerCard({
   isCurrentTurn = false,
   isHost = false,
   isBot = false,
+  playerId = 'unknown',
+  kind,
+  agentLabel,
+  thinking = false,
   variant = 'full',
 }: PlayerCardProps) {
   const stocksWithQuantity = stocks.filter((s) => s.quantity > 0)
@@ -60,9 +71,10 @@ export function PlayerCard({
           </span>
         )}
         <span className={styles.name}>{name}</span>
+        {thinking && <AiThinking />}
         <div className={styles.badges}>
           {isHost && <Badge label="HOST" variant="info" />}
-          {isBot && <Badge label="BOT" variant="warning" />}
+          <SeatKindBadge playerId={playerId} kind={kind} isBot={isBot} agentLabel={agentLabel} />
         </div>
         <span className={styles.cash} data-testid="player-cash">
           ${cash.toLocaleString()}

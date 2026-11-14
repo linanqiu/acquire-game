@@ -34,6 +34,38 @@ export interface TilePlayabilityInfo {
 }
 
 // =============================================================================
+// Seats (humans and AI opponents) - see docs/architecture/seat-contract.md
+// =============================================================================
+
+/** What sits in a seat. Older backends omit this and only send `is_bot`. */
+export type SeatKind = 'human' | 'bot' | 'llm' | 'scripted'
+
+/** The decision the engine is currently waiting on (public, informational). */
+export interface AwaitingDecision {
+  player_id: string
+  kind: SeatKind
+  decision: string
+}
+
+/** One entry of `GET /api/agents/catalog`. */
+export interface AgentCatalogEntry {
+  id: string
+  kind: SeatKind
+  label: string
+  description: string
+  available: boolean
+}
+
+/** Player fields shared by lobby updates and room state. */
+export interface LobbySeat {
+  player_id: string
+  name: string
+  is_bot: boolean
+  kind?: SeatKind
+  agent_label?: string | null
+}
+
+// =============================================================================
 // WebSocket Message Types (Server -> Client)
 // =============================================================================
 
@@ -78,17 +110,21 @@ export interface GameStateMessage {
       money: number
       stocks: Record<ChainName, number>
       hand_size: number
+      is_bot?: boolean
+      kind?: SeatKind
+      agent_label?: string | null
     }
   >
   tiles_remaining: number
   your_hand?: string[] // Only sent to the owning player
   tile_playability?: Record<string, TilePlayabilityInfo> // Only sent to the owning player
   end_game_available?: boolean // True when current player can declare end game
+  awaiting?: AwaitingDecision | null // Who the engine is waiting on (absent on older backends)
 }
 
 export interface LobbyUpdateMessage {
   type: 'lobby_update'
-  players: Array<{ player_id: string; name: string; is_bot: boolean }>
+  players: LobbySeat[]
   can_start: boolean
 }
 
@@ -287,10 +323,21 @@ export interface AddBotResponse {
   bot_id: string
 }
 
+export interface AddSeatRequest {
+  agent_id: string
+  name?: string
+}
+
+export interface AddSeatResponse {
+  player_id: string
+  name: string
+  kind: SeatKind
+}
+
 export interface RoomStateResponse {
   room_code: string
   started: boolean
-  players: Array<{ player_id: string; name: string; is_bot: boolean }>
+  players: LobbySeat[]
   min_players: number
   max_players: number
 }
