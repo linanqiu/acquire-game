@@ -43,6 +43,9 @@ class _ImmutableAssets(StaticFiles):
 def mount_frontend(app: FastAPI, dist: Path) -> None:
     """Add asset mount + SPA fallback. Call after every other route is added."""
     index = dist / "index.html"
+    # api/games.py answers browser navigations to bare /games, /bench paths
+    # with the SPA (those are also client-side routes).
+    app.state.spa_index = index
     if (dist / "assets").is_dir():
         app.mount("/assets", _ImmutableAssets(directory=dist / "assets"), name="assets")
 

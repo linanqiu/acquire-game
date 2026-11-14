@@ -76,6 +76,27 @@ def category(reason: str) -> str:
     return "illegal"
 
 
+def describe_fallback(label: str, reason: str, attempts: int, elapsed: float) -> str:
+    """The one-sentence ``agent_fallback`` / transcript message."""
+    if reason == "timeout":
+        what = (
+            f"timed out after {elapsed:.0f} s"
+            if elapsed >= 10
+            else f"timed out after {elapsed:.1f} s"
+        )
+    elif reason == "illegal":
+        what = (
+            f"kept answering illegally after {attempts} tries"
+            if attempts > 1
+            else "gave an illegal answer"
+        )
+    elif reason == "cap":
+        what = "went over the per-turn action limit"
+    else:
+        what = "had a provider error"
+    return f"{label} {what} \u2014 the rules-based player made this move."
+
+
 def fallback_action(
     game, decision: Decision, ctx, heuristic, validate=None
 ) -> dict | None:

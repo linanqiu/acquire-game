@@ -22,6 +22,15 @@ from bench.runner import assign_ranks, percentile, run_game
 from bench.series import BenchError, Budget, plan, rotate, run_series
 
 
+@pytest.fixture(autouse=True)
+def _no_transcripts(monkeypatch):
+    """Transcripts are tested in test_transcripts.py / test_acquire_bench.py;
+    here they would only cost time."""
+    monkeypatch.setattr(
+        "transcripts.writer.TranscriptWriter.open", lambda *a, **k: None
+    )
+
+
 @pytest.fixture
 def fast_calc(monkeypatch):
     monkeypatch.setattr("game.calculator.build_calculator_pack", lambda game, pid: {})

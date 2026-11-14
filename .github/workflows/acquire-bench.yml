@@ -1,0 +1,102 @@
+# Acquire Bench: run the standalone LLM benchmark on demand and keep the
+# results directory (results.jsonl, transcripts/, leaderboard.json, report.md)
+# as a build artifact. Manual only: it spends API credits, so it never runs
+# on push or pull_request. See docs/ai/benchmarking.md.
+name: Acquire Bench
+
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: "Comma-separated catalog ids, e.g. llm:claude-haiku-5-5,llm:claude-sonnet-5-5"
+        required: true
+        default: "llm:claude-haiku-5-5"
+      track:
+        description: "Track"
+        required: true
+        default: "vs-baseline"
+        type: choice
+        options:
+          - vs-baseline
+          - head-to-head
+          - both
+      games:
+        description: "Games cap per series (empty = the protocol's 72; use a multiple of the seatings for balance)"
+        required: false
+        default: "8"
+      max_usd:
+        description: "Stop after this estimated spend in USD (needs prices in backend/bench/prices.json; empty = no USD cap)"
+        required: false
+        default: ""
+      max_decisions:
+        description: "Stop after this many LLM decisions (hard budget that works without prices)"
+        required: false
+        default: "3000"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: acquire-bench
+  cancel-in-progress: false
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env:
+      # Provider keys come from repository secrets (by name only).
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      ACQUIRE_LLM_OPENAI_API_KEY: ${{ secrets.ACQUIRE_LLM_OPENAI_API_KEY }}
+      MODELS: ${{ inputs.models }}
+      TRACK: ${{ inputs.track }}
+      GAMES: ${{ inputs.games }}
+      MAX_USD: ${{ inputs.max_usd }}
+      MAX_DECISIONS: ${{ inputs.max_decisions }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: List models
+        working-directory: backend
+        run: python -m bench list-models
+
+      - name: Run Acquire Bench
+        id: run
+        working-directory: backend
+        run: |
+          set +e
+          args=(run --protocol acquire-bench-v1 --models "$MODELS" --track "$TRACK"
+                --out "$RUNNER_TEMP/acquire-bench" --json --max-concurrency 4)
+          [ -n "$GAMES" ] && args+=(--games "$GAMES")
+          [ -n "$MAX_USD" ] && args+=(--max-usd "$MAX_USD")
+          [ -n "$MAX_DECISIONS" ] && args+=(--max-decisions "$MAX_DECISIONS")
+          python -m bench "${args[@]}" > "$RUNNER_TEMP/summary.json"
+          code=$?
+          cp "$RUNNER_TEMP/summary.json" "$RUNNER_TEMP/acquire-bench/summary.json" 2>/dev/null || true
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          if [ -f "$RUNNER_TEMP/acquire-bench/report.md" ]; then
+            cat "$RUNNER_TEMP/acquire-bench/report.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          # 0 = complete, 1 = partial (budget stop / stalled game): keep the
+          # results either way; 2 = configuration error (e.g. missing key).
+          if [ "$code" -eq 2 ]; then exit 2; fi
+          exit 0
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acquire-bench-${{ github.run_id }}
+          path: ${{ runner.temp }}/acquire-bench
+          if-no-files-found: warn
+          retention-days: 90

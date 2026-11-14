@@ -257,7 +257,9 @@ with no `Agent`; the driver simply waits for their message.
 
 ## Server (`backend/main.py` + `backend/seats.py`)
 
-Module layout: `protocol.py` (pydantic validation of client messages),
+Module layout: `agents/driving.py` (the pure driver rules shared with
+`bench/`: answer check, fallback category and answer, timeouts),
+`protocol.py` (pydantic validation of client messages),
 `broadcast.py` (every server -> client message), `seats.py` (per-room lock,
 driver, the one action path), `lifecycle.py` (start / host-forced end),
 `api/rooms.py`, `api/ws.py`, `api/testmode.py` (routers), `app_state.py`
@@ -331,7 +333,7 @@ driver, the one action path), `lifecycle.py` (start / host-forced end),
 - `game_state` (JSON-safe; `pending_action` is not sent): per player
   `name, money, stocks, hand_size, kind, is_bot, agent_label`; top level
   `board, hotel, turn_order, current_player, phase, tiles_remaining,
-  pending_trades, awaiting`; to each player also `your_hand`,
+  pending_trades, awaiting, game_id`; to each player also `your_hand`,
   `tile_playability`, `end_game_available`, `incoming_trades`,
   `outgoing_trades`. `awaiting` is the agent decision being thought about, else
   the flow decision (`kind` may be `human`), else null.
@@ -371,75 +373,156 @@ offered nor accepted).
 Every game — live or benchmark — writes a complete transcript: every engine
 event, every decision by every seat, and for LLM seats exactly what the model
 was shown and exactly what it returned, including rejected attempts. The same
-writer is used by the server driver and by the benchmark runner.
+writer (`backend/transcripts/writer.py`, `TranscriptWriter`) is used by the
+server driver and by the benchmark runner.
 
 ### Storage
 
 One JSON Lines file per game: `<ACQUIRE_TRANSCRIPT_DIR>/<game_id>.jsonl`
-(default `backend/data/transcripts/`, git-ignored; `game_id` is a URL-safe
-unique id). Lines, in order:
+(default `backend/data/transcripts/`, git-ignored; empty or `off` disables
+transcripts; `game_id` is URL-safe, unique and time-sortable, e.g.
+`20261114-153012-a1b2c3d4`, matching `[A-Za-z0-9][A-Za-z0-9_-]{0,95}`).
+Benchmark runs write to `<results dir>/transcripts/`. Next to each file a small
+`<game_id>.summary.json` (written at open and at close) lets listings avoid
+parsing transcripts; it is rebuilt from the transcript when missing or stale.
+Lines, in order:
 
 ```jsonc
 {"type":"header","transcript_version":1,"game_id":"...","source":"live"|"bench",
  "room_code":"ABCD"|null,
- "bench":{"series_id":"...","matchup":"...","seed":1,"rotation":0}|null,
- "started_at":"<ISO-8601 UTC>","seed":1|null,
- "seats":[{"player_id","name","kind","agent_id"|null,"agent_label"|null,"model"|null}],
- "prompt_version":"<hash of the system prompt + prompt builder version>",
- "system_prompts":{"<id>":"<full system prompt text>"}}
+ "bench":{"series_id":"...","matchup":"...","seed":1,"rotation":0,
+          "protocol":"acquire-bench-v1"|absent,"track":"vs-baseline"|...,"prompt_version":"...",
+          "series_games":72,"seating_index":0,"lineup":[...]}|null,
+ "started_at":"<ISO-8601 UTC>","seed":1|null,"tile_order":[...]|null,
+ "seats":[{"player_id","name","kind","agent_id"|null,"agent_label"|null,"model"|null,"is_bot"}],
+ "prompt_version":"v1-<10 hex>",
+ "system_prompts":{"sp-<12 hex>":"<full system prompt text>"},   // {} without LLM seats
+ "loaded_from_snapshot":false,"start_seq":0}
 
-{"type":"event", ...the engine event verbatim (seq, type, player_id, private_to, payload)}
+{"type":"event","event":{...the engine event verbatim: seq, type, player_id, private_to, payload}}
 
 {"type":"decision","index":0,"after_seq":12,"player_id":"...","kind":"place_tile",
- "legal":{...legal_actions()...},"action":{...the action that was applied...},
+ "legal":{...legal_actions()...}|null,"action":{...the action that was applied...},
  "source":"human"|"bot"|"scripted"|"llm"|"fallback",
- "fallback":{"reason":"timeout|error|illegal|cap","message":"..."}|null,
- "latency_s":1.23,
- "llm":{"model":"...","system_prompt_id":"...","user_prompt":"<full text>",
-        "attempts":[{"raw":"<full model output>","parsed":{...}|null,
-                     "error":"<why it was rejected>"|null,"latency_s":0.9,
+ "fallback":{"reason":"timeout|error|illegal|cap","message":"...","detail":"<raw failure>"}|null,
+ "latency_s":1.23|null,
+ "llm":{"model":"...","system_prompt_id":"sp-...","user_prompt":"<full text>",
+        "attempts":[{"raw":"<full model output>"|null,"parsed":{...}|null,
+                     "error":"<why it was rejected>"|null,"latency_s":0.9|null,
                      "input_tokens":0,"output_tokens":0,"cache_read_tokens":0,
+                     "cache_write_tokens":0,
                      "retry_prompt":"<full text of the retry message>"|null}],
-        "why":"...","note":"..."}|null}
+        "why":"..."|null,"note":"..."|null,
+        "outcome":"answered"|"failed","error":"<why the agent gave up>"|absent,
+        "system_prompt":"<text>"|absent}|null}
 
-{"type":"state","after_seq":13,"public":{...game.get_public_state()...}}   // after every applied action
+{"type":"state","after_seq":13,"public":{...game.get_public_state()...}}
 
 {"type":"footer","ended_at":"...","reason":"declared|no_playable_tiles|forced|abandoned",
+ "detail":"..."|absent,
  "standings":[{"player_id","name","rank","score"}],
  "totals":{"<player_id>":{"decisions","llm_calls","retries","fallbacks",
-           "input_tokens","output_tokens","cost_usd"|null,"latency_s"}}}
+           "input_tokens","output_tokens","cache_read_tokens","cache_write_tokens",
+           "cost_usd"|null,"latency_s"}}}
 ```
 
-Human decisions are recorded too (source `human`, `llm: null`). Nothing is
-sampled or truncated. A game with no footer is unfinished/abandoned.
+Semantics clients rely on:
+
+* **Event lines are wrapped** (`{"type":"event","event":{...}}`), on disk and
+  over HTTP: the engine event has its own `type` key.
+* **Order.** Entries are in file order. A `decision` line is written right
+  after its action was applied and BEFORE the events that action produced;
+  its `after_seq` is the seq of the last event before the action. The `state`
+  line follows the action's events; its `after_seq` is the last seq included.
+  So a viewer pairs `decision -> its events -> state` by walking in order.
+  The file starts with the header, the `start_game` events and one `state`.
+  Mutations that are not seat actions (host-forced end) write their events
+  and a `state` with no decision.
+* Every applied action of every seat is recorded once, through the server's
+  one action path (`seats.apply_and_publish`) or the bench runner: human
+  actions too (`source: "human"`, `llm: null`; `kind` is the decision the
+  action answered, `out_of_turn` for a trade proposal/cancel outside one,
+  `legal` then null). A human `buy_stocks` followed by the server's automatic
+  `end_turn` is two decisions. A `propose_trade` without `trade_id` is
+  recorded with the id the engine assigned. Replaying the `decision.action`
+  list through a fresh `Game(seed, tile_order)` with the header's seats (in
+  order, `is_bot` as given) reproduces the game exactly
+  (`transcripts/replay.py`), except for `loaded_from_snapshot` transcripts and
+  a host-forced end.
+* `llm` attempts span the whole decision, including the driver's `rejected=`
+  re-asks: an answer the engine/driver refused carries that error; an attempt
+  cut off by the decision timeout has `raw: null` and an error saying so. When
+  the rules-based player decided, `source` is `fallback`, `fallback` gives the
+  reason, `action` is the bot's action and `llm` still holds the failed
+  attempts. `system_prompt_id` refers to `header.system_prompts`; a prompt not
+  in the header (a custom agent) is stored inline once as
+  `llm.system_prompt`.
+* **Retries** = number of attempts with a non-null `error` (also in
+  `totals.retries` and the leaderboard's `retry_rate`). `llm_calls` counts
+  attempts with a model answer (`raw` not null).
+* `cost_usd` is from `backend/bench/prices.json`: `0` for seats that used no
+  tokens (humans, bots), null when a price is unknown.
+* Snapshot loads (test mode) close the room's previous transcript with reason
+  `abandoned` and start a new one at the loaded state
+  (`loaded_from_snapshot: true`, `start_seq` = first event written). An
+  aborted or stalled bench game is closed `abandoned` with `detail`.
+
+Nothing is sampled or truncated. A game with no footer is unfinished.
+Writing never breaks a game: errors are logged once and the writer disables
+itself. Lines are flushed one by one, so a crash leaves a valid file without
+footer.
 
 ### Privacy rule
 
 While a game is unfinished, transcripts served over HTTP are **redacted**:
-events with `private_to` set, and each decision's `llm.user_prompt`,
-`attempts[].raw`, `attempts[].retry_prompt`, `why`, `note` and the tile lists
-inside `legal` are removed (they reveal hands and private plans). After the
-footer is written the full transcript is public. Files on disk are always full.
 
-### HTTP (also under `/api`)
+* removed: events with `private_to` set; each decision's `llm.user_prompt`,
+  `llm.why`, `llm.note`, `llm.error`, `attempts[].raw`,
+  `attempts[].retry_prompt`, `fallback.detail`, and `legal.tiles` (the tile
+  list of a `place_tile` decision);
+* blanked, key kept: `attempts[].parsed` -> null, a non-null
+  `attempts[].error` -> `"rejected (details are shown when the game is
+  over)"` (both can name a tile in hand), plus `attempts[].rejected: bool`;
+  the header's `seed` and `tile_order` -> null (either one determines every
+  hand and the whole bag).
+
+After the footer is written the full transcript is public. Files on disk are
+always full. The static system prompt (public rules) stays visible.
+
+### HTTP (also under `/api`; `backend/api/games.py`)
 
 | Route | Returns |
 |-------|---------|
-| `GET /games?source=live\|bench&limit=50&before=<id>` | `{"games":[{"game_id","source","status":"live\|finished\|abandoned","started_at","ended_at"\|null,"room_code"\|null,"series_id"\|null,"seats":[{"player_id","name","kind","agent_label","model"}],"winners":[player_id],"turns":int}]}` newest first |
-| `GET /games/{game_id}` | that summary plus `standings` and `totals` |
-| `GET /games/{game_id}/transcript` | `{"header":{...},"entries":[...event/decision/state lines in order...],"footer":{...}\|null,"redacted":bool}` |
-| `GET /bench/leaderboard?protocol=<id>` | `{"protocol":{"id","description","players","games_per_matchup","seeds"},"updated_at","agents":[{"agent_id","label","model","games","wins","win_rate","ci_low","ci_high","mean_rank","rating","rating_ci","fallback_rate","retry_rate","tokens_per_game","cost_per_game"\|null,"latency_p50_s","verdict"}],"series":[{"series_id","matchup","games","started_at","finished":bool}]}` |
-| `GET /bench/series/{series_id}` | `{"series_id","matchup","protocol","games":[{"game_id","seed","rotation","standings":[...]}]}` |
+| `GET /games?source=live\|bench&limit=50&before=<id>` | `{"games":[{"game_id","source","status":"live\|finished\|abandoned","started_at","ended_at"\|null,"room_code"\|null,"series_id"\|null,"seats":[{"player_id","name","kind","agent_label","model"}],"winners":[player_id],"turns":int}],"next":"<game_id>"\|null}` newest first; `next` is the `before` cursor of the next page (null on the last page); an unknown `before` id gives an empty page; `limit` 1..500 |
+| `GET /games/{game_id}` | that summary plus `standings`, `totals`, `end_reason`, `prompt_version`, `bench`, `loaded_from_snapshot` |
+| `GET /games/{game_id}/transcript` | `{"header":{...},"entries":[...event/decision/state lines in order...],"footer":{...}\|null,"redacted":bool}`, plus `live_totals` (footer-shaped totals so far) while unfinished. gzip when the client accepts it. |
+| `GET /bench/leaderboard?protocol=<id>&prompt_version=<v>&track=all\|vs-baseline\|head-to-head` | `{"protocol":{"id","description","players","games_per_matchup","seeds"},"prompt_version","track","updated_at"\|null,"games","agents":[{"agent_id","label","model","games","seat_games","wins","win_rate","ci_low","ci_high","mean_rank","rating","rating_ci":[lo,hi]\|null,"fallback_rate","retry_rate","tokens_per_game","cost_per_game"\|null,"latency_p50_s"\|null,"verdict","decisions","is_anchor"}],"series":[{"series_id","matchup","track","games","planned","started_at","finished":bool,"full_protocol":bool}],"available":{"protocols","prompt_versions"},"rating":{...method...},"warnings":[...]}`. Defaults: the protocol and prompt version of the most recent result. Empty results: the default protocol with `agents: []`, `series: []`, `updated_at: null`. |
+| `GET /bench/series/{series_id}` | `{"series_id","matchup","protocol","track","prompt_version","planned","games":[{"game_id","seed","rotation","status","seat_order","standings":[{"player_id","name","agent_id","rank","score"}]}]}` (`rotation` = seating index) |
 
-The game-over message and `game_state` carry `game_id` so clients can link to
-`/games/{game_id}`.
+Unknown ids/protocols are JSON 404s; ids are validated before any file access.
+`status`: `finished` = footer (reason not `abandoned`); `abandoned` = footer
+with reason `abandoned`, or no footer and the game is not running (a live game
+not in this server process; a bench transcript not modified for 15 min);
+`live` otherwise. Leaderboard rows: rates and CI bounds are 0..1, the
+rules-based bot row has `cost_per_game: 0` (null means an unknown price),
+`verdict` is display text. A browser navigation (`Accept: text/html`) to a bare
+`/games...` or `/bench...` path gets the SPA's `index.html` when the frontend is
+served, so those can be client-side routes too; API clients use `/api/...`.
+
+The game-over message and every `game_state` carry `game_id` so clients can
+link to `/games/{game_id}`.
 
 ### Acquire Bench
 
-A named, versioned protocol (`acquire-bench-v1`): fixed seed list, 4 seats,
-full seat rotation, fixed prompt version, and two tracks — **vs-baseline**
-(one model against three rules-based bots) and **head-to-head** (models of
-different strength in the same game). Results are only comparable within a
-protocol id + prompt version; the leaderboard never mixes them. Ratings are
-computed from finishing order across all games of a protocol; every
-leaderboard row links to its games' transcripts.
+A named, versioned protocol (`acquire-bench-v1`, `backend/bench/protocols.py`):
+fixed seed list (9001-9018), 4 seats, every distinct seating of each lineup
+played on the same deal, 72 games per series, prompt version recorded in
+every result — and two tracks — **vs-baseline** (one model against three
+rules-based bots) and **head-to-head** (the models in one game, bots filling
+empty seats; more than 4 models: every 4-combination). Results are only
+comparable within a protocol id + prompt version; the leaderboard never mixes
+them. Ratings are computed from finishing order across all games of a
+protocol + prompt version (pairwise Bradley-Terry on the Elo scale, the
+rules-based bot anchored at 1500, bootstrap CI over games); every leaderboard
+row links to its games' transcripts via `/bench/series/{id}`. Usage, layout of
+a results directory and the rating method: `docs/ai/benchmarking.md`.

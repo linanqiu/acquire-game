@@ -468,7 +468,9 @@ class TranscriptWriter:
         if entry:
             attempts = entry["attempts"]
             t["llm_calls"] += sum(1 for a in attempts if a.get("raw") is not None)
-            t["retries"] += max(0, len(attempts) - 1)
+            # retries = answers that were rejected (same definition as the
+            # leaderboard's retry_rate)
+            t["retries"] += sum(1 for a in attempts if a.get("error") is not None)
             for k in (
                 "input_tokens",
                 "output_tokens",

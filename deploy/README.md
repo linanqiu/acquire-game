@@ -20,6 +20,19 @@ by `deploy/Dockerfile` (Node stage builds `frontend/`, Python stage runs `backen
 | `ACQUIRE_LLM_CATALOG` | JSON list that replaces the default LLM entries. |
 | `ACQUIRE_LLM_LOG_DIR` | Writes JSONL decision logs with full prompts; leave unset unless debugging (no volume, so ephemeral). |
 | `FRONTEND_DIST` | Override the built-app directory. The image default is correct. |
+| `ACQUIRE_TRANSCRIPT_DIR` | Where every game's transcript (`<game_id>.jsonl`, served at `/games`) is written. Default `backend/data/transcripts/` inside the container; empty or `off` disables transcripts. Point it at a mounted volume (below) to keep them. |
+| `ACQUIRE_BENCH_DIR` | Benchmark results served at `/bench/leaderboard`, `/bench/series/...` and `/games?source=bench`: one results directory from `python -m bench run --out ...`, or a parent of several. Default `backend/bench_results/`. |
+
+**Transcripts and the disk.** Railway's container disk is ephemeral: every
+redeploy or restart wipes `backend/data/transcripts/`, so finished-game
+transcripts and the game list at `/games` start empty again. To keep them,
+add a Railway volume (service Settings, Volumes, e.g. mounted at `/data`) and
+set `ACQUIRE_TRANSCRIPT_DIR=/data/transcripts` (and, if you publish benchmark
+results, copy a results directory there and set
+`ACQUIRE_BENCH_DIR=/data/bench`). A fake-LLM or bot game is about 1-2 MB of
+JSONL (an LLM game with real prompts is larger); plan the volume size or
+prune old files. Files are written line by line, so a restart mid-game leaves
+an unfinished transcript that the list shows as `abandoned`.
 
 `PORT` is injected by Railway. Without an LLM key the LLM entries show as
 unavailable and bots still work.

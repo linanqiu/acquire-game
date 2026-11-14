@@ -28,7 +28,8 @@ from transcripts.paths import valid_game_id
 from transcripts.writer import SUMMARY_SUFFIX, dumps
 
 _REDACT_LLM = ("user_prompt", "why", "note", "error")
-_REDACT_ATTEMPT = ("raw", "retry_prompt", "parsed", "error")
+_REDACT_ATTEMPT = ("raw", "retry_prompt")
+HIDDEN_ERROR = "rejected (details are shown when the game is over)"
 _REDACT_HEADER = ("seed", "tile_order")
 _SUMMARY_KEYS = (
     "game_id",
@@ -150,10 +151,12 @@ def redact(transcript: dict) -> dict:
     """Copy of ``transcript`` with what reveals hands or private plans removed.
 
     Removed: events with ``private_to``; per decision ``llm.user_prompt``,
-    ``llm.why``, ``llm.note``, ``llm.error``, each attempt's ``raw``,
-    ``retry_prompt``, ``parsed`` and ``error`` (replaced by ``rejected:
-    bool``), and the tile lists inside ``legal``; the header's ``seed`` and
-    ``tile_order`` (either one determines every hand and the whole bag).
+    ``llm.why``, ``llm.note``, ``llm.error``, each attempt's ``raw`` and
+    ``retry_prompt``, ``fallback.detail`` and the tile lists inside ``legal``. Blanked (key kept,
+    so clients need no special case): each attempt's ``parsed`` -> null and a
+    non-null ``error`` -> a generic text (both can name a tile in hand; the
+    attempt also gets ``rejected: bool``), and the header's ``seed`` and
+    ``tile_order`` -> null (either one determines every hand and the bag).
     """
     out = {
         "header": copy.deepcopy(transcript.get("header")),
@@ -162,7 +165,8 @@ def redact(transcript: dict) -> dict:
     }
     if out["header"]:
         for k in _REDACT_HEADER:
-            out["header"].pop(k, None)
+            if k in out["header"]:
+                out["header"][k] = None
     for e in transcript.get("entries", []):
         if e.get("type") == "event":
             if (e.get("event") or {}).get("private_to"):
@@ -173,6 +177,9 @@ def redact(transcript: dict) -> dict:
             out["entries"].append(e)
             continue
         d = dict(e)
+        if isinstance(d.get("fallback"), dict) and "detail" in d["fallback"]:
+            # the raw failure text can quote a tile in hand
+            d["fallback"] = {k: v for k, v in d["fallback"].items() if k != "detail"}
         legal = d.get("legal")
         if isinstance(legal, dict) and "tiles" in legal:
             d["legal"] = {k: v for k, v in legal.items() if k != "tiles"}
@@ -181,11 +188,55 @@ def redact(transcript: dict) -> dict:
             llm = {k: v for k, v in llm.items() if k not in _REDACT_LLM}
             llm["attempts"] = [
                 {k: v for k, v in a.items() if k not in _REDACT_ATTEMPT}
-                | {"rejected": a.get("error") is not None}
+                | {
+                    "parsed": None,
+                    "error": None if a.get("error") is None else HIDDEN_ERROR,
+                    "rejected": a.get("error") is not None,
+                }
                 for a in llm.get("attempts") or []
             ]
             d["llm"] = llm
         out["entries"].append(d)
+    return out
+
+
+def totals_from_entries(transcript: dict) -> dict:
+    """Per-seat totals recomputed from decision lines (unfinished games not
+    running in this process). ``cost_usd`` is null (unknown here)."""
+    seats = (transcript.get("header") or {}).get("seats") or []
+    out = {
+        s["player_id"]: {
+            "decisions": 0,
+            "llm_calls": 0,
+            "retries": 0,
+            "fallbacks": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
+            "cost_usd": None,
+            "latency_s": 0.0,
+        }
+        for s in seats
+    }
+    for e in transcript.get("entries", []):
+        if e.get("type") != "decision" or e.get("player_id") not in out:
+            continue
+        t = out[e["player_id"]]
+        t["decisions"] += 1
+        t["fallbacks"] += int(e.get("source") == "fallback")
+        if e.get("latency_s") is not None and e.get("source") != "human":
+            t["latency_s"] = round(t["latency_s"] + float(e["latency_s"]), 4)
+        attempts = (e.get("llm") or {}).get("attempts") or []
+        t["llm_calls"] += sum(1 for a in attempts if a.get("raw") is not None)
+        t["retries"] += sum(1 for a in attempts if a.get("error") is not None)
+        for k in (
+            "input_tokens",
+            "output_tokens",
+            "cache_read_tokens",
+            "cache_write_tokens",
+        ):
+            t[k] += sum(int(a.get(k) or 0) for a in attempts)
     return out
 
 
@@ -357,6 +408,11 @@ class TranscriptStore:
         if t["footer"] is None:
             out = redact(t)
             out["redacted"] = True
+            out["live_totals"] = (
+                live.final_totals()
+                if live is not None and not getattr(live, "closed", True)
+                else totals_from_entries(t)
+            )
             return out
         t["redacted"] = False
         return t

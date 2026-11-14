@@ -3,14 +3,18 @@
 Plays one full game with no server and no sockets, making each decision the
 way the server's seat driver (``seats._drive_loop``) does:
 
-    pending_decisions -> build_context -> agent.decide (timeout)
-      -> check (``seats._check``) -> heuristic fallback -> apply_action
+    pending_decisions -> build_context -> agent.decide (timeout; an illegal
+      answer is sent back to agents that accept rejections, within their
+      retry and time budget) -> check -> heuristic fallback -> apply_action
 
-The pure pieces (``_check``, ``_category``, ``_timeout_for``) are imported
-from ``seats`` so validation, per-turn caps, timeouts and fallback categories
-cannot drift. What is mirrored (because the original needs a room): decision
-picking (trade responses addressed to agents first, then the flow decision),
-and the fallback candidate order (HeuristicAgent, then ``default_action``).
+The pure pieces (answer check, fallback category, timeouts, fallback answer)
+come from ``agents.driving``, shared with the server, so they cannot drift;
+this module does not import the web server. Mirrored here because the
+original needs a room: decision picking (trade responses first, then the flow
+decision) and the lock-free re-ask loop.
+
+Every game can write a transcript (``transcript_dir``): the same
+``TranscriptWriter`` the server uses, ``source: "bench"``.
 """
 
 from __future__ import annotations
@@ -20,23 +24,31 @@ import statistics
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from agents import registry
-from agents.base import Agent, build_context
-from agents.heuristic import HeuristicAgent
-from agents.scripted import default_action
-from bench.prices import PriceTable
-from game.decisions import (
-    TRADE_RESPONSE,
-    apply_action,
-    pending_decisions,
-    validate_action,
+from agents.base import Agent, accepts_rejections, build_context
+from agents.driving import (
+    PUBLIC_REASON,
+    SOURCE_FOR_KIND,
+    category,
+    check_answer,
+    describe_fallback,
+    fallback_action,
+    llm_record,
+    timeout_for,
 )
+from agents.heuristic import HeuristicAgent
+from bench.prices import PriceTable
+from game.decisions import TRADE_RESPONSE, apply_action, pending_decisions
 from game.game import Game, GamePhase
-from seats import _category, _check, _timeout_for
+from transcripts.paths import new_game_id, utc_now
+from transcripts.writer import TranscriptWriter
 
-# (label, factory) lets callers inject an Agent built fresh for every game.
+# A seat: a catalog id ("bot", "llm:..."), an Agent instance (reused for every
+# game: fine for stateless agents and concurrency 1), or ``(label, factory)``
+# where ``factory()`` builds a fresh Agent per game (preferred).
 SeatSpec = str | Agent | tuple[str, Callable[[], Agent]]
 
 MAX_DECISIONS_PER_GAME = 20_000  # runaway guard; a real game is ~1-2k
@@ -58,6 +70,16 @@ def seat_label(spec: SeatSpec) -> str:
 
 def matchup_label(seats: list[SeatSpec]) -> str:
     return ",".join(seat_label(s) for s in seats)
+
+
+def display_label(spec: SeatSpec) -> str:
+    """Human-readable label: the catalog label for catalog ids."""
+    if isinstance(spec, str):
+        if spec == "bot":
+            return "Rules-based bot"
+        entry = registry.entry(spec)
+        return (entry or {}).get("label") or spec
+    return seat_label(spec)
 
 
 def build_agent(spec: SeatSpec, *, pos: int, seed: int) -> Agent:
@@ -97,8 +119,8 @@ class SeatStats:
     decisions: int = 0
     fallbacks: int = 0
     fallback_reasons: dict[str, int] = field(default_factory=dict)
-    repairs: int = 0  # decisions whose first answer was illegal (agent-reported)
-    retries: int = 0  # extra model calls spent on illegal answers (agent-reported)
+    repairs: int = 0  # decisions whose first answer was rejected
+    retries: int = 0  # rejected answers (agent-internal and engine re-asks)
     calls: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
@@ -134,6 +156,11 @@ class GameRecord:
     detail: str | None = None
     key: str = ""
     matchup: str = ""
+    game_id: str | None = None
+    transcript: str | None = None  # path of the transcript file (None: off)
+    started_at: str | None = None
+    finished_at: str | None = None
+    seat_labels: list[str] = field(default_factory=list)  # display labels
 
     @property
     def decisions(self) -> int:
@@ -151,12 +178,17 @@ class GameRecord:
             "status": self.status,
             "detail": self.detail,
             "seat_order": self.seat_order,
+            "seat_labels": self.seat_labels,
             "standings": self.standings,
             "winners": self.winners,
             "turns": self.turns,
             "end_reason": self.end_reason,
             "decisions": self.decisions,
             "seats": [s.to_dict() for s in self.seats],
+            "game_id": self.game_id,
+            "transcript": self.transcript,
+            "started_at": self.started_at,
+            "finished_at": self.finished_at,
         }
 
 
@@ -181,16 +213,6 @@ def _pick(game: Game):
     return decisions[0]
 
 
-def _fallback_action(game: Game, decision, ctx, heuristic: HeuristicAgent):
-    for candidate in (heuristic.choose(ctx), default_action(ctx)):
-        if (
-            candidate.get("action") in ctx.legal.get("action_types", [])
-            and validate_action(game, decision.player_id, candidate) is None
-        ):
-            return candidate
-    return None
-
-
 def counts_for(game: Game, decision, turn_counts: dict) -> dict:
     key = (
         sum(1 for e in game.events if e["type"] == "turn_ended"),
@@ -200,34 +222,75 @@ def counts_for(game: Game, decision, turn_counts: dict) -> dict:
 
 
 async def _obtain(agent, game: Game, decision, ctx, counts: dict):
-    """Ask ``agent`` and check its answer: ``(action, failure, elapsed_s)``.
+    """Ask ``agent`` and check its answer, re-asking like the server driver.
 
-    The ONE place that mirrors the server driver's decide -> check step. If the
-    driver gains a re-ask loop (``agent.decide(ctx, rejected=[...])`` after an
-    illegal answer or an engine refusal), add it here, or call the driver's
-    function once it exists. Retry counts reach the report through the agent's
-    ``totals`` (read defensively in ``run_game``), not through this function.
+    Returns ``(action, failure, elapsed_s, rejected)``: ``failure`` is None for
+    a legal answer; ``rejected`` lists the answers the driver refused and sent
+    back (agents that accept rejections; retry budget ``1 +
+    max_illegal_retries`` answers, one deadline for the whole decision).
     """
-    action: Any = None
-    failure: str | None = None
     started = time.monotonic()
-    try:
-        action = await asyncio.wait_for(agent.decide(ctx), _timeout_for(agent))
-    except asyncio.TimeoutError:
-        failure = f"timeout after {time.monotonic() - started:.1f}s"
-    except asyncio.CancelledError:
-        raise
-    except Exception as e:  # noqa: BLE001 - any agent failure falls back
-        failure = f"error: {type(e).__name__}: {e}"[:300]
-    elapsed = time.monotonic() - started
-    if failure is None:
-        failure = _check(game, decision, ctx, action, counts)
-    return action, failure, elapsed
+    deadline = started + timeout_for(agent)
+    retry_ok = accepts_rejections(agent)
+    max_answers = 1 + max(0, int(getattr(agent, "max_illegal_retries", 0) or 0))
+    rejected: list[dict] = []
+    while True:
+        action: Any = None
+        failure: str | None = None
+        remaining = deadline - time.monotonic()
+        try:
+            if remaining <= 0:
+                raise asyncio.TimeoutError
+            if retry_ok:
+                kwargs: dict = {"deadline": deadline}
+                if rejected:
+                    kwargs["rejected"] = list(rejected)
+            else:
+                kwargs = {}
+            action = await asyncio.wait_for(agent.decide(ctx, **kwargs), remaining)
+        except asyncio.TimeoutError:
+            failure = f"timeout after {time.monotonic() - started:.1f}s"
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:  # noqa: BLE001 - any agent failure falls back
+            reason = getattr(e, "reason", None) or "error"
+            if reason == "timeout":
+                failure = f"timeout after {time.monotonic() - started:.1f}s"
+            elif reason == "illegal":
+                failure = f"illegal: {e}"[:300]
+            else:
+                failure = f"error: {type(e).__name__}: {e}"[:300]
+        if failure is None:
+            failure = check_answer(game, decision, ctx, action, counts)
+            if (
+                failure is not None
+                and category(failure) == "illegal"
+                and retry_ok
+                and len(rejected) + 1 < max_answers
+            ):
+                rejected.append({"action": action, "error": failure})
+                continue
+        return action, failure, time.monotonic() - started, rejected
 
 
 def _snapshot(agent: Any) -> dict | None:
     totals = getattr(agent, "totals", None)
     return dict(totals) if isinstance(totals, dict) else None
+
+
+def _prompt_info(agents: list, prompt_version: str | None) -> tuple[str | None, dict]:
+    """Header ``prompt_version`` and ``system_prompts`` (text only when an
+    LLM seat plays)."""
+    try:
+        from agents.llm.prompt import build_system_prompt, system_prompt_id
+        from agents.llm.prompt import prompt_version as current
+    except ImportError:  # pragma: no cover
+        return prompt_version, {}
+    version = prompt_version or current()
+    if not any(getattr(a, "kind", "") == "llm" for a in agents):
+        return version, {}
+    text = build_system_prompt()
+    return version, {system_prompt_id(text): text}
 
 
 async def run_game(
@@ -237,18 +300,25 @@ async def run_game(
     prices: PriceTable | None = None,
     stop: Callable[[], bool] | None = None,
     observer: Callable[[dict], None] | None = None,
+    transcript_dir: str | Path | None = None,
+    bench_meta: dict | None = None,
+    prompt_version: str | None = None,
+    game_id: str | None = None,
 ) -> GameRecord:
     """Play one game headlessly.
 
     ``seats`` are in seating (turn) order. ``stop`` is polled before every
     decision; when it returns True the game is abandoned with status
     ``aborted``. ``observer`` gets ``{"kind", "usd"}`` after each decision
-    (used by the series budget guard).
+    (used by the series budget guard). With ``transcript_dir`` a transcript
+    ``<transcript_dir>/<game_id>.jsonl`` is written (``bench_meta`` becomes the
+    header's ``bench`` object: series_id, matchup, seed, rotation, ...).
     """
     prices = prices or PriceTable.load()
     n = len(seats)
     agents = [build_agent(spec, pos=i, seed=seed) for i, spec in enumerate(seats)]
     labels = [seat_label(s) for s in seats]
+    shown = [display_label(s) for s in seats]
     ids = [f"p{i + 1}" for i in range(n)]
     stats = [
         SeatStats(
@@ -265,11 +335,39 @@ async def run_game(
         for i in range(n)
     }
     by_id = {ids[i]: i for i in range(n)}
+    started_at = utc_now()
+    game_id = game_id or new_game_id()
 
     game = Game(seed=seed)
     for i in range(n):
         game.add_player(ids[i], f"Seat {i + 1}", is_bot=True)
     game.start_game()
+
+    writer = None
+    if transcript_dir is not None:
+        version, prompts = _prompt_info(agents, prompt_version)
+        writer = TranscriptWriter.open(
+            game,
+            seats=[
+                {
+                    "player_id": ids[i],
+                    "name": f"Seat {i + 1}",
+                    "kind": stats[i].kind,
+                    "agent_id": labels[i],
+                    "agent_label": shown[i],
+                    "model": stats[i].model,
+                    "is_bot": True,
+                }
+                for i in range(n)
+            ],
+            source="bench",
+            directory=transcript_dir,
+            game_id=game_id,
+            bench={"seed": seed, **(bench_meta or {})},
+            prompt_version=version,
+            system_prompts=prompts,
+            prices=prices,
+        )
 
     turn_counts: dict[tuple, dict] = {}
     status, detail = "completed", None
@@ -293,26 +391,40 @@ async def run_game(
         before = _snapshot(agent)
 
         counts = counts_for(game, decision, turn_counts)
-        action, failure, elapsed = await _obtain(agent, game, decision, ctx, counts)
+        action, failure, elapsed, rejected = await _obtain(
+            agent, game, decision, ctx, counts
+        )
+        source = SOURCE_FOR_KIND.get(st.kind, st.kind)
+        fallback = None
         if failure is not None:
-            category = _category(failure)
+            cat = category(failure)
             st.fallbacks += 1
-            st.fallback_reasons[category] = st.fallback_reasons.get(category, 0) + 1
+            st.fallback_reasons[cat] = st.fallback_reasons.get(cat, 0) + 1
             note = getattr(agent, "note_fallback", None)
             if callable(note):
                 note(failure)
-            action = _fallback_action(
+            action = fallback_action(
                 game, decision, ctx, heuristics[decision.player_id]
             )
             if action is None:
                 status, detail = "stalled", f"no legal fallback for {decision.kind}"
                 break
+            reason = PUBLIC_REASON.get(cat, "error")
+            source = "fallback"
+            fallback = {
+                "reason": reason,
+                "message": describe_fallback(
+                    shown[i], reason, len(rejected) + 1, elapsed
+                ),
+                "detail": failure,
+            }
+        after_seq = len(game.events) - 1
         result = apply_action(game, decision.player_id, action)
         if not result.get("success"):
             # validated but refused by the engine: engine/validator mismatch
             st.fallbacks += 1
             st.fallback_reasons["engine"] = st.fallback_reasons.get("engine", 0) + 1
-            action = _fallback_action(
+            action = fallback_action(
                 game, decision, ctx, heuristics[decision.player_id]
             )
             result = (
@@ -326,20 +438,47 @@ async def run_game(
                     f"engine rejected every answer for {decision.kind}",
                 )
                 break
+            source = "fallback"
+            fallback = {
+                "reason": "illegal",
+                "message": "the engine refused a validated answer; "
+                "the rules-based player made this move",
+                "detail": "engine mismatch",
+            }
+
+        llm = llm_record(agent, ctx)
+        if writer is not None:
+            writer.record_decision(
+                player_id=decision.player_id,
+                kind=decision.kind,
+                legal=ctx.legal,
+                action=action,
+                source=source,
+                after_seq=after_seq,
+                fallback=fallback,
+                latency_s=elapsed,
+                llm=llm,
+            )
 
         # accounting
         st.decisions += 1
         st.latency_total_s += elapsed
         if st.kind != "bot":
             st.latencies_ms.append(round(elapsed * 1000, 2))
+        if llm is not None:
+            bad = sum(1 for a in llm.get("attempts") or [] if a.get("error"))
+        else:
+            bad = len(rejected) + (
+                1 if failure and category(failure) == "illegal" else 0
+            )
+        st.retries += bad
+        st.repairs += int(bad > 0)
         usd: float | None = 0.0
         after = _snapshot(agent)
         if before is not None and after is not None:
             delta = {k: after.get(k, 0) - before.get(k, 0) for k in _TOKEN_FIELDS}
             for k in _TOKEN_FIELDS:
                 setattr(st, k, getattr(st, k) + delta[k])
-            st.repairs += after.get("repairs", 0) - before.get("repairs", 0)
-            st.retries += after.get("retries", 0) - before.get("retries", 0)
             st.calls += after.get("calls", 0) - before.get("calls", 0)
             usd = prices.cost(st.model, *(delta[k] for k in _TOKEN_FIELDS))
         counts["actions"] += 1
@@ -370,7 +509,6 @@ async def run_game(
                 st.cache_write_tokens,
             )
 
-    scores = [p.money for p in game.players] if status == "completed" else [0] * n
     standings: list[dict] = []
     winners: list[int] = []
     if status == "completed":
@@ -387,6 +525,12 @@ async def run_game(
         best = max(scores)
         winners = [i for i in range(n) if scores[i] == best]
 
+    if writer is not None:
+        if status == "completed":
+            writer.close_from_game()
+        else:
+            writer.close("abandoned", detail=f"{status}: {detail}")
+
     end_reason = next(
         (e.get("reason") for e in reversed(game.events) if e["type"] == "game_ended"),
         None,
@@ -402,4 +546,9 @@ async def run_game(
         end_reason=end_reason,
         detail=detail,
         matchup=matchup_label(seats),
+        game_id=game_id,
+        transcript=str(writer.path) if writer is not None else None,
+        started_at=started_at,
+        finished_at=utc_now(),
+        seat_labels=shown,
     )

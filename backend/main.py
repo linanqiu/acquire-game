@@ -7,6 +7,8 @@ Layout:
     lifecycle.py       game start / forced end / human action entry
     agents/            heuristic, scripted and LLM seats + catalog registry
     api/rooms.py       HTTP routes
+    api/games.py       transcripts + Acquire Bench (/games, /bench)
+    transcripts/       per-game JSONL transcripts (writer, store, replay)
     api/ws.py          WebSocket routes
     api/testmode.py    /test/* routes (only with ACQUIRE_TEST_MODE=1)
 
@@ -19,6 +21,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
+from api.games import router as games_router
 from api.rooms import router as rooms_router
 from api.ws import router as ws_router
 from app_state import session_manager
@@ -82,6 +85,8 @@ def create_app(frontend_dist: str | Path | None = None) -> FastAPI:
     application.include_router(health_router)
     application.include_router(rooms_router)
     application.include_router(rooms_router, prefix="/api")
+    application.include_router(games_router)
+    application.include_router(games_router, prefix="/api")
     application.include_router(ws_router)
     if test_mode_enabled():
         from api.testmode import router as test_router

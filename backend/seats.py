@@ -41,6 +41,7 @@ from agents.driving import (
     SOURCE_FOR_KIND,
     category,
     check_answer,
+    describe_fallback,
     fallback_action,
     llm_record,
     timeout_for,
@@ -631,41 +632,17 @@ async def _drive_loop(room_code: str) -> None:
             await asyncio.sleep(0)  # let humans' handlers in between actions
 
 
-_REASON_TEXT = {
-    "timeout": "timed out",
-    "error": "had a provider error",
-    "illegal": "kept answering illegally",
-    "cap": "went over the per-turn action limit",
-}
-
-
 def _announcement(room, seat, decision, reason: str, attempts: int, started) -> dict:
     """The ``agent_fallback`` message for a fallback of an LLM seat."""
     label = seat.agent_label or seat.name
     elapsed = time.monotonic() - started
-    if reason == "timeout":
-        what = (
-            f"timed out after {elapsed:.0f} s"
-            if elapsed >= 10
-            else f"timed out after {elapsed:.1f} s"
-        )
-    elif reason == "illegal":
-        what = (
-            f"kept answering illegally after {attempts} tries"
-            if attempts > 1
-            else "gave an illegal answer"
-        )
-    elif reason == "cap":
-        what = "went over the per-turn action limit"
-    else:
-        what = "had a provider error"
     return {
         "player_id": seat.player_id,
         "player_name": seat.name,
         "agent_label": label,
         "reason": reason,
         "decision": decision.kind,
-        "message": f"{label} {what} \u2014 the rules-based player made this move.",
+        "message": describe_fallback(label, reason, attempts, elapsed),
     }
 
 

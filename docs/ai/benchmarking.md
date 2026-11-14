@@ -61,12 +61,13 @@ versus the heuristic bot, reliability, latency, tokens and cost.
 
 It makes decisions the way the server's seat driver (`backend/seats.py`) does:
 `pending_decisions` -> `build_context` -> `agent.decide` (with the per-kind
-timeout) -> `seats._check` (offered action type, `validate_action`, per-turn
-caps) -> heuristic fallback -> `apply_action`. `_check`, `_category` and
-`_timeout_for` are imported from `seats`, so they cannot drift. Mirrored rather
-than imported (they need a room): picking the next decision (trade responses
-addressed to agents first, then the flow decision) and the fallback candidate
-order (`HeuristicAgent`, then `default_action`).
+timeout; an illegal answer is sent back to agents that accept rejections) ->
+`check_answer` (offered action type, `validate_action`, per-turn caps) ->
+heuristic fallback -> `apply_action`. The check, fallback category, fallback
+answer and timeouts live in `agents/driving.py`, shared with the server, so they
+cannot drift, and `import bench` does not import the web server. Mirrored rather
+than shared (the server's version needs a room and a lock): picking the next
+decision (trade responses first, then the flow decision) and the re-ask loop.
 
 ## Running
 
@@ -212,6 +213,218 @@ and is free (0.0). A model that is not in the file counts as unknown.
   optimistic.
 * Games take about 0.7 s of CPU for bots only, dominated by the engine's calculator
   pack (shared with the server). Concurrency helps with LLM latency, not CPU.
-* `bench` needs no running server, but `import bench` still pulls in FastAPI/Starlette because the shared decide/check helpers live in `seats.py`; separating them is part of AB-004.
-* Games are not yet written as transcripts (AB-001), results carry no protocol id (AB-005), and there is no rating or leaderboard (AB-006). `python -m bench` today is the free-form exploration mode and stays available afterwards (its results will be marked `protocol: null`).
-* The runner decide/check step lives in one function (`bench.runner._obtain`). The server driver is moving to re-asking an LLM after an illegal answer (several retries, shared time budget) and falling back only on timeout, provider error or exhausted retries; when that lands, mirror it in `_obtain` (or call the driver function). Retry counts already flow from the agent `totals`, read defensively.
+* Retries: the runner re-asks agents that accept rejections exactly like the server
+  driver (same retry and time budget); retries are counted from the agent's
+  decision record (attempts with an error), so agents without one report only
+  the driver's re-asks.
+* See "Acquire Bench: running the protocol" below for the protocol, transcripts,
+  ratings and the leaderboard.
+
+## Acquire Bench: running the protocol
+
+Implemented (transcripts, protocol, ratings, leaderboard, standalone CLI and
+Python API). Everything here runs without the server.
+
+### Protocol `acquire-bench-v1`
+
+Defined in `backend/bench/protocols.py` (`PROTOCOLS["acquire-bench-v1"]`):
+
+| Pinned | Value |
+|---|---|
+| Seats | 4 |
+| Seeds | 9001-9018 (fixed list) |
+| Series | 72 games: every distinct seating of the lineup is played on the same deal (seed), seed after seed |
+| vs-baseline | per model, lineup `(model, bot, bot, bot)`: 4 seatings x 18 seeds |
+| head-to-head | 2 models + 2 bots: 12 seatings x 6 seeds; 3 models + 1 bot or 4 models: 24 seatings x 3 seeds; more than 4 models: one series per 4-combination |
+| Prompt | `prompt_version` of `agents.llm` (hash of the system prompt + `PROMPT_BUILDER_VERSION`), recorded in every result |
+| Retries / timeouts | the server's: `max_illegal_retries` per catalog entry (default 4), `llm_decision_timeout` (130 s per decision) |
+
+Balance: within a series every entrant sits in every position equally often,
+and in head-to-head every model acts before every other model in exactly half
+the games. `--games N` caps a series (seed-major order); a cap that is not a
+multiple of the seatings unbalances positions and the run says so in
+`warnings`.
+
+**Why 72 games, and what they can and cannot show.** Chance win rate is 25%.
+At 72 games the 95% Wilson interval on a 25% win rate is about +/-10 points,
+and a true 40% win rate is detected with about 80% power (two-sided 5%). A
+true 30% (a 5-point edge) needs about 550 games: this protocol cannot see it,
+and the verdict will read `inconclusive`. Mean rank and the rating use the
+whole finishing order and separate agents sooner than win rate. Rows with
+fewer than 30 games carry `(only N games; need 30+)` in their verdict.
+
+A result is comparable only with results of the same protocol id AND
+prompt version; the leaderboard never mixes them (it lists the other versions
+under `available` and in `warnings`). Changing seeds, seats, schedule or game
+count means a new protocol id; changing what the model sees means bumping
+`PROMPT_BUILDER_VERSION` in `backend/agents/llm/prompt.py` (the system prompt
+text is hashed automatically).
+
+### Standalone CLI
+
+From `backend/`:
+
+```bash
+# offline smoke (fake LLM, no network): ~1 s per game
+ACQUIRE_TEST_MODE=1 python -m bench run --protocol acquire-bench-v1 \
+    --models llm:fake --track vs-baseline --games 4 --out bench_results/smoke --json
+
+# real models (needs ANTHROPIC_API_KEY); both tracks, budget-capped
+python -m bench run --protocol acquire-bench-v1 \
+    --models llm:claude-haiku-5-5,llm:claude-sonnet-5-5 --track both \
+    --out bench_results/claude --max-concurrency 6 --max-decisions 20000
+
+python -m bench leaderboard --out bench_results/claude          # Markdown table
+python -m bench leaderboard --out bench_results/claude --json   # the /bench/leaderboard JSON
+python -m bench list-models [--json]                            # catalog ids + availability
+
+# ad-hoc matchups (exploration; also the old form `python -m bench --matchup ...`)
+python -m bench run --matchup llm:fake,bot,bot,bot --games 8 --out bench_results/adhoc
+```
+
+`run` flags: `--protocol`, `--models` (comma-separated catalog ids),
+`--track vs-baseline|head-to-head|both`, `--games` (cap per series),
+`--out` (results directory, required), `--json`, `--max-concurrency`,
+`--max-usd`, `--max-decisions`, `--prices`, `--fresh`, `--quiet`,
+`--no-transcripts` (transcripts are on by default). Rerunning the same command
+resumes: games already in `results.jsonl` are skipped.
+
+With `--json` stdout carries exactly one JSON document and all progress goes
+to stderr:
+
+```jsonc
+{"status": "complete" | "stopped" | "stalled" | "config_error", "exit_code": 0,
+ "protocol": "acquire-bench-v1", "prompt_version": "v1-...", "tracks": [...],
+ "out": "...", "series": ["<series_id>", ...],
+ "games": {"planned", "ran", "skipped", "aborted", "stalled"},
+ "stopped_reason": null | "--max-decisions N reached",
+ "budget": {"decisions", "usd"}, "warnings": [...],
+ "files": {"results", "transcripts", "leaderboard", "report"},
+ "leaderboard": {...same shape as GET /bench/leaderboard...}}
+```
+
+Exit codes: **0** every planned game finished; **1** partial: stopped by a
+budget (`stopped`) or a game stalled (`stalled`); **2** configuration error:
+unknown or unavailable model (e.g. no `ANTHROPIC_API_KEY`; reported before any
+game starts, with the variable to set), unknown protocol/track, bad flags, or
+`--max-usd` with unknown prices. A config error under `--json` prints
+`{"status": "config_error", "exit_code": 2, "error": "..."}`.
+
+### Python API
+
+```python
+import asyncio
+from bench import run_protocol, run_series, compute_leaderboard, load_results
+
+class MyAgent:                      # any object with kind + async decide(ctx)
+    kind = "llm"                    # "llm" seats get the LLM timeout/retry rules
+    async def decide(self, ctx):    # ctx: agents.base.DecisionContext
+        ...                         # return an action dict from ctx.legal
+
+res = asyncio.run(run_protocol(
+    [("my-agent", MyAgent), "llm:claude-haiku-5-5"],   # ids, (label, factory) or instances
+    out="bench_results/mine", track="both", games=None, max_concurrency=4,
+))
+print(res.status, res.exit_code, res.summary()["games"])
+board = compute_leaderboard(load_results("bench_results/mine"), track="vs-baseline")
+```
+
+* `run_protocol(models, *, out, protocol="acquire-bench-v1", track="both",
+  games=None, max_concurrency=4, max_usd=None, max_decisions=None,
+  prices=None, fresh=False, transcripts=True, progress=None,
+  prompt_version=None, write_outputs=True) -> ProtocolResult` (async; in a
+  notebook `await run_protocol(...)`). A `(label, factory)` seat gets a fresh
+  agent per game; an Agent instance is reused, so the run drops to one game at
+  a time. Raises `BenchError` for configuration errors before any game starts.
+* `run_series(matchups, games, *, results_path, ...)`: ad-hoc matchups.
+* `load_results(path)`: records from a `results.jsonl`, a results directory or
+  a parent of several. `compute_leaderboard(records, protocol=None,
+  prompt_version=None, track="all", bootstrap_samples=200, seed=0)`.
+* Also exported: `run_game`, `run_games`, `schedule`, `get_protocol`,
+  `PROTOCOLS`, `bradley_terry`, `bootstrap`, `write_outputs`, `PriceTable`.
+* No global state; importing `bench` starts nothing and imports no web
+  server (checked by a test).
+
+### Results directory (stable layout)
+
+```
+<out>/results.jsonl                 one record per finished game (resumable)
+<out>/transcripts/<game_id>.jsonl   full transcript per game (seat contract format)
+<out>/transcripts/<game_id>.summary.json
+<out>/leaderboard.json              {"generated_at", "boards": [one per protocol + prompt version]}
+<out>/report.md                     leaderboard tables + per-matchup statistics
+```
+
+A record has the old fields (`key, matchup, seed, status, seat_order,
+standings, winners, turns, end_reason, decisions, seats[...]`) plus
+`game_id`, `transcript` (relative to `<out>`), `seat_labels`, `started_at`,
+`finished_at`, `rotation` (seating index), `series_id`, and for protocol runs
+`protocol`, `track`, `prompt_version`, `series_games`, `seating_index`,
+`lineup`. The server serves `ACQUIRE_BENCH_DIR` (default
+`backend/bench_results/`; one results directory or a parent of several) at
+`GET /bench/leaderboard`, `GET /bench/series/{id}` and `GET /games?source=bench`.
+
+### Rating method and caveats
+
+`bench/rating.py`. Each game's finishing order is broken into all pairs of
+seats held by different agents (finishing ahead = a win, equal money = half a
+win each; the three bot seats of a vs-baseline game are not compared with each
+other). A Bradley-Terry model is fitted by Hunter's MM algorithm and put on the
+Elo scale with the rules-based bot fixed at **1500**: a 400-point gap means
+10:1 odds of finishing ahead of the other agent. Why not a full Plackett-Luce
+fit: ties are handled exactly as half wins, several seats of one agent need no
+special case, and full rank-breaking into pairs is a consistent estimator of
+Plackett-Luce strengths (Azari Soufiani, Parkes & Xia, ICML 2014). The
+interval is a percentile bootstrap over **games** (whole finishing orders are
+resampled, 200 draws, fixed seed), because pairs from one game are not
+independent. A weak prior (one virtual half-won comparison of each agent
+against the bot) keeps ratings finite for an agent that always or never
+finishes ahead and shrinks very small samples towards 1500.
+
+Caveats: a rating is relative to the rules-based bot on THIS protocol and
+prompt version; it is not comparable with chess Elo or with another protocol.
+Agents that never met the bot (a head-to-head-only run without bots) are tied
+to the scale only by the prior, so run vs-baseline too. Fallbacks make an LLM
+partly a bot: check `fallback_rate` before reading strength. Win rate and
+Wilson interval are per seat-game; the bot's interval is optimistic (three
+correlated seats per game).
+
+Leaderboard columns: `rating` [`rating_ci`], `win_rate` [`ci_low`, `ci_high`]
+(0..1), `mean_rank`, `fallback_rate` (fallbacks per decision),
+`retry_rate` (rejected answers per decision), `tokens_per_game` (input +
+output per seat-game), `cost_per_game` (null = a price is unknown; 0 for the
+bot), `latency_p50_s`, `verdict` (Wilson interval vs chance, with the
+sample-size note).
+
+### Adding a model
+
+1. Add a catalog entry: built-in Anthropic entries live in
+   `backend/agents/llm/config.py` (`_default_entries`); any other model goes in
+   `ACQUIRE_LLM_CATALOG` (JSON list, e.g.
+   `[{"id": "llm:my-model", "label": "My model", "provider": "openai", "model": "my-model", "base_url": "https://api.example.com/v1", "api_key_env": "MY_KEY"}]`).
+2. `python -m bench list-models` must show it `available`.
+3. Add its prices to `backend/bench/prices.json` (below) if you want costs or
+   `--max-usd`.
+4. Run the protocol with `--models llm:my-model`; to benchmark code that is not
+   in the catalog, use the Python API with a `(label, factory)` seat.
+
+### Filling `prices.json`
+
+`backend/bench/prices.json` maps the provider's model name (the `model` of the
+catalog entry, e.g. `claude-haiku-5-5`) to USD per 1,000,000 tokens:
+`{"input", "output", "cache_read", "cache_write"}`. Copy the four numbers from
+the provider's published price page; leave `null` for anything you do not
+know (costs then show as unknown, never guessed). Transcript footers
+(`totals.cost_usd`) and the leaderboard use the same table.
+
+### CI
+
+* `.github/workflows/ci.yml` runs an offline smoke (fake LLM, 2 games) after the
+  test suite.
+* `.github/workflows/acquire-bench.yml` (manual `workflow_dispatch` only:
+  models, track, games cap, max USD, max decisions) runs the protocol with the
+  `ANTHROPIC_API_KEY` / `ACQUIRE_LLM_OPENAI_API_KEY` repository secrets and
+  uploads the results directory as an artifact. It never runs on push or PR.
+
+No real-model results exist in this repository yet: they need an API key and
+filled prices.
