@@ -379,7 +379,12 @@ def _parse_disposition(action: dict) -> tuple[int, int, int]:
 
 def _build_trade(player_id: str, action: dict) -> TradeOffer:
     to_player_id = _str_field(action, "to_player_id")
+    # Optional explicit id (deterministic fixtures/tests); random uuid otherwise.
+    trade_id = action.get("trade_id")
+    if trade_id is not None and (not isinstance(trade_id, str) or not trade_id):
+        raise _ActionError("Invalid 'trade_id'")
     return TradeOffer(
+        trade_id=trade_id,
         from_player_id=player_id,
         to_player_id=to_player_id,
         offering_stocks=_parse_stock_dict(
@@ -511,6 +516,8 @@ def _validate(game: Game, player_id: str, action: Any) -> str | None:
 
     if action_type == "propose_trade":
         trade = _build_trade(player_id, action)
+        if trade.trade_id in game.pending_trades:
+            return "Trade id already in use"
         if (
             game._count_pending_trades_for_player(player_id)
             >= game.MAX_PENDING_TRADES_PER_PLAYER
