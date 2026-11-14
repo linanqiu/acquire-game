@@ -57,15 +57,16 @@ describe('LobbyPage', () => {
 
     it('renders subtitle', () => {
       renderLobbyPage()
-      expect(
-        screen.getByText('A classic board game of hotel chains and mergers')
-      ).toBeInTheDocument()
+      expect(screen.getByTestId('home-tagline')).toHaveTextContent(
+        'Found hotel chains, buy stock, merge for profit.'
+      )
     })
 
     it('renders game metadata', () => {
       renderLobbyPage()
       expect(screen.getByText(/3-6 players/)).toBeInTheDocument()
-      expect(screen.getByText(/~60 min/)).toBeInTheDocument()
+      expect(screen.getByText(/12×9 board/)).toBeInTheDocument()
+      expect(screen.getByText(/7 hotel chains/)).toBeInTheDocument()
     })
 
     it('renders Create Game form', () => {

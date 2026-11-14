@@ -6,9 +6,12 @@
   min-width: 0;
 }
 
+/* The board sizes its squares from this box's width (any ruleset grid), so the box needs a real
+   width of its own rather than shrink-wrapping its content. */
 .boardBox {
+  flex: 1 1 340px;
+  min-width: 0;
   max-width: 100%;
-  overflow-x: auto;
 }
 
 .meta {

@@ -1,10 +1,12 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { ChainSelector, type ChainSelectorProps } from './ChainSelector'
-import type { ChainName } from '../../types/api'
+import type { ChainId } from '../../types/api'
+import { RulesetScope } from '../../ruleset/RulesetScope'
+import { CLASSIC, MINI, VALLEY } from '../../../tests/unit/fixtures/rulesets'
 
 describe('ChainSelector', () => {
-  const allChains: ChainName[] = [
+  const allChains: ChainId[] = [
     'Luxor',
     'Tower',
     'American',
@@ -24,9 +26,10 @@ describe('ChainSelector', () => {
     it('renders all chains grouped by tier', () => {
       render(<ChainSelector {...defaultProps} />)
 
-      expect(screen.getByText('BUDGET TIER')).toBeInTheDocument()
-      expect(screen.getByText('STANDARD TIER')).toBeInTheDocument()
-      expect(screen.getByText('PREMIUM TIER')).toBeInTheDocument()
+      // Tier labels come from the ruleset (classic: cheap / medium / expensive)
+      for (const tier of CLASSIC.tiers) {
+        expect(screen.getByText(tier.label)).toBeInTheDocument()
+      }
 
       allChains.forEach((chain) => {
         expect(screen.getByTestId(`chain-button-${chain.toLowerCase()}`)).toBeInTheDocument()
@@ -44,21 +47,21 @@ describe('ChainSelector', () => {
       )
 
       const luxorButton = screen.getByTestId('chain-button-luxor')
-      expect(luxorButton).toHaveTextContent('20 stock avail')
+      expect(luxorButton).toHaveTextContent('20 shares left')
 
       const towerButton = screen.getByTestId('chain-button-tower')
-      expect(towerButton).toHaveTextContent('15 stock avail')
+      expect(towerButton).toHaveTextContent('15 shares left')
     })
 
-    it('defaults to 25 stock when not specified', () => {
+    it("defaults to the ruleset's bank size when not specified", () => {
       render(<ChainSelector {...defaultProps} stockAvailability={{}} />)
 
       const luxorButton = screen.getByTestId('chain-button-luxor')
-      expect(luxorButton).toHaveTextContent('25 stock avail')
+      expect(luxorButton).toHaveTextContent(`${CLASSIC.stocks_per_chain} shares left`)
     })
 
     it('shows ACTIVE for unavailable chains', () => {
-      const availableChains: ChainName[] = ['Luxor', 'Tower']
+      const availableChains: ChainId[] = ['Luxor', 'Tower']
 
       render(<ChainSelector {...defaultProps} availableChains={availableChains} />)
 
@@ -81,7 +84,7 @@ describe('ChainSelector', () => {
 
     it('does not call onSelect when unavailable chain is clicked', () => {
       const onSelect = vi.fn()
-      const availableChains: ChainName[] = ['Luxor', 'Tower']
+      const availableChains: ChainId[] = ['Luxor', 'Tower']
 
       render(
         <ChainSelector {...defaultProps} availableChains={availableChains} onSelect={onSelect} />
@@ -136,10 +139,11 @@ describe('ChainSelector', () => {
       render(<ChainSelector {...defaultProps} />)
 
       const luxorButton = screen.getByTestId('chain-button-luxor')
-      const imperialButton = screen.getByTestId('chain-button-imperial')
+      // Ruleset order: the last classic chain is Continental
+      const lastButton = screen.getByTestId('chain-button-continental')
 
-      imperialButton.focus()
-      fireEvent.keyDown(imperialButton, { key: 'ArrowRight' })
+      lastButton.focus()
+      fireEvent.keyDown(lastButton, { key: 'ArrowRight' })
 
       expect(document.activeElement).toBe(luxorButton)
     })
@@ -148,12 +152,12 @@ describe('ChainSelector', () => {
       render(<ChainSelector {...defaultProps} />)
 
       const luxorButton = screen.getByTestId('chain-button-luxor')
-      const imperialButton = screen.getByTestId('chain-button-imperial')
+      const lastButton = screen.getByTestId('chain-button-continental')
 
       luxorButton.focus()
       fireEvent.keyDown(luxorButton, { key: 'ArrowLeft' })
 
-      expect(document.activeElement).toBe(imperialButton)
+      expect(document.activeElement).toBe(lastButton)
     })
 
     it('selects chain with Enter key', () => {
@@ -180,7 +184,7 @@ describe('ChainSelector', () => {
 
     it('does not select unavailable chain with Enter key', () => {
       const onSelect = vi.fn()
-      const availableChains: ChainName[] = ['Luxor', 'Tower']
+      const availableChains: ChainId[] = ['Luxor', 'Tower']
 
       render(
         <ChainSelector {...defaultProps} availableChains={availableChains} onSelect={onSelect} />
@@ -221,11 +225,11 @@ describe('ChainSelector', () => {
       )
 
       const luxorButton = screen.getByTestId('chain-button-luxor')
-      expect(luxorButton).toHaveAttribute('aria-label', 'Luxor, 20 stock available')
+      expect(luxorButton).toHaveAttribute('aria-label', 'Luxor, 20 shares left')
     })
 
     it('has accessible labels for unavailable chains', () => {
-      const availableChains: ChainName[] = ['Luxor', 'Tower']
+      const availableChains: ChainId[] = ['Luxor', 'Tower']
 
       render(<ChainSelector {...defaultProps} availableChains={availableChains} />)
 
@@ -248,7 +252,7 @@ describe('ChainSelector', () => {
       )
 
       const luxorButton = screen.getByTestId('chain-button-luxor')
-      expect(luxorButton).toHaveTextContent('0 stock avail')
+      expect(luxorButton).toHaveTextContent('0 shares left')
       expect(luxorButton).not.toBeDisabled()
 
       fireEvent.click(luxorButton)
@@ -263,6 +267,36 @@ describe('ChainSelector', () => {
         expect(button).toBeDisabled()
         expect(button).toHaveTextContent('ACTIVE')
       })
+    })
+  })
+
+  describe('themed rulesets', () => {
+    it('valley: tiers, names and share noun from the ruleset, no classic chain', () => {
+      render(
+        <RulesetScope ruleset={VALLEY}>
+          <ChainSelector
+            availableChains={['tokenwise', 'gradient']}
+            onSelect={vi.fn()}
+            stockAvailability={{ gradient: 25 }}
+          />
+        </RulesetScope>
+      )
+      for (const tier of VALLEY.tiers) expect(screen.getByText(tier.label)).toBeInTheDocument()
+      expect(screen.getAllByRole('radio')).toHaveLength(VALLEY.chains.length)
+      expect(screen.getByTestId('chain-button-gradient')).toHaveTextContent('Gradient Labs')
+      expect(screen.getByTestId('chain-button-gradient')).toHaveTextContent('25 equity shares left')
+      expect(screen.getByTestId('chain-button-promptly')).toBeDisabled()
+      expect(screen.getByTestId('chain-selector').textContent).not.toMatch(/Luxor|Tower|TIER/)
+    })
+
+    it('mini: five chains, 18-share bank', () => {
+      render(
+        <RulesetScope ruleset={MINI}>
+          <ChainSelector availableChains={['harbor']} onSelect={vi.fn()} stockAvailability={{}} />
+        </RulesetScope>
+      )
+      expect(screen.getAllByRole('radio')).toHaveLength(5)
+      expect(screen.getByTestId('chain-button-harbor')).toHaveTextContent('18 shares left')
     })
   })
 })

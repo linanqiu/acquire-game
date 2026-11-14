@@ -1,0 +1,24 @@
+.splash {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  text-align: center;
+  background-color: var(--bg-primary);
+  color: var(--text-secondary);
+}
+
+.headline {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+}
+
+.detail {
+  margin: 0;
+  max-width: 32rem;
+}

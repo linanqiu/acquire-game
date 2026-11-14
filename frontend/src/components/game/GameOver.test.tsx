@@ -29,9 +29,9 @@ describe('GameOver', () => {
     it('does not invent zero bonuses or stock sales for the player', () => {
       render(<GameOver {...defaultProps} scores={cashOnly} />)
       const breakdown = screen.getByTestId('breakdown')
-      expect(breakdown).toHaveTextContent('Final cash (bonuses and stock sales included)')
+      expect(breakdown).toHaveTextContent('Final cash (bonuses and share sales included)')
       expect(breakdown).not.toHaveTextContent('Final bonuses')
-      expect(breakdown).not.toHaveTextContent('Stock liquidation')
+      expect(breakdown).not.toHaveTextContent('Stocks sold')
       expect(breakdown).toHaveTextContent('$5,000')
     })
 
@@ -193,7 +193,7 @@ describe('GameOver', () => {
       expect(screen.getByText('YOUR BREAKDOWN')).toBeInTheDocument()
       expect(screen.getByText('Cash on hand:')).toBeInTheDocument()
       expect(screen.getByText('Final bonuses:')).toBeInTheDocument()
-      expect(screen.getByText('Stock liquidation:')).toBeInTheDocument()
+      expect(screen.getByText('Stocks sold:')).toBeInTheDocument()
       expect(screen.getByText('TOTAL:')).toBeInTheDocument()
     })
 
@@ -234,7 +234,7 @@ describe('GameOver', () => {
     it('shows note about defunct stocks', () => {
       render(<GameOver {...defaultProps} variant="host" />)
 
-      expect(screen.getByText(/Defunct stocks worth \$0/)).toBeInTheDocument()
+      expect(screen.getByText(/defunct hotel chains are worth \$0/)).toBeInTheDocument()
     })
 
     it('does not show personal breakdown for host variant', () => {

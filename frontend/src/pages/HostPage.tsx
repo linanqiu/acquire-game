@@ -22,61 +22,29 @@ import { useToast } from '../components/ui/useToast'
 import { useFallbackToasts } from '../hooks/useFallbackToasts'
 import { useErrorHandler } from '../hooks/useErrorHandler'
 import { transformBoardToTileStates } from '../utils/transforms'
-import type { ChainName, GamePhase, TradeOffer } from '../types/api'
+import type { ChainId, TradeOffer } from '../types/api'
+import { RulesetScope } from '../ruleset/RulesetScope'
+import { rulesFor, useServerRules, useServerRuleset, type Rules } from '../ruleset/useRules'
+import { orderChainIds } from '../lib/ruleset'
+import { hostPhaseText } from '../lib/phaseText'
 import styles from './HostPage.module.css'
 
-// Phase display text for host view
-function getHostPhaseText(phase: GamePhase, currentPlayerName: string): string {
-  if (phase === 'lobby') return 'WAITING FOR PLAYERS'
-  if (phase === 'game_over') return 'GAME OVER'
-
-  const phaseText = (() => {
-    switch (phase) {
-      case 'place_tile':
-        return 'PLACE TILE'
-      case 'found_chain':
-        return 'FOUND CHAIN'
-      case 'merger':
-        return 'MERGER'
-      case 'stock_disposition':
-        return 'STOCK DISPOSITION'
-      case 'buy_stocks':
-        return 'BUY STOCKS'
-      default: {
-        // Exhaustive check - phase is constrained by GamePhase type
-        const _exhaustiveCheck: never = phase
-        return String(_exhaustiveCheck).toUpperCase()
-      }
-    }
-  })()
-
-  return `${currentPlayerName}'s TURN - ${phaseText}`
-}
-
-const CHAIN_ABBREV: Record<ChainName, string> = {
-  Luxor: 'LUX',
-  Tower: 'TWR',
-  American: 'AME',
-  Festival: 'FES',
-  Worldwide: 'WOR',
-  Continental: 'CON',
-  Imperial: 'IMP',
-}
-
-/** "2 LUX + $100" style summary of one side of a trade. */
+/** "2 Luxor + $100" style summary of one side of a trade. */
 function describeSide(
-  stocks: Partial<Record<ChainName, number>> | undefined,
+  rules: Rules,
+  stocks: Partial<Record<ChainId, number>> | undefined,
   money: number | undefined
 ): string {
   const parts = Object.entries(stocks ?? {})
     .filter(([, q]) => (q ?? 0) > 0)
-    .map(([chain, q]) => `${q} ${CHAIN_ABBREV[chain as ChainName] ?? chain}`)
-  if ((money ?? 0) > 0) parts.push(`$${money!.toLocaleString()}`)
+    .map(([chain, q]) => `${q} ${rules.name(chain)}`)
+  if ((money ?? 0) > 0) parts.push(rules.money(money))
   return parts.length > 0 ? parts.join(' + ') : 'nothing'
 }
 
-function describeTrade(trade: TradeOffer): string {
-  return `${describeSide(trade.offering_stocks, trade.offering_money)} for ${describeSide(
+function describeTrade(rules: Rules, trade: TradeOffer): string {
+  return `${describeSide(rules, trade.offering_stocks, trade.offering_money)} for ${describeSide(
+    rules,
     trade.requesting_stocks,
     trade.requesting_money
   )}`
@@ -117,6 +85,14 @@ export function HostPage() {
     gameOver,
   } = useGameStore()
   const unavailable = roomUnavailable(connectionStatus, connectionError)
+
+  // The game's ruleset once a game_state arrived; the server's before (lobby).
+  const serverRuleset = useServerRuleset()
+  const ruleset = gameState?.ruleset ?? serverRuleset
+  const rules = rulesFor(ruleset)
+  const { theme } = rules
+  const minPlayers = ruleset.min_players
+  const maxPlayers = ruleset.max_players
 
   // Show the reconnection overlay only after we have been connected once
   const [hasConnected, setHasConnected] = useState(connectionStatus === 'connected')
@@ -161,16 +137,16 @@ export function HostPage() {
       .sort((a, b) => b.size - a.size)
   }, [gameState])
 
+  const safeSize = ruleset.safe_chain_size
+
   const allPlayers = useMemo(() => {
     if (!gameState) return []
     return gameState.turn_order.map((playerId) => {
       const player = gameState.players[playerId]
-      const stocks: StockHolding[] = Object.entries(player.stocks)
-        .filter(([, qty]) => qty > 0)
-        .map(([chain, quantity]) => ({
-          chain: chain as ChainName,
-          quantity,
-        }))
+      const stocks: StockHolding[] = orderChainIds(
+        ruleset,
+        Object.keys(player.stocks).filter((c) => (player.stocks[c] ?? 0) > 0)
+      ).map((chain) => ({ chain, quantity: player.stocks[chain] }))
       return {
         id: playerId,
         name: player.name,
@@ -184,7 +160,7 @@ export function HostPage() {
         thinking: isAiThinking(gameState.awaiting, playerId),
       }
     })
-  }, [gameState, currentTurnPlayerId])
+  }, [gameState, currentTurnPlayerId, ruleset])
 
   // Action handlers - use HTTP for reliability
   const handleStartGame = useCallback(async () => {
@@ -222,9 +198,12 @@ export function HostPage() {
   }, [room])
 
   // Render lobby view
+  const product = useServerRules()
   const renderLobbyView = () => (
     <div className={styles.lobby}>
-      <h1 className={styles.lobbyTitle}>ACQUIRE</h1>
+      <h1 className={styles.lobbyTitle} data-testid="host-title">
+        {product.title.toUpperCase()}
+      </h1>
       <div className={styles.joinInfo}>
         <div className={styles.qrSection}>
           <div className={styles.qrPlaceholder}>
@@ -245,7 +224,9 @@ export function HostPage() {
       </div>
 
       <div className={styles.lobbyPlayerList}>
-        <h2 className={styles.playerListTitle}>PLAYERS ({lobbyPlayers.length}/6)</h2>
+        <h2 className={styles.playerListTitle}>
+          PLAYERS ({lobbyPlayers.length}/{maxPlayers})
+        </h2>
         <div className={styles.playerGrid}>
           {lobbyPlayers.map((p) => (
             <div key={p.player_id} className={styles.lobbyPlayerCard}>
@@ -255,13 +236,14 @@ export function HostPage() {
                 kind={p.kind}
                 isBot={p.is_bot}
                 agentLabel={p.agent_label}
+                playerName={p.name}
               />
               {resolveSeatKind(p) !== 'human' && (
                 <RemoveSeatButton room={room} playerId={p.player_id} playerName={p.name} />
               )}
             </div>
           ))}
-          {lobbyPlayers.length < 6 && (
+          {lobbyPlayers.length < maxPlayers && (
             <div className={styles.emptySlot}>
               <span>Waiting...</span>
             </div>
@@ -273,7 +255,7 @@ export function HostPage() {
         <AddAiControl
           room={room}
           size="lg"
-          disabled={lobbyPlayers.length >= 6 || actionLoading}
+          disabled={lobbyPlayers.length >= maxPlayers || actionLoading}
           onAdded={(id, name) => addActivityLog(`${name ?? id ?? 'AI'} joined`)}
         />
         <Button
@@ -287,8 +269,8 @@ export function HostPage() {
       </div>
 
       <p className={styles.minPlayers}>
-        {lobbyPlayers.length < 3
-          ? `Need ${3 - lobbyPlayers.length} more player${3 - lobbyPlayers.length > 1 ? 's' : ''} to start`
+        {lobbyPlayers.length < minPlayers
+          ? `Need ${minPlayers - lobbyPlayers.length} more player${minPlayers - lobbyPlayers.length > 1 ? 's' : ''} to start`
           : 'Ready to start!'}
       </p>
     </div>
@@ -319,43 +301,8 @@ export function HostPage() {
       </div>
 
       <div className={styles.sidebar}>
-        <Panel title="CHAINS">
-          <div className={styles.chainList} data-testid="chain-list">
-            {activeChains.length === 0 ? (
-              <p className={styles.noChains}>No active chains</p>
-            ) : (
-              activeChains.map((chain) => (
-                <ChainMarker
-                  key={chain.name}
-                  chain={chain.name}
-                  size={chain.size}
-                  price={chain.price}
-                  available={chain.stocks_available}
-                  safe={chain.size >= 11}
-                  variant="full"
-                />
-              ))
-            )}
-          </div>
-        </Panel>
-
-        {publicTrades.length > 0 && gameState && (
-          <Panel title="PENDING TRADES">
-            <ul className={styles.pendingTrades} data-testid="pending-trades">
-              {publicTrades.map((t) => (
-                <li key={t.trade_id} data-testid={`pending-trade-${t.trade_id}`}>
-                  <strong>{gameState.players[t.from_player_id]?.name ?? '?'}</strong>
-                  {' → '}
-                  <strong>{gameState.players[t.to_player_id]?.name ?? '?'}</strong>
-                  <span className={styles.tradeText}>{describeTrade(t)}</span>
-                </li>
-              ))}
-            </ul>
-          </Panel>
-        )}
-
         <Panel title="SCOREBOARD">
-          <div className={styles.scoreboard}>
+          <div className={styles.scoreboard} data-testid="scoreboard">
             {allPlayers.map((p) => (
               <PlayerCard
                 key={p.id}
@@ -374,6 +321,41 @@ export function HostPage() {
             ))}
           </div>
         </Panel>
+
+        <Panel title={theme.chain_noun_plural.toUpperCase()}>
+          <div className={styles.chainList} data-testid="chain-list">
+            {activeChains.length === 0 ? (
+              <p className={styles.noChains}>No active {theme.chain_noun_plural}</p>
+            ) : (
+              activeChains.map((chain) => (
+                <ChainMarker
+                  key={chain.name}
+                  chain={chain.name}
+                  size={chain.size}
+                  price={chain.price}
+                  available={chain.stocks_available}
+                  safe={chain.size >= safeSize}
+                  variant="full"
+                />
+              ))
+            )}
+          </div>
+        </Panel>
+
+        {publicTrades.length > 0 && gameState && (
+          <Panel title="PENDING TRADES">
+            <ul className={styles.pendingTrades} data-testid="pending-trades">
+              {publicTrades.map((t) => (
+                <li key={t.trade_id} data-testid={`pending-trade-${t.trade_id}`}>
+                  <strong>{gameState.players[t.from_player_id]?.name ?? '?'}</strong>
+                  {' → '}
+                  <strong>{gameState.players[t.to_player_id]?.name ?? '?'}</strong>
+                  <span className={styles.tradeText}>{describeTrade(rules, t)}</span>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        )}
       </div>
 
       <div className={styles.activityLog} role="log" aria-live="polite" aria-label="Game activity">
@@ -437,7 +419,7 @@ export function HostPage() {
     return (
       <PageShell
         header={<HostHeader roomCode={room} />}
-        phase={getHostPhaseText(phase, currentPlayerName)}
+        phase={hostPhaseText(ruleset, phase, currentPlayerName)}
       >
         {renderGameView()}
       </PageShell>
@@ -445,7 +427,7 @@ export function HostPage() {
   }
 
   return (
-    <>
+    <RulesetScope ruleset={gameState?.ruleset}>
       {renderPage()}
       {hasConnected && connectionStatus !== 'connected' && !unavailable && (
         <ReconnectionOverlay
@@ -455,15 +437,18 @@ export function HostPage() {
           onBackToLobby={() => navigate('/')}
         />
       )}
-    </>
+    </RulesetScope>
   )
 }
 
 // Custom header component for host view
 function HostHeader({ roomCode }: { roomCode: string }) {
+  const product = useServerRules()
   return (
     <header className={styles.hostHeader}>
-      <div className={styles.hostLogo}>ACQUIRE</div>
+      <div className={styles.hostLogo} data-testid="header-title">
+        {product.title.toUpperCase()}
+      </div>
       <div className={styles.hostRoomCode}>
         <span className={styles.roomLabel}>ROOM</span>
         <span className={styles.roomValue}>{roomCode}</span>

@@ -14,6 +14,8 @@ import {
   formatWhen,
 } from '../lib/format'
 import type { BenchTrack, Leaderboard, LeaderboardAgent } from '../types/transcripts'
+import { useServerRules } from '../ruleset/useRules'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import styles from './BenchPage.module.css'
 
 function sortAgents(agents: LeaderboardAgent[]): LeaderboardAgent[] {
@@ -31,6 +33,8 @@ function parseTrack(raw: string | null): BenchTrack {
 }
 
 export function BenchPage() {
+  const product = useServerRules()
+  useDocumentTitle(`${product.title} Bench`)
   const [params, setParams] = useSearchParams()
   const protocol = params.get('protocol') ?? undefined
   const promptVersion = params.get('prompt_version') ?? undefined
@@ -51,10 +55,12 @@ export function BenchPage() {
     <PageFrame>
       <div className={styles.page}>
         <header className={styles.head}>
-          <h1 className={styles.title}>ACQUIRE BENCH</h1>
+          <h1 className={styles.title} data-testid="bench-title">
+            {product.title.toUpperCase()} BENCH
+          </h1>
           <p className={styles.lede}>
-            A public benchmark that compares AI models by having them play full games of Acquire
-            under a fixed protocol. Every row links to the games behind it.
+            A public benchmark that compares AI models by having them play full games of{' '}
+            {product.title} under a fixed protocol. Every row links to the games behind it.
           </p>
         </header>
 

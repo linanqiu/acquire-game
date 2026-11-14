@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import '../styles/colors.css'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 describe('Color System', () => {
   it('applies dark background to body', () => {
@@ -17,63 +19,19 @@ describe('Color System', () => {
         <div className="text-positive" data-testid="text-positive">
           Text
         </div>
-        <div className="bg-luxor" data-testid="bg-luxor">
-          Chain
-        </div>
       </>
     )
 
     expect(screen.getByTestId('bg-primary')).toHaveClass('bg-primary')
     expect(screen.getByTestId('text-positive')).toHaveClass('text-positive')
-    expect(screen.getByTestId('bg-luxor')).toHaveClass('bg-luxor')
   })
 
-  it('all chain background color utilities exist', () => {
-    const chains = [
-      'luxor',
-      'tower',
-      'american',
-      'festival',
-      'worldwide',
-      'continental',
-      'imperial',
-    ]
-    chains.forEach((chain) => {
-      render(<div className={`bg-${chain}`} data-testid={`bg-${chain}`} />)
-      expect(screen.getByTestId(`bg-${chain}`)).toHaveClass(`bg-${chain}`)
-    })
-  })
-
-  it('all chain text color utilities exist', () => {
-    const chains = [
-      'luxor',
-      'tower',
-      'american',
-      'festival',
-      'worldwide',
-      'continental',
-      'imperial',
-    ]
-    chains.forEach((chain) => {
-      render(<div className={`text-${chain}`} data-testid={`text-${chain}`} />)
-      expect(screen.getByTestId(`text-${chain}`)).toHaveClass(`text-${chain}`)
-    })
-  })
-
-  it('all chain border utilities exist', () => {
-    const chains = [
-      'luxor',
-      'tower',
-      'american',
-      'festival',
-      'worldwide',
-      'continental',
-      'imperial',
-    ]
-    chains.forEach((chain) => {
-      render(<div className={`border-${chain}`} data-testid={`border-${chain}`} />)
-      expect(screen.getByTestId(`border-${chain}`)).toHaveClass(`border-${chain}`)
-    })
+  it('has no per-chain utility classes (chain colours are ruleset data, applied inline)', () => {
+    const css = readFileSync(resolve(__dirname, 'colors.css'), 'utf8')
+    expect(css).not.toMatch(
+      /\.(bg|text|border)-(luxor|tower|american|festival|worldwide|continental|imperial)\b/
+    )
+    expect(css).toContain('.bg-orphan')
   })
 
   it('background utilities exist', () => {

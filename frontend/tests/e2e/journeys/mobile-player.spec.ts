@@ -81,13 +81,13 @@ test('mobile player: 8 turns at phone size with trade panel and disposition', as
         )
         break
       }
-      case 'CHOOSE A CHAIN':
-      case 'CHOOSE SURVIVING CHAIN':
+      case 'CHOOSE A HOTEL CHAIN':
+      case 'CHOOSE THE SURVIVING HOTEL CHAIN':
         for (const b of await page.getByTestId('chain-selector').locator('button:enabled').all()) {
           await reachable(b, 'chain button')
         }
         break
-      case 'DISPOSE YOUR STOCK': {
+      case 'DISPOSE YOUR SHARES': {
         const form = page.getByTestId('merger-disposition')
         await reachable(form.getByTestId('slider-sell-to-bank'), 'sell slider')
         await reachable(form.locator('[data-testid^="slider-trade"]'), 'trade slider')
@@ -142,6 +142,6 @@ test('mobile player: 8 turns at phone size with trade panel and disposition', as
     `mobile: ${seat.turnsCompleted} turns; screens seen ${[...seen].join(', ')}; ${JSON.stringify(seat.stats)}`
   )
   expect(traded, 'trade panel used on mobile').toBe(true)
-  expect(seen.has('DISPOSE YOUR STOCK'), 'disposition UI reached on mobile').toBe(true)
+  expect(seen.has('DISPOSE YOUR SHARES'), 'disposition UI reached on mobile').toBe(true)
   await j.shot(page, 'mobile-after-8-turns')
 })

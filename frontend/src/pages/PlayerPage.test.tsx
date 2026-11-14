@@ -171,7 +171,7 @@ describe('PlayerPage', () => {
       })
       renderPlayerPage()
       // The rack explains why 2B is blocked.
-      expect(screen.getByTestId('rack-note-2B')).toHaveTextContent(/8th chain/)
+      expect(screen.getByTestId('rack-note-2B')).toHaveTextContent(/8th hotel chain/)
       const board = screen.getByTestId('board')
       // Clicking the blocked tile's square does nothing; the playable one selects.
       fireEvent.click(board.querySelector('[data-testid="tile-2B"]')!)
@@ -319,7 +319,7 @@ describe('PlayerPage', () => {
         pendingChainChoice: ['Luxor', 'Tower'],
       })
       renderPlayerPage()
-      expect(screen.getByText('FOUND A NEW CHAIN')).toBeInTheDocument()
+      expect(screen.getByText('Found a hotel chain')).toBeInTheDocument()
       expect(screen.getByTestId('chain-selector')).toBeInTheDocument()
     })
   })

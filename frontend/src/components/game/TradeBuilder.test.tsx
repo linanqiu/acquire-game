@@ -1,25 +1,25 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { TradeBuilder, TradeBuilderProps } from './TradeBuilder'
-import type { ChainName } from '../../types/api'
+import type { ChainId } from '../../types/api'
 
 const mockPlayers = [
   {
     id: 'player-2',
     name: 'Bob',
     cash: 5000,
-    stocks: { Luxor: 3, Tower: 2 } as Partial<Record<ChainName, number>>,
+    stocks: { Luxor: 3, Tower: 2 } as Partial<Record<ChainId, number>>,
   },
   {
     id: 'player-3',
     name: 'Carol',
     cash: 8000,
-    stocks: { American: 5, Festival: 1 } as Partial<Record<ChainName, number>>,
+    stocks: { American: 5, Festival: 1 } as Partial<Record<ChainId, number>>,
   },
 ]
 
 const mockMyHoldings = [
-  { chain: 'Luxor' as ChainName, quantity: 4 },
-  { chain: 'Continental' as ChainName, quantity: 2 },
+  { chain: 'Luxor' as ChainId, quantity: 4 },
+  { chain: 'Continental' as ChainId, quantity: 2 },
 ]
 
 const defaultProps: TradeBuilderProps = {
@@ -262,13 +262,13 @@ describe('TradeBuilder', () => {
 
       fireEvent.click(screen.getByTestId('player-select-player-2'))
 
-      expect(screen.getByText('Bob has no stocks')).toBeInTheDocument()
+      expect(screen.getByText('Bob has no shares')).toBeInTheDocument()
     })
 
     it('handles user with no stocks', () => {
       render(<TradeBuilder {...defaultProps} myHoldings={[]} />)
 
-      expect(screen.getByText('You have no stocks to offer')).toBeInTheDocument()
+      expect(screen.getByText('You have no shares to offer')).toBeInTheDocument()
     })
 
     it('allows cash-only trades', () => {

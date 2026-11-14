@@ -4,6 +4,7 @@ import { ChainMarker } from './ChainMarker'
 import { SeatKindBadge } from './SeatKindBadge'
 import { incomingBlockReason, nonZero, type TradeParty } from '../../lib/trades'
 import type { TradeOffer } from '../../types/api'
+import { useRules } from '../../ruleset/useRules'
 import styles from './TradeOffers.module.css'
 
 export type { TradeParty }
@@ -29,6 +30,7 @@ function Side({
   money: number
   label: string
 }) {
+  const rules = useRules()
   const items = nonZero(stocks)
   return (
     <div className={styles.side}>
@@ -40,7 +42,7 @@ function Side({
             <span className={styles.qty}>×{qty}</span>
           </span>
         ))}
-        {money > 0 && <span className={styles.item}>${money.toLocaleString()}</span>}
+        {money > 0 && <span className={styles.item}>{rules.money(money)}</span>}
         {items.length === 0 && money <= 0 && <span className={styles.nothing}>nothing</span>}
       </span>
     </div>
@@ -56,6 +58,7 @@ function PlayerName({ id, party }: { id: string; party?: TradeParty }) {
         kind={party?.kind}
         isBot={party?.is_bot}
         agentLabel={party?.agent_label}
+        playerName={party?.name}
       />
     </span>
   )
@@ -88,6 +91,7 @@ export function TradeOffers({
   const incoming = offers.filter((o) => o.to_player_id === myPlayerId)
   const outgoing = offers.filter((o) => o.from_player_id === myPlayerId)
   const me = players[myPlayerId]
+  const rules = useRules()
 
   return (
     <section
@@ -113,7 +117,7 @@ export function TradeOffers({
 
       {incoming.map((offer) => {
         const proposer = players[offer.from_player_id]
-        const reason = incomingBlockReason(offer, me, proposer)
+        const reason = incomingBlockReason(offer, me, proposer, rules.rs)
         const busy = acting.has(offer.trade_id)
         return (
           <div

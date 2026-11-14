@@ -22,10 +22,16 @@
   overflow-y: auto;
 }
 
+/* The footer (the player's tile rack) stays on screen: it sticks to the bottom of the viewport
+   while the page scrolls, so the rack is reachable at any scroll position. */
 .footer {
-  padding: var(--space-3) var(--space-4);
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  padding: var(--space-2) var(--space-4);
   background-color: var(--bg-secondary);
   border-top: var(--border-default);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.35);
 }
 
 /* Responsive adjustments */

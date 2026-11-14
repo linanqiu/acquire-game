@@ -1,12 +1,17 @@
 import type { AwaitingDecision } from '../types/api'
+import type { Ruleset } from '../types/ruleset'
+import { withArticle } from './ruleset'
 
-const WHAT: Record<string, string> = {
-  place_tile: 'place a tile',
-  found_chain: 'found a chain',
-  choose_survivor: 'choose the surviving chain',
-  stock_disposition: 'dispose of their stock',
-  buy_stocks: 'buy stock',
-  trade_response: 'answer a trade offer',
+function what(rs: Ruleset): Record<string, string> {
+  const t = rs.theme
+  return {
+    place_tile: 'place a tile',
+    found_chain: `found ${withArticle(t.chain_noun)}`,
+    choose_survivor: `choose the surviving ${t.chain_noun}`,
+    stock_disposition: `dispose of their ${t.share_noun_plural}`,
+    buy_stocks: `buy ${t.share_noun_plural}`,
+    trade_response: 'answer a trade offer',
+  }
 }
 
 /**
@@ -17,10 +22,11 @@ const WHAT: Record<string, string> = {
 export function waitingMessage(
   awaiting: AwaitingDecision | null | undefined,
   players: Record<string, { name: string }>,
-  currentPlayerName: string
+  currentPlayerName: string,
+  rs: Ruleset
 ): string {
   const awaitedName = awaiting ? players[awaiting.player_id]?.name : undefined
   const who = awaitedName ?? currentPlayerName
-  const what = (awaitedName && awaiting && WHAT[awaiting.decision]) || 'take action'
-  return `Waiting for ${who} to ${what}...`
+  const doing = (awaitedName && awaiting && what(rs)[awaiting.decision]) || 'take action'
+  return `Waiting for ${who} to ${doing}...`
 }

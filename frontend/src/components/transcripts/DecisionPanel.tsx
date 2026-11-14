@@ -2,7 +2,8 @@ import { LlmPanel } from './LlmPanel'
 import { SeatChip, SourceBadge } from './SeatChip'
 import { TextBlock } from './TextBlock'
 import { decisionKindLabel, describeAction, tradeText } from '../../lib/eventText'
-import { formatMoney, formatSeconds } from '../../lib/format'
+import { formatSeconds } from '../../lib/format'
+import { useRules } from '../../ruleset/useRules'
 import type { ReplayStep } from '../../lib/replay'
 import type { DecisionEntry, TranscriptSeat } from '../../types/transcripts'
 import styles from './DecisionPanel.module.css'
@@ -40,6 +41,7 @@ function LegalOptions({
   names: Record<string, string>
   redacted: boolean
 }) {
+  const rules = useRules()
   const legal = (d.legal ?? {}) as Record<string, unknown>
   const action = d.action as Record<string, unknown>
   const types = (legal.action_types as string[]) ?? []
@@ -60,7 +62,7 @@ function LegalOptions({
               key={t.tile}
               text={`${t.tile}${t.outcome !== 'nothing' ? ` · ${t.outcome}` : ''}`}
               active={action.tile === t.tile}
-              title={t.chains?.length ? t.chains.join(', ') : undefined}
+              title={t.chains?.length ? t.chains.map(rules.name).join(', ') : undefined}
             />
           ))}
         </div>
@@ -78,7 +80,7 @@ function LegalOptions({
       body = (
         <div className={styles.options}>
           {chains.map((c) => (
-            <Chip key={c} text={c} active={c === chosen} />
+            <Chip key={c} text={rules.name(c)} active={c === chosen} />
           ))}
         </div>
       )
@@ -95,7 +97,8 @@ function LegalOptions({
       body = (
         <>
           <p className={styles.muted}>
-            Cash {formatMoney(legal.money as number)} · up to {String(legal.max_total ?? 0)} shares
+            Cash {rules.money(legal.money as number)} · up to {String(legal.max_total ?? 0)}{' '}
+            {rules.theme.share_noun_plural}
           </p>
           {options.length > 0 && (
             <div className={styles.options}>
@@ -104,7 +107,7 @@ function LegalOptions({
                 return (
                   <Chip
                     key={o.chain}
-                    text={`${o.chain} ${formatMoney(o.price)}${bought ? ` · bought ${bought}` : ''}`}
+                    text={`${rules.name(o.chain)} ${rules.money(o.price)}${bought ? ` · bought ${bought}` : ''}`}
                     active={!!bought}
                     title={`${o.available} available, up to ${o.max_affordable} affordable`}
                   />
@@ -119,8 +122,9 @@ function LegalOptions({
     case 'stock_disposition': {
       body = (
         <p className={styles.muted}>
-          {String(legal.stock_count)} {String(legal.defunct_chain)} shares; survivor{' '}
-          {String(legal.surviving_chain)}; at most {String(legal.max_trade ?? 0)} can be traded.
+          {String(legal.stock_count)} {rules.name(String(legal.defunct_chain))}{' '}
+          {rules.theme.share_noun_plural}; survivor {rules.name(String(legal.surviving_chain))}; at
+          most {String(legal.max_trade ?? 0)} can be traded.
         </p>
       )
       break
@@ -128,7 +132,7 @@ function LegalOptions({
     case 'trade_response': {
       body = (
         <p className={styles.muted}>
-          {tradeText(legal.trade as Record<string, unknown>, names)}
+          {tradeText(legal.trade as Record<string, unknown>, names, rules.rs)}
           {legal.can_accept === false && ' (cannot be accepted)'}
         </p>
       )
@@ -166,6 +170,7 @@ export function DecisionPanel({
   systemPrompts,
   redacted,
 }: DecisionPanelProps) {
+  const rules = useRules()
   const d = step.decision
   if (!d) {
     return (
@@ -192,7 +197,7 @@ export function DecisionPanel({
 
       <div className={styles.who}>
         {seat ? <SeatChip seat={seat} /> : <span>{names[d.player_id] ?? d.player_id}</span>}
-        <span className={styles.kind}>{decisionKindLabel(d.kind)}</span>
+        <span className={styles.kind}>{decisionKindLabel(d.kind, rules.rs)}</span>
         {d.latency_s !== null && d.latency_s !== undefined && (
           <span className={styles.latency}>{formatSeconds(d.latency_s)}</span>
         )}
@@ -218,7 +223,7 @@ export function DecisionPanel({
       <div>
         <h4 className={styles.h4}>CHOSEN</h4>
         <p className={styles.chosenLine} data-testid="chosen-action">
-          {describeAction(d.action)}
+          {describeAction(d.action, rules.rs)}
         </p>
       </div>
 

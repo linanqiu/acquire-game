@@ -19,9 +19,9 @@ export const playerRow = (page: Page, name: string): Locator =>
 
 export const MY_DECISION_BANNERS = [
   'PLACE A TILE',
-  'CHOOSE A CHAIN',
-  'CHOOSE SURVIVING CHAIN',
-  'DISPOSE YOUR STOCK',
+  'CHOOSE A HOTEL CHAIN',
+  'CHOOSE THE SURVIVING HOTEL CHAIN',
+  'DISPOSE YOUR SHARES',
   'BUY STOCKS',
 ]
 
@@ -71,13 +71,13 @@ export async function playHumanTurn(
       await shots?.take(page, `${label}-tile-selected-${coord}`)
       await page.getByTestId('place-tile-button').click()
       await expect(phaseBanner(page)).not.toHaveText('PLACE A TILE')
-    } else if (banner === 'CHOOSE A CHAIN' || banner === 'CHOOSE SURVIVING CHAIN') {
+    } else if (banner === 'CHOOSE A HOTEL CHAIN' || banner === 'CHOOSE THE SURVIVING HOTEL CHAIN') {
       await shots?.take(page, `${label}-chain-choice`)
       await page.locator('[data-testid^="chain-button-"]:not([disabled])').first().click()
       await expect(page.getByTestId('chain-selector')).toBeHidden()
       // The banner follows the server's answer; do not act again on the stale one.
       await expect(phaseBanner(page)).not.toHaveText(banner)
-    } else if (banner === 'DISPOSE YOUR STOCK') {
+    } else if (banner === 'DISPOSE YOUR SHARES') {
       const title = await page.getByTestId('merger-disposition').innerText()
       await shots?.take(page, `${label}-disposition`)
       await page.getByTestId('confirm-disposition').click()

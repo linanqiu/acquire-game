@@ -1,9 +1,12 @@
 /**
- * Readable sentences for engine events and decision actions.
+ * Readable sentences for engine events and decision actions, worded from the game's ruleset
+ * (chain display names, currency, chain/share/merger nouns).
  * Unknown event types fall back to a generic "type key=value ..." line.
  */
 
 import type { EngineEvent } from '../types/transcripts'
+import type { Ruleset } from '../types/ruleset'
+import { chainName, countOf, formatAmount, withArticle } from './ruleset'
 
 export type Names = Record<string, string>
 
@@ -15,7 +18,6 @@ export interface EventLine {
   isPrivate: boolean
 }
 
-const money = (n: unknown) => `$${Number(n ?? 0).toLocaleString('en-US')}`
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`
 
 export function nameOf(names: Names, pid: unknown): string {
@@ -28,13 +30,37 @@ function list(items: string[]): string {
   return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
 }
 
-function stockText(stocks: unknown): string {
-  const entries = Object.entries((stocks as Record<string, number>) ?? {}).filter(([, n]) => n > 0)
-  return entries.length ? entries.map(([c, n]) => `${n} ${c}`).join(', ') : ''
+/** Word helpers bound to one ruleset. */
+function lexicon(rs: Ruleset) {
+  const money = (n: unknown) => formatAmount(rs, Number(n ?? 0))
+  const chain = (id: unknown) => (typeof id === 'string' ? chainName(rs, id) : String(id))
+  const shares = (n: number) => countOf(n, rs.theme.share_noun, rs.theme.share_noun_plural)
+  const stockText = (stocks: unknown) => {
+    const entries = Object.entries((stocks as Record<string, number>) ?? {}).filter(
+      ([, n]) => n > 0
+    )
+    return entries.length ? entries.map(([c, n]) => `${n} ${chain(c)}`).join(', ') : ''
+  }
+  const founderBonus = (type: unknown, value: unknown) =>
+    type === 'cash'
+      ? `${money(value)} bonus`
+      : countOf(
+          Number(value ?? rs.founder_bonus_shares),
+          `free ${rs.theme.share_noun}`,
+          `free ${rs.theme.share_noun_plural}`
+        )
+  return { rs, money, chain, shares, stockText, founderBonus }
 }
 
-export function tradeText(t: Record<string, unknown> | undefined, names: Names): string {
+type Lex = ReturnType<typeof lexicon>
+
+export function tradeText(
+  t: Record<string, unknown> | undefined,
+  names: Names,
+  rs: Ruleset
+): string {
   if (!t) return 'a trade'
+  const { money, stockText } = lexicon(rs)
   const give = [
     stockText(t.offering_stocks),
     Number(t.offering_money) ? money(t.offering_money) : '',
@@ -59,7 +85,9 @@ function generic(e: EngineEvent): string {
   return `${who}${e.type.replace(/_/g, ' ')}${parts.length ? ` (${parts.join(', ')})` : ''}`
 }
 
-function one(e: EngineEvent, names: Names): string {
+function one(e: EngineEvent, names: Names, lx: Lex): string {
+  const { rs, money, chain, stockText, founderBonus } = lx
+  const theme = rs.theme
   const who = nameOf(names, e.player_id)
   switch (e.type) {
     case 'game_started': {
@@ -71,35 +99,30 @@ function one(e: EngineEvent, names: Names): string {
       return `${who} was dealt ${plural(tiles.length, 'tile')}: ${tiles.join(', ')}.`
     }
     case 'tile_placed': {
-      const chains = (e.chains as string[]) ?? []
+      const chains = ((e.chains as string[]) ?? []).map(chain)
       switch (e.outcome) {
         case 'nothing':
           return `${who} placed ${e.tile}.`
         case 'expand':
           return `${who} placed ${e.tile} — ${list(chains)} grows.`
         case 'found':
-          return `${who} placed ${e.tile} — a new chain can be founded.`
+          return `${who} placed ${e.tile} — ${withArticle(`new ${theme.chain_noun}`)} can be founded.`
         case 'merge':
         case 'merge_tie':
-          return `${who} placed ${e.tile} — merger of ${list(chains)}.`
+          return `${who} placed ${e.tile} — ${theme.merger_noun} of ${list(chains)}.`
         default:
           return `${who} placed ${e.tile}.`
       }
     }
-    case 'chain_founded': {
-      const bonus =
-        e.founder_bonus_type === 'cash'
-          ? `${money(e.founder_bonus_value)} bonus`
-          : `${plural(Number(e.founder_bonus_value ?? 1), 'free share')}`
-      return `${who} founded ${e.chain} (${plural(Number(e.size ?? 0), 'tile')}) and received ${bonus}.`
-    }
+    case 'chain_founded':
+      return `${who} founded ${chain(e.chain)} (${plural(Number(e.size ?? 0), 'tile')}) and received ${founderBonus(e.founder_bonus_type, e.founder_bonus_value)}.`
     case 'chain_expanded':
-      return `${e.chain} grows to ${e.size}.`
+      return `${chain(e.chain)} grows to ${e.size}.`
     case 'survivor_chosen':
-      return `${who} chose ${e.survivor} to survive the tie.`
+      return `${who} chose ${chain(e.survivor)} to survive the tie.`
     case 'merger_started': {
-      const defunct = ((e.defunct as string[]) ?? []).join(', ')
-      return `Merger: ${e.survivor} absorbs ${defunct}.`
+      const defunct = ((e.defunct as string[]) ?? []).map(chain).join(', ')
+      return `${capitalized(theme.merger_noun)}: ${chain(e.survivor)} absorbs ${defunct}.`
     }
     case 'bonuses_paid': {
       const b = (e.bonuses as Record<string, { majority?: number; minority?: number }>) ?? {}
@@ -108,28 +131,31 @@ function one(e: EngineEvent, names: Names): string {
           v.majority ? `${money(v.majority)} majority` : '',
           v.minority ? `${money(v.minority)} minority` : '',
         ].filter(Boolean)
-        return `${nameOf(names, pid)} ${bits.join(' + ') || '$0'}`
+        return `${nameOf(names, pid)} ${bits.join(' + ') || money(0)}`
       })
-      return `${e.final ? 'Final bonuses' : 'Bonuses'} for ${e.chain}: ${parts.join('; ') || 'none'}.`
+      return `${e.final ? 'Final bonuses' : 'Bonuses'} for ${chain(e.chain)}: ${parts.join('; ') || 'none'}.`
     }
     case 'stock_disposition': {
       const sell = Number(e.sell ?? 0)
       const trade = Number(e.trade ?? 0)
       const hold = Number(e.hold ?? 0)
+      const received = Number(
+        e.survivor_shares_received ?? trade / Math.max(1, rs.merger_trade_ratio)
+      )
       const bits = [
         sell ? `sold ${sell} (${money(e.sale_proceeds)})` : '',
-        trade
-          ? `traded ${trade} for ${Number(e.survivor_shares_received ?? trade / 2)} ${e.surviving_chain}`
-          : '',
+        trade ? `traded ${trade} for ${received} ${chain(e.surviving_chain)}` : '',
         hold ? `kept ${hold}` : '',
       ].filter(Boolean)
-      return `${who} ${e.defunct_chain} stock: ${bits.join(', ') || 'nothing to dispose'}.`
+      return `${who} ${chain(e.defunct_chain)} ${theme.share_noun_plural}: ${bits.join(', ') || 'nothing to dispose'}.`
     }
     case 'merger_completed':
-      return `Merger complete: ${e.survivor} now has ${e.survivor_size} tiles.`
+      return `${capitalized(theme.merger_noun)} complete: ${chain(e.survivor)} now has ${e.survivor_size} tiles.`
     case 'stocks_purchased': {
       const p = stockText(e.purchases)
-      return p ? `${who} bought ${p} for ${money(e.total_cost)}.` : `${who} bought no stock.`
+      return p
+        ? `${who} bought ${p} for ${money(e.total_cost)}.`
+        : `${who} bought no ${theme.share_noun_plural}.`
     }
     case 'tile_drawn':
       return `${who} drew ${e.tile}.`
@@ -142,9 +168,9 @@ function one(e: EngineEvent, names: Names): string {
     case 'turn_ended':
       return `${who} ended their turn. ${nameOf(names, e.next_player_id)} is up.`
     case 'trade_proposed':
-      return `${who} proposed a trade: ${tradeText(e.trade as Record<string, unknown>, names)}.`
+      return `${who} proposed a trade: ${tradeText(e.trade as Record<string, unknown>, names, rs)}.`
     case 'trade_accepted':
-      return `${who} accepted the trade: ${tradeText(e.trade as Record<string, unknown>, names)}.`
+      return `${who} accepted the trade: ${tradeText(e.trade as Record<string, unknown>, names, rs)}.`
     case 'trade_rejected':
       return `${who} rejected a trade offer.`
     case 'trade_cancelled':
@@ -163,13 +189,18 @@ function one(e: EngineEvent, names: Names): string {
   }
 }
 
+function capitalized(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
 /** Sentences for a step's events, in order. A placement and the growth it causes read as one line. */
-export function describeEvents(events: EngineEvent[], names: Names): EventLine[] {
+export function describeEvents(events: EngineEvent[], names: Names, rs: Ruleset): EventLine[] {
+  const lx = lexicon(rs)
   const lines: EventLine[] = []
   for (let i = 0; i < events.length; i++) {
     const e = events[i]
     const next = events[i + 1]
-    let text = one(e, names)
+    let text = one(e, names, lx)
     if (
       e.type === 'tile_placed' &&
       next &&
@@ -179,11 +210,11 @@ export function describeEvents(events: EngineEvent[], names: Names): EventLine[]
       const who = nameOf(names, e.player_id)
       text =
         next.type === 'chain_expanded'
-          ? `${who} placed ${e.tile} — ${next.chain} grows to ${next.size}.`
-          : `${who} placed ${e.tile} — founded ${next.chain} (${plural(Number(next.size ?? 0), 'tile')}) and received ${
+          ? `${who} placed ${e.tile} — ${lx.chain(next.chain)} grows to ${next.size}.`
+          : `${who} placed ${e.tile} — founded ${lx.chain(next.chain)} (${plural(Number(next.size ?? 0), 'tile')}) and received ${
               next.founder_bonus_type === 'cash'
-                ? `${money(next.founder_bonus_value)}`
-                : plural(Number(next.founder_bonus_value ?? 1), 'free share')
+                ? lx.money(next.founder_bonus_value)
+                : lx.founderBonus(next.founder_bonus_type, next.founder_bonus_value)
             }.`
       i += 1
     }
@@ -198,19 +229,23 @@ export function describeEvents(events: EngineEvent[], names: Names): EventLine[]
 }
 
 /** One-line summary of an action, e.g. `place 9D`, `buy 2 Luxor, 1 Tower`. */
-export function describeAction(action: Record<string, unknown> | null | undefined): string {
+export function describeAction(
+  action: Record<string, unknown> | null | undefined,
+  rs: Ruleset
+): string {
   if (!action) return '—'
+  const { chain, stockText } = lexicon(rs)
   const a = String(action.action ?? '')
   switch (a) {
     case 'place_tile':
       return action.tile ? `place ${action.tile}` : 'place (no tile)'
     case 'found_chain':
-      return `found ${action.chain}`
+      return `found ${chain(action.chain)}`
     case 'merger_choice':
-      return `keep ${action.surviving_chain}`
+      return `keep ${chain(action.surviving_chain)}`
     case 'merger_disposition': {
       const d = (action.disposition as Record<string, number>) ?? {}
-      return `${action.defunct_chain}: sell ${d.sell ?? 0} / trade ${d.trade ?? 0} / hold ${d.hold ?? 0}`
+      return `${chain(action.defunct_chain)}: sell ${d.sell ?? 0} / trade ${d.trade ?? 0} / hold ${d.hold ?? 0}`
     }
     case 'buy_stocks': {
       const p = stockText(action.purchases)
@@ -233,15 +268,16 @@ export function describeAction(action: Record<string, unknown> | null | undefine
   }
 }
 
-export const DECISION_KIND_LABEL: Record<string, string> = {
-  place_tile: 'Place a tile',
-  found_chain: 'Found a chain',
-  choose_survivor: 'Choose survivor',
-  stock_disposition: 'Merger stock',
-  buy_stocks: 'Buy stock',
-  trade_response: 'Answer a trade',
-}
-
-export function decisionKindLabel(kind: string): string {
-  return DECISION_KIND_LABEL[kind] ?? kind.replace(/_/g, ' ')
+/** Short labels for decision kinds (`found_chain` -> `Found a hotel chain`). */
+export function decisionKindLabel(kind: string, rs: Ruleset): string {
+  const t = rs.theme
+  const labels: Record<string, string> = {
+    place_tile: 'Place a tile',
+    found_chain: `Found ${withArticle(t.chain_noun)}`,
+    choose_survivor: 'Choose survivor',
+    stock_disposition: `${capitalized(t.merger_noun)} ${t.share_noun_plural}`,
+    buy_stocks: `Buy ${t.share_noun_plural}`,
+    trade_response: 'Answer a trade',
+  }
+  return labels[kind] ?? kind.replace(/_/g, ' ')
 }

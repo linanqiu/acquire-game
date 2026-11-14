@@ -37,37 +37,18 @@ import {
   transformPlayabilityMap,
   unplayableReasons,
 } from '../utils/transforms'
-import type { ChainName, GameAction, GamePhase } from '../types/api'
+import type { ChainId, GameAction } from '../types/api'
+import { RulesetScope } from '../ruleset/RulesetScope'
+import { rulesFor, useServerRuleset } from '../ruleset/useRules'
+import { chainTestId, orderChainIds, withArticle } from '../lib/ruleset'
+import {
+  buyPhaseText,
+  dispositionPhaseText,
+  playerPhaseText,
+  survivorPhaseText,
+} from '../lib/phaseText'
 import type { Coordinate } from '../types/game'
 import styles from './PlayerPage.module.css'
-
-/** Seats the server needs before a game can start (backend `min_to_start`). */
-const MIN_PLAYERS_TO_START = 3
-
-// Phase display text
-function getPhaseText(phase: GamePhase, isMyTurn: boolean, currentPlayerName: string): string {
-  if (phase === 'lobby') return 'WAITING FOR HOST'
-  if (phase === 'game_over') return 'GAME OVER'
-  if (!isMyTurn) return `${currentPlayerName}'s TURN`
-
-  switch (phase) {
-    case 'place_tile':
-      return 'PLACE A TILE'
-    case 'found_chain':
-      return 'CHOOSE A CHAIN'
-    case 'merger':
-      return 'MERGER IN PROGRESS'
-    case 'stock_disposition':
-      return 'DISPOSE YOUR STOCK'
-    case 'buy_stocks':
-      return 'BUY STOCKS'
-    default: {
-      // This handles any unexpected phases - phase is constrained by GamePhase type
-      const _exhaustiveCheck: never = phase
-      return String(_exhaustiveCheck).toUpperCase()
-    }
-  }
-}
 
 export function PlayerPage() {
   const room = useRoom()
@@ -158,8 +139,21 @@ export function PlayerPage() {
   // Local UI state
   const [selectedTile, setSelectedTile] = useState<Coordinate | undefined>()
   const [showTradeBuilder, setShowTradeBuilder] = useState(false)
-  const [stockPurchases, setStockPurchases] = useState<Partial<Record<ChainName, number>>>({})
+  const [stockPurchases, setStockPurchases] = useState<Partial<Record<ChainId, number>>>({})
   const [actionLoading, setActionLoading] = useState(false)
+
+  // The game's ruleset (the server's until the first game_state arrives): every limit and word.
+  const serverRuleset = useServerRuleset()
+  const ruleset = gameState?.ruleset ?? serverRuleset
+  const rules = rulesFor(ruleset)
+  const { theme } = rules
+  const maxPurchases = ruleset.max_stock_purchases_per_turn
+  const minPlayers = ruleset.min_players
+  const maxPlayers = ruleset.max_players
+
+  // Phone layout: the board can be folded away while a decision panel needs the room. The
+  // player's choice holds until the phase changes.
+  const [boardOverride, setBoardOverride] = useState<{ key: string; open: boolean } | null>(null)
 
   // Derived state
   const myPlayerId = currentPlayer?.id
@@ -191,7 +185,7 @@ export function PlayerPage() {
     return Object.entries(myPlayerData.stocks)
       .filter(([, qty]) => qty > 0)
       .map(([chain, quantity]) => ({
-        chain: chain as ChainName,
+        chain: chain as ChainId,
         quantity,
       }))
   }, [myPlayerData])
@@ -203,9 +197,9 @@ export function PlayerPage() {
 
   const rackTiles: RackTile[] = useMemo(() => {
     const playabilityMap = tilePlayability ? transformPlayabilityMap(tilePlayability) : undefined
-    const reasons = tilePlayability ? unplayableReasons(tilePlayability) : undefined
+    const reasons = tilePlayability ? unplayableReasons(tilePlayability, ruleset) : undefined
     return transformHandToRackTiles(yourHand, playabilityMap, reasons)
-  }, [yourHand, tilePlayability])
+  }, [yourHand, tilePlayability, ruleset])
 
   // Tiles the engine says can be placed now. The board highlights and accepts clicks on these
   // only; unplayable tiles (8th chain, merging safe chains) must not be selectable there.
@@ -216,10 +210,17 @@ export function PlayerPage() {
 
   const activeChains = useMemo(() => {
     if (!gameState) return []
-    return gameState.hotel.chains.filter((c) => gameState.hotel.active_chains.includes(c.name))
-  }, [gameState])
+    const active = gameState.hotel.chains.filter((c) =>
+      gameState.hotel.active_chains.includes(c.name)
+    )
+    const order = orderChainIds(
+      ruleset,
+      active.map((c) => c.name)
+    )
+    return [...active].sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name))
+  }, [gameState, ruleset])
 
-  const stockAvailability: Partial<Record<ChainName, number>> = useMemo(() => {
+  const stockAvailability: Partial<Record<ChainId, number>> = useMemo(() => {
     if (!gameState) return {}
     return gameState.hotel.available_stocks
   }, [gameState])
@@ -358,13 +359,12 @@ export function PlayerPage() {
   )
 
   const handleFoundChain = useCallback(
-    (chain: ChainName) => answerPrompt({ action: 'found_chain', chain }, 'chain'),
+    (chain: ChainId) => answerPrompt({ action: 'found_chain', chain }, 'chain'),
     [answerPrompt]
   )
 
   const handleMergerChoice = useCallback(
-    (chain: ChainName) =>
-      answerPrompt({ action: 'merger_choice', surviving_chain: chain }, 'merger'),
+    (chain: ChainId) => answerPrompt({ action: 'merger_choice', surviving_chain: chain }, 'merger'),
     [answerPrompt]
   )
 
@@ -387,7 +387,10 @@ export function PlayerPage() {
     setActionLoading(true)
     // Skipping is a plain end_turn: it also works when the purchase for this turn is already
     // recorded (a second buy_stocks, even an empty one, is refused by the engine).
-    const sharesBought = Object.values(stockPurchases).reduce((sum, qty) => sum + (qty ?? 0), 0)
+    const sharesBought = Object.values(stockPurchases).reduce<number>(
+      (sum, qty) => sum + (qty ?? 0),
+      0
+    )
     if (sharesBought === 0) {
       sendAction({ action: 'end_turn' })
     } else {
@@ -404,16 +407,16 @@ export function PlayerPage() {
   const handleProposeTrade = useCallback(
     (
       partnerId: string,
-      offer: { stocks: { chain: ChainName; quantity: number }[]; cash: number },
-      want: { stocks: { chain: ChainName; quantity: number }[]; cash: number }
+      offer: { stocks: { chain: ChainId; quantity: number }[]; cash: number },
+      want: { stocks: { chain: ChainId; quantity: number }[]; cash: number }
     ) => {
       setTradeError('')
       // Transform array format to record format expected by API
-      const offeringStocks: Partial<Record<ChainName, number>> = {}
+      const offeringStocks: Partial<Record<ChainId, number>> = {}
       for (const { chain, quantity } of offer.stocks) {
         offeringStocks[chain] = quantity
       }
-      const requestingStocks: Partial<Record<ChainName, number>> = {}
+      const requestingStocks: Partial<Record<ChainId, number>> = {}
       for (const { chain, quantity } of want.stocks) {
         requestingStocks[chain] = quantity
       }
@@ -468,7 +471,7 @@ export function PlayerPage() {
   }, [navigate])
 
   // Update stock purchase amount
-  const updatePurchase = useCallback((chain: ChainName, qty: number) => {
+  const updatePurchase = useCallback((chain: ChainId, qty: number) => {
     setStockPurchases((prev) => {
       const next = { ...prev }
       if (qty > 0) {
@@ -482,14 +485,14 @@ export function PlayerPage() {
 
   // Calculate total purchase cost
   const totalPurchaseCost = useMemo(() => {
-    return Object.entries(stockPurchases).reduce((sum, [chain, qty]) => {
+    return Object.entries(stockPurchases).reduce<number>((sum, [chain, qty]) => {
       const price = chainPrices[chain] ?? 0
-      return sum + price * qty
+      return sum + price * (qty ?? 0)
     }, 0)
   }, [stockPurchases, chainPrices])
 
   const totalSharesPurchased = useMemo(() => {
-    return Object.values(stockPurchases).reduce((sum, qty) => sum + qty, 0)
+    return Object.values(stockPurchases).reduce<number>((sum, qty) => sum + (qty ?? 0), 0)
   }, [stockPurchases])
 
   // Build other players list for trade
@@ -529,6 +532,7 @@ export function PlayerPage() {
                 kind={p.kind}
                 isBot={p.is_bot}
                 agentLabel={p.agent_label}
+                playerName={p.name}
               />
               {isHost && resolveSeatKind(p) !== 'human' && (
                 <RemoveSeatButton room={room} playerId={p.player_id} playerName={p.name} />
@@ -537,10 +541,12 @@ export function PlayerPage() {
           </div>
         ))}
       </div>
-      <p className={styles.playerCount}>{lobbyPlayers.length}/6 players</p>
+      <p className={styles.playerCount}>
+        {lobbyPlayers.length}/{maxPlayers} players
+      </p>
       {isHost && (
         <div className={styles.hostActions}>
-          <AddAiControl room={room} disabled={lobbyPlayers.length >= 6 || actionLoading} />
+          <AddAiControl room={room} disabled={lobbyPlayers.length >= maxPlayers || actionLoading} />
           <Button
             onClick={handleStartGame}
             disabled={!canStart || actionLoading}
@@ -552,9 +558,9 @@ export function PlayerPage() {
       )}
       {isHost && (
         <p className={styles.waitingText} data-testid="start-hint">
-          {lobbyPlayers.length < MIN_PLAYERS_TO_START
-            ? `Need ${MIN_PLAYERS_TO_START - lobbyPlayers.length} more player${
-                MIN_PLAYERS_TO_START - lobbyPlayers.length > 1 ? 's' : ''
+          {lobbyPlayers.length < minPlayers
+            ? `Need ${minPlayers - lobbyPlayers.length} more player${
+                minPlayers - lobbyPlayers.length > 1 ? 's' : ''
               } to start`
             : 'Ready to start!'}
         </p>
@@ -563,23 +569,29 @@ export function PlayerPage() {
     </div>
   )
 
-  // Render tile placement content
-  const renderTilePlacementContent = () => (
-    <div className={styles.tilePlacementContent}>
-      <div className={styles.boardContainer}>
-        <Board
-          tiles={boardTileStates}
-          highlightedTile={selectedTile}
-          playableTiles={new Set(playableHand)}
-          size="md"
-          interactive={isMyTurn}
-          onTileClick={(coord) => {
-            if (playableHand.includes(coord)) {
-              setSelectedTile(coord)
-            }
-          }}
-        />
-      </div>
+  // The board. Always on screen in a game (desktop: its own column; phone: one tap away while
+  // a decision panel needs the room).
+  const renderBoard = () => (
+    <Board
+      tiles={boardTileStates}
+      highlightedTile={selectedTile}
+      playableTiles={new Set(playableHand)}
+      size="md"
+      interactive={isMyTurn && phase === 'place_tile'}
+      onTileClick={(coord) => {
+        if (playableHand.includes(coord)) {
+          setSelectedTile(coord)
+        }
+      }}
+    />
+  )
+
+  // Tile placement: the board takes the clicks; this is the confirm / end-game strip.
+  const renderPlacementActions = () => (
+    <div className={styles.tilePlacementContent} data-testid="placement-actions">
+      {isMyTurn && !selectedTile && (
+        <p className={styles.hintText}>Pick a tile from your rack or click a lit square.</p>
+      )}
       {isMyTurn && selectedTile && (
         <div className={styles.placementActions}>
           <p>
@@ -609,7 +621,7 @@ export function PlayerPage() {
   // Render chain founding content
   const renderFoundingContent = () => (
     <div className={styles.foundingContent}>
-      <h3 className={styles.sectionTitle}>FOUND A NEW CHAIN</h3>
+      <h3 className={styles.sectionTitle}>Found {withArticle(theme.chain_noun)}</h3>
       {pendingChainChoice && (
         <ChainSelector
           availableChains={pendingChainChoice}
@@ -642,7 +654,7 @@ export function PlayerPage() {
       ) : (
         <div className={styles.waitingMerger}>
           <Spinner />
-          <p>Waiting for other players to dispose their stock...</p>
+          <p>Waiting for other players to dispose of their {theme.share_noun_plural}...</p>
         </div>
       )}
     </div>
@@ -651,41 +663,43 @@ export function PlayerPage() {
   // Render stock buying content
   const renderBuyingContent = () => {
     const canAfford = (myPlayerData?.money ?? 0) >= totalPurchaseCost
-    const validPurchase = totalSharesPurchased <= 3
+    const validPurchase = totalSharesPurchased <= maxPurchases
     const inStock = activeChains.filter((c) => (stockAvailability[c.name] ?? 0) > 0)
     const cannotAffordAny =
       inStock.length > 0 && inStock.every((c) => c.price > (myPlayerData?.money ?? 0))
 
     return (
       <div className={styles.buyingContent}>
-        <Card title="BUY STOCKS">
+        <Card title={buyPhaseText(ruleset)}>
           <div className={styles.stockPurchaseForm}>
             {activeChains.length === 0 ? (
-              <p className={styles.noChains}>No active chains to purchase</p>
+              <p className={styles.noChains}>No active {theme.chain_noun_plural} to buy into</p>
             ) : (
               activeChains.map((chain) => {
                 const available = stockAvailability[chain.name] ?? 0
                 const currentQty = stockPurchases[chain.name] ?? 0
-                // Limits: 3 shares a turn, what the bank has left, and what I can still pay for.
+                // Limits: the per-turn maximum, what the bank has left, and what I can pay for.
                 const cashLeft =
                   (myPlayerData?.money ?? 0) - totalPurchaseCost + currentQty * chain.price
                 const affordable = chain.price > 0 ? Math.floor(cashLeft / chain.price) : 0
                 const maxBuyable = Math.max(
                   0,
-                  Math.min(available, 3 - totalSharesPurchased + currentQty, affordable)
+                  Math.min(available, maxPurchases - totalSharesPurchased + currentQty, affordable)
                 )
 
                 return (
                   <div
                     key={chain.name}
                     className={styles.purchaseRow}
-                    data-testid={`buy-row-${chain.name.toLowerCase()}`}
+                    data-testid={`buy-row-${chainTestId(chain.name)}`}
                     data-price={chain.price}
                     data-available={available}
                   >
-                    <ChainMarker chain={chain.name} variant="compact" />
+                    <span className={styles.purchaseChain}>
+                      <ChainMarker chain={chain.name} variant="compact" />
+                    </span>
                     <span className={styles.chainPrice} data-testid="buy-price">
-                      ${chain.price.toLocaleString()}
+                      {rules.money(chain.price)}
                     </span>
                     <span className={styles.chainSize} data-testid="buy-size">
                       {chain.size} tiles
@@ -696,7 +710,11 @@ export function PlayerPage() {
                       onChange={(qty) => updatePurchase(chain.name, qty)}
                       disabled={!isMyTurn}
                     />
-                    <span className={styles.availableStock} data-testid="buy-available">
+                    <span
+                      className={styles.availableStock}
+                      data-testid="buy-available"
+                      title={`${theme.share_noun_plural} left in the bank`}
+                    >
                       [{available}]
                     </span>
                   </div>
@@ -704,12 +722,14 @@ export function PlayerPage() {
               })
             )}
             <div className={styles.purchaseSummary}>
-              <span data-testid="purchase-total">Total: ${totalPurchaseCost.toLocaleString()}</span>
-              <span data-testid="purchase-shares">({totalSharesPurchased}/3 shares)</span>
+              <span data-testid="purchase-total">Total: {rules.money(totalPurchaseCost)}</span>
+              <span data-testid="purchase-shares">
+                ({totalSharesPurchased}/{maxPurchases} {theme.share_noun_plural})
+              </span>
             </div>
             {cannotAffordAny && (
               <p className={styles.errorText} data-testid="buy-note-no-cash">
-                You can't afford any stock right now.
+                You can&apos;t afford any {theme.share_noun_plural} right now.
               </p>
             )}
             {!canAfford && (
@@ -717,7 +737,11 @@ export function PlayerPage() {
                 Not enough cash
               </p>
             )}
-            {!validPurchase && <p className={styles.errorText}>Maximum 3 shares per turn</p>}
+            {!validPurchase && (
+              <p className={styles.errorText}>
+                Maximum {maxPurchases} {theme.share_noun_plural} per turn
+              </p>
+            )}
           </div>
         </Card>
         <div className={styles.buyingActions}>
@@ -761,20 +785,15 @@ export function PlayerPage() {
     )
   }
 
-  // Render waiting content for when it's not your turn
+  // Not my move: who the table is waiting on
   const renderWaitingContent = () => (
-    <div className={styles.waitingContent}>
-      <div className={styles.boardContainer}>
-        <Board tiles={boardTileStates} playableTiles={new Set(playableHand)} size="md" />
-      </div>
-      <p className={styles.waitingMessage} data-testid="waiting-message">
-        {waitingMessage(gameState?.awaiting, gameState?.players ?? {}, currentPlayerName)}
-      </p>
-    </div>
+    <p className={styles.waitingMessage} data-testid="waiting-message">
+      {waitingMessage(gameState?.awaiting, gameState?.players ?? {}, currentPlayerName, ruleset)}
+    </p>
   )
 
-  // Main content renderer
-  const renderMainContent = () => {
+  // Page states outside a running game (unavailable, connecting, lobby, game over); null in game.
+  const renderOutOfGame = () => {
     if (unavailable) {
       return (
         <div className={styles.error} data-testid="room-unavailable">
@@ -813,10 +832,12 @@ export function PlayerPage() {
     if (phase === 'game_over') {
       return renderGameOverContent()
     }
+    return null
+  }
 
-    // During game phases
-    // Allow rendering merger/disposition content when we have a pending stock
-    // disposition or merger choice, even if it's not technically our turn
+  // The decision panel for the current phase (in a game)
+  const renderAction = () => {
+    // Merger/disposition prompts can be mine even when it is not my turn
     if (
       !isMyTurn &&
       phase !== 'stock_disposition' &&
@@ -828,7 +849,7 @@ export function PlayerPage() {
 
     switch (phase) {
       case 'place_tile':
-        return renderTilePlacementContent()
+        return renderPlacementActions()
       case 'found_chain':
         return renderFoundingContent()
       case 'merger':
@@ -841,11 +862,16 @@ export function PlayerPage() {
     }
   }
 
-  const showTileRack = phase !== 'lobby' && phase !== 'game_over'
-  const showPortfolio = phase !== 'lobby' && phase !== 'game_over'
-  const showPlayersPanel = phase !== 'lobby' && phase !== 'game_over'
-  // Trades are allowed in every in-game phase, on and off turn.
-  const showTradePanel = phase !== 'lobby' && phase !== 'game_over'
+  const inGame = phase !== 'lobby' && phase !== 'game_over'
+  const showTileRack = inGame
+  // A decision panel (not the board) is what this phase is about: on a phone the board then
+  // folds behind a "SHOW BOARD" button (one tap away); on wider screens it always shows.
+  const decisionPhase =
+    !!pendingMergerChoice ||
+    !!pendingStockDisposition ||
+    (isMyTurn && (phase === 'found_chain' || phase === 'buy_stocks'))
+  const boardKey = `${phase}:${isMyTurn}:${decisionPhase}`
+  const boardOpen = boardOverride?.key === boardKey ? boardOverride.open : !decisionPhase
 
   // Render players panel showing all players' cash and stock holdings
   const renderPlayersPanel = () => {
@@ -870,25 +896,29 @@ export function PlayerPage() {
                 isBot={player.is_bot}
                 agentLabel={player.agent_label}
                 fallbacks={player.fallbacks}
+                playerName={player.name}
               />
               {isAiThinking(gameState.awaiting, id) && <AiThinking />}
             </span>
             <span className={styles.playerCash} data-testid={`player-cash-${id}`}>
-              ${player.money.toLocaleString()}
+              {rules.money(player.money)}
             </span>
             <div className={styles.playerStocks}>
-              {Object.entries(player.stocks)
-                .filter(([, count]) => count > 0)
-                .map(([chain, count]) => (
-                  <span
-                    key={chain}
-                    className={`${styles.stockBadge} bg-${chain.toLowerCase()}`}
-                    data-testid={`player-stock-${id}-${chain}`}
-                    title={`${chain}: ${count}`}
-                  >
-                    {count}
-                  </span>
-                ))}
+              {orderChainIds(
+                ruleset,
+                Object.keys(player.stocks).filter((c) => (player.stocks[c] ?? 0) > 0)
+              ).map((chain) => (
+                <span
+                  key={chain}
+                  className={styles.stockBadge}
+                  style={rules.style(chain)}
+                  data-testid={`player-stock-${id}-${chain}`}
+                  title={`${rules.name(chain)}: ${rules.shares(player.stocks[chain])}`}
+                  data-abbr={rules.abbr(chain)}
+                >
+                  {player.stocks[chain]}
+                </span>
+              ))}
             </div>
           </div>
         ))}
@@ -896,107 +926,136 @@ export function PlayerPage() {
     )
   }
 
+  const outOfGame = renderOutOfGame()
+
   return (
-    <PageShell
-      phase={
-        unavailable
-          ? undefined
-          : pendingMergerChoice
-            ? 'CHOOSE SURVIVING CHAIN'
-            : pendingStockDisposition
-              ? 'DISPOSE YOUR STOCK'
-              : getPhaseText(phase, isMyTurn, currentPlayerName)
-      }
-      roomCode={room}
-      cash={myPlayerData?.money}
-      playerName={currentPlayer?.name}
-      tilePool={gameState?.tiles_remaining ?? undefined}
-      footer={
-        showTileRack && (
-          <TileRack
-            tiles={rackTiles}
-            selectedTile={selectedTile}
-            onTileSelect={setSelectedTile}
-            disabled={phase !== 'place_tile' || !isMyTurn}
+    <RulesetScope ruleset={gameState?.ruleset}>
+      <PageShell
+        phase={
+          unavailable
+            ? undefined
+            : pendingMergerChoice
+              ? survivorPhaseText(ruleset)
+              : pendingStockDisposition
+                ? dispositionPhaseText(ruleset)
+                : playerPhaseText(ruleset, phase, isMyTurn, currentPlayerName)
+        }
+        roomCode={room}
+        cash={myPlayerData?.money}
+        playerName={currentPlayer?.name}
+        tilePool={gameState?.tiles_remaining ?? undefined}
+        footer={
+          showTileRack &&
+          !outOfGame && (
+            <TileRack
+              tiles={rackTiles}
+              selectedTile={selectedTile}
+              onTileSelect={setSelectedTile}
+              disabled={phase !== 'place_tile' || !isMyTurn}
+            />
+          )
+        }
+      >
+        {outOfGame ? (
+          <div className={styles.content}>{outOfGame}</div>
+        ) : (
+          <div className={styles.gameLayout} data-testid="game-layout">
+            <section
+              className={`${styles.boardPane} ${boardOpen ? '' : styles.boardFolded}`}
+              aria-label="Board"
+              data-testid="board-pane"
+              data-folded={boardOpen ? undefined : 'true'}
+            >
+              <button
+                type="button"
+                className={styles.boardToggle}
+                aria-expanded={boardOpen}
+                onClick={() => setBoardOverride({ key: boardKey, open: !boardOpen })}
+                data-testid="board-toggle"
+              >
+                {boardOpen ? 'HIDE BOARD ▲' : 'SHOW BOARD ▼'}
+              </button>
+              <div className={styles.boardBody}>{renderBoard()}</div>
+            </section>
+
+            <div className={styles.sidePane}>
+              <div className={styles.content}>{renderAction()}</div>
+
+              {myPlayerId && gameState && (
+                <TradeOffers
+                  offers={trades}
+                  myPlayerId={myPlayerId}
+                  players={gameState.players}
+                  onAccept={handleAcceptTrade}
+                  onReject={handleRejectTrade}
+                  onCancel={handleCancelTrade}
+                  onPropose={() => {
+                    setTradeError('')
+                    setShowTradeBuilder(true)
+                  }}
+                />
+              )}
+
+              {renderPlayersPanel()}
+
+              <div className={styles.portfolioStrip}>
+                <Portfolio holdings={myHoldings} prices={chainPrices} showTotal={false} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Trade Builder Modal */}
+        {showTradeBuilder && (
+          <Modal
+            open={showTradeBuilder}
+            onClose={() => setShowTradeBuilder(false)}
+            title="Propose Trade"
+            cancelLabel=""
+          >
+            <TradeBuilder
+              players={otherPlayers}
+              myHoldings={myHoldings.map((h) => ({ chain: h.chain, quantity: h.quantity }))}
+              myCash={myPlayerData?.money ?? 0}
+              onPropose={handleProposeTrade}
+              onCancel={() => {
+                setShowTradeBuilder(false)
+                setProposing(false)
+              }}
+              serverError={tradeError}
+              submitting={proposing}
+              notice={
+                phase === 'merger' || phase === 'stock_disposition'
+                  ? `A ${theme.merger_noun} is in progress: ${theme.share_noun_plural} of the ${theme.chain_noun_plural} involved cannot be traded until it ends.`
+                  : undefined
+              }
+            />
+          </Modal>
+        )}
+
+        {showReconnectionOverlay && (
+          <ReconnectionOverlay
+            connectionStatus={connectionStatus === 'disconnected' ? 'disconnected' : 'reconnecting'}
+            playerName={currentPlayer?.name}
+            onReconnect={reconnect}
+            onBackToLobby={() => navigate('/')}
           />
-        )
-      }
-    >
-      {showTradePanel && myPlayerId && gameState && (
-        <TradeOffers
-          offers={trades}
-          myPlayerId={myPlayerId}
-          players={gameState.players}
-          onAccept={handleAcceptTrade}
-          onReject={handleRejectTrade}
-          onCancel={handleCancelTrade}
-          onPropose={() => {
-            setTradeError('')
-            setShowTradeBuilder(true)
-          }}
-        />
-      )}
+        )}
 
-      <div className={styles.content}>{renderMainContent()}</div>
-
-      {showPlayersPanel && renderPlayersPanel()}
-
-      {showPortfolio && (
-        <div className={styles.portfolioStrip}>
-          <Portfolio holdings={myHoldings} prices={chainPrices} showTotal={false} />
-        </div>
-      )}
-
-      {/* Trade Builder Modal */}
-      {showTradeBuilder && (
-        <Modal
-          open={showTradeBuilder}
-          onClose={() => setShowTradeBuilder(false)}
-          title="Propose Trade"
-          cancelLabel=""
-        >
-          <TradeBuilder
-            players={otherPlayers}
-            myHoldings={myHoldings.map((h) => ({ chain: h.chain, quantity: h.quantity }))}
-            myCash={myPlayerData?.money ?? 0}
-            onPropose={handleProposeTrade}
-            onCancel={() => {
-              setShowTradeBuilder(false)
-              setProposing(false)
-            }}
-            serverError={tradeError}
-            submitting={proposing}
-            notice={
-              phase === 'merger' || phase === 'stock_disposition'
-                ? 'A merger is in progress: stock in the merging chains cannot be traded until it ends.'
-                : undefined
-            }
-          />
-        </Modal>
-      )}
-
-      {showReconnectionOverlay && (
-        <ReconnectionOverlay
-          connectionStatus={connectionStatus === 'disconnected' ? 'disconnected' : 'reconnecting'}
-          playerName={currentPlayer?.name}
-          onReconnect={reconnect}
-          onBackToLobby={() => navigate('/')}
-        />
-      )}
-
-      {showReconnected && !showReconnectionOverlay && gameState && (
-        <div className={styles.reconnectedToast}>
-          <ReconnectedToast
-            playerName={currentPlayer?.name ?? 'Player'}
-            currentTurn={currentPlayerName}
-            phase={getPhaseText(phase, isMyTurn, currentPlayerName)}
-            cash={myPlayerData?.money ?? 0}
-            stockCount={myHoldings.reduce((n, h) => n + h.quantity, 0)}
-            tileCount={yourHand.length}
-            onContinue={() => setShowReconnected(false)}
-          />
-        </div>
-      )}
-    </PageShell>
+        {showReconnected && !showReconnectionOverlay && gameState && (
+          <div className={styles.reconnectedToast}>
+            <ReconnectedToast
+              playerName={currentPlayer?.name ?? 'Player'}
+              currentTurn={currentPlayerName}
+              phase={playerPhaseText(ruleset, phase, isMyTurn, currentPlayerName)}
+              cash={myPlayerData?.money ?? 0}
+              stockCount={myHoldings.reduce((n, h) => n + h.quantity, 0)}
+              tileCount={yourHand.length}
+              onContinue={() => setShowReconnected(false)}
+            />
+          </div>
+        )}
+      </PageShell>
+    </RulesetScope>
   )
 }

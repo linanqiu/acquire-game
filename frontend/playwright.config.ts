@@ -49,7 +49,8 @@ export default defineConfig({
     {
       name: 'legacy',
       testDir: './tests/e2e',
-      testIgnore: ['**/journeys/**', '**/screens/**', '**/transcripts/**'],
+      // themes/ runs from playwright.themes.config.ts (its own themed servers)
+      testIgnore: ['**/journeys/**', '**/screens/**', '**/transcripts/**', '**/themes/**'],
       use: { ...devices['Desktop Chrome'], ...browserLaunch },
     },
   ],

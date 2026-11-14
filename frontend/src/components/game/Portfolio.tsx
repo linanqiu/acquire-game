@@ -1,10 +1,12 @@
 import { ChainMarker } from './ChainMarker'
+import { chainTestId } from '../../lib/ruleset'
+import { useRules } from '../../ruleset/useRules'
 import { Card } from '../ui/Card'
 import styles from './Portfolio.module.css'
-import type { ChainName } from '../../types/api'
+import type { ChainId } from '../../types/ruleset'
 
 export interface StockHolding {
-  chain: ChainName
+  chain: ChainId
   quantity: number
 }
 
@@ -19,6 +21,7 @@ export interface PortfolioProps {
 }
 
 export function Portfolio({ holdings, prices, showTotal = true }: PortfolioProps) {
+  const rules = useRules()
   const holdingsWithValue = holdings
     .filter((h) => h.quantity > 0)
     .map((h) => ({
@@ -33,7 +36,7 @@ export function Portfolio({ holdings, prices, showTotal = true }: PortfolioProps
     return (
       <Card title="PORTFOLIO">
         <p className={styles.empty} data-testid="portfolio-empty">
-          No stocks owned
+          No {rules.theme.share_noun_plural} owned
         </p>
       </Card>
     )
@@ -44,15 +47,15 @@ export function Portfolio({ holdings, prices, showTotal = true }: PortfolioProps
       <table className={styles.table} data-testid="portfolio-table">
         <tbody>
           {holdingsWithValue.map((h) => (
-            <tr key={h.chain} data-testid={`portfolio-row-${h.chain.toLowerCase()}`}>
+            <tr key={h.chain} data-testid={`portfolio-row-${chainTestId(h.chain)}`}>
               <td className={styles.chain}>
                 <ChainMarker chain={h.chain} variant="compact" />
               </td>
               <td className={styles.quantity}>{h.quantity}</td>
               <td className={styles.times}>×</td>
-              <td className={styles.price}>${h.price.toLocaleString()}</td>
+              <td className={styles.price}>{rules.money(h.price)}</td>
               <td className={styles.equals}>=</td>
-              <td className={styles.value}>${h.value.toLocaleString()}</td>
+              <td className={styles.value}>{rules.money(h.value)}</td>
             </tr>
           ))}
         </tbody>
@@ -63,7 +66,7 @@ export function Portfolio({ holdings, prices, showTotal = true }: PortfolioProps
                 TOTAL VALUE:
               </td>
               <td className={styles.totalValue} data-testid="portfolio-total">
-                ${total.toLocaleString()}
+                {rules.money(total)}
               </td>
             </tr>
           </tfoot>

@@ -1,0 +1,227 @@
+/**
+ * The classic ruleset, used ONLY as a fallback: before the server's configuration has loaded in
+ * unit tests, and for transcripts recorded before transcript headers carried their ruleset (those
+ * games were all classic). The running app always shows the server's ruleset
+ * (`GET /api/config/game`) or the game's own (`game_state.ruleset`).
+ *
+ * Mirrors backend/rulesets/classic.json (a unit test keeps the two identical).
+ */
+import type { Ruleset } from '../types/ruleset'
+
+export const CLASSIC_RULESET: Ruleset = {
+  id: 'classic',
+  version: 1,
+  title: 'Acquire',
+  theme: {
+    chain_noun: 'hotel chain',
+    chain_noun_plural: 'hotel chains',
+    share_noun: 'share',
+    share_noun_plural: 'shares',
+    stock_label: 'Stocks',
+    merger_noun: 'merger',
+    merger_noun_plural: 'mergers',
+    safe_phrase: 'safe',
+    currency_symbol: '$',
+    tagline: 'Found hotel chains, buy stock, merge for profit.',
+    game_description: "Sid Sackson's hotel-chain board game",
+  },
+  board: {
+    columns: 12,
+    rows: 9,
+  },
+  tiers: [
+    {
+      id: 'cheap',
+      label: 'cheap',
+      prices: [
+        {
+          from: 2,
+          price: 200,
+        },
+        {
+          from: 3,
+          price: 300,
+        },
+        {
+          from: 4,
+          price: 400,
+        },
+        {
+          from: 5,
+          price: 500,
+        },
+        {
+          from: 6,
+          price: 600,
+        },
+        {
+          from: 11,
+          price: 700,
+        },
+        {
+          from: 21,
+          price: 800,
+        },
+        {
+          from: 31,
+          price: 900,
+        },
+        {
+          from: 41,
+          price: 1000,
+        },
+      ],
+    },
+    {
+      id: 'medium',
+      label: 'medium',
+      prices: [
+        {
+          from: 2,
+          price: 300,
+        },
+        {
+          from: 3,
+          price: 400,
+        },
+        {
+          from: 4,
+          price: 500,
+        },
+        {
+          from: 5,
+          price: 600,
+        },
+        {
+          from: 6,
+          price: 700,
+        },
+        {
+          from: 11,
+          price: 800,
+        },
+        {
+          from: 21,
+          price: 900,
+        },
+        {
+          from: 31,
+          price: 1000,
+        },
+        {
+          from: 41,
+          price: 1100,
+        },
+      ],
+    },
+    {
+      id: 'expensive',
+      label: 'expensive',
+      prices: [
+        {
+          from: 2,
+          price: 400,
+        },
+        {
+          from: 3,
+          price: 500,
+        },
+        {
+          from: 4,
+          price: 600,
+        },
+        {
+          from: 5,
+          price: 700,
+        },
+        {
+          from: 6,
+          price: 800,
+        },
+        {
+          from: 11,
+          price: 900,
+        },
+        {
+          from: 21,
+          price: 1000,
+        },
+        {
+          from: 31,
+          price: 1100,
+        },
+        {
+          from: 41,
+          price: 1200,
+        },
+      ],
+    },
+  ],
+  chains: [
+    {
+      id: 'Luxor',
+      name: 'Luxor',
+      tier: 'cheap',
+      color: '#FFD700',
+      abbreviation: 'L',
+    },
+    {
+      id: 'Tower',
+      name: 'Tower',
+      tier: 'cheap',
+      color: '#8B4513',
+      abbreviation: 'T',
+    },
+    {
+      id: 'American',
+      name: 'American',
+      tier: 'medium',
+      color: '#0000FF',
+      abbreviation: 'A',
+    },
+    {
+      id: 'Worldwide',
+      name: 'Worldwide',
+      tier: 'medium',
+      color: '#800080',
+      abbreviation: 'W',
+    },
+    {
+      id: 'Festival',
+      name: 'Festival',
+      tier: 'medium',
+      color: '#008000',
+      abbreviation: 'F',
+    },
+    {
+      id: 'Imperial',
+      name: 'Imperial',
+      tier: 'expensive',
+      color: '#FF0000',
+      abbreviation: 'I',
+    },
+    {
+      id: 'Continental',
+      name: 'Continental',
+      tier: 'expensive',
+      color: '#00FFFF',
+      abbreviation: 'C',
+    },
+  ],
+  bonuses: {
+    majority_multiplier: 10,
+    minority_multiplier: 5,
+    tie_round_up_to: 100,
+  },
+  stocks_per_chain: 25,
+  starting_cash: 6000,
+  hand_size: 6,
+  max_stock_purchases_per_turn: 3,
+  safe_chain_size: 11,
+  end_game_chain_size: 41,
+  founder_bonus_shares: 1,
+  merger_trade_ratio: 2,
+  min_players: 3,
+  max_players: 6,
+  max_pending_trades_per_player: 5,
+}

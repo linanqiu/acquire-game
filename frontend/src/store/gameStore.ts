@@ -5,7 +5,7 @@
 
 import { create } from 'zustand'
 import type {
-  ChainName,
+  ChainId,
   GameOverMessage,
   GameStateMessage,
   LobbySeat,
@@ -75,11 +75,11 @@ export interface GameStoreState {
   gameOver: GameOverMessage | null
 
   // Pending actions
-  pendingChainChoice: ChainName[] | null
-  pendingMergerChoice: ChainName[] | null
+  pendingChainChoice: ChainId[] | null
+  pendingMergerChoice: ChainId[] | null
   pendingStockDisposition: {
-    defunctChain: ChainName
-    survivingChain: ChainName
+    defunctChain: ChainId
+    survivingChain: ChainId
     stockCount: number
     availableToTrade: number
   } | null
@@ -90,12 +90,12 @@ export interface GameStoreState {
   setCurrentPlayer: (player: CurrentPlayer | null) => void
   updateLobby: (message: LobbyUpdateMessage) => void
   updateGameState: (message: GameStateMessage) => void
-  setPendingChainChoice: (chains: ChainName[] | null) => void
-  setPendingMergerChoice: (chains: ChainName[] | null) => void
+  setPendingChainChoice: (chains: ChainId[] | null) => void
+  setPendingMergerChoice: (chains: ChainId[] | null) => void
   setPendingStockDisposition: (
     data: {
-      defunctChain: ChainName
-      survivingChain: ChainName
+      defunctChain: ChainId
+      survivingChain: ChainId
       stockCount: number
       availableToTrade: number
     } | null

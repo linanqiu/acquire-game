@@ -130,7 +130,9 @@
   letter-spacing: 0.05em;
   font-weight: var(--font-medium);
   background: var(--bg-tertiary);
-  white-space: nowrap;
+  /* Headers wrap so the whole table fits a 1280px window (no hidden Verdict column) */
+  white-space: normal;
+  vertical-align: bottom;
 }
 
 .table tbody tr:last-child th,
@@ -170,10 +172,18 @@
   display: block;
   font-size: var(--text-xs);
   color: var(--text-secondary);
+  white-space: normal;
+}
+
+/* Laptops and up: the table fits its box; narrower screens scroll it sideways inside the box */
+@media (min-width: 1024px) {
+  .table {
+    min-width: 0;
+  }
 }
 
 .ciCol {
-  min-width: 150px;
+  min-width: 120px;
 }
 
 .ciText {
@@ -184,7 +194,7 @@
 }
 
 .verdict {
-  min-width: 200px;
+  min-width: 160px;
   color: var(--text-primary);
   line-height: var(--line-height-normal);
 }

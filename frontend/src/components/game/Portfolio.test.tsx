@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { Portfolio, type StockHolding, type ChainPrices } from './Portfolio'
-import type { ChainName } from '../../types/api'
+import type { ChainId } from '../../types/api'
 
 describe('Portfolio', () => {
   const mockPrices: ChainPrices = {
@@ -18,7 +18,7 @@ describe('Portfolio', () => {
     it('renders empty state when no holdings', () => {
       render(<Portfolio holdings={[]} prices={mockPrices} />)
 
-      expect(screen.getByTestId('portfolio-empty')).toHaveTextContent('No stocks owned')
+      expect(screen.getByTestId('portfolio-empty')).toHaveTextContent('No shares owned')
     })
 
     it('renders empty state when all holdings have zero quantity', () => {
@@ -29,7 +29,7 @@ describe('Portfolio', () => {
 
       render(<Portfolio holdings={holdings} prices={mockPrices} />)
 
-      expect(screen.getByTestId('portfolio-empty')).toHaveTextContent('No stocks owned')
+      expect(screen.getByTestId('portfolio-empty')).toHaveTextContent('No shares owned')
     })
 
     it('renders holdings with chain markers', () => {
@@ -135,7 +135,7 @@ describe('Portfolio', () => {
     })
 
     it('renders all seven chains correctly', () => {
-      const allChains: ChainName[] = [
+      const allChains: ChainId[] = [
         'Luxor',
         'Tower',
         'American',

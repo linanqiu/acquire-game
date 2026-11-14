@@ -66,7 +66,7 @@ describe('HostPage pending trades', () => {
     const list = screen.getByTestId('pending-trades')
     expect(within(list).getByText('Alice')).toBeInTheDocument()
     expect(within(list).getByText('Bob')).toBeInTheDocument()
-    expect(within(list).getByText('2 LUX for $300')).toBeInTheDocument()
+    expect(within(list).getByText('2 Luxor for $300')).toBeInTheDocument()
   })
 
   it('omits the list when nothing is pending', () => {

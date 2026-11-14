@@ -110,6 +110,6 @@ video {
    ========================================================================== */
 
 ::selection {
-  background-color: var(--chain-imperial);
+  background-color: var(--selection-bg);
   color: var(--text-accent);
 }

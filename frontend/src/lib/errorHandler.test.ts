@@ -1,3 +1,4 @@
+import { MINI, VALLEY } from '../../tests/unit/fixtures/rulesets'
 import { describe, it, expect, vi } from 'vitest'
 import { categorizeError, getToastType, logError, type GameError } from './errorHandler'
 
@@ -26,7 +27,17 @@ describe('errorHandler', () => {
       it('categorizes "stock_unavailable" as game_rule', () => {
         const result = categorizeError('stock_unavailable')
         expect(result.category).toBe('game_rule')
-        expect(result.message).toBe('No stock available for that chain')
+        expect(result.message).toBe('No shares left for that hotel chain')
+      })
+
+      it('words and numbers rule errors from the ruleset', () => {
+        expect(categorizeError('max_stocks_exceeded', MINI).message).toBe(
+          'You can only buy up to 4 shares per turn'
+        )
+        expect(categorizeError('chain_already_active', VALLEY).message).toBe(
+          'That AI startup is already on the board'
+        )
+        expect(categorizeError('game_full', MINI).message).toBe('The game is full (max 5 players)')
       })
     })
 

@@ -202,19 +202,23 @@
 /* Game Layout */
 .gameLayout {
   display: grid;
-  grid-template-columns: 1fr 320px;
-  grid-template-rows: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: var(--space-4);
   height: calc(100vh - 120px);
   padding: var(--space-4);
+  box-sizing: border-box;
 }
 
+/* The board fills its cell: squares sized from the cell's width and height (any ruleset grid). */
 .boardSection {
   display: flex;
   justify-content: center;
   align-items: center;
   grid-row: 1;
-  overflow: auto;
+  min-width: 0;
+  min-height: 0;
+  --board-max-height: calc(100vh - 200px);
 }
 
 .sidebar {
@@ -245,10 +249,12 @@
   margin: 0;
 }
 
+/* Up to six seats must fit beside the board at 1280x900 without scrolling. */
 .scoreboard {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-1);
+  font-size: 16px;
 }
 
 .activityLog {
@@ -310,14 +316,15 @@
 /* Responsive - for smaller host displays */
 @media (max-width: 1200px) {
   .gameLayout {
-    grid-template-columns: 1fr 280px;
+    grid-template-columns: minmax(0, 1fr) 320px;
   }
 }
 
 @media (max-width: 1024px) {
   .gameLayout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto 1fr auto;
+    height: auto;
   }
 
   .sidebar {

@@ -1,6 +1,9 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { Tile } from './Tile'
+import { RulesetScope } from '../../ruleset/RulesetScope'
+import { readableText } from '../../lib/ruleset'
+import { ALL_RULESETS } from '../../../tests/unit/fixtures/rulesets'
 
 describe('Tile', () => {
   describe('rendering', () => {
@@ -53,46 +56,24 @@ describe('Tile', () => {
       expect(tile.className).toContain('orphan')
     })
 
-    it('renders Luxor chain tile', () => {
-      render(<Tile coordinate="1A" chain="Luxor" />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('luxor')
-    })
-
-    it('renders Tower chain tile', () => {
-      render(<Tile coordinate="1A" chain="Tower" />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('tower')
-    })
-
-    it('renders American chain tile', () => {
-      render(<Tile coordinate="1A" chain="American" />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('american')
-    })
-
-    it('renders Festival chain tile', () => {
-      render(<Tile coordinate="1A" chain="Festival" />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('festival')
-    })
-
-    it('renders Worldwide chain tile', () => {
-      render(<Tile coordinate="1A" chain="Worldwide" />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('worldwide')
-    })
-
-    it('renders Continental chain tile', () => {
-      render(<Tile coordinate="1A" chain="Continental" />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('continental')
-    })
-
-    it('renders Imperial chain tile', () => {
-      render(<Tile coordinate="1A" chain="Imperial" />)
-      const tile = screen.getByTestId('tile-1A')
-      expect(tile.className).toContain('imperial')
+    it('renders a chain tile in the ruleset colour, labelled with the abbreviation', () => {
+      for (const [name, rs] of Object.entries(ALL_RULESETS)) {
+        for (const c of rs.chains) {
+          const { unmount } = render(
+            <RulesetScope ruleset={rs}>
+              <Tile coordinate="1A" chain={c.id} />
+            </RulesetScope>
+          )
+          const tile = screen.getByTestId('tile-1A')
+          expect(tile.className, `${name} ${c.id}`).toContain('chain')
+          expect(tile.style.getPropertyValue('--chain-bg')).toBe(c.color)
+          expect(tile.style.getPropertyValue('--chain-fg')).toBe(readableText(c.color))
+          expect(tile).toHaveTextContent(c.abbreviation)
+          expect(tile).toHaveAttribute('title', `1A · ${c.name}`)
+          expect(tile).toHaveAttribute('data-chain', c.id)
+          unmount()
+        }
+      }
     })
   })
 

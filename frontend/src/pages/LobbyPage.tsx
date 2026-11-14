@@ -7,11 +7,15 @@ import { Button } from '../components/ui/Button'
 import { useToast } from '../components/ui/useToast'
 import { WakingBanner } from '../components/transcripts/PageFrame'
 import { warmUpServer } from '../lib/http'
+import { useServerRules } from '../ruleset/useRules'
+import { playerRange } from '../lib/ruleset'
 import styles from './LobbyPage.module.css'
 
 export function LobbyPage() {
   const navigate = useNavigate()
   const { toast } = useToast()
+  // The home page is the product's front door: its name and pitch come from the server's ruleset.
+  const product = useServerRules()
 
   // Create game state
   const [createName, setCreateName] = useState('')
@@ -183,8 +187,12 @@ export function LobbyPage() {
   return (
     <PageShell header={null}>
       <div className={styles.lobby}>
-        <h1 className={styles.title}>ACQUIRE</h1>
-        <p className={styles.subtitle}>A classic board game of hotel chains and mergers</p>
+        <h1 className={styles.title} data-testid="home-title">
+          {product.title.toUpperCase()}
+        </h1>
+        <p className={styles.subtitle} data-testid="home-tagline">
+          {product.theme.tagline}
+        </p>
 
         <WakingBanner />
         {serverDown && (
@@ -273,7 +281,11 @@ export function LobbyPage() {
           </Card>
         </div>
 
-        <p className={styles.meta}>3-6 players &middot; ~60 min</p>
+        <p className={styles.meta} data-testid="home-meta">
+          {playerRange(product.rs)} &middot; {product.rs.board.columns}&times;
+          {product.rs.board.rows} board &middot; {product.rs.chains.length}{' '}
+          {product.theme.chain_noun_plural}
+        </p>
 
         <div className={styles.spectatorSection}>
           <Button
@@ -292,7 +304,7 @@ export function LobbyPage() {
             Games &amp; transcripts
           </Link>
           <Link to="/bench" data-testid="bench-link">
-            Acquire Bench
+            {product.title} Bench
           </Link>
         </nav>
       </div>

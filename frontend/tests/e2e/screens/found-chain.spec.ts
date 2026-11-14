@@ -22,8 +22,8 @@ test('found chain: only the chains not on the board are offered; founder gets a 
   const offered = decisions[0].legal.chains as string[]
   await shots.take(page, 'chain-selector')
 
-  await expect(phaseBanner(page)).toHaveText('CHOOSE A CHAIN')
-  await expect(page.getByText('FOUND A NEW CHAIN')).toBeVisible()
+  await expect(phaseBanner(page)).toHaveText('CHOOSE A HOTEL CHAIN')
+  await expect(page.getByText('Found a hotel chain')).toBeVisible()
   await expect(page.getByTestId('chain-selector')).toBeVisible()
 
   // Exactly the engine's available chains are enabled; everything else is shown as ACTIVE.
@@ -31,7 +31,7 @@ test('found chain: only the chains not on the board are offered; founder gets a 
     const button = page.getByTestId(`chain-button-${chain.toLowerCase()}`)
     if (offered.includes(chain)) {
       await expect(button).toBeEnabled()
-      await expect(button).toContainText('stock avail')
+      await expect(button).toContainText('shares left')
     } else {
       await expect(button).toBeDisabled()
       await expect(button).toContainText('ACTIVE')

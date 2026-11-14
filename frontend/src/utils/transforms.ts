@@ -7,15 +7,17 @@
 
 import type { BoardCell, TilePlayabilityInfo } from '../types/api'
 import type { TileState, Coordinate } from '../types/game'
+import type { Ruleset } from '../types/ruleset'
+import { unplayableReasonText } from '../lib/ruleset'
 
 /**
  * Transform backend board cells to UI tile states.
  *
  * Backend format:
- *   { cells: { "1A": { state: "played", chain: null }, "2B": { state: "in_chain", chain: "American" } } }
+ *   { cells: { "1A": { state: "played", chain: null }, "2B": { state: "in_chain", chain: "Tower" } } }
  *
  * UI format:
- *   { "1A": { state: 'orphan' }, "2B": { state: 'chain', chain: 'American' } }
+ *   { "1A": { state: 'orphan' }, "2B": { state: 'chain', chain: 'Tower' } }
  *
  * Transformation rules:
  *   - If tile not in cells → not included (empty by default)
@@ -58,19 +60,15 @@ export function transformHandToRackTiles(
   }))
 }
 
-const UNPLAYABLE_REASONS: Record<string, string> = {
-  would_merge_safe_chains: 'it would merge two safe chains',
-  would_create_eighth_chain: 'it would start an 8th chain (all 7 are already on the board)',
-}
-
-/** Human-readable reasons for the unplayable tiles in a backend playability map. */
+/** Human-readable reasons (worded from the ruleset) for the unplayable tiles in a playability map. */
 export function unplayableReasons(
-  playabilityInfo: Record<string, TilePlayabilityInfo>
+  playabilityInfo: Record<string, TilePlayabilityInfo>,
+  rs: Ruleset
 ): Record<string, string> {
   const result: Record<string, string> = {}
   for (const [tile, info] of Object.entries(playabilityInfo)) {
     if (!info.playable) {
-      result[tile] = (info.reason && UNPLAYABLE_REASONS[info.reason]) || 'it is not playable now'
+      result[tile] = unplayableReasonText(rs, info.reason)
     }
   }
   return result
