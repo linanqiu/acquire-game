@@ -41,8 +41,11 @@ from agents.driving import (
 )
 from agents.heuristic import HeuristicAgent
 from bench.prices import PriceTable
+from config import get_ruleset
 from game.decisions import TRADE_RESPONSE, apply_action, pending_decisions
 from game.game import Game, GamePhase
+from game.ranking import competition_ranks
+from game.ruleset import Ruleset, load_ruleset
 from transcripts.paths import new_game_id, utc_now
 from transcripts.writer import TranscriptWriter
 
@@ -58,6 +61,17 @@ _TOKEN_FIELDS = (
     "cache_read_tokens",
     "cache_write_tokens",
 )
+
+
+def resolve_ruleset(ruleset: Ruleset | str | Path | None = None) -> Ruleset:
+    """The ruleset a benchmark game uses: ``ruleset`` (an object, a name in
+    ``backend/rulesets`` or a path), else the server's configured default
+    (env ``GAME_RULESET``, falling back to classic)."""
+    if ruleset is None:
+        return get_ruleset()
+    if isinstance(ruleset, Ruleset):
+        return ruleset
+    return load_ruleset(str(ruleset))
 
 
 def seat_label(spec: SeatSpec) -> str:
@@ -161,6 +175,8 @@ class GameRecord:
     started_at: str | None = None
     finished_at: str | None = None
     seat_labels: list[str] = field(default_factory=list)  # display labels
+    ruleset_id: str | None = None
+    ruleset_fingerprint: str | None = None
 
     @property
     def decisions(self) -> int:
@@ -189,18 +205,15 @@ class GameRecord:
             "transcript": self.transcript,
             "started_at": self.started_at,
             "finished_at": self.finished_at,
+            "ruleset_id": self.ruleset_id,
+            "ruleset_fingerprint": self.ruleset_fingerprint,
         }
 
 
-def assign_ranks(scores: list[int]) -> list[float]:
-    """Rank per score (1 = best); ties share the average of their positions."""
-    order = sorted(scores, reverse=True)
-    ranks = []
-    for s in scores:
-        first = order.index(s) + 1
-        count = order.count(s)
-        ranks.append(first + (count - 1) / 2)
-    return ranks
+def assign_ranks(scores: list[int]) -> list[int]:
+    """Rank per score (1 = best), as the engine ranks final standings:
+    competition ranking, ties share the best rank (1, 1, 3)."""
+    return competition_ranks(scores)
 
 
 def _pick(game: Game):
@@ -278,19 +291,21 @@ def _snapshot(agent: Any) -> dict | None:
     return dict(totals) if isinstance(totals, dict) else None
 
 
-def _prompt_info(agents: list, prompt_version: str | None) -> tuple[str | None, dict]:
+def _prompt_info(
+    agents: list, prompt_version: str | None, ruleset: Ruleset
+) -> tuple[str | None, dict]:
     """Header ``prompt_version`` and ``system_prompts`` (text only when an
-    LLM seat plays)."""
+    LLM seat plays; the text is the one built for ``ruleset``)."""
     try:
         from agents.llm.prompt import build_system_prompt, system_prompt_id
         from agents.llm.prompt import prompt_version as current
     except ImportError:  # pragma: no cover
         return prompt_version, {}
-    version = prompt_version or current()
+    version = prompt_version or current(ruleset)
     if not any(getattr(a, "kind", "") == "llm" for a in agents):
         return version, {}
-    text = build_system_prompt()
-    return version, {system_prompt_id(text): text}
+    text = build_system_prompt(ruleset)
+    return version, {system_prompt_id(text, ruleset): text}
 
 
 async def run_game(
@@ -304,6 +319,7 @@ async def run_game(
     bench_meta: dict | None = None,
     prompt_version: str | None = None,
     game_id: str | None = None,
+    ruleset: Ruleset | str | Path | None = None,
 ) -> GameRecord:
     """Play one game headlessly.
 
@@ -313,7 +329,10 @@ async def run_game(
     (used by the series budget guard). With ``transcript_dir`` a transcript
     ``<transcript_dir>/<game_id>.jsonl`` is written (``bench_meta`` becomes the
     header's ``bench`` object: series_id, matchup, seed, rotation, ...).
+    ``ruleset``: the game variant (see ``resolve_ruleset``); recorded in the
+    game record and the transcript header.
     """
+    rs = resolve_ruleset(ruleset)
     prices = prices or PriceTable.load()
     n = len(seats)
     agents = [build_agent(spec, pos=i, seed=seed) for i, spec in enumerate(seats)]
@@ -338,14 +357,14 @@ async def run_game(
     started_at = utc_now()
     game_id = game_id or new_game_id()
 
-    game = Game(seed=seed)
+    game = Game(seed=seed, ruleset=rs)
     for i in range(n):
         game.add_player(ids[i], f"Seat {i + 1}", is_bot=True)
     game.start_game()
 
     writer = None
     if transcript_dir is not None:
-        version, prompts = _prompt_info(agents, prompt_version)
+        version, prompts = _prompt_info(agents, prompt_version, rs)
         writer = TranscriptWriter.open(
             game,
             seats=[
@@ -551,4 +570,6 @@ async def run_game(
         started_at=started_at,
         finished_at=utc_now(),
         seat_labels=shown,
+        ruleset_id=rs.id,
+        ruleset_fingerprint=rs.fingerprint,
     )

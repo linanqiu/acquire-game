@@ -263,11 +263,12 @@ def _system_prompts(room) -> tuple[str | None, dict]:
         from agents.llm.prompt import system_prompt_id as sp_id
     except ImportError:  # pragma: no cover
         return None, {}
-    version = prompt_version()
+    rs = room.game.ruleset if room.game is not None else None
+    version = prompt_version(rs)
     if not any(seat.kind == "llm" for seat in room.players.values()):
         return version, {}
-    text = build_system_prompt()
-    return version, {sp_id(text): text}
+    text = build_system_prompt(rs)
+    return version, {sp_id(text, rs): text}
 
 
 def open_transcript(room, *, loaded_from_snapshot: bool = False) -> None:
@@ -340,7 +341,7 @@ async def human_action(room_code: str, player_id: str, data: Any) -> dict:
 
     if not isinstance(data, dict):
         data = {}
-    validated, error = validate_websocket_message(data)
+    validated, error = validate_websocket_message(data, room.game.ruleset)
     if error is None:
         seat = room.players.get(player_id)
         if seat is not None and seat.is_agent:

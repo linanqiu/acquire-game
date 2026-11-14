@@ -287,7 +287,7 @@ def test_wilson_interval_hand_computed():
 
 def test_rank_math_and_percentiles():
     assert assign_ranks([10, 30, 20, 5]) == [3, 1, 2, 4]
-    assert assign_ranks([30, 30, 20, 10]) == [1.5, 1.5, 3, 4]
+    assert assign_ranks([30, 30, 20, 10]) == [1, 1, 3, 4]  # competition ranking
     assert percentile([1, 2, 3, 4, 5], 0.5) == 3
     assert percentile([10, 20], 0.95) == pytest.approx(19.5)
     assert percentile([], 0.5) is None

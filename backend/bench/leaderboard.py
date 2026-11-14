@@ -4,17 +4,20 @@
 returns the contract's shape::
 
     {"protocol": {id, description, players, games_per_matchup, seeds},
-     "prompt_version", "track", "updated_at",
+     "ruleset": {id, title, fingerprint}, "prompt_version", "track", "updated_at",
      "agents": [{agent_id, label, model, games, wins, win_rate, ci_low, ci_high,
                  mean_rank, rating, rating_ci, fallback_rate, retry_rate,
                  tokens_per_game, cost_per_game, latency_p50_s, verdict, ...}],
      "series": [{series_id, matchup, games, started_at, finished}],
-     "available": {"protocols": [...], "prompt_versions": [...]},
+     "available": {"protocols": [...], "prompt_versions": [...],
+                   "rulesets": [{id, fingerprint}]},
      "rating": {method, anchor, anchor_rating, prior, bootstrap_samples},
      "games", "warnings"}
 
-Only records of the chosen protocol AND prompt version are used (default:
-those of the most recent record). Unit for win rate / rank: a seat-game (the
+Only records of the chosen protocol, ruleset AND prompt version are used
+(default: those of the most recent record, in that order). Results of
+different ruleset fingerprints are never mixed. ``ruleset`` selects by id or
+fingerprint; records written before rulesets existed count as classic. Unit for win rate / rank: a seat-game (the
 three bot seats of a vs-baseline game are three seat-games; they are not
 independent, so the bot's interval is optimistic). Rates are 0..1.
 """
@@ -28,6 +31,7 @@ from bench.protocols import BASELINE, PROTOCOLS
 from bench.rating import ANCHOR_RATING, bootstrap, bradley_terry
 from bench.report import MIN_GAMES, wilson
 from bench.runner import percentile
+from game.ruleset import classic
 
 BOT_LABEL = "Rules-based bot"
 
@@ -36,20 +40,36 @@ def _key(r: dict) -> str:
     return r.get("finished_at") or r.get("started_at") or ""
 
 
+def record_ruleset(r: dict) -> tuple[str, str | None]:
+    """``(ruleset id, fingerprint)`` of a game record (classic when absent)."""
+    rid = r.get("ruleset_id") or "classic"
+    fp = r.get("ruleset_fingerprint")
+    if fp is None and rid == "classic":
+        fp = classic().fingerprint
+    return rid, fp
+
+
 def select(
     records: Iterable[dict],
     protocol: str | None = None,
     prompt_version: str | None = None,
-) -> tuple[str | None, str | None, list[dict]]:
-    """``(protocol, prompt_version, records)`` of one comparable group."""
+    ruleset: str | None = None,
+) -> tuple[str | None, tuple[str, str | None] | None, str | None, list[dict]]:
+    """``(protocol, (ruleset id, fingerprint), prompt_version, records)`` of
+    one comparable group."""
     recs = [r for r in records if r.get("protocol")]
     if protocol is None and recs:
         protocol = max(recs, key=_key)["protocol"]
     recs = [r for r in recs if r["protocol"] == protocol]
+    if ruleset is not None:
+        recs = [r for r in recs if ruleset in record_ruleset(r)]
+    chosen = max(recs, key=_key) if recs else None
+    rs = record_ruleset(chosen) if chosen is not None else None
+    recs = [r for r in recs if record_ruleset(r) == rs]
     if prompt_version is None and recs:
         prompt_version = max(recs, key=_key).get("prompt_version")
     recs = [r for r in recs if r.get("prompt_version") == prompt_version]
-    return protocol, prompt_version, recs
+    return protocol, rs, prompt_version, recs
 
 
 def _verdict(lo: float, hi: float, chance: float, n: int) -> str:
@@ -69,22 +89,36 @@ def compute_leaderboard(
     *,
     protocol: str | None = None,
     prompt_version: str | None = None,
+    ruleset: str | None = None,
     track: str = "all",
     bootstrap_samples: int = 200,
     seed: int = 0,
 ) -> dict:
-    """Leaderboard of one protocol + prompt version (see module doc).
+    """Leaderboard of one protocol + ruleset + prompt version (see module doc).
     ``track``: ``all`` | ``vs-baseline`` | ``head-to-head``."""
     records = list(records)
     available_protocols = sorted({r["protocol"] for r in records if r.get("protocol")})
-    protocol, prompt_version, recs = select(records, protocol, prompt_version)
+    protocol, rs, prompt_version, recs = select(
+        records, protocol, prompt_version, ruleset
+    )
     versions = sorted(
         {
             r.get("prompt_version")
             for r in records
-            if r.get("protocol") == protocol and r.get("prompt_version")
+            if r.get("protocol") == protocol
+            and record_ruleset(r) == rs
+            and r.get("prompt_version")
         }
     )
+    available_rulesets = sorted(
+        {record_ruleset(r) for r in records if r.get("protocol") == protocol},
+        key=lambda t: (t[0], t[1] or ""),
+    )
+    rs_titles = {}
+    for r in records:
+        rid, fp = record_ruleset(r)
+        if r.get("ruleset_title"):
+            rs_titles[(rid, fp)] = r["ruleset_title"]
     if track != "all":
         recs = [r for r in recs if r.get("track") == track]
     done = [r for r in recs if r.get("status") == "completed"]
@@ -216,6 +250,12 @@ def compute_leaderboard(
     stalled = [r for r in recs if r.get("status") != "completed"]
     if stalled:
         warnings.append(f"{len(stalled)} game(s) stalled and are excluded")
+    if len({fp for _, fp in available_rulesets}) > 1:
+        warnings.append(
+            f"results exist for other rulesets of {protocol}: "
+            + ", ".join(f"{i} ({fp})" for i, fp in available_rulesets if (i, fp) != rs)
+            + " (not mixed into this table)"
+        )
     if len(versions) > 1:
         warnings.append(
             f"other prompt versions exist for {protocol}: "
@@ -224,13 +264,22 @@ def compute_leaderboard(
         )
     return {
         "protocol": proto_public,
+        "ruleset": {
+            "id": rs[0] if rs else None,
+            "title": rs_titles.get(rs) if rs else None,
+            "fingerprint": rs[1] if rs else None,
+        },
         "prompt_version": prompt_version,
         "track": track,
         "updated_at": max((_key(r) for r in recs), default=None) or None,
         "games": len(done),
         "agents": agents,
         "series": sorted(series.values(), key=lambda s: s["series_id"]),
-        "available": {"protocols": available_protocols, "prompt_versions": versions},
+        "available": {
+            "protocols": available_protocols,
+            "prompt_versions": versions,
+            "rulesets": [{"id": i, "fingerprint": fp} for i, fp in available_rulesets],
+        },
         "rating": {
             "method": "pairwise Bradley-Terry (full rank-breaking), Elo scale",
             "anchor": BASELINE,
@@ -245,7 +294,8 @@ def compute_leaderboard(
 def render_leaderboard_md(board: dict) -> str:
     p = board["protocol"]
     lines = [
-        f"## Leaderboard: `{p['id']}` / prompt `{board['prompt_version']}` "
+        f"## Leaderboard: `{p['id']}` / ruleset `{board['ruleset']['id']}` "
+        f"/ prompt `{board['prompt_version']}` "
         f"(track: {board['track']}, {board['games']} games)",
         "",
         "| # | Agent | Rating [95% CI] | Win rate [95% Wilson] | Mean rank | "

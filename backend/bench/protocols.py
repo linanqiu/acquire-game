@@ -38,8 +38,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from bench.prices import PriceTable
-from bench.runner import SeatSpec, matchup_label, seat_label
+from bench.runner import SeatSpec, matchup_label, resolve_ruleset, seat_label
 from bench.series import BenchError, GameSpec, SeriesResult, run_games
+from game.ruleset import Ruleset
 
 TRACKS = ("vs-baseline", "head-to-head")
 BASELINE = "bot"
@@ -143,13 +144,23 @@ def lineups(
     raise BenchError(f"unknown track {track!r}; use one of {', '.join(TRACKS)}")
 
 
-def series_id(protocol: Protocol, track: str, lineup, prompt_version: str) -> str:
+def series_id(
+    protocol: Protocol,
+    track: str,
+    lineup,
+    prompt_version: str,
+    ruleset: Ruleset | None = None,
+) -> str:
+    """Id of one series: protocol, ruleset, track, lineup, prompt version."""
+    rs = ruleset if ruleset is not None else resolve_ruleset()
     labels = [seat_label(s) for s in lineup]
     slug = re.sub(r"[^A-Za-z0-9]+", "-", "_".join(labels)).strip("-")[:60]
     digest = hashlib.sha256(
-        "|".join([protocol.id, track, *labels, prompt_version]).encode()
+        "|".join(
+            [protocol.id, rs.id, rs.fingerprint, track, *labels, prompt_version]
+        ).encode()
     ).hexdigest()[:8]
-    return f"{protocol.id}.{track}.{slug}.{prompt_version}.{digest}"
+    return f"{protocol.id}.{rs.id}.{track}.{slug}.{prompt_version}.{digest}"
 
 
 def schedule(
@@ -159,6 +170,7 @@ def schedule(
     prompt_version: str,
     *,
     games: int | None = None,
+    ruleset: Ruleset | None = None,
 ) -> list[GameSpec]:
     """The games of one series, seed-major: seed 1 under every seating, then
     seed 2... ``games`` caps the series (balanced only when a multiple of the
@@ -167,7 +179,8 @@ def schedule(
     n_seeds = math.ceil(protocol.games_per_series / len(perms))
     if n_seeds > len(protocol.seeds):
         raise BenchError(f"protocol {protocol.id} has too few seeds")
-    sid = series_id(protocol, track, lineup, prompt_version)
+    rs = ruleset if ruleset is not None else resolve_ruleset()
+    sid = series_id(protocol, track, lineup, prompt_version, rs)
     label = matchup_label(list(lineup))
     planned = n_seeds * len(perms)
     if games is not None:
@@ -185,8 +198,11 @@ def schedule(
                     rotation=idx,
                     matchup=label,
                     series_id=sid,
+                    ruleset=rs,
                     meta={
                         "protocol": protocol.id,
+                        "ruleset_id": rs.id,
+                        "ruleset_fingerprint": rs.fingerprint,
                         "track": track,
                         "prompt_version": prompt_version,
                         "series_games": planned,
@@ -217,6 +233,8 @@ class ProtocolResult:
 
     protocol: str
     prompt_version: str
+    ruleset_id: str
+    ruleset_fingerprint: str
     tracks: list[str]
     out: Path
     series: list[str]
@@ -240,6 +258,8 @@ class ProtocolResult:
             "exit_code": self.exit_code,
             "protocol": self.protocol,
             "prompt_version": self.prompt_version,
+            "ruleset_id": self.ruleset_id,
+            "ruleset_fingerprint": self.ruleset_fingerprint,
             "tracks": self.tracks,
             "out": str(self.out),
             "series": self.series,
@@ -263,10 +283,10 @@ class ProtocolResult:
         }
 
 
-def current_prompt_version() -> str:
+def current_prompt_version(ruleset: Ruleset | None = None) -> str:
     from agents.llm.prompt import prompt_version
 
-    return prompt_version()
+    return prompt_version(ruleset)
 
 
 async def run_protocol(
@@ -285,6 +305,7 @@ async def run_protocol(
     progress: Callable[[str], None] | None = None,
     prompt_version: str | None = None,
     write_outputs: bool = True,
+    ruleset: Ruleset | str | Path | None = None,
 ) -> ProtocolResult:
     """Run a benchmark protocol for ``models`` into ``out`` (resumable).
 
@@ -299,7 +320,13 @@ async def run_protocol(
     ``write_outputs=False``). Raises ``BenchError`` on configuration errors
     (unknown protocol/track, no models, duplicate labels, unknown prices
     with ``max_usd``) before any game starts.
+
+    ``ruleset``: name in ``backend/rulesets``, path or ``Ruleset`` (default:
+    the server's configured ruleset, ``GAME_RULESET``, else classic). Results
+    of different rulesets are never mixed: the ruleset is part of every game
+    key, series id, prompt version and leaderboard.
     """
+    rs = resolve_ruleset(ruleset)
     proto = protocol if isinstance(protocol, Protocol) else get_protocol(protocol)
     tracks = list(TRACKS) if track == "both" else [track]
     for t in tracks:
@@ -317,7 +344,7 @@ async def run_protocol(
         raise BenchError(f"{proto.baseline!r} is the baseline; it is always included")
     if games is not None and games < 1:
         raise BenchError("--games must be >= 1")
-    version = prompt_version or current_prompt_version()
+    version = prompt_version or current_prompt_version(rs)
     warnings: list[str] = []
     if any(not isinstance(m, (str, tuple)) for m in models) and max_concurrency > 1:
         warnings.append(
@@ -333,7 +360,7 @@ async def run_protocol(
         if t == "head-to-head" and not lus:
             warnings.append("head-to-head needs at least 2 models: track skipped")
         for lu in lus:
-            s = schedule(proto, t, lu, version, games=games)
+            s = schedule(proto, t, lu, version, games=games, ruleset=rs)
             n_perm = len(seatings(lu))
             if len(s) % n_perm:
                 warnings.append(
@@ -361,6 +388,8 @@ async def run_protocol(
     pr = ProtocolResult(
         protocol=proto.id,
         prompt_version=version,
+        ruleset_id=rs.id,
+        ruleset_fingerprint=rs.fingerprint,
         tracks=tracks,
         out=out,
         series=series,
@@ -375,7 +404,9 @@ async def run_protocol(
             (
                 b
                 for b in boards
-                if b["protocol"]["id"] == proto.id and b["prompt_version"] == version
+                if b["protocol"]["id"] == proto.id
+                and b["prompt_version"] == version
+                and b["ruleset"]["fingerprint"] == rs.fingerprint
             ),
             None,
         )

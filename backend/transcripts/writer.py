@@ -28,6 +28,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from game.ranking import competition_ranks
 from transcripts.paths import new_game_id, transcript_dir, utc_now, valid_game_id
 
 logger = logging.getLogger(__name__)
@@ -68,11 +69,6 @@ def dumps(obj: Any) -> str:
     return json.dumps(obj, default=_default, separators=(",", ":"), ensure_ascii=False)
 
 
-def competition_ranks(scores: list[int]) -> list[int]:
-    """1 = best; ties share the best rank (1, 1, 3)."""
-    return [1 + sum(1 for t in scores if t > s) for s in scores]
-
-
 def standings_from_game(game) -> list[dict]:
     """``[{player_id, name, rank, score}]`` best first (score = final money)."""
     players = list(getattr(game, "players", []))
@@ -88,6 +84,17 @@ def standings_from_game(game) -> list[dict]:
         }
         for i in order
     ]
+
+
+def ruleset_summary(header: dict) -> dict:
+    """``ruleset_id`` / ``ruleset_title`` / ``ruleset_fingerprint`` of a
+    header (transcripts written before rulesets existed were classic)."""
+    rs = header.get("ruleset") or {}
+    return {
+        "ruleset_id": header.get("ruleset_id") or rs.get("id") or "classic",
+        "ruleset_title": rs.get("title") or ("Acquire" if not rs else None),
+        "ruleset_fingerprint": header.get("ruleset_fingerprint"),
+    }
 
 
 def _seat(s: dict) -> dict:
@@ -191,6 +198,7 @@ class TranscriptWriter:
             if not valid_game_id(gid):
                 raise ValueError(f"invalid game id {gid!r}")
             start_seq = len(game.events) if loaded_from_snapshot else 0
+            rs = getattr(game, "ruleset", None)
             header = {
                 "type": "header",
                 "transcript_version": TRANSCRIPT_VERSION,
@@ -199,6 +207,10 @@ class TranscriptWriter:
                 "room_code": room_code,
                 "bench": bench,
                 "started_at": utc_now(),
+                "ruleset_id": rs.id if rs is not None else None,
+                "ruleset_fingerprint": rs.fingerprint if rs is not None else None,
+                # the full ruleset, so a replay needs nothing but the file
+                "ruleset": rs.to_dict() if rs is not None else None,
                 "seed": getattr(game, "seed", None),
                 "tile_order": getattr(game, "_tile_order", None),
                 "seats": [_seat(s) for s in seats],
@@ -390,6 +402,7 @@ class TranscriptWriter:
             "standings": standings,
             "totals": footer["totals"] if footer else self.final_totals(),
             "prompt_version": h.get("prompt_version"),
+            **ruleset_summary(h),
             "bench": h.get("bench"),
             "loaded_from_snapshot": h.get("loaded_from_snapshot", False),
             "finished": footer is not None,

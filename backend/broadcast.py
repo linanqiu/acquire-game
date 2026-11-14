@@ -409,6 +409,7 @@ async def publish_events(room_code: str, game: Game, since_seq: int) -> None:
                 "type": "game_over",
                 "scores": scores,
                 "winner": e.get("winner"),
+                "winners": e.get("winners") or [],
                 "game_id": getattr(room, "game_id", None),
             }
             if declared_by is not None:
