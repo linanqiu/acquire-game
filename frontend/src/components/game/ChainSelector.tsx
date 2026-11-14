@@ -16,6 +16,9 @@ export interface ChainSelectorProps {
   selectedChain?: ChainName
   onSelect: (chain: ChainName) => void
   stockAvailability: Partial<Record<ChainName, number>>
+  /** Label for chains that cannot be picked. Founding: "ACTIVE" (already on the board).
+   *  Merger survivor choice: those chains are simply not part of the tie. */
+  unavailableLabel?: string
 }
 
 export function ChainSelector({
@@ -23,6 +26,7 @@ export function ChainSelector({
   selectedChain,
   onSelect,
   stockAvailability,
+  unavailableLabel = 'ACTIVE',
 }: ChainSelectorProps) {
   const buttonRefs = useRef<Map<ChainName, HTMLButtonElement>>(new Map())
 
@@ -78,7 +82,7 @@ export function ChainSelector({
                   className={`${styles.chainButton} ${isAvailable ? styles.available : styles.unavailable} ${isSelected ? styles.selected : ''}`}
                   onClick={() => isAvailable && onSelect(chain)}
                   disabled={!isAvailable}
-                  aria-label={`${chain}${isAvailable ? `, ${stockCount} stock available` : ', already active'}`}
+                  aria-label={`${chain}${isAvailable ? `, ${stockCount} stock available` : `, ${unavailableLabel === 'ACTIVE' ? 'already active' : unavailableLabel.toLowerCase()}`}`}
                   onKeyDown={(e) => handleKeyDown(e, chain)}
                   data-testid={`chain-button-${chain.toLowerCase()}`}
                   role="radio"
@@ -86,7 +90,7 @@ export function ChainSelector({
                 >
                   <ChainMarker chain={chain} variant="compact" />
                   <span className={styles.stock}>
-                    {isAvailable ? `${stockCount} stock avail` : 'ACTIVE'}
+                    {isAvailable ? `${stockCount} stock avail` : unavailableLabel}
                   </span>
                 </button>
               )

@@ -81,3 +81,35 @@
     gap: 1px;
   }
 }
+
+/* Phones: the md board (12 columns) is wider than the screen, so shrink its cells instead of
+   letting the last columns scroll out of view. */
+@media (max-width: 480px) {
+  .md .corner,
+  .md .rowLabel {
+    width: 14px;
+    height: 22px;
+  }
+
+  .md .colLabel {
+    width: 22px;
+    height: 16px;
+  }
+
+  .md .row > :not(.rowLabel) {
+    width: 22px;
+    height: 22px;
+    font-size: 8px;
+  }
+}
+
+@media (max-width: 380px) {
+  .md .colLabel,
+  .md .row > :not(.rowLabel) {
+    width: 20px;
+  }
+
+  .md .row > :not(.rowLabel) {
+    height: 20px;
+  }
+}

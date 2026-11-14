@@ -48,12 +48,32 @@ type Playability = 'playable' | 'merger' | 'temp_unplayable' | 'perm_unplayable'
  */
 export function transformHandToRackTiles(
   hand: string[],
-  playabilityMap?: Record<string, Playability>
-): { coordinate: Coordinate; playability: Playability }[] {
+  playabilityMap?: Record<string, Playability>,
+  reasons?: Record<string, string>
+): { coordinate: Coordinate; playability: Playability; reason?: string }[] {
   return hand.map((tile) => ({
     coordinate: tile as Coordinate,
     playability: playabilityMap?.[tile] ?? 'playable',
+    ...(reasons?.[tile] ? { reason: reasons[tile] } : {}),
   }))
+}
+
+const UNPLAYABLE_REASONS: Record<string, string> = {
+  would_merge_safe_chains: 'it would merge two safe chains',
+  would_create_eighth_chain: 'it would start an 8th chain (all 7 are already on the board)',
+}
+
+/** Human-readable reasons for the unplayable tiles in a backend playability map. */
+export function unplayableReasons(
+  playabilityInfo: Record<string, TilePlayabilityInfo>
+): Record<string, string> {
+  const result: Record<string, string> = {}
+  for (const [tile, info] of Object.entries(playabilityInfo)) {
+    if (!info.playable) {
+      result[tile] = (info.reason && UNPLAYABLE_REASONS[info.reason]) || 'it is not playable now'
+    }
+  }
+  return result
 }
 
 /**
