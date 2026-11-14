@@ -122,7 +122,8 @@ def random_answer(
 
     if kind == STOCK_DISPOSITION:
         count = legal["stock_count"]
-        trade = rng.choice(range(0, legal["max_trade"] + 1, 2))
+        step = legal.get("trade_ratio", 2)
+        trade = rng.choice(range(0, legal["max_trade"] + 1, step))
         sell = rng.randint(0, count - trade)
         return {
             "action": "merger_disposition",
@@ -191,26 +192,11 @@ def illegal_candidates(game: Game, decision: Decision) -> list[tuple[str, object
     player = game.get_player(pid)
     others = [p for p in game.players if p.player_id != pid]
     other = others[0]
-    on_board = (
-        next(
-            f"{c}{r}"
-            for c in range(1, 13)
-            for r in "ABCDEFGHI"
-            if game.board.is_tile_played(Tile(c, r))
-        )
-        if any(
-            game.board.is_tile_played(Tile(c, r))
-            for c in range(1, 13)
-            for r in "ABCDEFGHI"
-        )
-        else None
-    )
-    not_in_hand = next(
-        f"{c}{r}"
-        for c in range(1, 13)
-        for r in "ABCDEFGHI"
-        if Tile(c, r) not in player.hand
-    )
+    all_tiles = game.board.all_tiles()
+    on_board = next((str(t) for t in all_tiles if game.board.is_tile_played(t)), None)
+    not_in_hand = next(str(t) for t in all_tiles if t not in player.hand)
+    spec = game.ruleset.board
+    off_board = f"{spec.columns + 1}A"
     cands: list[tuple[str, object]] = [
         (pid, None),
         (pid, "place_tile"),
@@ -218,6 +204,7 @@ def illegal_candidates(game: Game, decision: Decision) -> list[tuple[str, object
         (pid, {}),
         (pid, {"action": "fly"}),
         (pid, {"action": "place_tile", "tile": "13Z"}),
+        (pid, {"action": "place_tile", "tile": off_board}),
         (pid, {"action": "place_tile", "tile": 5}),
         (pid, {"action": "place_tile"}),
         (pid, {"action": "place_tile", "tile": not_in_hand}),
@@ -286,7 +273,7 @@ def illegal_candidates(game: Game, decision: Decision) -> list[tuple[str, object
         cands.append((other.player_id, {"action": "found_chain", "chain": avail[0]}))
     elif kind == CHOOSE_SURVIVOR:
         tied = decision.context["tied_chains"]
-        non_tied = [c for c in ALL_CHAINS if c not in tied]
+        non_tied = [c for c in game.ruleset.chain_ids if c not in tied]
         cands.append((pid, {"action": "merger_choice", "surviving_chain": non_tied[0]}))
         cands.append(
             (other.player_id, {"action": "merger_choice", "surviving_chain": tied[0]})
@@ -372,6 +359,8 @@ def money_delta_from_events(events: list[dict]) -> int:
             delta -= e["total_cost"]
         elif t == "chain_founded" and e["founder_bonus_type"] == "cash":
             delta += e["founder_bonus_value"]
+        elif t == "chain_founded":
+            delta += e.get("founder_bonus_cash", 0)
         elif t == "bonuses_paid":
             delta += sum(b["majority"] + b["minority"] for b in e["bonuses"].values())
         elif t == "stock_disposition":
@@ -397,12 +386,23 @@ def reconstruct_hand(game: Game, player_id: str) -> set[str]:
 
 
 def check_invariants(game: Game):
+    rs = game.ruleset
     if game.phase != GamePhase.GAME_OVER:
-        for chain in ALL_CHAINS:
+        for chain in rs.chain_ids:
             held = sum(p.get_stock_count(chain) for p in game.players)
             assert held + game.hotel.get_available_stocks(chain) == (
-                TOTAL_STOCK_PER_CHAIN
+                rs.stocks_per_chain
             ), chain
+    # Tiles are conserved: bag + hands + board + removed-from-game == area.
+    if game.phase != GamePhase.LOBBY:
+        removed = sum(
+            len(e["removed_tiles"])
+            for e in game.events
+            if e["type"] == "tiles_replaced"
+        )
+        on_board = len(game.board.get_state()["cells"])
+        in_hands = sum(p.hand_size for p in game.players)
+        assert on_board + in_hands + len(game.tile_bag) + removed == rs.board.area
     for p in game.players:
         assert p.money >= 0
 
@@ -413,10 +413,19 @@ def check_invariants(game: Game):
 
 
 def run_random_game(
-    seed: int, num_players: int, declare_prob: float = 0.3, max_steps: int = 20000
+    seed: int,
+    num_players: int,
+    declare_prob: float = 0.3,
+    max_steps: int = 20000,
+    ruleset=None,
 ):
+    """Random legal play to game over with all invariants checked.
+
+    ``ruleset``: any ``game.ruleset.Ruleset`` (default classic); every
+    invariant uses the game's own ruleset.
+    """
     rng = random.Random(seed * 1000 + num_players)
-    game = Game(seed=seed)
+    game = Game(seed=seed, ruleset=ruleset)
     for i in range(num_players):
         game.add_player(f"p{i + 1}", f"Player {i + 1}")
     game.start_game()

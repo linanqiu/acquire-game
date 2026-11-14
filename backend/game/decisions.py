@@ -17,19 +17,18 @@ Typical driver loop::
 
 from __future__ import annotations
 
-import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from game.action import TradeOffer
 from game.board import Tile
-from game.game import GamePhase
-from game.hotel import Hotel
+from game.game import GamePhase, trade_multiple_error
 from game.rules import PlacementResult, Rules
 
 if TYPE_CHECKING:
     from game.game import Game
+    from game.ruleset import Ruleset
 
 
 # Decision kinds
@@ -62,8 +61,6 @@ OUT_OF_TURN_ACTIONS = (
     "reject_trade",
     "cancel_trade",
 )
-
-_TILE_RE = re.compile(r"^(1[0-2]|[1-9])([A-I])$")
 
 
 @dataclass(frozen=True)
@@ -234,8 +231,9 @@ def legal_actions(game: Game, decision: Decision) -> dict:
         ctx = decision.context
         count = ctx.get("stock_count") or 0
         available = game.hotel.get_available_stocks(ctx.get("surviving_chain"))
-        max_trade = min(count - count % 2, available * 2)
-        return {
+        ratio = game.ruleset.merger_trade_ratio
+        max_trade = min(count - count % ratio, available * ratio)
+        out = {
             "action_types": ["merger_disposition"],
             "defunct_chain": ctx.get("defunct_chain"),
             "surviving_chain": ctx.get("surviving_chain"),
@@ -243,11 +241,16 @@ def legal_actions(game: Game, decision: Decision) -> dict:
             "max_trade": max_trade,
             "rule": "sell+trade+hold == stock_count",
         }
+        if ratio != 2:
+            # Only present for non-2:1 rulesets, so classic output is unchanged.
+            out["trade_ratio"] = ratio
+        return out
 
     if kind == BUY_STOCKS:
         money = player.money if player else 0
         action_types = []
         options = []
+        max_buy = game.ruleset.max_stock_purchases_per_turn
         if not game.stocks_bought_this_turn:
             action_types.append("buy_stocks")
             for chain in game.hotel.get_active_chains():
@@ -255,9 +258,9 @@ def legal_actions(game: Game, decision: Decision) -> dict:
                 price = game.hotel.get_stock_price(chain, size)
                 available = game.hotel.get_available_stocks(chain)
                 max_affordable = min(
-                    game.MAX_STOCKS_PER_TURN,
+                    max_buy,
                     available,
-                    money // price if price > 0 else game.MAX_STOCKS_PER_TURN,
+                    money // price if price > 0 else max_buy,
                 )
                 options.append(
                     {
@@ -273,9 +276,7 @@ def legal_actions(game: Game, decision: Decision) -> dict:
         action_types.append("propose_trade")
         return {
             "action_types": action_types,
-            "max_total": 0
-            if game.stocks_bought_this_turn
-            else game.MAX_STOCKS_PER_TURN,
+            "max_total": 0 if game.stocks_bought_this_turn else max_buy,
             "options": options,
             "money": money,
         }
@@ -314,8 +315,8 @@ def _non_negative_int(v: Any, name: str) -> int:
     return v
 
 
-def _chain_name(v: Any, name: str = "chain") -> str:
-    if not isinstance(v, str) or v not in Hotel.CHAINS:
+def _chain_name(v: Any, rs: Ruleset, name: str = "chain") -> str:
+    if not rs.has_chain(v):
         raise _ActionError(f"Invalid {name}: {v!r}")
     return v
 
@@ -327,38 +328,40 @@ def _str_field(action: dict, key: str) -> str:
     return v
 
 
-def _parse_tile(v: Any) -> Tile:
+def _parse_tile(v: Any, rs: Ruleset) -> Tile:
     if not isinstance(v, str):
         raise _ActionError("Invalid tile")
-    m = _TILE_RE.match(v.strip().upper())
-    if not m:
-        raise _ActionError("Invalid tile format. Expected format like 1A, 5E, 12I")
-    return Tile(int(m.group(1)), m.group(2))
+    coords = rs.board.parse_tile_coords(v)
+    if coords is None:
+        raise _ActionError(
+            f"Invalid tile format. Expected format like {rs.board.tile_example()}"
+        )
+    return Tile(coords[0], coords[1], rs.board)
 
 
-def _parse_stock_dict(v: Any, name: str) -> dict[str, int]:
+def _parse_stock_dict(v: Any, name: str, rs: Ruleset) -> dict[str, int]:
     if v is None:
         return {}
     if not isinstance(v, dict):
         raise _ActionError(f"{name} must be an object")
     out = {}
     for chain, qty in v.items():
-        _chain_name(chain)
+        _chain_name(chain, rs)
         out[chain] = _non_negative_int(qty, f"{name}[{chain}]")
     return out
 
 
-def _parse_purchases(v: Any) -> list[str]:
-    """{"Tower": 2, "Luxor": 1} -> ["Tower", "Tower", "Luxor"] (as main.py)."""
+def _parse_purchases(v: Any, rs: Ruleset) -> list[str]:
+    """{"a": 2, "b": 1} -> ["a", "a", "b"] (chain id -> count, expanded)."""
     if v is None:
         v = {}
     if isinstance(v, list):
         # Engine-native form: list of chain names
         for chain in v:
-            _chain_name(chain)
+            _chain_name(chain, rs)
         purchases = list(v)
     else:
-        counts = _parse_stock_dict(v, "purchases")
+        counts = _parse_stock_dict(v, "purchases", rs)
         purchases = []
         for chain, qty in counts.items():
             purchases.extend([chain] * qty)
@@ -377,7 +380,7 @@ def _parse_disposition(action: dict) -> tuple[int, int, int]:
     return sell, trade, hold
 
 
-def _build_trade(player_id: str, action: dict) -> TradeOffer:
+def _build_trade(player_id: str, action: dict, rs: Ruleset) -> TradeOffer:
     to_player_id = _str_field(action, "to_player_id")
     # Optional explicit id (deterministic fixtures/tests); random uuid otherwise.
     trade_id = action.get("trade_id")
@@ -388,13 +391,13 @@ def _build_trade(player_id: str, action: dict) -> TradeOffer:
         from_player_id=player_id,
         to_player_id=to_player_id,
         offering_stocks=_parse_stock_dict(
-            action.get("offering_stocks"), "offering_stocks"
+            action.get("offering_stocks"), "offering_stocks", rs
         ),
         offering_money=_non_negative_int(
             action.get("offering_money", 0), "offering_money"
         ),
         requesting_stocks=_parse_stock_dict(
-            action.get("requesting_stocks"), "requesting_stocks"
+            action.get("requesting_stocks"), "requesting_stocks", rs
         ),
         requesting_money=_non_negative_int(
             action.get("requesting_money", 0), "requesting_money"
@@ -431,9 +434,10 @@ def _validate(game: Game, player_id: str, action: Any) -> str | None:
         return "Game has not started"
     if game.phase == GamePhase.GAME_OVER:
         return "Game is already over"
+    rs = game.ruleset
 
     if action_type == "place_tile":
-        tile = _parse_tile(action.get("tile"))
+        tile = _parse_tile(action.get("tile"), rs)
         err = _not_flow_turn(game, player_id, (PLACE_TILE,))
         if err:
             return err
@@ -444,7 +448,7 @@ def _validate(game: Game, player_id: str, action: Any) -> str | None:
         return None
 
     if action_type == "found_chain":
-        chain = _chain_name(action.get("chain"))
+        chain = _chain_name(action.get("chain"), rs)
         err = _not_flow_turn(game, player_id, (FOUND_CHAIN,))
         if err:
             return err
@@ -453,7 +457,7 @@ def _validate(game: Game, player_id: str, action: Any) -> str | None:
         return None
 
     if action_type == "merger_choice":
-        chain = _chain_name(action.get("surviving_chain"), "surviving_chain")
+        chain = _chain_name(action.get("surviving_chain"), rs, "surviving_chain")
         err = _not_flow_turn(game, player_id, (CHOOSE_SURVIVOR,))
         if err:
             return err
@@ -462,7 +466,7 @@ def _validate(game: Game, player_id: str, action: Any) -> str | None:
         return None
 
     if action_type == "merger_disposition":
-        defunct = _chain_name(action.get("defunct_chain"), "defunct_chain")
+        defunct = _chain_name(action.get("defunct_chain"), rs, "defunct_chain")
         sell, trade, hold = _parse_disposition(action)
         err = _not_flow_turn(game, player_id, (STOCK_DISPOSITION,))
         if err:
@@ -472,22 +476,24 @@ def _validate(game: Game, player_id: str, action: Any) -> str | None:
             return f"Pending disposition is for {pending.get('defunct_chain')}"
         if sell + trade + hold != pending.get("stock_count"):
             return "Stock counts don't add up"
-        if trade % 2 != 0:
-            return "Trade count must be even"
+        ratio = rs.merger_trade_ratio
+        if trade % ratio != 0:
+            return trade_multiple_error(ratio)
         survivor = pending.get("surviving_chain")
-        if trade // 2 > game.hotel.get_available_stocks(survivor):
+        if trade // ratio > game.hotel.get_available_stocks(survivor):
             return "Not enough survivor stock available to trade"
         return None
 
     if action_type == "buy_stocks":
-        purchases = _parse_purchases(action.get("purchases"))
+        purchases = _parse_purchases(action.get("purchases"), rs)
         err = _not_flow_turn(game, player_id, (BUY_STOCKS,))
         if err:
             return err
         if game.stocks_bought_this_turn:
             return "Stocks already bought this turn"
-        if len(purchases) > game.MAX_STOCKS_PER_TURN:
-            return f"Can only buy up to {game.MAX_STOCKS_PER_TURN} stocks"
+        max_buy = rs.max_stock_purchases_per_turn
+        if len(purchases) > max_buy:
+            return f"Can only buy up to {max_buy} stocks"
         total_cost = 0
         counts: dict[str, int] = {}
         for chain in purchases:
@@ -515,17 +521,12 @@ def _validate(game: Game, player_id: str, action: Any) -> str | None:
         return None
 
     if action_type == "propose_trade":
-        trade = _build_trade(player_id, action)
+        trade = _build_trade(player_id, action, rs)
         if trade.trade_id in game.pending_trades:
             return "Trade id already in use"
-        if (
-            game._count_pending_trades_for_player(player_id)
-            >= game.MAX_PENDING_TRADES_PER_PLAYER
-        ):
-            return (
-                f"Maximum of {game.MAX_PENDING_TRADES_PER_PLAYER} "
-                "pending trades per player"
-            )
+        max_pending = rs.max_pending_trades_per_player
+        if game._count_pending_trades_for_player(player_id) >= max_pending:
+            return f"Maximum of {max_pending} pending trades per player"
         ok, error = Rules.validate_trade(game, trade)
         return None if ok else error
 
@@ -568,8 +569,9 @@ def validate_action(game: Game, player_id: str, action: Any) -> str | None:
 
 def _dispatch(game: Game, player_id: str, action: dict):
     action_type = action["action"]
+    rs = game.ruleset
     if action_type == "place_tile":
-        return game.play_tile(player_id, _parse_tile(action["tile"]))
+        return game.play_tile(player_id, _parse_tile(action["tile"], rs))
     if action_type == "found_chain":
         return game.found_chain(player_id, action["chain"])
     if action_type == "merger_choice":
@@ -579,13 +581,13 @@ def _dispatch(game: Game, player_id: str, action: dict):
         # Wire "hold" maps to the engine's "keep"
         return game.handle_stock_disposition(player_id, sell, trade, hold)
     if action_type == "buy_stocks":
-        return game.buy_stocks(player_id, _parse_purchases(action.get("purchases")))
+        return game.buy_stocks(player_id, _parse_purchases(action.get("purchases"), rs))
     if action_type == "end_turn":
         return game.end_turn(player_id)
     if action_type == "declare_end_game":
         return game.declare_end_game(player_id)
     if action_type == "propose_trade":
-        return game.propose_trade(_build_trade(player_id, action))
+        return game.propose_trade(_build_trade(player_id, action, rs))
     handlers: dict[str, Callable] = {
         "accept_trade": game.accept_trade,
         "reject_trade": game.reject_trade,

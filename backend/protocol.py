@@ -4,32 +4,36 @@ The validated message is turned into the engine's action dict
 (``game.decisions`` wire format) with ``to_action``. These models are a first,
 shape-only filter that produces friendly errors; ``apply_action`` does the
 authoritative legality checks.
+
+Chain ids, the tile pattern and the per-turn purchase limit come from the
+server's configured ruleset (``config.get_ruleset()``, env ``GAME_RULESET``),
+which is the ruleset every game on this server is created with.
 """
 
-import re
 from typing import Literal, Union
 
 from pydantic import BaseModel, ValidationError, field_validator
+
+from config import get_ruleset
+from game.ruleset import classic
 
 # =============================================================================
 # Pydantic Models for WebSocket Message Validation
 # =============================================================================
 
-VALID_CHAINS = [
-    "Luxor",
-    "Tower",
-    "American",
-    "Worldwide",
-    "Festival",
-    "Imperial",
-    "Continental",
-]
+# Classic alias kept for importers; validation uses the configured ruleset.
+VALID_CHAINS = list(classic().chain_ids)
+
+
+def _valid_chains() -> list[str]:
+    return list(get_ruleset().chain_ids)
 
 
 def _validate_chain_name(v: str) -> str:
     """Shared validator for chain names."""
-    if v not in VALID_CHAINS:
-        raise ValueError(f"Invalid chain: {v}. Must be one of {VALID_CHAINS}")
+    chains = _valid_chains()
+    if v not in chains:
+        raise ValueError(f"Invalid chain: {v}. Must be one of {chains}")
     return v
 
 
@@ -42,12 +46,15 @@ class PlaceTileMessage(BaseModel):
     @field_validator("tile")
     @classmethod
     def validate_tile(cls, v: str) -> str:
-        """Validate tile format (e.g., '1A', '12I')."""
+        """Validate tile format and board bounds (e.g. '1A')."""
         if not isinstance(v, str):
             raise ValueError("Tile must be a string")  # noqa: TRY004 - pydantic
         v = v.upper().strip()
-        if not re.match(r"^1?[0-9][A-I]$", v):
-            raise ValueError("Invalid tile format. Expected format like 1A, 5E, 12I")
+        board = get_ruleset().board
+        if board.parse_tile_coords(v) is None:
+            raise ValueError(
+                f"Invalid tile format. Expected format like {board.tile_example()}"
+            )
         return v
 
 
@@ -119,17 +126,19 @@ class BuyStocksMessage(BaseModel):
         """Validate purchases dictionary."""
         if not isinstance(v, dict):
             raise ValueError("Purchases must be a dictionary")  # noqa: TRY004 - pydantic
+        chains = _valid_chains()
+        limit = get_ruleset().max_stock_purchases_per_turn
         total = 0
         for chain, quantity in v.items():
-            if chain not in VALID_CHAINS:
+            if chain not in chains:
                 raise ValueError(f"Invalid chain: {chain}")
             if not isinstance(quantity, int) or quantity < 0:
                 raise ValueError(
                     f"Invalid quantity for {chain}: must be non-negative integer"
                 )
             total += quantity
-        if total > 3:
-            raise ValueError("Cannot buy more than 3 stocks per turn")
+        if total > limit:
+            raise ValueError(f"Cannot buy more than {limit} stocks per turn")
         return v
 
 
@@ -160,8 +169,9 @@ class ProposeTradeMessage(BaseModel):
     @classmethod
     def validate_stocks(cls, v: dict) -> dict:
         """Validate stock dictionaries."""
+        chains = _valid_chains()
         for chain, quantity in v.items():
-            if chain not in VALID_CHAINS:
+            if chain not in chains:
                 raise ValueError(f"Invalid chain: {chain}")
             if not isinstance(quantity, int) or quantity < 0:
                 raise ValueError(

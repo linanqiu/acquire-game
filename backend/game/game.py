@@ -10,6 +10,7 @@ from game.action import TradeOffer
 from game.hotel import Hotel
 from game.player import Player
 from game.rules import Rules, PlacementResult
+from game.ruleset import Ruleset, classic, resolve
 from game.bot import Bot
 from game.responses import (
     PlayTileResult,
@@ -82,29 +83,46 @@ _PHASE_TO_STRING = {
 _STRING_TO_PHASE = {v: k for k, v in _PHASE_TO_STRING.items()}
 
 
-class Game:
-    """Main game class that orchestrates the full Acquire game."""
+def trade_multiple_error(ratio: int) -> str:
+    """Error for a merger trade count that is not a multiple of the ratio."""
+    if ratio == 2:
+        return "Trade count must be even"
+    return f"Trade count must be a multiple of {ratio}"
 
-    MIN_PLAYERS = 3
-    MAX_PLAYERS = 6
-    STARTING_TILES = 6
-    MAX_STOCKS_PER_TURN = 3
-    MAX_PENDING_TRADES_PER_PLAYER = 5  # Limit to prevent spam
+
+class Game:
+    """Main game class that orchestrates the full Acquire game.
+
+    All parameters come from ``self.ruleset`` (passed explicitly; default
+    classic). The class constants below are aliases of the classic ruleset
+    kept for older callers and tests; the engine never reads them.
+    """
+
+    MIN_PLAYERS = classic().min_players
+    MAX_PLAYERS = classic().max_players
+    STARTING_TILES = classic().hand_size
+    MAX_STOCKS_PER_TURN = classic().max_stock_purchases_per_turn
+    MAX_PENDING_TRADES_PER_PLAYER = classic().max_pending_trades_per_player
 
     def __init__(
-        self, seed: Optional[int] = None, tile_order: Optional[list[str]] = None
+        self,
+        seed: Optional[int] = None,
+        tile_order: Optional[list[str]] = None,
+        ruleset: Optional[Ruleset] = None,
     ):
         """Initialize a new game in lobby state.
 
         Args:
             seed: Optional random seed for reproducible games
             tile_order: Optional explicit tile order (list of tile strings like "1A", "2B")
+            ruleset: Game parameters (board, chains, prices, limits); default classic
         """
+        self.ruleset = resolve(ruleset)
         self.seed = seed
         self._tile_order = tile_order
         self.rng = random.Random(seed)
-        self.board = Board()
-        self.hotel = Hotel()
+        self.board = Board(self.ruleset)
+        self.hotel = Hotel(self.ruleset)
         self.players: list[Player] = []
         self.bots: dict[str, Bot] = {}  # player_id -> Bot
         self.tile_bag: list[Tile] = []
@@ -220,12 +238,13 @@ class Game:
         """
         if self.phase != GamePhase.LOBBY:
             raise ValueError("Cannot add players after game has started")
-        if len(self.players) >= self.MAX_PLAYERS:
-            raise ValueError(f"Maximum {self.MAX_PLAYERS} players allowed")
+        max_players = self.ruleset.max_players
+        if len(self.players) >= max_players:
+            raise ValueError(f"Maximum {max_players} players allowed")
         if any(p.player_id == player_id for p in self.players):
             raise ValueError(f"Player with id {player_id} already exists")
 
-        player = Player(player_id, name)
+        player = Player(player_id, name, self.ruleset)
         self.players.append(player)
 
         if is_bot:
@@ -263,14 +282,15 @@ class Game:
         """
         if self.phase != GamePhase.LOBBY:
             raise ValueError("Game has already started")
-        if len(self.players) < self.MIN_PLAYERS:
-            raise ValueError(f"Need at least {self.MIN_PLAYERS} players to start")
+        min_players = self.ruleset.min_players
+        if len(self.players) < min_players:
+            raise ValueError(f"Need at least {min_players} players to start")
 
         # Create tile bag: use explicit order if provided, otherwise shuffle
         if self._tile_order:
-            self.tile_bag = [Tile.from_string(s) for s in self._tile_order]
+            self.tile_bag = [self.board.tile_from_string(s) for s in self._tile_order]
         else:
-            self.tile_bag = Board.all_tiles()
+            self.tile_bag = self.board.all_tiles()
             self.rng.shuffle(self.tile_bag)
 
         self._emit(
@@ -282,7 +302,7 @@ class Game:
         # Deal starting tiles to each player
         for player in self.players:
             dealt = []
-            for _ in range(self.STARTING_TILES):
+            for _ in range(self.ruleset.hand_size):
                 tile = self.draw_tile(player)
                 if tile:
                     dealt.append(str(tile))
@@ -429,7 +449,7 @@ class Game:
 
         # Draw new tiles up to hand limit
         new_tiles = []
-        while player.hand_size < Player.MAX_HAND_SIZE and self.tile_bag:
+        while player.hand_size < self.ruleset.hand_size and self.tile_bag:
             tile = self.draw_tile(player)
             if tile:
                 new_tiles.append(str(tile))
@@ -470,7 +490,7 @@ class Game:
         """
         if not self.tile_bag:
             return None
-        if player.hand_size >= Player.MAX_HAND_SIZE:
+        if player.hand_size >= self.ruleset.hand_size:
             return None
 
         tile = self.tile_bag.pop()
@@ -702,23 +722,27 @@ class Game:
         for t in connected:
             self.board.set_chain(t, chain_name)
 
-        # Give founder a free stock if available, otherwise cash equivalent
+        # Give the founder free stock (ruleset founder_bonus_shares, 1 in
+        # classic); any share the bank cannot supply is paid as its price.
         chain_size = self.board.get_chain_size(chain_name)
         stock_price = self.hotel.get_stock_price(chain_name, chain_size)
-        founder_bonus_type = None
-        founder_bonus_value = 0
+        wanted = self.ruleset.founder_bonus_shares
+        shares = min(wanted, self.hotel.get_available_stocks(chain_name))
+        cash = (wanted - shares) * stock_price
 
-        if self.hotel.get_available_stocks(chain_name) > 0:
-            self.hotel.buy_stock(chain_name)
-            player.add_stocks(chain_name, 1)
+        if shares > 0:
+            self.hotel.buy_stock(chain_name, shares)
+            player.add_stocks(chain_name, shares)
             founder_bonus_type = "stock"
-            founder_bonus_value = 1
+            founder_bonus_value = shares
         else:
             # No stock available - give cash equivalent
-            player.add_money(stock_price)
             founder_bonus_type = "cash"
-            founder_bonus_value = stock_price
+            founder_bonus_value = cash
+        if cash:
+            player.add_money(cash)
 
+        extra = {"founder_bonus_cash": cash} if shares > 0 and cash else {}
         self._emit(
             "chain_founded",
             player_id,
@@ -727,6 +751,7 @@ class Game:
             size=chain_size,
             founder_bonus_type=founder_bonus_type,
             founder_bonus_value=founder_bonus_value,
+            **extra,
         )
 
         self.phase = GamePhase.BUYING_STOCKS
@@ -932,12 +957,13 @@ class Game:
                 success=False, error="Stock counts don't add up"
             )
 
-        if trade % 2 != 0:
+        ratio = self.ruleset.merger_trade_ratio
+        if trade % ratio != 0:
             return StockDispositionResult(
-                success=False, error="Trade count must be even"
+                success=False, error=trade_multiple_error(ratio)
             )
 
-        trade_for = trade // 2
+        trade_for = trade // ratio
         available = self.hotel.get_available_stocks(survivor)
         if trade_for > available:
             return StockDispositionResult(
@@ -1028,7 +1054,8 @@ class Game:
 
         Args:
             player_id: ID of player buying
-            purchases: List of chain names to buy (can repeat, max 3)
+            purchases: List of chain names to buy (can repeat, up to the
+                ruleset's per-turn limit)
 
         Returns:
             BuyStocksResult with result
@@ -1045,10 +1072,11 @@ class Game:
                 success=False, error="Stocks already bought this turn"
             )
 
-        if len(purchases) > self.MAX_STOCKS_PER_TURN:
+        max_buy = self.ruleset.max_stock_purchases_per_turn
+        if len(purchases) > max_buy:
             return BuyStocksResult(
                 success=False,
-                error=f"Can only buy up to {self.MAX_STOCKS_PER_TURN} stocks",
+                error=f"Can only buy up to {max_buy} stocks",
             )
 
         # Validate all purchases first
@@ -1224,7 +1252,7 @@ class Game:
         # Sell all stocks at current prices
         final_sales: dict[str, int] = {}
         for player in self.players:
-            for chain_name in Hotel.get_all_chain_names():
+            for chain_name in self.hotel.get_all_chain_names():
                 count = player.get_stock_count(chain_name)
                 if count > 0:
                     if self.hotel.is_chain_active(chain_name):
@@ -1286,8 +1314,8 @@ class Game:
         """Check if the current player can declare the game over.
 
         Per Acquire rules, a player MAY declare the game over when:
-        1. Any single chain has 41 or more tiles, OR
-        2. All active chains on the board are "safe" (11+ tiles each)
+        1. Any single chain has reached the ruleset's end-game size, OR
+        2. All active chains on the board are "safe"
 
         Note: This is an OPTIONAL declaration - the player can choose to continue.
 
@@ -1389,10 +1417,11 @@ class Game:
 
         # Check pending trade limit for the proposer
         current_count = self._count_pending_trades_for_player(trade.from_player_id)
-        if current_count >= self.MAX_PENDING_TRADES_PER_PLAYER:
+        max_pending = self.ruleset.max_pending_trades_per_player
+        if current_count >= max_pending:
             return ProposeTradeResult(
                 success=False,
-                error=f"Maximum of {self.MAX_PENDING_TRADES_PER_PLAYER} pending trades per player",
+                error=f"Maximum of {max_pending} pending trades per player",
             )
 
         # Validate the trade
@@ -1742,7 +1771,7 @@ class Game:
         """
         # Calculate chain sizes and prices
         chain_info = {}
-        for chain_name in Hotel.get_all_chain_names():
+        for chain_name in self.hotel.get_all_chain_names():
             size = self.board.get_chain_size(chain_name)
             active = self.hotel.is_chain_active(chain_name)
             price = self.hotel.get_stock_price(chain_name, size) if active else 0
@@ -1754,7 +1783,7 @@ class Game:
                 "stock_price": price,
                 "available_stocks": self.hotel.get_available_stocks(chain_name),
                 "safe": safe,
-                "color": Hotel.CHAINS[chain_name].color,
+                "color": self.ruleset.chain(chain_name).color,
             }
 
         # Player public info
@@ -1790,6 +1819,9 @@ class Game:
             "pending_trades": [
                 trade.to_dict() for trade in self.pending_trades.values()
             ],
+            # Everything a client needs to render this variant (see
+            # docs/architecture/seat-contract.md "Ruleset").
+            "ruleset": self.ruleset.public_dict(),
         }
 
         if merger_state:

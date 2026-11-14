@@ -1,0 +1,217 @@
+{
+  "id": "valley",
+  "version": 1,
+  "title": "Acquihire",
+  "theme": {
+    "chain_noun": "AI startup",
+    "chain_noun_plural": "AI startups",
+    "share_noun": "equity share",
+    "share_noun_plural": "equity shares",
+    "stock_label": "Equity",
+    "merger_noun": "acquisition",
+    "merger_noun_plural": "acquisitions",
+    "safe_phrase": "too big to acquire",
+    "currency_symbol": "$",
+    "tagline": "Found startups, buy equity, get acquired.",
+    "game_description": "a board game about founding AI startups and getting them acquired"
+  },
+  "board": {
+    "columns": 12,
+    "rows": 9
+  },
+  "tiers": [
+    {
+      "id": "seed",
+      "label": "seed-stage",
+      "prices": [
+        {
+          "from": 2,
+          "price": 200
+        },
+        {
+          "from": 3,
+          "price": 300
+        },
+        {
+          "from": 4,
+          "price": 400
+        },
+        {
+          "from": 5,
+          "price": 500
+        },
+        {
+          "from": 6,
+          "price": 600
+        },
+        {
+          "from": 11,
+          "price": 700
+        },
+        {
+          "from": 21,
+          "price": 800
+        },
+        {
+          "from": 31,
+          "price": 900
+        },
+        {
+          "from": 41,
+          "price": 1000
+        }
+      ]
+    },
+    {
+      "id": "growth",
+      "label": "growth-stage",
+      "prices": [
+        {
+          "from": 2,
+          "price": 300
+        },
+        {
+          "from": 3,
+          "price": 400
+        },
+        {
+          "from": 4,
+          "price": 500
+        },
+        {
+          "from": 5,
+          "price": 600
+        },
+        {
+          "from": 6,
+          "price": 700
+        },
+        {
+          "from": 11,
+          "price": 800
+        },
+        {
+          "from": 21,
+          "price": 900
+        },
+        {
+          "from": 31,
+          "price": 1000
+        },
+        {
+          "from": 41,
+          "price": 1100
+        }
+      ]
+    },
+    {
+      "id": "frontier",
+      "label": "frontier lab",
+      "prices": [
+        {
+          "from": 2,
+          "price": 400
+        },
+        {
+          "from": 3,
+          "price": 500
+        },
+        {
+          "from": 4,
+          "price": 600
+        },
+        {
+          "from": 5,
+          "price": 700
+        },
+        {
+          "from": 6,
+          "price": 800
+        },
+        {
+          "from": 11,
+          "price": 900
+        },
+        {
+          "from": 21,
+          "price": 1000
+        },
+        {
+          "from": 31,
+          "price": 1100
+        },
+        {
+          "from": 41,
+          "price": 1200
+        }
+      ]
+    }
+  ],
+  "chains": [
+    {
+      "id": "promptly",
+      "name": "Promptly",
+      "tier": "seed",
+      "color": "#E69F00",
+      "abbreviation": "PR"
+    },
+    {
+      "id": "tokenwise",
+      "name": "Tokenwise",
+      "tier": "seed",
+      "color": "#CC79A7",
+      "abbreviation": "TK"
+    },
+    {
+      "id": "gradient",
+      "name": "Gradient Labs",
+      "tier": "growth",
+      "color": "#56B4E9",
+      "abbreviation": "GL"
+    },
+    {
+      "id": "latent",
+      "name": "Latent",
+      "tier": "growth",
+      "color": "#009E73",
+      "abbreviation": "LT"
+    },
+    {
+      "id": "hallucinate",
+      "name": "Hallucinate.ai",
+      "tier": "growth",
+      "color": "#D4B300",
+      "abbreviation": "HA"
+    },
+    {
+      "id": "omnimind",
+      "name": "OmniMind",
+      "tier": "frontier",
+      "color": "#0072B2",
+      "abbreviation": "OM"
+    },
+    {
+      "id": "singular",
+      "name": "Singular",
+      "tier": "frontier",
+      "color": "#D55E00",
+      "abbreviation": "SG"
+    }
+  ],
+  "bonuses": {
+    "majority_multiplier": 10,
+    "minority_multiplier": 5,
+    "tie_round_up_to": 100
+  },
+  "stocks_per_chain": 25,
+  "starting_cash": 6000,
+  "hand_size": 6,
+  "max_stock_purchases_per_turn": 3,
+  "safe_chain_size": 11,
+  "end_game_chain_size": 41,
+  "founder_bonus_shares": 1,
+  "merger_trade_ratio": 2,
+  "min_players": 3,
+  "max_players": 6,
+  "max_pending_trades_per_player": 5
+}

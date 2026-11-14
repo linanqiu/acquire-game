@@ -4,7 +4,7 @@ import random
 from typing import Optional
 
 from game.board import Board, Tile
-from game.hotel import Hotel, HotelTier
+from game.hotel import Hotel
 from game.player import Player
 
 
@@ -155,24 +155,22 @@ class Bot:
         if self.difficulty == "easy":
             return self.rng.choice(available_chains)
 
-        # Categorize by tier
-        chains_by_tier = {
-            HotelTier.EXPENSIVE: [],
-            HotelTier.MEDIUM: [],
-            HotelTier.CHEAP: [],
-        }
+        # Categorize by tier (ruleset order: cheapest tier first)
+        rs = board.ruleset
+        chains_by_tier: dict[str, list[str]] = {t.id: [] for t in rs.tiers}
 
         for chain_name in available_chains:
-            chain = Hotel.get_chain(chain_name)
-            chains_by_tier[chain.tier].append(chain_name)
+            chains_by_tier[rs.chain(chain_name).tier].append(chain_name)
 
-        # Decide based on cash situation
-        if self.player.money < 1500:
+        # Decide based on cash situation (a quarter of the starting cash:
+        # $1,500 in classic)
+        cheapest_first = [t.id for t in rs.tiers]
+        if self.player.money < rs.starting_cash // 4:
             # Low on cash - prefer cheap chains (lower stock prices)
-            preference_order = [HotelTier.CHEAP, HotelTier.MEDIUM, HotelTier.EXPENSIVE]
+            preference_order = cheapest_first
         else:
             # Have money - prefer expensive chains (higher potential value)
-            preference_order = [HotelTier.EXPENSIVE, HotelTier.MEDIUM, HotelTier.CHEAP]
+            preference_order = cheapest_first[::-1]
 
         for tier in preference_order:
             if chains_by_tier[tier]:
@@ -209,17 +207,13 @@ class Bot:
             return self.rng.choice(tied_chains)
 
         # Score by stock ownership
+        rs = board.ruleset
         scored_chains = []
         for chain_name in tied_chains:
             stock_count = self.player.get_stock_count(chain_name)
-            chain = Hotel.get_chain(chain_name)
-            # Prefer chains we own stock in; tiebreak by tier value
-            tier_bonus = {
-                HotelTier.EXPENSIVE: 2,
-                HotelTier.MEDIUM: 1,
-                HotelTier.CHEAP: 0,
-            }
-            score = stock_count * 10 + tier_bonus[chain.tier]
+            # Prefer chains we own stock in; tiebreak by tier rank (0 = cheapest)
+            tier_bonus = rs.tier_rank(rs.chain(chain_name).tier)
+            score = stock_count * 10 + tier_bonus
             scored_chains.append((score, chain_name))
 
         scored_chains.sort(key=lambda x: x[0], reverse=True)
@@ -260,16 +254,18 @@ class Bot:
 
         if self.difficulty == "easy":
             # Easy: random split
+            ratio = board.ruleset.merger_trade_ratio
             sell = self.rng.randint(0, defunct_count)
             remaining = defunct_count - sell
-            trade = (remaining // 2) * 2  # Must be even
+            trade = (remaining // ratio) * ratio  # A multiple of the ratio
             keep = remaining - trade
             return {"sell": sell, "trade": trade, "keep": keep}
 
         # Check how much stock is available to trade for
+        ratio = board.ruleset.merger_trade_ratio
         available_surviving = hotel.get_available_stocks(surviving_chain)
-        max_trade_for = min(available_surviving, defunct_count // 2)
-        max_tradeable = max_trade_for * 2  # 2:1 ratio
+        max_trade_for = min(available_surviving, defunct_count // ratio)
+        max_tradeable = max_trade_for * ratio
 
         surviving_size = board.get_chain_size(surviving_chain)
         surviving_price = hotel.get_stock_price(surviving_chain, surviving_size)
@@ -278,7 +274,7 @@ class Bot:
 
         # Evaluate trade value
         trade_value = surviving_price  # Get 1 share of survivor
-        sell_value = defunct_price * 2  # Sell 2 shares of defunct
+        sell_value = defunct_price * ratio  # Sell `ratio` defunct shares
 
         trade = 0
         sell = 0
@@ -294,15 +290,15 @@ class Bot:
                 sell = defunct_count
         else:
             # Medium: balance between options
-            if self.player.money < 2000:
+            if self.player.money < board.ruleset.starting_cash // 3:
                 # Need cash - sell more
                 sell = defunct_count // 2
                 remaining = defunct_count - sell
-                trade = (min(remaining, max_tradeable) // 2) * 2
+                trade = (min(remaining, max_tradeable) // ratio) * ratio
                 keep = defunct_count - sell - trade
             else:
                 # Have money - trade more
-                trade = min(max_tradeable, (defunct_count // 2) * 2)
+                trade = min(max_tradeable, (defunct_count // ratio) * ratio)
                 remaining = defunct_count - trade
                 sell = remaining // 2
                 keep = remaining - sell
@@ -315,9 +311,9 @@ class Bot:
         return {"sell": sell, "trade": trade, "keep": keep}
 
     def choose_stocks_to_buy(
-        self, board: Board, hotel: Hotel, max_stocks: int = 3
+        self, board: Board, hotel: Hotel, max_stocks: int | None = None
     ) -> list[str]:
-        """Choose which stocks to buy (up to 3 per turn).
+        """Choose which stocks to buy (up to the ruleset's per-turn limit).
 
         Returns list of chain names to buy (can repeat for multiple shares).
 
@@ -326,11 +322,15 @@ class Bot:
         Args:
             board: Current game board
             hotel: Hotel chain manager
-            max_stocks: Maximum number of stocks to buy (default 3)
+            max_stocks: Maximum number of stocks to buy (default: the ruleset's
+                per-turn limit)
 
         Returns:
             List of chain names to buy (length <= max_stocks)
         """
+        rs = board.ruleset
+        if max_stocks is None:
+            max_stocks = rs.max_stock_purchases_per_turn
         active_chains = hotel.get_active_chains()
         if not active_chains:
             return []
@@ -376,18 +376,13 @@ class Bot:
                     # Prefer larger chains (more stable)
                     score += size * 2
 
-                    # Prefer cheaper stocks when low on money
-                    if self.player.money < 2000:
-                        score += (1200 - price) / 100
+                    # Prefer cheaper stocks when low on money (a third of
+                    # the starting cash; prices relative to the top price)
+                    if self.player.money < rs.starting_cash // 3:
+                        score += (rs.max_price - price) / 100
 
-                    # Prefer higher tier chains
-                    chain = Hotel.get_chain(chain_name)
-                    tier_bonus = {
-                        HotelTier.EXPENSIVE: 10,
-                        HotelTier.MEDIUM: 5,
-                        HotelTier.CHEAP: 0,
-                    }
-                    score += tier_bonus[chain.tier]
+                    # Prefer higher tier chains (5 points per tier rank)
+                    score += 5 * rs.tier_rank(rs.chain(chain_name).tier)
 
                     scored.append((score, chain_name))
 

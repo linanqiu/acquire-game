@@ -12,6 +12,11 @@ are dropped by ``normalize_action`` so the action matches the wire format of
 step. It is not a substitute for the engine's ``validate_action`` (which the
 server's driver still runs); it exists so most illegal answers are repaired
 here, with a precise error message, before the driver ever sees them.
+
+Chain enums come from the game's ruleset: pass ``chains=`` (and
+``max_shares=``) built from ``ruleset_from_state(ctx.state)``; without them the
+classic ruleset's chains are used (``CHAINS`` below). The trade step of a
+disposition comes from the legal options (``trade_ratio``, 2 when absent).
 """
 
 from __future__ import annotations
@@ -19,9 +24,11 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from game.hotel import Hotel
+from game.ruleset import classic
 
-CHAINS: tuple[str, ...] = tuple(Hotel.get_all_chain_names())
+# Classic aliases (defaults when the caller does not pass the game's ruleset).
+CHAINS: tuple[str, ...] = tuple(classic().chain_ids)
+MAX_SHARES: int = classic().stocks_per_chain
 
 NOTE_MAX_CHARS = 300
 
@@ -64,8 +71,17 @@ def legal_tiles(legal: dict) -> list[str]:
     return out
 
 
+def _trade_step(legal: dict) -> int:
+    step = legal.get("trade_ratio", 2)
+    return step if isinstance(step, int) and step > 0 else 2
+
+
 def _action_variant(
-    action_type: str, legal: dict, other_player_ids: tuple[str, ...]
+    action_type: str,
+    legal: dict,
+    other_player_ids: tuple[str, ...],
+    chains: tuple[str, ...] = CHAINS,
+    max_shares: int = MAX_SHARES,
 ) -> dict | None:
     head: dict[str, Any] = {"action": _enum_str([action_type])}
     if action_type == "place_tile":
@@ -93,7 +109,9 @@ def _action_variant(
                 "disposition": _obj(
                     {
                         "sell": _int_enum(list(range(n + 1))),
-                        "trade": _int_enum(list(range(0, min(max_trade, n) + 1, 2))),
+                        "trade": _int_enum(
+                            list(range(0, min(max_trade, n) + 1, _trade_step(legal)))
+                        ),
                         # Enum order is irrelevant to validity; listing "hold all" first
                         # makes the schema's first instance (sell 0, trade 0, hold n)
                         # a legal answer, which the offline fake seat relies on.
@@ -103,7 +121,7 @@ def _action_variant(
             }
         )
     if action_type == "buy_stocks":
-        max_total = int(legal.get("max_total", 3))
+        max_total = int(legal.get("max_total", classic().max_stock_purchases_per_turn))
         props = {}
         for opt in legal.get("options", []) or []:
             cap = min(max_total, int(opt.get("max_affordable", 0)))
@@ -121,7 +139,10 @@ def _action_variant(
         if not other_player_ids:
             return None
         stock_map = _obj(
-            {c: {"type": "integer", "enum": list(range(26))} for c in CHAINS}
+            {
+                c: {"type": "integer", "enum": list(range(max_shares + 1))}
+                for c in chains
+            }
         )
         return _obj(
             {
@@ -139,16 +160,26 @@ def _action_variant(
 
 
 def build_schema(
-    legal: dict, *, other_player_ids: tuple[str, ...] | list[str] = ()
+    legal: dict,
+    *,
+    other_player_ids: tuple[str, ...] | list[str] = (),
+    chains: tuple[str, ...] | list[str] | None = None,
+    max_shares: int | None = None,
 ) -> dict:
-    """JSON schema of the answer, narrowed to ``legal``."""
+    """JSON schema of the answer, narrowed to ``legal``.
+
+    ``chains`` / ``max_shares``: the game's chain ids and shares per chain
+    (default: classic).
+    """
+    chain_ids = tuple(chains) if chains is not None else CHAINS
+    cap = max_shares if max_shares is not None else MAX_SHARES
     types = list(legal.get("action_types", []))
     ordered = [t for t in ACTION_ORDER if t in types] + [
         t for t in types if t not in ACTION_ORDER
     ]
     variants = []
     for t in ordered:
-        v = _action_variant(t, legal, tuple(other_player_ids))
+        v = _action_variant(t, legal, tuple(other_player_ids), chain_ids, cap)
         if v is not None:
             variants.append(v)
     if not variants:
@@ -256,26 +287,44 @@ def _is_int(v: Any) -> bool:
     return isinstance(v, int) and not isinstance(v, bool)
 
 
-def _check_stock_map(name: str, m: Any) -> str | None:
+def _check_stock_map(name: str, m: Any, chains: tuple[str, ...]) -> str | None:
     if not isinstance(m, dict):
         return f"{name} must be an object mapping chain name to a positive integer"
     for chain, qty in m.items():
-        if chain not in CHAINS:
-            return f"{name} has unknown chain {chain!r} (chains: {', '.join(CHAINS)})"
+        if chain not in chains:
+            return f"{name} has unknown chain {chain!r} (chains: {', '.join(chains)})"
         if not _is_int(qty) or qty < 0:
             return f"{name}[{chain}] must be a non-negative integer"
     return None
 
 
+def _view_chains(view: dict | None) -> tuple[str, ...] | None:
+    """Chain ids named in a trade view's share maps (the calculator lists every
+    chain of the game's ruleset for every player)."""
+    seen: dict[str, None] = {}
+    for p in ((view or {}).get("players") or {}).values():
+        shares = p.get("shares") if isinstance(p, dict) else None
+        if isinstance(shares, dict):
+            seen.update(dict.fromkeys(shares))
+    return tuple(seen) or None
+
+
 def check_against_legal(
-    action: Any, legal: dict, *, view: dict | None = None
+    action: Any,
+    legal: dict,
+    *,
+    view: dict | None = None,
+    chains: tuple[str, ...] | list[str] | None = None,
 ) -> str | None:
     """Return an error message if ``action`` is not a legal answer, else None.
 
     ``view`` (optional) enables affordability checks for ``propose_trade``::
 
         {"self_id": "p1",
-         "players": {"p1": {"cash": 4200, "shares": {"Tower": 3, ...}}, ...}}
+         "players": {"p1": {"cash": 4200, "shares": {"<chain id>": 3, ...}}, ...}}
+
+    ``chains``: the game's chain ids (default: taken from ``view``'s share
+    maps, else the classic chains).
     """
     if not isinstance(action, dict):
         return "action must be a JSON object"
@@ -334,8 +383,11 @@ def check_against_legal(
                 f"{legal.get('defunct_chain')} shares you hold), got "
                 f"{vals['sell']} + {vals['trade']} + {vals['hold']} = {sum(vals.values())}"
             )
-        if vals["trade"] % 2:
-            return f"trade must be an even number (2 defunct shares per survivor share), got {vals['trade']}"
+        step = _trade_step(legal)
+        if vals["trade"] % step:
+            if step == 2:
+                return f"trade must be an even number (2 defunct shares per survivor share), got {vals['trade']}"
+            return f"trade must be a multiple of {step} ({step} defunct shares per survivor share), got {vals['trade']}"
         mt = legal.get("max_trade", 0)
         if vals["trade"] > mt:
             return f"trade {vals['trade']} exceeds the maximum allowed {mt}"
@@ -365,7 +417,7 @@ def check_against_legal(
                 )
             total += qty
             cost += qty * o.get("price", 0)
-        max_total = legal.get("max_total", 3)
+        max_total = legal.get("max_total", classic().max_stock_purchases_per_turn)
         if total > max_total:
             return f"at most {max_total} shares per turn in total, asked {total}"
         money = legal.get("money")
@@ -382,18 +434,21 @@ def check_against_legal(
         return None
 
     if t == "propose_trade":
-        return _check_propose(action, view)
+        known = tuple(chains) if chains is not None else (_view_chains(view) or CHAINS)
+        return _check_propose(action, view, known)
 
     # end_turn / declare_end_game: allowed by action_types, nothing else to check.
     return None
 
 
-def _check_propose(action: dict, view: dict | None) -> str | None:
+def _check_propose(
+    action: dict, view: dict | None, chains: tuple[str, ...] = CHAINS
+) -> str | None:
     to = action.get("to_player_id")
     if not isinstance(to, str) or not to:
         return "propose_trade needs to_player_id (a player id string)"
     for k in ("offering_stocks", "requesting_stocks"):
-        err = _check_stock_map(k, action.get(k, {}))
+        err = _check_stock_map(k, action.get(k, {}), chains)
         if err:
             return err
     for k in ("offering_money", "requesting_money"):

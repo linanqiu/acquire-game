@@ -2,6 +2,15 @@
 
 This documentation provides a comprehensive reference for the official rules of **Acquire**, the classic board game of hotel chain acquisition and stock market strategy designed by Sid Sackson. Originally published by 3M in 1964, Acquire has been published by various companies including Avalon Hill, Hasbro (1999 edition), and Renegade Game Studios.
 
+> **Numbers in these documents describe the `classic` ruleset.** The server's
+> board size, chain names and tiers, price table, bonuses, stock counts,
+> starting cash, hand size, purchase limit, safe/end-game sizes, founder bonus,
+> trade ratio and player counts all come from a ruleset file
+> (`backend/rulesets/<name>.json`, selected with `GAME_RULESET`); other
+> rulesets (e.g. `valley`, `mini`) change those numbers and names but not the
+> flow of play described here. See the "Ruleset" section of
+> `docs/architecture/seat-contract.md`.
+
 ## Game Overview
 
 - **Players**: 3-6 (4 is optimal)

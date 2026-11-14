@@ -49,6 +49,9 @@ class GameRoom:
     min_players: int = 2
     seed: Optional[int] = None
     tile_order: Optional[list[str]] = None
+    # game.ruleset.Ruleset the room's game is created with (None: classic).
+    # Set from the server configuration by SessionManager.create_room.
+    ruleset: Any = None
     # Per-room driver state (lock, driver task, fallback counters); created
     # lazily by seats.get_runtime().
     runtime: Any = None
@@ -68,9 +71,14 @@ class SessionManager:
                 return code
 
     def create_room(self) -> str:
-        """Create new room, return room code."""
+        """Create new room on the configured ruleset, return room code."""
+        from config import get_ruleset
+
+        ruleset = get_ruleset()
         code = self.generate_room_code()
-        self._rooms[code] = GameRoom(room_code=code)
+        self._rooms[code] = GameRoom(
+            room_code=code, ruleset=ruleset, max_players=ruleset.max_players
+        )
         return code
 
     def get_room(self, room_code: str) -> Optional[GameRoom]:
