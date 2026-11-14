@@ -11,8 +11,14 @@ import { useGameStore } from '../../store/gameStore'
 import { resolveSeatKind, isAiThinking } from '../../lib/agents'
 import type { AgentCatalogEntry, GameStateMessage } from '../../types/api'
 
-vi.mock('../../hooks/useWebSocket', () => ({
-  useWebSocket: () => ({ sendAction: vi.fn(), disconnect: vi.fn(), isConnected: true }),
+vi.mock('../../hooks/useHostWebSocket', () => ({
+  useHostWebSocket: () => ({
+    addBot: vi.fn(),
+    startGame: vi.fn(),
+    endGame: vi.fn(),
+    disconnect: vi.fn(),
+    isConnected: true,
+  }),
 }))
 
 const CATALOG: AgentCatalogEntry[] = [

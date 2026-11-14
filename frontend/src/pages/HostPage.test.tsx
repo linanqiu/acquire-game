@@ -7,9 +7,11 @@ import { useGameStore } from '../store/gameStore'
 import type { GameStateMessage } from '../types/api'
 
 // Mock useWebSocket to prevent it from changing connectionStatus during tests
-vi.mock('../hooks/useWebSocket', () => ({
-  useWebSocket: () => ({
-    sendAction: vi.fn(),
+vi.mock('../hooks/useHostWebSocket', () => ({
+  useHostWebSocket: () => ({
+    addBot: vi.fn(),
+    startGame: vi.fn(),
+    endGame: vi.fn(),
     disconnect: vi.fn(),
     isConnected: true,
   }),
