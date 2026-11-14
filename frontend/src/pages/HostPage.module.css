@@ -231,6 +231,12 @@
   gap: var(--space-2);
 }
 
+/* The 320px sidebar must fit name, size, price, stock left and SAFE on one row; the host page's
+   18px base font is too big for that. */
+.chainList > * {
+  font-size: 13px;
+}
+
 .noChains {
   color: var(--text-secondary);
   font-style: italic;

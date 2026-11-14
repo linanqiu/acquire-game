@@ -60,6 +60,7 @@
 
 .full {
   display: flex;
+  flex-wrap: wrap; /* long names (CONTINENTAL) plus size, price, stock and SAFE must not overlap */
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2);

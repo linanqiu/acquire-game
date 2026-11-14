@@ -24,6 +24,7 @@ import { SeatKindBadge } from '../components/game/SeatKindBadge'
 import { RemoveSeatButton } from '../components/game/RemoveSeatButton'
 import { AiThinking } from '../components/game/AiThinking'
 import { isAiThinking, resolveSeatKind } from '../lib/agents'
+import { waitingMessage } from '../lib/waiting'
 import { useGameStore } from '../store/gameStore'
 import { useToast } from '../components/ui/useToast'
 import { useErrorHandler } from '../hooks/useErrorHandler'
@@ -31,8 +32,9 @@ import {
   transformBoardToTileStates,
   transformHandToRackTiles,
   transformPlayabilityMap,
+  unplayableReasons,
 } from '../utils/transforms'
-import type { ChainName, GamePhase } from '../types/api'
+import type { ChainName, GameAction, GamePhase } from '../types/api'
 import type { Coordinate } from '../types/game'
 import styles from './PlayerPage.module.css'
 
@@ -78,8 +80,15 @@ export function PlayerPage() {
   }, [proposing])
 
   // Stable callbacks for WebSocket to prevent infinite re-renders
+  // Chain / survivor / disposition prompts are cleared the moment the answer is sent (the server
+  // sends no "resolved" message and the phase can stay `merger` across several prompts). If the
+  // server then refuses the answer, this puts the prompt back so the player can try again.
+  const restorePrompt = useRef<(() => void) | null>(null)
+
   const handleWsError = useCallback(
     (error: string) => {
+      restorePrompt.current?.()
+      restorePrompt.current = null
       if (proposingRef.current) {
         setTradeError(error)
         setProposing(false)
@@ -180,8 +189,16 @@ export function PlayerPage() {
 
   const rackTiles: RackTile[] = useMemo(() => {
     const playabilityMap = tilePlayability ? transformPlayabilityMap(tilePlayability) : undefined
-    return transformHandToRackTiles(yourHand, playabilityMap)
+    const reasons = tilePlayability ? unplayableReasons(tilePlayability) : undefined
+    return transformHandToRackTiles(yourHand, playabilityMap, reasons)
   }, [yourHand, tilePlayability])
+
+  // Tiles the engine says can be placed now. The board highlights and accepts clicks on these
+  // only; unplayable tiles (8th chain, merging safe chains) must not be selectable there.
+  const playableHand = useMemo(
+    () => yourHand.filter((t) => tilePlayability?.[t]?.playable !== false),
+    [yourHand, tilePlayability]
+  )
 
   const activeChains = useMemo(() => {
     if (!gameState) return []
@@ -256,6 +273,7 @@ export function PlayerPage() {
   useEffect(() => {
     if (gameState) {
       setActionLoading(false)
+      restorePrompt.current = null
     }
   }, [gameState])
 
@@ -298,38 +316,67 @@ export function PlayerPage() {
     setSelectedTile(undefined)
   }, [selectedTile, sendAction])
 
-  const handleFoundChain = useCallback(
-    (chain: ChainName) => {
+  const answerPrompt = useCallback(
+    (action: GameAction, prompt: 'chain' | 'merger' | 'disposition') => {
+      const store = useGameStore.getState()
+      const saved = {
+        pendingChainChoice: store.pendingChainChoice,
+        pendingMergerChoice: store.pendingMergerChoice,
+        pendingStockDisposition: store.pendingStockDisposition,
+      }
       setActionLoading(true)
-      sendAction({ action: 'found_chain', chain })
+      if (sendAction(action) === false) {
+        setActionLoading(false)
+        toast('Not connected to the game. Try again in a moment.', 'error')
+        return
+      }
+      restorePrompt.current = () => {
+        useGameStore.setState(saved)
+        setActionLoading(false)
+      }
+      if (prompt === 'chain') useGameStore.setState({ pendingChainChoice: null })
+      if (prompt === 'merger') useGameStore.setState({ pendingMergerChoice: null })
+      if (prompt === 'disposition') useGameStore.setState({ pendingStockDisposition: null })
     },
-    [sendAction]
+    [sendAction, toast]
+  )
+
+  const handleFoundChain = useCallback(
+    (chain: ChainName) => answerPrompt({ action: 'found_chain', chain }, 'chain'),
+    [answerPrompt]
   )
 
   const handleMergerChoice = useCallback(
-    (chain: ChainName) => {
-      setActionLoading(true)
-      sendAction({ action: 'merger_choice', surviving_chain: chain })
-    },
-    [sendAction]
+    (chain: ChainName) =>
+      answerPrompt({ action: 'merger_choice', surviving_chain: chain }, 'merger'),
+    [answerPrompt]
   )
 
   const handleMergerDisposition = useCallback(
     (sell: number, trade: number, hold: number) => {
       if (!pendingStockDisposition) return
-      setActionLoading(true)
-      sendAction({
-        action: 'merger_disposition',
-        defunct_chain: pendingStockDisposition.defunctChain,
-        disposition: { sell, trade, hold },
-      })
+      answerPrompt(
+        {
+          action: 'merger_disposition',
+          defunct_chain: pendingStockDisposition.defunctChain,
+          disposition: { sell, trade, hold },
+        },
+        'disposition'
+      )
     },
-    [sendAction, pendingStockDisposition]
+    [answerPrompt, pendingStockDisposition]
   )
 
   const handleBuyStocks = useCallback(() => {
     setActionLoading(true)
-    sendAction({ action: 'buy_stocks', purchases: stockPurchases })
+    // Skipping is a plain end_turn: it also works when the purchase for this turn is already
+    // recorded (a second buy_stocks, even an empty one, is refused by the engine).
+    const sharesBought = Object.values(stockPurchases).reduce((sum, qty) => sum + (qty ?? 0), 0)
+    if (sharesBought === 0) {
+      sendAction({ action: 'end_turn' })
+    } else {
+      sendAction({ action: 'buy_stocks', purchases: stockPurchases })
+    }
     setStockPurchases({})
   }, [stockPurchases, sendAction])
 
@@ -494,11 +541,11 @@ export function PlayerPage() {
         <Board
           tiles={boardTileStates}
           highlightedTile={selectedTile}
-          playableTiles={new Set(yourHand)}
+          playableTiles={new Set(playableHand)}
           size="md"
           interactive={isMyTurn}
           onTileClick={(coord) => {
-            if (yourHand.includes(coord)) {
+            if (playableHand.includes(coord)) {
               setSelectedTile(coord)
             }
           }}
@@ -511,6 +558,18 @@ export function PlayerPage() {
           </p>
           <Button onClick={handlePlaceTile} loading={actionLoading} data-testid="place-tile-button">
             PLACE TILE
+          </Button>
+        </div>
+      )}
+      {isMyTurn && gameState?.end_game_available && (
+        <div className={styles.placementActions}>
+          <Button
+            variant="danger"
+            onClick={handleDeclareEndGame}
+            disabled={actionLoading}
+            data-testid="end-game-button"
+          >
+            END GAME
           </Button>
         </div>
       )}
@@ -539,7 +598,8 @@ export function PlayerPage() {
         <ChainSelector
           availableChains={pendingMergerChoice}
           onSelect={handleMergerChoice}
-          stockAvailability={{}}
+          stockAvailability={stockAvailability}
+          unavailableLabel="NOT TIED"
         />
       ) : pendingStockDisposition ? (
         <MergerDisposition
@@ -563,6 +623,9 @@ export function PlayerPage() {
   const renderBuyingContent = () => {
     const canAfford = (myPlayerData?.money ?? 0) >= totalPurchaseCost
     const validPurchase = totalSharesPurchased <= 3
+    const inStock = activeChains.filter((c) => (stockAvailability[c.name] ?? 0) > 0)
+    const cannotAffordAny =
+      inStock.length > 0 && inStock.every((c) => c.price > (myPlayerData?.money ?? 0))
 
     return (
       <div className={styles.buyingContent}>
@@ -574,27 +637,55 @@ export function PlayerPage() {
               activeChains.map((chain) => {
                 const available = stockAvailability[chain.name] ?? 0
                 const currentQty = stockPurchases[chain.name] ?? 0
-                const maxBuyable = Math.min(available, 3 - totalSharesPurchased + currentQty)
+                // Limits: 3 shares a turn, what the bank has left, and what I can still pay for.
+                const cashLeft =
+                  (myPlayerData?.money ?? 0) - totalPurchaseCost + currentQty * chain.price
+                const affordable = chain.price > 0 ? Math.floor(cashLeft / chain.price) : 0
+                const maxBuyable = Math.max(
+                  0,
+                  Math.min(available, 3 - totalSharesPurchased + currentQty, affordable)
+                )
 
                 return (
-                  <div key={chain.name} className={styles.purchaseRow}>
-                    <ChainMarker chain={chain.name} variant="compact" price={chain.price} />
+                  <div
+                    key={chain.name}
+                    className={styles.purchaseRow}
+                    data-testid={`buy-row-${chain.name.toLowerCase()}`}
+                  >
+                    <ChainMarker chain={chain.name} variant="compact" />
+                    <span className={styles.chainPrice} data-testid="buy-price">
+                      ${chain.price.toLocaleString()}
+                    </span>
+                    <span className={styles.chainSize} data-testid="buy-size">
+                      {chain.size} tiles
+                    </span>
                     <StockStepper
                       value={currentQty}
                       max={maxBuyable}
                       onChange={(qty) => updatePurchase(chain.name, qty)}
                       disabled={!isMyTurn}
                     />
-                    <span className={styles.availableStock}>[{available}]</span>
+                    <span className={styles.availableStock} data-testid="buy-available">
+                      [{available}]
+                    </span>
                   </div>
                 )
               })
             )}
             <div className={styles.purchaseSummary}>
-              <span>Total: ${totalPurchaseCost.toLocaleString()}</span>
-              <span>({totalSharesPurchased}/3 shares)</span>
+              <span data-testid="purchase-total">Total: ${totalPurchaseCost.toLocaleString()}</span>
+              <span data-testid="purchase-shares">({totalSharesPurchased}/3 shares)</span>
             </div>
-            {!canAfford && <p className={styles.errorText}>Not enough cash</p>}
+            {cannotAffordAny && (
+              <p className={styles.errorText} data-testid="buy-note-no-cash">
+                You can't afford any stock right now.
+              </p>
+            )}
+            {!canAfford && (
+              <p className={styles.errorText} data-testid="buy-error-cash">
+                Not enough cash
+              </p>
+            )}
             {!validPurchase && <p className={styles.errorText}>Maximum 3 shares per turn</p>}
           </div>
         </Card>
@@ -634,9 +725,9 @@ export function PlayerPage() {
           playerId: id,
           name: p.name,
           cash: p.money,
-          bonuses: 0, // TODO: Get from backend game_over message
-          stockSales: 0, // TODO: Get from backend game_over message
-          total: p.money, // TODO: Should be cash + bonuses + stockSales
+          // The server's game_over message carries final cash only (bonuses and stock sales are
+          // already paid into it), so no bonus/sales breakdown is shown.
+          total: p.money,
         }))
       : []
 
@@ -655,11 +746,10 @@ export function PlayerPage() {
   const renderWaitingContent = () => (
     <div className={styles.waitingContent}>
       <div className={styles.boardContainer}>
-        <Board tiles={boardTileStates} playableTiles={new Set(yourHand)} size="md" />
+        <Board tiles={boardTileStates} playableTiles={new Set(playableHand)} size="md" />
       </div>
-      <p className={styles.waitingMessage}>
-        Waiting for {currentPlayerName} to {phase === 'place_tile' ? 'place a tile' : 'take action'}
-        ...
+      <p className={styles.waitingMessage} data-testid="waiting-message">
+        {waitingMessage(gameState?.awaiting, gameState?.players ?? {}, currentPlayerName)}
       </p>
     </div>
   )
@@ -729,12 +819,14 @@ export function PlayerPage() {
   const renderPlayersPanel = () => {
     if (!gameState) return null
     return (
-      <div className={styles.playersPanel}>
+      <div className={styles.playersPanel} data-testid="players-panel">
         <h4 className={styles.playersPanelTitle}>PLAYERS</h4>
         {Object.entries(gameState.players).map(([id, player]) => (
           <div
             key={id}
             className={`${styles.playerRow} ${id === currentTurnPlayerId ? styles.activePlayer : ''}`}
+            data-testid="player-row"
+            data-current-turn={id === currentTurnPlayerId ? 'true' : undefined}
           >
             <span className={styles.playerName}>
               {player.name}

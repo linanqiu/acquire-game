@@ -124,6 +124,11 @@ export function useWebSocket({
             ws.send(JSON.stringify({ type: 'pong' }))
             return
           }
+          // Server refusals (illegal action, bad trade, ...) arrive as {type:'error'}.
+          if (message.type === 'error') {
+            onError?.(message.message)
+            return
+          }
           handleMessage(message)
         } catch (error) {
           console.error('Failed to parse WebSocket message:', error)

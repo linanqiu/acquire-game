@@ -162,6 +162,18 @@
   gap: var(--space-3);
 }
 
+.chainPrice {
+  min-width: 4.5em;
+  font-family: var(--font-mono);
+  font-weight: var(--font-medium);
+}
+
+.chainSize {
+  min-width: 5em;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
 .availableStock {
   font-size: var(--text-sm);
   color: var(--text-secondary);

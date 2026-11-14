@@ -7,8 +7,10 @@ export interface FinalScore {
   playerId: string
   name: string
   cash: number
-  bonuses: number
-  stockSales: number
+  /** Omit both when the server only reports final cash (bonuses and stock sales are then
+   *  already included in `cash`/`total` and no breakdown is shown). */
+  bonuses?: number
+  stockSales?: number
   total: number
 }
 
@@ -52,6 +54,7 @@ export function GameOver({
 
   const isTie = winners.length > 1
   const myScore = myPlayerId ? scores.find((s) => s.playerId === myPlayerId) : undefined
+  const hasBreakdown = scores.every((s) => s.bonuses !== undefined && s.stockSales !== undefined)
 
   return (
     <Card title="GAME OVER">
@@ -107,18 +110,29 @@ export function GameOver({
             <h3 className={styles.sectionTitle}>YOUR BREAKDOWN</h3>
             <table className={styles.breakdownTable}>
               <tbody>
-                <tr>
-                  <td>Cash on hand:</td>
-                  <td className={styles.amount}>${myScore.cash.toLocaleString()}</td>
-                </tr>
-                <tr>
-                  <td>Final bonuses:</td>
-                  <td className={styles.amount}>+${myScore.bonuses.toLocaleString()}</td>
-                </tr>
-                <tr>
-                  <td>Stock liquidation:</td>
-                  <td className={styles.amount}>+${myScore.stockSales.toLocaleString()}</td>
-                </tr>
+                {hasBreakdown ? (
+                  <>
+                    <tr>
+                      <td>Cash on hand:</td>
+                      <td className={styles.amount}>${myScore.cash.toLocaleString()}</td>
+                    </tr>
+                    <tr>
+                      <td>Final bonuses:</td>
+                      <td className={styles.amount}>+${(myScore.bonuses ?? 0).toLocaleString()}</td>
+                    </tr>
+                    <tr>
+                      <td>Stock liquidation:</td>
+                      <td className={styles.amount}>
+                        +${(myScore.stockSales ?? 0).toLocaleString()}
+                      </td>
+                    </tr>
+                  </>
+                ) : (
+                  <tr>
+                    <td>Final cash (bonuses and stock sales included):</td>
+                    <td className={styles.amount}>${myScore.cash.toLocaleString()}</td>
+                  </tr>
+                )}
                 <tr className={styles.totalRow}>
                   <td>TOTAL:</td>
                   <td className={styles.amount}>${myScore.total.toLocaleString()}</td>
@@ -136,8 +150,8 @@ export function GameOver({
                 <tr>
                   <th>Player</th>
                   <th>Cash</th>
-                  <th>Bonuses</th>
-                  <th>Stock Sales</th>
+                  {hasBreakdown && <th>Bonuses</th>}
+                  {hasBreakdown && <th>Stock Sales</th>}
                   <th>Total</th>
                 </tr>
               </thead>
@@ -150,8 +164,8 @@ export function GameOver({
                     <tr key={score.playerId} className={isWinner ? styles.winnerRow : ''}>
                       <td>{score.name}</td>
                       <td>${score.cash.toLocaleString()}</td>
-                      <td>+${score.bonuses.toLocaleString()}</td>
-                      <td>+${score.stockSales.toLocaleString()}</td>
+                      {hasBreakdown && <td>+${(score.bonuses ?? 0).toLocaleString()}</td>}
+                      {hasBreakdown && <td>+${(score.stockSales ?? 0).toLocaleString()}</td>}
                       <td className={styles.totalCell}>${score.total.toLocaleString()}</td>
                     </tr>
                   )

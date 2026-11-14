@@ -20,6 +20,30 @@ describe('GameOver', () => {
     vi.clearAllMocks()
   })
 
+  describe('final cash only (no breakdown from the server)', () => {
+    const cashOnly: FinalScore[] = [
+      { playerId: 'p1', name: 'Alice', cash: 5000, total: 5000 },
+      { playerId: 'p2', name: 'Bob', cash: 7000, total: 7000 },
+    ]
+
+    it('does not invent zero bonuses or stock sales for the player', () => {
+      render(<GameOver {...defaultProps} scores={cashOnly} />)
+      const breakdown = screen.getByTestId('breakdown')
+      expect(breakdown).toHaveTextContent('Final cash (bonuses and stock sales included)')
+      expect(breakdown).not.toHaveTextContent('Final bonuses')
+      expect(breakdown).not.toHaveTextContent('Stock liquidation')
+      expect(breakdown).toHaveTextContent('$5,000')
+    })
+
+    it('shows only cash and total columns in the host table', () => {
+      render(<GameOver {...defaultProps} scores={cashOnly} variant="host" />)
+      const table = screen.getByTestId('full-breakdown')
+      expect(table).not.toHaveTextContent('Bonuses')
+      expect(table).not.toHaveTextContent('Stock Sales')
+      expect(table).toHaveTextContent('Cash')
+    })
+  })
+
   describe('rendering', () => {
     it('renders game over screen', () => {
       render(<GameOver {...defaultProps} />)

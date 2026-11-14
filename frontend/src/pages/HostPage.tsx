@@ -282,8 +282,6 @@ export function HostPage() {
           playerId: id,
           name: p.name,
           cash: p.money,
-          bonuses: 0,
-          stockSales: 0,
           total: p.money,
         }))
       : []
@@ -309,7 +307,7 @@ export function HostPage() {
 
       <div className={styles.sidebar}>
         <Panel title="CHAINS">
-          <div className={styles.chainList}>
+          <div className={styles.chainList} data-testid="chain-list">
             {activeChains.length === 0 ? (
               <p className={styles.noChains}>No active chains</p>
             ) : (
