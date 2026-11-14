@@ -49,11 +49,11 @@
 | [Scenario Tests](epics/07-scenario-tests.md) | 9/10, ST-010 superseded | Strategy replaced by Epic 11; ST-011 flaky-test work is subsumed by TP-007 |
 | [Backlog](epics/08-backlog.md) | 4/6, BL-004 superseded | BL-005 |
 | [LLM Opponents](epics/09-llm-bot.md) | 1/6 (LO-006 harness done; LO-007 superseded) | LO-001..LO-005 partly built; LO-003 needs the 4-retry loop and fallback notice |
-| [Engine Seam](epics/10-engine-seam.md) | 3/6 (ES-003, ES-005, ES-006) | ES-001 (fuzz volume), ES-002, ES-004 (a few criteria open) |
+| [Engine Seam](epics/10-engine-seam.md) | 6/6 (ES-001..ES-006) | Complete (fuzz volume: 600 games in the slow tier) |
 | [Test Pyramid](epics/11-test-pyramid.md) | 1/8 (TP-001) | TP-002, TP-003 partly built; TP-004..TP-008 wait on the browser tiers being written |
 | [Transcripts & Acquire Bench](epics/12-acquire-bench.md) | 0/9 | AB-001..AB-007 in-progress; AB-008 (blocked: volume), AB-009 (blocked: API key) |
 
-Counts checked against the repo on 2026-11-14 (`pytest backend/tests`: 1,090 passed, 1 xfailed).
+Counts checked against the repo on 2026-11-14 (`pytest backend/tests -n auto`: 1,283 passed, 0 xfailed; 1,216 of them in the fast tier).
 A story is counted done only when every acceptance criterion is ticked; the status note at the
 bottom of each in-progress story says what is open.
 

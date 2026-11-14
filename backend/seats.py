@@ -508,6 +508,8 @@ async def _drive_loop(room_code: str) -> None:
                     failure = f"timeout after {time.monotonic() - started:.1f}s"
                 elif reason == "illegal":
                     failure = f"illegal: {e}"[:300]
+                elif reason == "script":  # strict scripted seat (tests)
+                    failure = f"script: {e}"[:300]
                 else:
                     failure = f"error: {type(e).__name__}: {e}"[:300]
 

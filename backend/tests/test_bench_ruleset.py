@@ -172,7 +172,7 @@ def mixed_out(tmp_path_factory):
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr("game.calculator.build_calculator_pack", lambda game, pid: {})
         mini = protocol_run(out, "mini")
-        classic_res = protocol_run(out, None)
+        classic_res = protocol_run(out, None, games=2)
     return out, mini, classic_res
 
 
@@ -183,7 +183,7 @@ def test_protocol_on_mini_records_ruleset_everywhere(mixed_out):
     assert mini.summary()["ruleset_fingerprint"] == MINI.fingerprint
     assert mini.prompt_version != classic_res.prompt_version
     recs = load_results(out)
-    assert len(recs) == 8
+    assert len(recs) == 6  # 4 on mini + 2 on classic
     minis = [r for r in recs if r["ruleset_id"] == "mini"]
     assert len(minis) == 4
     for r in minis:
@@ -206,18 +206,28 @@ def test_protocol_on_mini_records_ruleset_everywhere(mixed_out):
 def test_leaderboard_never_mixes_rulesets(mixed_out):
     out, mini, classic_res = mixed_out
     recs = load_results(out)
+    expected = {"mini": 4, "classic": 2}
     for name, fp in (("mini", MINI.fingerprint), ("classic", CLASSIC.fingerprint)):
         for sel in (name, fp):
             board = compute_leaderboard(recs, ruleset=sel, bootstrap_samples=0)
             assert board["ruleset"]["id"] == name
             assert board["ruleset"]["fingerprint"] == fp
-            assert board["games"] == 4
+            assert (board["ruleset_id"], board["ruleset_fingerprint"]) == (name, fp)
+            assert board["games"] == expected[name]
             assert {s["series_id"] for s in board["series"]} == {
                 r["series_id"] for r in recs if r["ruleset_id"] == name
             }
-            assert all(a["games"] == 4 for a in board["agents"])
-    board = compute_leaderboard(recs, bootstrap_samples=0)  # newest group only
-    assert board["games"] == 4
+            assert all(a["games"] == expected[name] for a in board["agents"])
+    # default: the group of the most recent record (timestamps have a
+    # resolution of one second, so make "most recent" explicit)
+    stamped = [
+        dict(r, finished_at="2999-01-01T00:00:00+00:00")
+        if r["ruleset_id"] == "classic"
+        else r
+        for r in recs
+    ]
+    board = compute_leaderboard(stamped, bootstrap_samples=0)
+    assert board["ruleset"]["id"] == "classic" and board["games"] == 2
     assert board["available"]["rulesets"] == sorted(
         [
             {"id": "classic", "fingerprint": CLASSIC.fingerprint},
@@ -265,7 +275,7 @@ def test_records_without_ruleset_fields_count_as_classic(mixed_out):
     board = compute_leaderboard(legacy, bootstrap_samples=0)
     assert board["ruleset"]["id"] == "classic"
     assert board["ruleset"]["fingerprint"] == CLASSIC.fingerprint
-    assert board["games"] == 4
+    assert board["games"] == 2
 
 
 def test_http_leaderboard_ruleset_param_and_game_summaries(mixed_out, monkeypatch):
@@ -320,3 +330,20 @@ def test_cli_rejects_an_unknown_ruleset(tmp_path, capsys):
     )
     assert code == 2
     assert "bad --ruleset" in capsys.readouterr().err
+
+
+def test_bench_llm_seat_transcript_header_has_the_prompt_for_its_ruleset(
+    tmp_path, monkeypatch
+):
+    from agents.llm.prompt import build_system_prompt, prompt_version, system_prompt_id
+
+    monkeypatch.setenv("ACQUIRE_TEST_MODE", "1")
+    rec = asyncio.run(
+        run_game(["llm:fake", "bot", "bot"], 3, transcript_dir=tmp_path, ruleset="mini")
+    )
+    assert rec.status == "completed"
+    h = read_transcript(rec.transcript)["header"]
+    text = build_system_prompt(MINI)
+    assert h["system_prompts"] == {system_prompt_id(text, MINI): text}
+    assert h["prompt_version"] == prompt_version(MINI)
+    assert not any(name in text for name in CLASSIC.chain_ids)

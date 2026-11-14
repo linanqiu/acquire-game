@@ -1,5 +1,6 @@
 #!/bin/bash
-# Quick verification after a code change (<10s)
+# Quick verification after a code change (~15s; the fast backend tests run in
+# parallel with pytest-xdist)
 
 set -e
 
@@ -14,7 +15,7 @@ cd "$PROJECT_ROOT"
 
 echo ""
 echo "=== Fast Backend Tests ==="
-cd backend && pytest tests -x -q -m "not slow"
+cd backend && pytest tests -x -q -m "not slow" -n auto
 cd "$PROJECT_ROOT"
 
 echo ""

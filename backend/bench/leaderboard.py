@@ -4,7 +4,8 @@
 returns the contract's shape::
 
     {"protocol": {id, description, players, games_per_matchup, seeds},
-     "ruleset": {id, title, fingerprint}, "prompt_version", "track", "updated_at",
+     "ruleset": {id, title, fingerprint}, "ruleset_id", "ruleset_fingerprint",
+     "prompt_version", "track", "updated_at",
      "agents": [{agent_id, label, model, games, wins, win_rate, ci_low, ci_high,
                  mean_rank, rating, rating_ci, fallback_rate, retry_rate,
                  tokens_per_game, cost_per_game, latency_p50_s, verdict, ...}],
@@ -269,6 +270,8 @@ def compute_leaderboard(
             "title": rs_titles.get(rs) if rs else None,
             "fingerprint": rs[1] if rs else None,
         },
+        "ruleset_id": rs[0] if rs else None,
+        "ruleset_fingerprint": rs[1] if rs else None,
         "prompt_version": prompt_version,
         "track": track,
         "updated_at": max((_key(r) for r in recs), default=None) or None,

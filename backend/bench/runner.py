@@ -271,6 +271,8 @@ async def _obtain(agent, game: Game, decision, ctx, counts: dict):
                 failure = f"timeout after {time.monotonic() - started:.1f}s"
             elif reason == "illegal":
                 failure = f"illegal: {e}"[:300]
+            elif reason == "script":  # strict scripted seat
+                failure = f"script: {e}"[:300]
             else:
                 failure = f"error: {type(e).__name__}: {e}"[:300]
         if failure is None:
