@@ -8,7 +8,14 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - ENVIRONMENT=production
+      - ENVIRONMENT=prod
+      # LLM players (optional). Set in your shell or a .env next to this file.
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ACQUIRE_LLM_OPENAI_BASE_URL=${ACQUIRE_LLM_OPENAI_BASE_URL:-}
+      - ACQUIRE_LLM_OPENAI_MODEL=${ACQUIRE_LLM_OPENAI_MODEL:-}
+      - ACQUIRE_LLM_OPENAI_API_KEY=${ACQUIRE_LLM_OPENAI_API_KEY:-}
+      - ACQUIRE_LLM_CATALOG=${ACQUIRE_LLM_CATALOG:-}
+      - ACQUIRE_LLM_LOG_DIR=${ACQUIRE_LLM_LOG_DIR:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
