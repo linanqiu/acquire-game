@@ -299,6 +299,7 @@ def test_restore_then_continue_matches_original(seed, n_players, difficulties):
     run_config(seed, n_players, difficulties)
 
 
+@pytest.mark.slow
 def test_all_phases_were_exercised():
     seen = set()
     for cfg in CONFIGS:
