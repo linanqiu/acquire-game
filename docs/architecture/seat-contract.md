@@ -338,3 +338,81 @@ label.
 
 These routes do not exist when test mode is off (404; `scripted` is neither
 offered nor accepted).
+
+## Game transcripts and Acquire Bench (first-class requirement, 2026-11-14)
+
+Every game — live or benchmark — writes a complete transcript: every engine
+event, every decision by every seat, and for LLM seats exactly what the model
+was shown and exactly what it returned, including rejected attempts. The same
+writer is used by the server driver and by the benchmark runner.
+
+### Storage
+
+One JSON Lines file per game: `<ACQUIRE_TRANSCRIPT_DIR>/<game_id>.jsonl`
+(default `backend/data/transcripts/`, git-ignored; `game_id` is a URL-safe
+unique id). Lines, in order:
+
+```jsonc
+{"type":"header","transcript_version":1,"game_id":"...","source":"live"|"bench",
+ "room_code":"ABCD"|null,
+ "bench":{"series_id":"...","matchup":"...","seed":1,"rotation":0}|null,
+ "started_at":"<ISO-8601 UTC>","seed":1|null,
+ "seats":[{"player_id","name","kind","agent_id"|null,"agent_label"|null,"model"|null}],
+ "prompt_version":"<hash of the system prompt + prompt builder version>",
+ "system_prompts":{"<id>":"<full system prompt text>"}}
+
+{"type":"event", ...the engine event verbatim (seq, type, player_id, private_to, payload)}
+
+{"type":"decision","index":0,"after_seq":12,"player_id":"...","kind":"place_tile",
+ "legal":{...legal_actions()...},"action":{...the action that was applied...},
+ "source":"human"|"bot"|"scripted"|"llm"|"fallback",
+ "fallback":{"reason":"timeout|error|illegal|cap","message":"..."}|null,
+ "latency_s":1.23,
+ "llm":{"model":"...","system_prompt_id":"...","user_prompt":"<full text>",
+        "attempts":[{"raw":"<full model output>","parsed":{...}|null,
+                     "error":"<why it was rejected>"|null,"latency_s":0.9,
+                     "input_tokens":0,"output_tokens":0,"cache_read_tokens":0,
+                     "retry_prompt":"<full text of the retry message>"|null}],
+        "why":"...","note":"..."}|null}
+
+{"type":"state","after_seq":13,"public":{...game.get_public_state()...}}   // after every applied action
+
+{"type":"footer","ended_at":"...","reason":"declared|no_playable_tiles|forced|abandoned",
+ "standings":[{"player_id","name","rank","score"}],
+ "totals":{"<player_id>":{"decisions","llm_calls","retries","fallbacks",
+           "input_tokens","output_tokens","cost_usd"|null,"latency_s"}}}
+```
+
+Human decisions are recorded too (source `human`, `llm: null`). Nothing is
+sampled or truncated. A game with no footer is unfinished/abandoned.
+
+### Privacy rule
+
+While a game is unfinished, transcripts served over HTTP are **redacted**:
+events with `private_to` set, and each decision's `llm.user_prompt`,
+`attempts[].raw`, `attempts[].retry_prompt`, `why`, `note` and the tile lists
+inside `legal` are removed (they reveal hands and private plans). After the
+footer is written the full transcript is public. Files on disk are always full.
+
+### HTTP (also under `/api`)
+
+| Route | Returns |
+|-------|---------|
+| `GET /games?source=live\|bench&limit=50&before=<id>` | `{"games":[{"game_id","source","status":"live\|finished\|abandoned","started_at","ended_at"\|null,"room_code"\|null,"series_id"\|null,"seats":[{"player_id","name","kind","agent_label","model"}],"winners":[player_id],"turns":int}]}` newest first |
+| `GET /games/{game_id}` | that summary plus `standings` and `totals` |
+| `GET /games/{game_id}/transcript` | `{"header":{...},"entries":[...event/decision/state lines in order...],"footer":{...}\|null,"redacted":bool}` |
+| `GET /bench/leaderboard?protocol=<id>` | `{"protocol":{"id","description","players","games_per_matchup","seeds"},"updated_at","agents":[{"agent_id","label","model","games","wins","win_rate","ci_low","ci_high","mean_rank","rating","rating_ci","fallback_rate","retry_rate","tokens_per_game","cost_per_game"\|null,"latency_p50_s","verdict"}],"series":[{"series_id","matchup","games","started_at","finished":bool}]}` |
+| `GET /bench/series/{series_id}` | `{"series_id","matchup","protocol","games":[{"game_id","seed","rotation","standings":[...]}]}` |
+
+The game-over message and `game_state` carry `game_id` so clients can link to
+`/games/{game_id}`.
+
+### Acquire Bench
+
+A named, versioned protocol (`acquire-bench-v1`): fixed seed list, 4 seats,
+full seat rotation, fixed prompt version, and two tracks — **vs-baseline**
+(one model against three rules-based bots) and **head-to-head** (models of
+different strength in the same game). Results are only comparable within a
+protocol id + prompt version; the leaderboard never mixes them. Ratings are
+computed from finishing order across all games of a protocol; every
+leaderboard row links to its games' transcripts.
