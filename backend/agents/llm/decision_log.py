@@ -43,6 +43,8 @@ class DecisionLog:
             "decisions": 0,
             "calls": 0,
             "repairs": 0,
+            "attempts": 0,
+            "illegal_answers": 0,
             "failures": 0,
             "input_tokens": 0,
             "output_tokens": 0,
@@ -66,6 +68,9 @@ class DecisionLog:
         t["calls"] += int(rec.get("calls", 1))
         t["repairs"] += int(bool(rec["repaired"]))
         t["failures"] += int(bool(rec["error"]))
+        attempts = rec.get("attempts") or []
+        t["attempts"] += len(attempts)
+        t["illegal_answers"] += sum(1 for a in attempts if a.get("error"))
         for k in (
             "input_tokens",
             "output_tokens",

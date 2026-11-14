@@ -1,13 +1,16 @@
 import { Badge } from '../ui/Badge'
 import type { BadgeVariant } from '../ui/Badge'
-import { resolveSeatKind, seatKindLabel } from '../../lib/agents'
-import type { SeatKind } from '../../types/api'
+import { describeFallbacks, resolveSeatKind, seatKindLabel } from '../../lib/agents'
+import styles from './SeatKindBadge.module.css'
+import type { SeatFallbacks, SeatKind } from '../../types/api'
 
 export interface SeatKindBadgeProps {
   playerId: string
   kind?: SeatKind
   isBot?: boolean
   agentLabel?: string | null
+  /** When `count > 0` a small marker shows the rules-based bot played for this seat. */
+  fallbacks?: SeatFallbacks
 }
 
 const VARIANTS: Record<SeatKind, BadgeVariant> = {
@@ -18,13 +21,34 @@ const VARIANTS: Record<SeatKind, BadgeVariant> = {
 }
 
 /** Badge showing what occupies a seat. Renders nothing for human seats. */
-export function SeatKindBadge({ playerId, kind, isBot, agentLabel }: SeatKindBadgeProps) {
+export function SeatKindBadge({
+  playerId,
+  kind,
+  isBot,
+  agentLabel,
+  fallbacks,
+}: SeatKindBadgeProps) {
   const seat = { kind, is_bot: isBot, agent_label: agentLabel }
   const resolved = resolveSeatKind(seat)
   if (resolved === 'human') return null
+  const fallbackCount = fallbacks?.count ?? 0
   return (
-    <span data-testid={`seat-kind-${playerId}`} data-kind={resolved}>
-      <Badge label={seatKindLabel(seat)} variant={VARIANTS[resolved]} />
-    </span>
+    <>
+      <span data-testid={`seat-kind-${playerId}`} data-kind={resolved}>
+        <Badge label={seatKindLabel(seat)} variant={VARIANTS[resolved]} />
+      </span>
+      {fallbacks && fallbackCount > 0 && (
+        <span
+          className={styles.fallback}
+          data-testid={`seat-fallback-${playerId}`}
+          data-count={fallbackCount}
+          title={describeFallbacks(fallbacks)}
+          aria-label={describeFallbacks(fallbacks)}
+          role="img"
+        >
+          BOT ASSIST &times;{fallbackCount}
+        </span>
+      )}
+    </>
   )
 }

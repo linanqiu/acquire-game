@@ -235,6 +235,14 @@ class Agent(Protocol):
     async def decide(self, ctx: DecisionContext) -> dict   # returns an action dict
 ```
 
+**Optional retry extension.** An agent with a truthy `accepts_rejections`
+attribute (`agents.base.accepts_rejections(agent)`; `LLMAgent` sets it) is
+called as `decide(ctx, rejected=[{"action", "error"}, ...], deadline=t)`:
+`rejected` lists the answers the engine refused for this decision (oldest
+first, empty/absent on the first call) and `deadline` is a `time.monotonic()`
+instant. Heuristic and scripted agents ignore all of this (plain
+`decide(ctx)`). An agent may also expose `max_illegal_retries`.
+
 Implementations: `agents/heuristic.py` (`HeuristicAgent`, kind `bot`: the
 `game/bot.py` scoring on a board/hotel/player rebuilt from `ctx.state`,
 answers always drawn from `ctx.legal`; RNG seeded by seat name so a seeded
@@ -267,13 +275,20 @@ driver, the one action path), `lifecycle.py` (start / host-forced end),
   timeout)`; re-acquire; if that exact `Decision` is no longer pending
   (cancelled trade, snapshot loaded, ...) discard the answer; check it (action
   type offered in `ctx.legal["action_types"]`, per-turn caps,
-  `validate_action`); on exception / timeout / illegal answer use
-  `HeuristicAgent` for that one decision (`agent.note_fallback(reason)` is
-  called if the agent has it); `apply_action`; publish. Stops when no agent
+  `validate_action`); an illegal answer from an agent that accepts rejections
+  is NOT a fallback yet: the driver releases the lock (the `awaiting` state
+  stays), calls `decide(ctx, rejected=[...], deadline=...)` again and re-checks,
+  until the answer is legal or the agent raises (retry budget: 1 +
+  `max_illegal_retries` answers per decision, shared with the agent's own
+  internal retries; time budget: one deadline for the whole decision). Only on
+  exception / timeout / an exhausted retry budget (or, for agents without the
+  extension, an illegal answer) is `HeuristicAgent` used for that one decision
+  (`agent.note_fallback(reason)` is called if the agent has it);
+  `apply_action`; publish. A timeout never retries. Stops when no agent
   decision is pending.
 - Timeouts per seat kind (`config.py`): `bot_decision_timeout` 10 s,
-  `scripted_decision_timeout` 10 s, `llm_decision_timeout` 130 s (two provider
-  calls), or an agent's own `decision_timeout` attribute. Pacing after each
+  `scripted_decision_timeout` 10 s, `llm_decision_timeout` 130 s (the whole
+  decision, retries included), or an agent's own `decision_timeout` attribute. Pacing after each
   agent action: `agent_action_delay` 0.4 s, `test_mode_agent_action_delay`
   0.05 s (non-zero so browser tests can watch an all-bot game; protocol tests
   use 0). Runaway caps per seat per turn: `max_agent_actions_per_turn` 40,
@@ -282,6 +297,18 @@ driver, the one action path), `lifecycle.py` (start / host-forced end),
   `{driver_running, version, awaiting_agent, agent_actions, fallback_count,
   fallback_kinds: {error|timeout|illegal|cap|engine: n}, fallbacks: [last 50
   {player_id, seat_kind, decision, reason, category, at}], stalled}`.
+- **Fallbacks are announced** (LLM seats). When the rules-based bot decides for
+  an LLM seat the driver logs at WARNING on `acquire.llm` and sends, to every
+  connected player and the host,
+  `{"type": "agent_fallback", "player_id", "player_name", "agent_label",
+  "reason": "timeout"|"error"|"illegal"|"cap", "decision": "<decision kind>",
+  "message": "<one sentence>"}`. Reasons: `timeout` (decision deadline hit,
+  "timed out after N s"), `error` (provider error / nothing answerable),
+  `illegal` (retry budget exhausted: "kept answering illegally after N
+  tries"; also an engine/validator mismatch), `cap` (per-turn runaway cap).
+  Every `game_state` player also carries `fallbacks: {count, last_reason}`
+  (`{0, null}` when none), so the frontend can show a marker after a reload.
+  The `/debug` counters above are unchanged.
 - Human messages go through the same `apply_action`
   (`seats.human_action`). Human wire convenience: a successful `buy_stocks`
   from a human also ends their turn (second `apply_action(end_turn)`), because

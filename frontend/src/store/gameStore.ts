@@ -11,6 +11,7 @@ import type {
   LobbyUpdateMessage,
   TilePlayabilityInfo,
   TradeOffer,
+  AgentFallbackMessage,
   WebSocketMessage,
 } from '../types/api'
 
@@ -39,6 +40,12 @@ export interface TradeEvent {
   byPlayerId?: string
 }
 
+/** The newest `agent_fallback` message, surfaced so pages can toast about it. */
+export interface FallbackEvent {
+  seq: number
+  message: AgentFallbackMessage
+}
+
 // Game store state
 export interface GameStoreState {
   // Connection
@@ -61,6 +68,7 @@ export interface GameStoreState {
   trades: TradeOffer[]
   publicTrades: TradeOffer[]
   lastTradeEvent: TradeEvent | null
+  lastFallbackEvent: FallbackEvent | null
 
   // Pending actions
   pendingChainChoice: ChainName[] | null
@@ -105,6 +113,7 @@ const initialState = {
   trades: [] as TradeOffer[],
   publicTrades: [] as TradeOffer[],
   lastTradeEvent: null as TradeEvent | null,
+  lastFallbackEvent: null as FallbackEvent | null,
   pendingChainChoice: null,
   pendingMergerChoice: null,
   pendingStockDisposition: null,
@@ -237,6 +246,15 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         })
         break
       }
+
+      case 'agent_fallback':
+        set({
+          lastFallbackEvent: {
+            seq: (store.lastFallbackEvent?.seq ?? 0) + 1,
+            message,
+          },
+        })
+        break
 
       case 'tiles_replaced':
         set({ yourHand: message.new_hand })

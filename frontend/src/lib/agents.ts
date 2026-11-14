@@ -3,7 +3,14 @@
  * catalog / add-seat / remove-seat routes (see docs/architecture/seat-contract.md).
  */
 
-import type { AddSeatResponse, AgentCatalogEntry, AwaitingDecision, SeatKind } from '../types/api'
+import type {
+  AddSeatResponse,
+  AgentCatalogEntry,
+  AwaitingDecision,
+  FallbackReason,
+  SeatFallbacks,
+  SeatKind,
+} from '../types/api'
 
 interface SeatLike {
   kind?: SeatKind
@@ -31,6 +38,22 @@ export function seatKindLabel(seat: SeatLike): string {
     default:
       return 'HUMAN'
   }
+}
+
+const FALLBACK_REASON_TEXT: Record<FallbackReason, string> = {
+  timeout: 'timed out',
+  error: 'provider error',
+  illegal: 'kept answering illegally',
+  cap: 'hit the per-turn action limit',
+}
+
+/** Tooltip text for a seat's fallback marker. */
+export function describeFallbacks(f: SeatFallbacks): string {
+  const times = f.count === 1 ? '1 time' : `${f.count} times`
+  const last = f.last_reason
+    ? ` (last: ${FALLBACK_REASON_TEXT[f.last_reason] ?? f.last_reason})`
+    : ''
+  return `Rules-based player moved for this seat ${times}${last}`
 }
 
 /** True when the engine is currently waiting on this player and that seat is an AI. */

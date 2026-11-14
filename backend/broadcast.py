@@ -17,6 +17,9 @@ Messages (shapes unchanged from the pre-seat server unless noted):
 * ``all_tiles_unplayable`` (room) / ``tiles_replaced`` (that player).
 * ``trade_proposed`` / ``trade_accepted`` / ``trade_rejected`` /
   ``trade_canceled`` - to both trade parties and the host.
+* ``agent_fallback`` - room and host: the rules-based bot decided for an LLM
+  seat (``player_id, player_name, agent_label, reason, decision, message``);
+  ``game_state`` players also carry ``fallbacks: {count, last_reason}``.
 * ``game_over`` - room and host.
 * ``error`` - to the acting human only.
 """
@@ -53,6 +56,14 @@ def seat_info(room: GameRoom, player_id: str) -> dict:
         "is_bot": bool(seat.is_bot or seat.is_agent),
         "agent_label": seat.agent_label,
     }
+
+
+def seat_fallbacks(room: GameRoom, player_id: str) -> dict:
+    """``{count, last_reason}``: how often the rules-based bot decided for this
+    seat (``last_reason``: timeout | error | illegal | cap | None)."""
+    seen = getattr(room.runtime, "seat_fallbacks", None) or {}
+    rec = seen.get(player_id) or {}
+    return {"count": int(rec.get("count", 0)), "last_reason": rec.get("last_reason")}
 
 
 def is_human(room: GameRoom, player_id: str) -> bool:
@@ -133,6 +144,7 @@ def build_public_state(room: GameRoom, game: Game) -> dict:
             "stocks": p["stocks"],
             "hand_size": p["tile_count"],
             **seat_info(room, p["player_id"]),
+            "fallbacks": seat_fallbacks(room, p["player_id"]),
         }
     # Note: game_state["pending_action"] may hold Tile objects; it is not sent.
     return {
@@ -203,6 +215,31 @@ async def broadcast_lobby_update(room_code: str) -> None:
     }
     await session_manager.send_to_host(room_code, message)
     await session_manager.broadcast_to_room(room_code, message)
+
+
+async def broadcast_agent_fallback(
+    room_code: str,
+    *,
+    player_id: str,
+    player_name: str,
+    agent_label: str,
+    reason: str,
+    decision: str,
+    message: str,
+) -> None:
+    """Tell the table (every player and the host) that the rules-based bot made
+    a decision on behalf of an LLM seat."""
+    msg = {
+        "type": "agent_fallback",
+        "player_id": player_id,
+        "player_name": player_name,
+        "agent_label": agent_label,
+        "reason": reason,
+        "decision": decision,
+        "message": message,
+    }
+    await session_manager.broadcast_to_room(room_code, msg)
+    await session_manager.send_to_host(room_code, msg)
 
 
 # ---------------------------------------------------------------------------
