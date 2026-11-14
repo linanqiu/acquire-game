@@ -28,8 +28,11 @@ interface UseWebSocketOptions {
 }
 
 interface UseWebSocketReturn {
-  sendAction: (action: GameAction) => void
+  /** Returns false (and sends nothing) when the socket is not open. */
+  sendAction: (action: GameAction) => boolean
   disconnect: () => void
+  /** Manually re-open the socket (resets the retry budget). Resolves true once connected. */
+  reconnect: () => Promise<boolean>
   isConnected: boolean
 }
 
@@ -45,6 +48,7 @@ export function useWebSocket({
   const reconnectAttemptsRef = useRef(0)
   const intentionalCloseRef = useRef(false)
   const maxReconnectAttempts = 5
+  const connectRef = useRef<(() => void) | null>(null)
 
   const { connectionStatus, setConnectionStatus, handleMessage } = useGameStore()
 
@@ -60,18 +64,44 @@ export function useWebSocket({
     setConnectionStatus('disconnected')
   }, [setConnectionStatus])
 
-  const sendAction = useCallback((action: GameAction) => {
+  const sendAction = useCallback((action: GameAction): boolean => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(action))
-    } else {
-      console.error('WebSocket is not connected')
+      return true
     }
+    console.error('WebSocket is not connected')
+    return false
+  }, [])
+
+  const reconnect = useCallback((): Promise<boolean> => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current)
+      reconnectTimeoutRef.current = null
+    }
+    reconnectAttemptsRef.current = 0
+    intentionalCloseRef.current = false
+    connectRef.current?.()
+    // Resolve once the store reports a connection (the server then pushes fresh state),
+    // or give up after a few seconds.
+    return new Promise((resolve) => {
+      const started = Date.now()
+      const poll = () => {
+        const status = useGameStore.getState().connectionStatus
+        if (status === 'connected') resolve(true)
+        else if (Date.now() - started > 4000) resolve(false)
+        else setTimeout(poll, 100)
+      }
+      poll()
+    })
   }, [])
 
   // Connect on mount, reconnect with exponential backoff
   useEffect(() => {
     const connect = () => {
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
+      if (
+        wsRef.current?.readyState === WebSocket.OPEN ||
+        wsRef.current?.readyState === WebSocket.CONNECTING
+      ) {
         return
       }
 
@@ -144,9 +174,11 @@ export function useWebSocket({
       wsRef.current = ws
     }
 
+    connectRef.current = connect
     connect()
 
     return () => {
+      connectRef.current = null
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)
       }
@@ -160,6 +192,7 @@ export function useWebSocket({
   return {
     sendAction,
     disconnect,
+    reconnect,
     isConnected: connectionStatus === 'connected',
   }
 }

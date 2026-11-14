@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useRoom } from '../hooks/useRoom'
 import { useHostWebSocket } from '../hooks/useHostWebSocket'
@@ -11,6 +11,7 @@ import { ChainMarker } from '../components/game/ChainMarker'
 import { PlayerCard, type StockHolding } from '../components/game/PlayerCard'
 import { GameOver, type FinalScore } from '../components/game/GameOver'
 import { AddAiControl } from '../components/game/AddAiControl'
+import { ReconnectionOverlay } from '../components/game/ReconnectionOverlay'
 import { SeatKindBadge } from '../components/game/SeatKindBadge'
 import { RemoveSeatButton } from '../components/game/RemoveSeatButton'
 import { isAiThinking, resolveSeatKind } from '../lib/agents'
@@ -18,7 +19,7 @@ import { useGameStore } from '../store/gameStore'
 import { useToast } from '../components/ui/useToast'
 import { useErrorHandler } from '../hooks/useErrorHandler'
 import { transformBoardToTileStates } from '../utils/transforms'
-import type { ChainName, GamePhase } from '../types/api'
+import type { ChainName, GamePhase, TradeOffer } from '../types/api'
 import styles from './HostPage.module.css'
 
 // Phase display text for host view
@@ -49,6 +50,35 @@ function getHostPhaseText(phase: GamePhase, currentPlayerName: string): string {
   return `${currentPlayerName}'s TURN - ${phaseText}`
 }
 
+const CHAIN_ABBREV: Record<ChainName, string> = {
+  Luxor: 'LUX',
+  Tower: 'TWR',
+  American: 'AME',
+  Festival: 'FES',
+  Worldwide: 'WOR',
+  Continental: 'CON',
+  Imperial: 'IMP',
+}
+
+/** "2 LUX + $100" style summary of one side of a trade. */
+function describeSide(
+  stocks: Partial<Record<ChainName, number>> | undefined,
+  money: number | undefined
+): string {
+  const parts = Object.entries(stocks ?? {})
+    .filter(([, q]) => (q ?? 0) > 0)
+    .map(([chain, q]) => `${q} ${CHAIN_ABBREV[chain as ChainName] ?? chain}`)
+  if ((money ?? 0) > 0) parts.push(`$${money!.toLocaleString()}`)
+  return parts.length > 0 ? parts.join(' + ') : 'nothing'
+}
+
+function describeTrade(trade: TradeOffer): string {
+  return `${describeSide(trade.offering_stocks, trade.offering_money)} for ${describeSide(
+    trade.requesting_stocks,
+    trade.requesting_money
+  )}`
+}
+
 export function HostPage() {
   const room = useRoom()
   const navigate = useNavigate()
@@ -62,13 +92,19 @@ export function HostPage() {
   )
 
   // Use host WebSocket for receiving state updates
-  useHostWebSocket({
+  const { reconnect } = useHostWebSocket({
     roomCode: room,
     onError: handleWsError,
   })
 
   // Game store state
-  const { connectionStatus, lobbyPlayers, canStart, gameState } = useGameStore()
+  const { connectionStatus, lobbyPlayers, canStart, gameState, publicTrades } = useGameStore()
+
+  // Show the reconnection overlay only after we have been connected once
+  const [hasConnected, setHasConnected] = useState(connectionStatus === 'connected')
+  useEffect(() => {
+    if (connectionStatus === 'connected') setHasConnected(true)
+  }, [connectionStatus])
 
   // Local UI state
   const [actionLoading, setActionLoading] = useState(false)
@@ -292,6 +328,21 @@ export function HostPage() {
           </div>
         </Panel>
 
+        {publicTrades.length > 0 && gameState && (
+          <Panel title="PENDING TRADES">
+            <ul className={styles.pendingTrades} data-testid="pending-trades">
+              {publicTrades.map((t) => (
+                <li key={t.trade_id} data-testid={`pending-trade-${t.trade_id}`}>
+                  <strong>{gameState.players[t.from_player_id]?.name ?? '?'}</strong>
+                  {' → '}
+                  <strong>{gameState.players[t.to_player_id]?.name ?? '?'}</strong>
+                  <span className={styles.tradeText}>{describeTrade(t)}</span>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        )}
+
         <Panel title="SCOREBOARD">
           <div className={styles.scoreboard}>
             {allPlayers.map((p) => (
@@ -325,47 +376,63 @@ export function HostPage() {
   )
 
   // Main render
-  if (connectionStatus === 'connecting') {
-    return (
-      <PageShell header={<HostHeader roomCode={room} />}>
-        <div className={styles.connecting}>
-          <Spinner />
-          <p>Connecting to game...</p>
-        </div>
-      </PageShell>
-    )
-  }
+  const renderPage = () => {
+    if (connectionStatus === 'connecting' && !gameState) {
+      return (
+        <PageShell header={<HostHeader roomCode={room} />}>
+          <div className={styles.connecting}>
+            <Spinner />
+            <p>Connecting to game...</p>
+          </div>
+        </PageShell>
+      )
+    }
 
-  if (connectionStatus === 'error') {
-    return (
-      <PageShell header={<HostHeader roomCode={room} />}>
-        <div className={styles.error}>
-          <p>Connection error. Please refresh the page.</p>
-          <Button onClick={() => window.location.reload()}>REFRESH</Button>
-        </div>
-      </PageShell>
-    )
-  }
+    if (connectionStatus === 'error' && !gameState) {
+      return (
+        <PageShell header={<HostHeader roomCode={room} />}>
+          <div className={styles.error}>
+            <p>Connection error. Please refresh the page.</p>
+            <Button onClick={() => window.location.reload()}>REFRESH</Button>
+          </div>
+        </PageShell>
+      )
+    }
 
-  if (phase === 'lobby') {
-    return <PageShell header={null}>{renderLobbyView()}</PageShell>
-  }
+    if (phase === 'lobby') {
+      return <PageShell header={null}>{renderLobbyView()}</PageShell>
+    }
 
-  if (phase === 'game_over') {
+    if (phase === 'game_over') {
+      return (
+        <PageShell header={<HostHeader roomCode={room} />} phase="GAME OVER">
+          {renderGameOverView()}
+        </PageShell>
+      )
+    }
+
     return (
-      <PageShell header={<HostHeader roomCode={room} />} phase="GAME OVER">
-        {renderGameOverView()}
+      <PageShell
+        header={<HostHeader roomCode={room} />}
+        phase={getHostPhaseText(phase, currentPlayerName)}
+      >
+        {renderGameView()}
       </PageShell>
     )
   }
 
   return (
-    <PageShell
-      header={<HostHeader roomCode={room} />}
-      phase={getHostPhaseText(phase, currentPlayerName)}
-    >
-      {renderGameView()}
-    </PageShell>
+    <>
+      {renderPage()}
+      {hasConnected && connectionStatus !== 'connected' && (
+        <ReconnectionOverlay
+          connectionStatus={connectionStatus === 'disconnected' ? 'disconnected' : 'reconnecting'}
+          playerName="Host"
+          onReconnect={reconnect}
+          onBackToLobby={() => navigate('/')}
+        />
+      )}
+    </>
   )
 }
 

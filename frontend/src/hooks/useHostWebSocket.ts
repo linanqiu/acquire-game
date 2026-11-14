@@ -29,6 +29,8 @@ interface UseHostWebSocketReturn {
   startGame: () => void
   endGame: () => void
   disconnect: () => void
+  /** Manually re-open the socket (resets the retry budget). Resolves true once connected. */
+  reconnect: () => Promise<boolean>
   isConnected: boolean
 }
 
@@ -42,6 +44,7 @@ export function useHostWebSocket({
   const reconnectAttemptsRef = useRef(0)
   const intentionalCloseRef = useRef(false)
   const maxReconnectAttempts = 5
+  const connectRef = useRef<(() => void) | null>(null)
 
   const { connectionStatus, setConnectionStatus, handleMessage } = useGameStore()
 
@@ -56,6 +59,26 @@ export function useHostWebSocket({
     wsRef.current = null
     setConnectionStatus('disconnected')
   }, [setConnectionStatus])
+
+  const reconnect = useCallback((): Promise<boolean> => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current)
+      reconnectTimeoutRef.current = null
+    }
+    reconnectAttemptsRef.current = 0
+    intentionalCloseRef.current = false
+    connectRef.current?.()
+    return new Promise((resolve) => {
+      const started = Date.now()
+      const poll = () => {
+        const status = useGameStore.getState().connectionStatus
+        if (status === 'connected') resolve(true)
+        else if (Date.now() - started > 4000) resolve(false)
+        else setTimeout(poll, 100)
+      }
+      poll()
+    })
+  }, [])
 
   const sendMessage = useCallback((message: Record<string, unknown>) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -80,7 +103,10 @@ export function useHostWebSocket({
   // Connect on mount, reconnect with exponential backoff
   useEffect(() => {
     const connect = () => {
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
+      if (
+        wsRef.current?.readyState === WebSocket.OPEN ||
+        wsRef.current?.readyState === WebSocket.CONNECTING
+      ) {
         return
       }
 
@@ -143,9 +169,11 @@ export function useHostWebSocket({
       wsRef.current = ws
     }
 
+    connectRef.current = connect
     connect()
 
     return () => {
+      connectRef.current = null
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)
       }
@@ -160,6 +188,7 @@ export function useHostWebSocket({
     startGame,
     endGame,
     disconnect,
+    reconnect,
     isConnected: connectionStatus === 'connected',
   }
 }

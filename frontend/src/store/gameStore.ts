@@ -10,6 +10,7 @@ import type {
   LobbySeat,
   LobbyUpdateMessage,
   TilePlayabilityInfo,
+  TradeOffer,
   WebSocketMessage,
 } from '../types/api'
 
@@ -25,6 +26,17 @@ export interface CurrentPlayer {
   name: string
   token: string
   isHost: boolean
+}
+
+/** A trade lifecycle event, surfaced so pages can toast about it. `seq` increments per event. */
+export interface TradeEvent {
+  seq: number
+  kind: 'proposed' | 'accepted' | 'rejected' | 'canceled'
+  tradeId: string
+  /** The offer the event is about, when known (it is removed from `trades` on resolution). */
+  trade?: TradeOffer
+  /** Who rejected/canceled (accepted: the recipient). */
+  byPlayerId?: string
 }
 
 // Game store state
@@ -43,6 +55,12 @@ export interface GameStoreState {
   gameState: GameStateMessage | null
   yourHand: string[]
   tilePlayability: Record<string, TilePlayabilityInfo> | null
+
+  // Player-to-player trading. `trades` = pending offers involving this player
+  // (incoming + outgoing); `publicTrades` = every pending offer (host/spectator view).
+  trades: TradeOffer[]
+  publicTrades: TradeOffer[]
+  lastTradeEvent: TradeEvent | null
 
   // Pending actions
   pendingChainChoice: ChainName[] | null
@@ -84,6 +102,9 @@ const initialState = {
   gameState: null,
   yourHand: [],
   tilePlayability: null,
+  trades: [] as TradeOffer[],
+  publicTrades: [] as TradeOffer[],
+  lastTradeEvent: null as TradeEvent | null,
   pendingChainChoice: null,
   pendingMergerChoice: null,
   pendingStockDisposition: null,
@@ -105,12 +126,27 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       canStart: message.can_start,
     }),
 
-  updateGameState: (message) =>
-    set({
+  updateGameState: (message) => {
+    const patch: Partial<GameStoreState> = {
       gameState: message,
       yourHand: message.your_hand ?? get().yourHand,
       tilePlayability: message.tile_playability ?? get().tilePlayability,
-    }),
+    }
+    // When the server includes trade lists they are authoritative (this is also what
+    // restores offers after a reconnect). Older backends omit them; then we rely on the
+    // trade_* messages alone.
+    if (message.incoming_trades || message.outgoing_trades) {
+      const byId = new Map<string, TradeOffer>()
+      for (const t of [...(message.incoming_trades ?? []), ...(message.outgoing_trades ?? [])]) {
+        byId.set(t.trade_id, t)
+      }
+      patch.trades = [...byId.values()]
+    }
+    if (message.pending_trades) {
+      patch.publicTrades = message.pending_trades
+    }
+    set(patch)
+  },
 
   setPendingChainChoice: (chains) => set({ pendingChainChoice: chains }),
 
@@ -155,6 +191,52 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           availableToTrade: message.available_to_trade,
         })
         break
+
+      case 'trade_proposed': {
+        const trade = message.trade
+        if (!trade?.trade_id) break
+        const others = store.trades.filter((t) => t.trade_id !== trade.trade_id)
+        set({
+          trades: [...others, trade],
+          lastTradeEvent: {
+            seq: (store.lastTradeEvent?.seq ?? 0) + 1,
+            kind: 'proposed',
+            tradeId: trade.trade_id,
+            trade,
+            byPlayerId: trade.from_player_id,
+          },
+        })
+        break
+      }
+
+      case 'trade_accepted':
+      case 'trade_rejected':
+      case 'trade_canceled': {
+        const known = store.trades.find((t) => t.trade_id === message.trade_id)
+        const kind =
+          message.type === 'trade_accepted'
+            ? 'accepted'
+            : message.type === 'trade_rejected'
+              ? 'rejected'
+              : 'canceled'
+        const byPlayerId =
+          message.type === 'trade_accepted'
+            ? message.to_player
+            : message.type === 'trade_rejected'
+              ? message.rejected_by
+              : message.canceled_by
+        set({
+          trades: store.trades.filter((t) => t.trade_id !== message.trade_id),
+          lastTradeEvent: {
+            seq: (store.lastTradeEvent?.seq ?? 0) + 1,
+            kind,
+            tradeId: message.trade_id,
+            trade: known,
+            byPlayerId,
+          },
+        })
+        break
+      }
 
       case 'tiles_replaced':
         set({ yourHand: message.new_hand })
