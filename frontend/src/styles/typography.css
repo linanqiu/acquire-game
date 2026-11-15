@@ -1,11 +1,10 @@
 /**
  * Buyout Typography System
- * Monospace-first typography based on IBM Plex Mono
- * Implements the "Bloomberg terminal" aesthetic
+ * A sans-serif for names, labels, chat and body text; monospace (--font-mono) for numbers,
+ * coordinates and money. Capitals only on tab labels, the phase line and small section labels.
  */
 
-/* Google Fonts import - IBM Plex Mono with required weights */
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&display=swap');
+/* System font stacks only (tokens.css): no web font, no request to a font host. */
 
 /* ==========================================================================
    Base Typography

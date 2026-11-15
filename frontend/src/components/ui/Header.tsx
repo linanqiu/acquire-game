@@ -1,3 +1,5 @@
+import { FlashValue } from './FlashValue'
+import { ThemeToggle } from './ThemeToggle'
 import styles from './Header.module.css'
 import { useBrand, useRules } from '../../ruleset/useRules'
 
@@ -40,13 +42,17 @@ export function Header({ roomCode, cash, netWorth, rank, playerName, tilePool }:
         {cash !== undefined && (
           <div className={styles.cash} title="Cash">
             <span className={styles.label}>cash</span>{' '}
-            <span data-testid="header-cash">{rules.money(cash)}</span>
+            <FlashValue value={cash} data-testid="header-cash">
+              {rules.money(cash)}
+            </FlashValue>
           </div>
         )}
         {netWorth !== undefined && (
           <div className={styles.worth} title="Net worth: cash + shares at current prices">
             <span className={styles.label}>worth</span>{' '}
-            <span data-testid="header-networth">{rules.money(netWorth)}</span>
+            <FlashValue value={netWorth} data-testid="header-networth">
+              {rules.money(netWorth)}
+            </FlashValue>
             {rank !== undefined && (
               <span className={styles.rank} data-testid="header-rank">
                 {' '}
@@ -55,6 +61,7 @@ export function Header({ roomCode, cash, netWorth, rank, playerName, tilePool }:
             )}
           </div>
         )}
+        <ThemeToggle className={styles.themeToggle} />
       </div>
     </header>
   )

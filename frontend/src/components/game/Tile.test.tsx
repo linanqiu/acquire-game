@@ -66,4 +66,27 @@ describe('Tile', () => {
     render(<Tile coordinate="1A" showLabel={false} />)
     expect(screen.getByTestId('tile-1A')).toBeEmptyDOMElement()
   })
+
+  it('motion: nothing on first paint; a placed tile settles in; a chain change sweeps from the old colour', () => {
+    const rs = ALL_RULESETS.default
+    const [a, b] = rs.chains
+    const at = (chain?: string) => (
+      <RulesetScope ruleset={rs}>
+        <Tile coordinate="4C" chain={chain} size="fluid" />
+      </RulesetScope>
+    )
+    const { rerender } = render(at(a.id))
+    const tile = screen.getByTestId('tile-4C')
+    expect(tile).not.toHaveAttribute('data-anim')
+    rerender(at(b.id))
+    expect(tile).toHaveAttribute('data-anim', 'sweep')
+    expect(tile.style.getPropertyValue('--chain-prev')).toBe(a.color)
+    expect(tile.style.getPropertyValue('--sweep-col')).toBe('4')
+    rerender(at(undefined))
+    rerender(at('orphan'))
+    expect(tile).toHaveAttribute('data-anim', 'place')
+    // An animation that ends clears its marker.
+    tile.dispatchEvent(new Event('animationend'))
+    expect(tile).not.toHaveAttribute('data-anim')
+  })
 })

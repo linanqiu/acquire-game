@@ -4,6 +4,12 @@ import styles from './PageShell.module.css'
 
 interface PageShellProps {
   phase?: string
+  /**
+   * Whose move the phase line announces: `mine` (the table waits on the viewer: accent tint),
+   * `other` (someone else's turn: calm, with a turn marker), or none (lobby, game over).
+   * The text always says it too; the tint never carries the meaning alone.
+   */
+  turn?: 'mine' | 'other'
   /** In-game layout: the shell fills the screen and the page never scrolls (panels scroll). */
   fill?: boolean
   children: ReactNode
@@ -18,6 +24,7 @@ interface PageShellProps {
 
 export function PageShell({
   phase,
+  turn,
   fill = false,
   children,
   header,
@@ -44,7 +51,8 @@ export function PageShell({
       )}
       {phase && (
         <div
-          className={styles.phase}
+          className={`${styles.phase} ${turn ? styles[turn] : ''}`}
+          data-turn={turn}
           role="status"
           aria-live="polite"
           aria-atomic="true"

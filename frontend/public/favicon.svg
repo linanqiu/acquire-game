@@ -1,7 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="6" fill="#1a1a2e"/>
-  <rect x="5" y="5" width="10" height="10" rx="2" fill="#8888aa"/>
-  <rect x="17" y="5" width="10" height="10" rx="2" fill="#e8e8e8"/>
-  <rect x="5" y="17" width="10" height="10" rx="2" fill="#e8e8e8"/>
-  <rect x="17" y="17" width="10" height="10" rx="2" fill="#8888aa"/>
+  <!-- Buyout: a corner of the board with one chain drawn as a joined block and a loose tile.
+       Neutral greys (no ruleset's colours), so it reads on light and dark tab bars. -->
+  <rect width="32" height="32" rx="7" fill="#1f2433"/>
+  <g fill="#353c51">
+    <rect x="4" y="13" width="7" height="7" rx="1.5"/>
+    <rect x="13" y="13" width="7" height="7" rx="1.5"/>
+    <rect x="13" y="22" width="7" height="7" rx="1.5"/>
+    <rect x="22" y="22" width="7" height="7" rx="1.5"/>
+  </g>
+  <rect x="4" y="22" width="7" height="7" rx="1.5" fill="#8a93ab"/>
+  <path d="M6 4H27a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H24a2 2 0 0 1-2-2V11H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" fill="#eef1f8"/>
 </svg>

@@ -66,6 +66,7 @@
   font-size: var(--text-xs);
   text-align: right;
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
 }
 
 .who {
@@ -96,7 +97,7 @@
 
 .retry {
   font-size: var(--text-xs);
-  color: #ffaa00;
+  color: var(--warning);
 }
 
 .mark {
@@ -121,7 +122,7 @@
 }
 
 .bot {
-  color: #ffaa00;
+  color: var(--warning);
 }
 
 /* Table-chat lines between the decisions */

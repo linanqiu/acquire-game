@@ -33,7 +33,7 @@
 .locked {
   margin: 0;
   padding: var(--space-2) var(--space-3);
-  border-left: 3px solid #ffaa00;
+  border-left: 3px solid var(--warning);
   background: var(--bg-tertiary);
   color: var(--text-primary);
   font-size: var(--text-sm);

@@ -28,6 +28,7 @@ import {
   defaultLeaks,
   useServerRuleset,
 } from './fixtures/rulesets'
+import { VISIONS, lightness, minDistance } from './fixtures/colorVision'
 
 vi.mock('../../src/hooks/useWebSocket', () => ({
   useWebSocket: () => ({
@@ -158,6 +159,19 @@ describe.each(THEMED)('%s ruleset', (_name, rs) => {
     expect(meta).toHaveTextContent(`${rs.board.columns}×${rs.board.rows} board`)
     expect(meta).toHaveTextContent(`${rs.chains.length} ${rs.theme.chain_noun_plural}`)
     expect(screen.getByTestId('bench-link')).toHaveTextContent(`${BRAND} Bench`)
+    // The board motif is drawn in this ruleset's chain colours (and no other).
+    const fills = new Set(
+      [...screen.getByTestId('home-motif').querySelectorAll('g[fill]')].map((g) =>
+        g.getAttribute('fill')
+      )
+    )
+    expect(fills.size).toBeGreaterThan(2)
+    for (const f of fills) expect(rs.chains.map((c) => c.color)).toContain(f)
+    // Every way in: create, join, watch bots, games & transcripts, bench.
+    for (const id of ['create-button', 'join-button', 'watch-bots-button', 'games-link']) {
+      expect(screen.getByTestId(id)).toBeInTheDocument()
+    }
+    expect(screen.getByTestId('theme-toggle')).toBeInTheDocument()
     expectNoDefaultLeaks()
   })
 
@@ -432,6 +446,24 @@ describe('chain colours are readable', () => {
         expect(contrastRatio(c.color, fg), `${c.name} ${c.color} on ${fg}`).toBeGreaterThanOrEqual(
           4.5
         )
+      }
+    })
+  }
+
+  // Calm, balanced palettes (BL-009): similar perceived lightness, so no chain glows or
+  // recedes, and still distinct for normal vision and the common colour-vision deficiencies
+  // (OKLab distance after Machado 2009 simulation; the abbreviation on the board and in every
+  // marker means colour is never the only cue). Numbers measured when the palettes were set:
+  // default 0.124 / 0.079 / 0.078 / 0.078, valley 0.113 / 0.071 / 0.070 / 0.070,
+  // mini 0.171 / 0.110 / 0.107 / 0.107 (normal / protan / deutan / tritan).
+  for (const [name, rs] of Object.entries(ALL_RULESETS)) {
+    it(`${name}: chain colours share a lightness band and stay apart under colour-vision deficiencies`, () => {
+      const colors = rs.chains.map((c) => c.color)
+      const ls = colors.map(lightness)
+      expect(Math.max(...ls) - Math.min(...ls), `OKLab lightness ${ls}`).toBeLessThanOrEqual(0.12)
+      expect(minDistance(colors, 'normal'), 'normal vision').toBeGreaterThanOrEqual(0.1)
+      for (const v of VISIONS.filter((v) => v !== 'normal')) {
+        expect(minDistance(colors, v), v).toBeGreaterThanOrEqual(0.065)
       }
     })
   }

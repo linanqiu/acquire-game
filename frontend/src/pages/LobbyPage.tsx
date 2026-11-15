@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { PageShell } from '../components/ui/PageShell'
+import { BoardMotif } from '../components/ui/BoardMotif'
+import { ThemeToggle } from '../components/ui/ThemeToggle'
 import { Card } from '../components/ui/Card'
 import { TextInput } from '../components/ui/TextInput'
 import { Button } from '../components/ui/Button'
@@ -184,15 +186,21 @@ export function LobbyPage() {
   return (
     <PageShell header={null}>
       <div className={styles.lobby}>
-        <h1 className={styles.title} data-testid="home-title">
-          {brand.toUpperCase()}
-        </h1>
-        <p className={styles.theme} data-testid="home-theme">
-          {product.title}
-        </p>
-        <p className={styles.subtitle} data-testid="home-tagline">
-          {product.theme.tagline}
-        </p>
+        <div className={styles.topBar}>
+          <ThemeToggle />
+        </div>
+        <header className={styles.hero}>
+          <BoardMotif chains={product.rs.chains} />
+          <h1 className={styles.title} data-testid="home-title">
+            {brand.toUpperCase()}
+          </h1>
+          <p className={styles.theme} data-testid="home-theme">
+            {product.title}
+          </p>
+          <p className={styles.subtitle} data-testid="home-tagline">
+            {product.theme.tagline}
+          </p>
+        </header>
 
         <WakingBanner />
         {serverDown && (
@@ -232,6 +240,7 @@ export function LobbyPage() {
                 fullWidth
                 loading={createLoading}
                 onClick={handleCreate}
+                className={styles.cta}
                 data-testid="create-button"
               >
                 CREATE
@@ -273,6 +282,7 @@ export function LobbyPage() {
                 fullWidth
                 loading={joinLoading}
                 onClick={handleJoin}
+                className={styles.cta}
                 data-testid="join-button"
               >
                 JOIN
@@ -287,24 +297,25 @@ export function LobbyPage() {
           {product.theme.chain_noun_plural}
         </p>
 
-        <div className={styles.spectatorSection}>
-          <Button
-            variant="secondary"
-            loading={spectatorLoading}
+        <nav className={styles.explore} aria-label="Explore">
+          <button
+            type="button"
+            className={styles.entry}
             onClick={handleWatchBots}
+            disabled={spectatorLoading}
+            aria-busy={spectatorLoading || undefined}
             data-testid="watch-bots-button"
           >
-            WATCH BOTS PLAY
-          </Button>
-          <p className={styles.spectatorHint}>Create a game with only AI players and watch</p>
-        </div>
-
-        <nav className={styles.exploreLinks} aria-label="Explore">
-          <Link to="/games" data-testid="games-link">
-            Games &amp; transcripts
+            <span className={styles.entryTitle}>WATCH BOTS PLAY</span>{' '}
+            <span className={styles.entryHint}>Create a game with only AI players and watch</span>
+          </button>
+          <Link to="/games" className={styles.entry} data-testid="games-link">
+            <span className={styles.entryTitle}>Games &amp; transcripts</span>{' '}
+            <span className={styles.entryHint}>Replay finished games move by move</span>
           </Link>
-          <Link to="/bench" data-testid="bench-link">
-            {brand} Bench
+          <Link to="/bench" className={styles.entry} data-testid="bench-link">
+            <span className={styles.entryTitle}>{brand} Bench</span>{' '}
+            <span className={styles.entryHint}>How AI players rank against each other</span>
           </Link>
         </nav>
       </div>

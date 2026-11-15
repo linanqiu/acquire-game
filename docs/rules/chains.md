@@ -12,23 +12,23 @@ Buyout features seven hotel chains organized into three pricing tiers:
 
 | Chain | Colour | Starting Price | Stock per Share (2 tiles) |
 |-------|--------|----------------|---------------------------|
-| **Sandpiper** | Sand gold `#E3B448` | $200 | $200 |
-| **Marlowe** | Wine `#8E2C48` | $200 | $200 |
+| **Sandpiper** | Ochre `#CBBA2F` | $200 | $200 |
+| **Marlowe** | Rose `#F797AC` | $200 | $200 |
 
 ### Medium Tier (Medium Prices)
 
 | Chain | Colour | Starting Price | Stock per Share (2 tiles) |
 |-------|--------|----------------|---------------------------|
-| **Halcyon** | Teal `#1F7A8C` | $300 | $300 |
-| **Juniper** | Forest green `#3E7C4A` | $300 | $300 |
-| **Meridian** | Terracotta `#E07A3F` | $300 | $300 |
+| **Halcyon** | Sky teal `#41CBE6` | $300 | $300 |
+| **Juniper** | Sage green `#7FAD74` | $300 | $300 |
+| **Meridian** | Amber `#DF8528` | $300 | $300 |
 
 ### Expensive Tier (Highest Prices)
 
 | Chain | Colour | Starting Price | Stock per Share (2 tiles) |
 |-------|--------|----------------|---------------------------|
-| **Aurelia** | Lavender `#B48CDB` | $400 | $400 |
-| **Obsidian** | Royal blue `#3F5BD9` | $400 | $400 |
+| **Aurelia** | Lavender `#B78AC8` | $400 | $400 |
+| **Obsidian** | Cornflower blue `#64A1FD` | $400 | $400 |
 
 ---
 

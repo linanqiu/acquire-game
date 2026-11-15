@@ -131,7 +131,8 @@ test('themed game from the home page to the transcript', async ({ page }, testIn
   await expect(page.getByTestId('home-meta')).toContainText(
     `${rs.board.columns}×${rs.board.rows} board`
   )
-  await expect(page.getByTestId('bench-link')).toHaveText(`${BRAND} Bench`)
+  // The entry card's title, then its one-line hint (BL-009 home page).
+  await expect(page.getByTestId('bench-link')).toHaveText(new RegExp(`^${BRAND} Bench\\b`))
   await expectNoDefaultText(page, 'home')
   await shots.take(page, 'home')
 

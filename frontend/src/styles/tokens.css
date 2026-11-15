@@ -4,6 +4,7 @@
  */
 
 :root {
+  color-scheme: dark;
   /* ==========================================================================
      Colors - Background
      ========================================================================== */
@@ -28,8 +29,27 @@
      "played but in no chain" colour is a token.
      ========================================================================== */
   --chain-orphan: #4a4a5a; /* Orphan/unincorporated tiles */
+  --chain-orphan-fg: #e8e8e8;
+
+  /* Board: empty squares are quiet, playable squares are lit. */
+  --board-square: #182241; /* an empty square, a step up from the board */
+  --board-coord: #4b5478; /* faint coordinate hint on an empty square */
+  /* "Your turn": the phase bar and the action card when the table waits on the viewer. */
+  --turn-accent: #5cc8ff;
+  --turn-tint: #183a5c;
+  --turn-card: #1a2d52;
+  --cta-fg: #06121f; /* text on --turn-accent */
+  /* Chains tab: holder chips, rows the viewer holds. */
+  --chip-bg: rgba(255, 255, 255, 0.05);
+  --held-bg: rgba(92, 200, 255, 0.05);
+  /* A number that just went up / down (cash, net worth). */
+  --flash-up: rgba(107, 255, 138, 0.35);
+  --flash-down: rgba(255, 107, 107, 0.35);
+  --playable-border: rgba(100, 200, 255, 0.65);
+  --playable-glow: rgba(100, 200, 255, 0.3);
   --selection-bg: #3d5e8a; /* Text selection highlight */
   --accent-gold: #c9a227; /* Winner crown / star */
+  --warning: #ffaa00; /* merger / fallback / caution accents */
 
   /* ==========================================================================
      Colors - Interactive States
@@ -40,7 +60,15 @@
   /* ==========================================================================
      Typography
      ========================================================================== */
-  --font-primary: 'IBM Plex Mono', 'Fira Code', 'Consolas', monospace;
+  /* Two system stacks, no font files and no network requests:
+     sans for names, labels, chat and body text; mono for numbers, coordinates and money. */
+  --font-sans:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', 'Liberation Sans',
+    Arial, sans-serif;
+  --font-mono:
+    ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Menlo, Consolas, 'Liberation Mono',
+    'DejaVu Sans Mono', monospace;
+  --font-primary: var(--font-sans);
 
   /* Type Scale */
   --text-xl: 24px; /* Phase announcements, winner declaration */
@@ -106,4 +134,90 @@
      ========================================================================== */
   /* Touch target minimum */
   --touch-target-min: 44px;
+}
+
+/* ==========================================================================
+   Light scheme: the same tokens, light values. Follows the system
+   (prefers-color-scheme) unless the player picked one (data-theme on <html>,
+   lib/theme.ts). The two blocks are identical on purpose: one is the system
+   default, the other the manual choice.
+   ========================================================================== */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    color-scheme: light;
+    --bg-primary: #eef0f5;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #e2e5ee;
+    --border: #cfd4e0;
+
+    --text-primary: #1b1f2e;
+    --text-secondary: #555c73;
+    --text-accent: #05070f;
+    --text-negative: #b42318;
+    --text-positive: #17703a;
+
+    --chain-orphan: #6f7487;
+    --chain-orphan-fg: #ffffff;
+    --selection-bg: #c5dafc;
+    --accent-gold: #8a6a00;
+    --warning: #8f5400;
+
+    --primary-hover: #e4e9f5;
+    --danger-hover: #c62828;
+
+    --board-square: #f8f9fc;
+    --board-coord: #a7adbf;
+    --turn-accent: #0b6fc2;
+    --turn-tint: #d3e7fb;
+    --turn-card: #e9f3fd;
+    --cta-fg: #ffffff;
+    --chip-bg: rgba(20, 30, 60, 0.06);
+    --held-bg: rgba(11, 111, 194, 0.06);
+    --flash-up: rgba(23, 112, 58, 0.25);
+    --flash-down: rgba(180, 35, 24, 0.22);
+    --playable-border: rgba(11, 111, 194, 0.75);
+    --playable-glow: rgba(11, 111, 194, 0.25);
+
+    --shadow-sm: 0 1px 2px rgba(20, 30, 60, 0.12);
+    --shadow-md: 0 4px 10px rgba(20, 30, 60, 0.14);
+  }
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg-primary: #eef0f5;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #e2e5ee;
+  --border: #cfd4e0;
+
+  --text-primary: #1b1f2e;
+  --text-secondary: #555c73;
+  --text-accent: #05070f;
+  --text-negative: #b42318;
+  --text-positive: #17703a;
+
+  --chain-orphan: #6f7487;
+  --chain-orphan-fg: #ffffff;
+  --selection-bg: #c5dafc;
+  --accent-gold: #8a6a00;
+  --warning: #8f5400;
+
+  --primary-hover: #e4e9f5;
+  --danger-hover: #c62828;
+
+  --board-square: #f8f9fc;
+  --board-coord: #a7adbf;
+  --turn-accent: #0b6fc2;
+  --turn-tint: #d3e7fb;
+  --turn-card: #e9f3fd;
+  --cta-fg: #ffffff;
+  --chip-bg: rgba(20, 30, 60, 0.06);
+  --held-bg: rgba(11, 111, 194, 0.06);
+  --flash-up: rgba(23, 112, 58, 0.25);
+  --flash-down: rgba(180, 35, 24, 0.22);
+  --playable-border: rgba(11, 111, 194, 0.75);
+  --playable-glow: rgba(11, 111, 194, 0.25);
+
+  --shadow-sm: 0 1px 2px rgba(20, 30, 60, 0.12);
+  --shadow-md: 0 4px 10px rgba(20, 30, 60, 0.14);
 }

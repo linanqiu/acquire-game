@@ -1,3 +1,4 @@
+import { FlashValue } from '../ui/FlashValue'
 import { SeatKindBadge } from './SeatKindBadge'
 import { AiThinking } from './AiThinking'
 import { isAiThinking } from '../../lib/agents'
@@ -82,18 +83,26 @@ export function Standings({
               />
               {isAiThinking(gameState.awaiting, id) && <AiThinking />}
             </span>
-            <span className={styles.num} data-testid={`player-cash-${id}`}>
+            <FlashValue
+              value={player.money}
+              className={styles.num}
+              data-testid={`player-cash-${id}`}
+            >
               {rules.money(player.money)}
-            </span>
+            </FlashValue>
             <span
               className={`${styles.num} ${styles.muted}`}
               data-testid={`player-stockvalue-${id}`}
             >
               {player.stock_value !== undefined ? rules.money(player.stock_value) : ''}
             </span>
-            <span className={`${styles.num} ${styles.worth}`} data-testid={`player-networth-${id}`}>
+            <FlashValue
+              value={player.net_worth}
+              className={`${styles.num} ${styles.worth}`}
+              data-testid={`player-networth-${id}`}
+            >
               {player.net_worth !== undefined ? rules.money(player.net_worth) : ''}
-            </span>
+            </FlashValue>
             <span className={styles.stocks} data-testid="player-stocks">
               {held.map((chain) => (
                 <span
