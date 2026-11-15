@@ -222,6 +222,9 @@ def test_fake_responder_is_deterministic():
     assert r("", ev, REPLY_SCHEMA) == {"reply": "Fake LLM (test) saw: a chain founded"}
     other = talk + "Something just happened:\n[3] Bob trade accepted\n"
     assert r("", other, REPLY_SCHEMA) == {"reply": ""}
+    # a founding earlier in the event history is not what triggered this call
+    history = "[1] Bob chain founded: chain=X\n" + other
+    assert r("", history, REPLY_SCHEMA) == {"reply": ""}
     # decisions: say only once per human message containing "deal"
     schema = build_schema({"action_types": ["end_turn"]})
     prompt = '[chat #5] Alice (human): "big deal"'

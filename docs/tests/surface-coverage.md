@@ -109,6 +109,21 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | TR-06 | Outgoing offer pending, with cancel | `trade-outgoing-*`, `trade-cancel-*` | `screens/trades.spec.ts : outgoing offer stays pending until cancelled` | 3, 4 |
 | TR-07 | Server refuses a trade: reason in the builder and a toast | `trade-error` | `screens/trades.spec.ts : server refuses a trade mid-merger` | 3 |
 
+## 5b. Table chat (`ChatPanel`, player and host pages)
+
+| ID | Surface | Notes | Covered by | Tier |
+|----|---------|-------|------------|------|
+| CH-01 | Chat in the player lobby: send with Enter, own line marked YOU, the Fake LLM answers | `chat-panel`, `chat-input`, `chat-message` | `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 4 |
+| CH-02 | Chat in game on desktop: open by default, AI reply with the AI badge, text shown as text (never HTML), the game untouched | `chat-send`, `chat-list` | `screens/chat.spec.ts : chat on desktop` | 3 |
+| CH-03 | Chat on a phone: collapsed by default behind a bar with an unread count; never over the board or the tile rack; open, send, collapse | `chat-toggle`, `chat-unread` | `screens/chat.spec.ts : chat on a phone` | 3 |
+| CH-04 | Who reads the chat: the AI seats that may answer; "rules-based bots do not chat" | `chat-readers` | `screens/chat.spec.ts : chat on desktop`; `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 3, 4 |
+| CH-05 | Host / spectator view: same messages, read-only with the reason | `chat-read-only` | `screens/chat.spec.ts : chat on desktop` | 3 |
+| CH-06 | Chat history after a reload / reconnect, in order | `chat_history` | `screens/chat.spec.ts : chat on desktop`; `backend/tests/protocol/test_chat.py : test_reconnect_gets_the_history_in_order` | 2, 3 |
+| CH-07 | Send refused (too fast, too long, empty): reason under the input | `chat-error` | `backend/tests/protocol/test_chat.py : test_rate_limit`; `backend/tests/protocol/test_chat.py : test_refusals` | 2 |
+| CH-08 | An LLM seat's table talk with its move (`say`) and off-turn talk after a game event | `data-source="say"` | `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI`; `backend/tests/protocol/test_chat.py : test_llm_seat_speaks_unprompted_after_a_game_event` | 2, 4 |
+| CH-09 | "New messages" button when the reader scrolled up | `chat-new-below` | GAP: needs more messages than the list shows while scrolled up; unit test `src/components/game/ChatPanel.test.tsx` | unit |
+| CH-10 | Chat lines in the transcript timeline, in order with the moves | `timeline-chat` | `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 4 |
+
 ## 6. Host / spectator page (`/host/:room`)
 
 | ID | Surface | Notes | Covered by | Tier |
@@ -184,6 +199,7 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | `AddAiControl`, `RemoveSeatButton` | menu, disabled entry, remove | PL-02..04 | `screens/lobby.spec.ts : lobby: AI menu` |
 | `AiThinking` | shown while an AI seat decides | PG-12 | `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` |
 | `SeatKindBadge` | bot, LLM, scripted, fallback marker | PG-20, PG-21 | `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` |
+| `ChatPanel` | open, collapsed with unread count, read-only (spectator), AI badge | CH-01..CH-05 | `screens/chat.spec.ts : chat on a phone`; `screens/chat.spec.ts : chat on desktop` |
 | `Modal` | open (trade builder), backdrop | TR-01 | `screens/trades.spec.ts : propose a trade through the builder` |
 | `Header`, `PageShell` | room, name, cash, tile pool | PG-14 | `screens/turn-basics.spec.ts : opening turn` |
 | `Slider`, `Badge` | disposition sliders; status and kind badges | PG-06, TX-01 | `screens/merger.spec.ts : disposition (human first)` |
@@ -198,6 +214,8 @@ Every `GAP:` above has a reason. In short:
 - **BOT ASSIST marker** (PG-21): needs a fake LLM that answers illegally; unit tests only.
 - **LOAD MORE** (TX-04), **replay play/pause/speed** (TX-08),
   **leaderboard selectors** (BN-03): no test drives them.
+- **Chat "New messages" button** (CH-09): the screen would need more messages than the list
+  shows while the reader is scrolled up; covered by the ChatPanel unit test.
 
 Facts learned while filling this map (2026-11-14):
 
@@ -211,9 +229,9 @@ Facts learned while filling this map (2026-11-14):
 
 ## Summary (checked by the script; update when rows change)
 
-- Surfaces: 116
-- Covered: 112
-- GAP: 6
+- Surfaces: 127
+- Covered: 122
+- GAP: 7
 - Journeys: 7
 
 ## Appendix: Snapshot fixtures available
