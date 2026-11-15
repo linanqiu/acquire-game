@@ -20,8 +20,8 @@ export interface SquareShape {
   anchor: boolean
   /**
    * Anchor only: where to nudge the label, in squares (-0.5..0.5), towards the group's centre,
-   * so a 2-square chain is labelled in the middle. Only towards a joined side: the label never
-   * leaves the shape.
+   * so a 2-square chain is labelled in the middle. Only inside a solid rectangle and towards a
+   * joined side; in other shapes (an L, a T) it is 0, so the label never sits on a corner.
    */
   dx: number
   dy: number
@@ -104,8 +104,16 @@ export function chainShapes(grid: SquareContent[][]): SquareShape[][] {
       const shape = out[best[0]][best[1]]
       const rawX = clampHalf(cx - best[1])
       const rawY = clampHalf(cy - best[0])
-      const dx = (rawX > 0 && shape.e) || (rawX < 0 && shape.w) ? rawX : 0
-      const dy = (rawY > 0 && shape.s) || (rawY < 0 && shape.n) ? rawY : 0
+      // Nudge only inside a solid rectangle (a row, a column, a 2x2...). In any other shape
+      // (an L, a T) the centre can fall on an inner corner or outside the chain, so the
+      // label stays centred in its own square.
+      const ys = group.map(([y]) => y)
+      const xs = group.map(([, x]) => x)
+      const solid =
+        (Math.max(...ys) - Math.min(...ys) + 1) * (Math.max(...xs) - Math.min(...xs) + 1) ===
+        group.length
+      const dx = solid && ((rawX > 0 && shape.e) || (rawX < 0 && shape.w)) ? rawX : 0
+      const dy = solid && ((rawY > 0 && shape.s) || (rawY < 0 && shape.n)) ? rawY : 0
       out[best[0]][best[1]] = { ...shape, anchor: true, dx: dx || 0, dy: dy || 0 }
     }
   }

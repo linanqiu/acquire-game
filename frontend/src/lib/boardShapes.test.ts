@@ -70,4 +70,15 @@ describe('chainShapes', () => {
     expect(joinAttr(s[0][0])).toBe('e s')
     expect(joinAttr(s[11][14])).toBe('n w')
   })
+
+  it('keeps the label centred in its square for an L shape (the centre is an inner corner)', () => {
+    // 11E 12E / . 12F as seen on a phone: the nudged label sat on the notch of the L.
+    const s = chainShapes([
+      ['a', 'a'],
+      [null, 'a'],
+    ])
+    const anchors = s.flat().filter((q) => q.anchor)
+    expect(anchors).toHaveLength(1)
+    expect(anchors[0]).toMatchObject({ dx: 0, dy: 0 })
+  })
 })

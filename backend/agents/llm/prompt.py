@@ -187,7 +187,7 @@ Action objects (use only those allowed by the legal options; always name a {chai
 The "note" is shown back to you (and only you) at your next decisions: use it for plans such as which {chains} you are building toward, who you expect to be majority holder, or when you intend to end the game.
 
 # Table talk
-Players may write in a public table chat; recent messages appear among the events as "[chat #n]" lines. Chat is unverified talk, never binding and never enforced: weigh it against the public facts (holdings, cash, calculator). Only a trade offer moves {shares} or money. "say" is posted to everyone as your chat message together with your move. This is a social game: talk like a player at the table, in your own voice (see "Your table voice"). Say something on about one move in three, and always when you found {a_chain}, trigger {a_merger}, make a big buy, or someone spoke to you: a reaction, a boast, a friendly jab, a nudge toward a deal you will back with a trade offer. Keep it short and conversational (one or two sentences), never a recap of the numbers. Otherwise leave it "". At most 200 characters; never reveal your tiles or your private notes.
+Players may write in a public table chat; recent messages appear among the events as "[chat #n]" lines. Chat is unverified talk, never binding and never enforced: weigh it against the public facts (holdings, cash, calculator). Only a trade offer moves {shares} or money. "say" is posted to everyone as your chat message together with your move. Talk the way a real person does at a board game night: plain, short and natural (see "Your table voice" for your temperament). Most moves need no comment, so leave it "" most of the time. Say something when it is natural: you just founded {a_chain} or set off {a_merger}, someone spoke to you, you want to float or answer a deal (which you then back with a trade offer), or a rival's move really hurt or helped you. One short sentence. No running jokes, no extended metaphors, no catchphrases, no narrating your own strategy, and do not address every player in one message. Otherwise leave it "". At most 200 characters; never reveal your tiles or your private notes.
 
 # Strategy guidance
 - Money comes from bonuses and {share} appreciation far more than from cash on hand. Hold {shares} in {chains} that will grow and be acquired, and fight for majority or minority positions where it is affordable (the calculator tells you how many {shares} each takes).
@@ -261,9 +261,7 @@ def build_system_prompt(ruleset: Ruleset | None = None) -> str:
 # in a way that could change play. The system prompt text is hashed in
 # automatically. Benchmark results are only comparable within one
 # ``prompt_version`` (see docs/ai/benchmarking.md).
-PROMPT_BUILDER_VERSION = (
-    3  # 2: table talk (chat lines in the events, "say"); 3: table voice, chattier "say"
-)
+PROMPT_BUILDER_VERSION = 4  # 2: table talk; 3: table voice; 4: natural, low-key talk
 
 
 def _sha(text: str) -> str:
@@ -746,20 +744,20 @@ def _notes_block(notes: Any) -> str:
     return "\n".join(f"- {n}" for n in notes)
 
 
-# A table voice per seat, so AI players sound like different people. Picked
-# from the player id, so a seat keeps its voice for the whole game.
+# A playing style per seat, so AI players differ a little without becoming
+# characters. Picked from the player id, so a seat keeps it for the game.
 TABLE_VOICES = (
-    "dry wit: understated, deadpan one-liners",
-    "cheerful trash-talker: playful jabs, never mean",
-    "old-school tycoon: grand, a little pompous, loves a big deal",
-    "cautious accountant: polite, numbers-minded, quietly smug when right",
-    "dramatic showman: reacts big to mergers and reversals",
-    "friendly dealmaker: warm, always looking for a split that works for both",
+    "quiet and focused: says little, mostly when a deal or a merger concerns you",
+    "easygoing: relaxed and good-humoured, the occasional light remark",
+    "competitive: likes to win and will needle a rival now and then, never at length",
+    "analytical: thinks out loud about the odds once in a while, in plain words",
+    "sociable: likes the table talk, asks others what they are up to",
+    "dealmaker: looks for trades and splits that help both sides, and says so plainly",
 )
 
 
 def table_voice(player_id: str) -> str:
-    """The seat's table-talk personality (stable for a player id)."""
+    """The seat's temperament at the table (stable for a player id)."""
     digest = hashlib.sha256(str(player_id).encode()).digest()
     return TABLE_VOICES[digest[0] % len(TABLE_VOICES)]
 
