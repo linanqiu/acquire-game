@@ -145,9 +145,9 @@ class TestRoute:
     def test_rules_based_bots_never_talk(self, app_client, chat_settings):
         client = app_client
         code, alice = create_room(client, "Alice")
+        bot = add_seat(client, code, "bot")
         add_seat(client, code, "bot")
-        add_seat(client, code, "bot")
-        assert say(client, code, alice, "Bot 1, deal?").status_code == 200
+        assert say(client, code, alice, f"{bot['name']}, deal?").status_code == 200
         start(client, code)
         assert say(client, code, alice, "anyone?").status_code == 200
         time.sleep(0.2)

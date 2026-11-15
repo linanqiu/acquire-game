@@ -180,6 +180,8 @@ test.describe('Transcripts and Buyout Bench on the real servers', () => {
     const noErrors = () => expect(errors, 'browser console / page errors').toEqual([])
 
     let roomCode = ''
+    /** The LLM seat's character name (random per room, BL-010; the model is its badge). */
+    let llmName = ''
     let gameId = ''
     let hand: string[] = []
     let live: Page
@@ -194,7 +196,16 @@ test.describe('Transcripts and Buyout Bench on the real servers', () => {
       await page.getByTestId('add-ai-button').click()
       await shot(page, 'ai-menu')
       await page.getByTestId('ai-option-llm:fake').click()
-      await expect(page.getByRole('main').getByText('Fake LLM (test)').first()).toBeVisible()
+      const llmSeat = page
+        .locator('[data-testid^="lobby-player-"]')
+        .filter({ has: page.locator('[data-kind="llm"]') })
+      await expect(
+        llmSeat.getByRole('button', { name: 'AI player, Fake LLM (test)' })
+      ).toBeVisible()
+      llmName = ((await llmSeat.locator('span').first().textContent()) ?? '').trim()
+      expect(llmName).not.toBe('')
+      expect(llmName).not.toContain('Fake LLM')
+      log(`[test] LLM seat name: ${llmName}`)
       await expect(page.getByText('3/6 players')).toBeVisible()
       await shot(page, 'lobby-with-bot-and-fake-llm')
       await startGameViaUI(page)
@@ -219,7 +230,9 @@ test.describe('Transcripts and Buyout Bench on the real servers', () => {
       await expect(row).toHaveAttribute('data-status', 'live')
       await expect(row).toContainText('LIVE')
       await expect(row).toContainText('In progress')
+      // The games list compares models: the model first, the character name second.
       await expect(row).toContainText('Fake LLM (test)')
+      await expect(row).toContainText(llmName)
       await shot(live, 'games-list-with-live-game')
       await row.getByRole('link').click()
       await live.waitForURL(/\/games\/[\w-]+$/)
@@ -374,7 +387,8 @@ test.describe('Transcripts and Buyout Bench on the real servers', () => {
       await userToggle.click()
       const userBody = panel.locator('[data-testid^="body-user-prompt-"]')
       await expect(userBody).toContainText('# Your seat')
-      await expect(userBody).toContainText('Fake LLM (test)')
+      // The seat knows its own (character) name.
+      await expect(userBody).toContainText(`You are ${llmName} (player id`)
       await shot(page, 'llm-user-prompt-open')
 
       await panel.locator('[data-testid^="toggle-system-prompt-"]').click()

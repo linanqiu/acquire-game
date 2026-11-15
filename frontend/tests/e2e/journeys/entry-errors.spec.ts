@@ -8,7 +8,15 @@
  */
 import type { Page } from '@playwright/test'
 import { test, expect } from './support/journey'
-import { addAi, addBot, createGame, expectInLobby, openHome, startGame } from './support/lobby'
+import {
+  addAi,
+  addBot,
+  createGame,
+  expectInLobby,
+  openHome,
+  seatName,
+  startGame,
+} from './support/lobby'
 
 async function joinAttempt(page: Page, name: string, code: string) {
   await page.getByTestId('join-name-input').fill(name)
@@ -95,15 +103,17 @@ test('@ci entry errors: validation, bad codes, duplicate name, full room, starte
   j.log('join: full room refused')
 
   // --- Remove an AI seat; now Bob fits ------------------------------------------------
-  const bot4 = host.locator('[data-testid^="lobby-player-"]', { hasText: 'Bot 4' })
-  await bot4.getByRole('button', { name: 'Remove Bot 4' }).click()
+  const bot4Name = await seatName(host, 'bot', 3)
+  const llmName = await seatName(host, 'llm')
+  const bot4 = host.locator('[data-testid^="lobby-player-"]', { hasText: bot4Name })
+  await bot4.getByRole('button', { name: `Remove ${bot4Name}` }).click()
   await expect(host.getByText('5/6 players')).toBeVisible()
   await expect(bot4).toHaveCount(0)
   await expect(host.getByTestId('add-bot-button')).toBeEnabled()
   await j.shot(host, 'host-removed-bot4')
   await joinAttempt(b, 'Bob', room)
   await b.waitForURL(new RegExp(`/play/${room}$`))
-  await expectInLobby(b, ['Hana', 'Bob', 'Fake LLM (test)'])
+  await expectInLobby(b, ['Hana', 'Bob', llmName])
   await expectInLobby(host, ['Bob'])
   // Humans cannot be removed, and only the host sees remove buttons.
   await expect(host.getByRole('button', { name: 'Remove Bob' })).toHaveCount(0)

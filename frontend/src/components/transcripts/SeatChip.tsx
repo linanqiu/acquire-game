@@ -1,39 +1,25 @@
 import { Badge, type BadgeVariant } from '../ui/Badge'
-import { seatModelLabel } from '../../lib/format'
+import { resolveSeatKind } from '../../lib/agents'
+import { SeatKindBadge } from '../game/SeatKindBadge'
 import type { DecisionSource, SummarySeat } from '../../types/transcripts'
 import styles from './SeatChip.module.css'
-
-const KIND_VARIANT: Record<string, BadgeVariant> = {
-  human: 'default',
-  bot: 'warning',
-  llm: 'safe',
-  scripted: 'info',
-}
-
-const KIND_LABEL: Record<string, string> = {
-  human: 'HUMAN',
-  bot: 'BOT',
-  llm: 'LLM',
-  scripted: 'SCRIPTED',
-}
-
-function KindBadge({ kind }: { kind: string }) {
-  return (
-    <Badge
-      label={KIND_LABEL[kind] ?? kind.toUpperCase()}
-      variant={KIND_VARIANT[kind] ?? 'default'}
-    />
-  )
-}
 
 interface SeatChipProps {
   seat: Pick<SummarySeat, 'player_id' | 'name' | 'kind' | 'agent_label' | 'model'>
   winner?: boolean
 }
 
-/** A seat: name, kind badge and (for AI seats) the model label. */
+/**
+ * A seat in the transcript pages and the games list. These pages compare models, so an AI seat
+ * shows its model as the primary text and its character name ("Baron Brick") second, with the
+ * kind as a small icon (BL-010). A human seat shows the name only. The icon is not a button:
+ * the chip can sit inside a link (games list) and already spells the model out.
+ */
 export function SeatChip({ seat, winner = false }: SeatChipProps) {
-  const model = seatModelLabel(seat)
+  const model = seat.agent_label || seat.model || ''
+  const isAi = resolveSeatKind(seat) !== 'human'
+  const primary = isAi && model ? model : seat.name
+  const secondary = isAi && model && model !== seat.name ? seat.name : null
   return (
     <span
       className={`${styles.chip} ${winner ? styles.winner : ''}`}
@@ -44,9 +30,14 @@ export function SeatChip({ seat, winner = false }: SeatChipProps) {
           ★
         </span>
       )}
-      <span className={styles.name}>{seat.name}</span>
-      <KindBadge kind={seat.kind} />
-      {model && <span className={styles.model}>{model}</span>}
+      <span className={styles.name}>{primary}</span>
+      <SeatKindBadge
+        playerId={seat.player_id}
+        kind={seat.kind}
+        agentLabel={model || null}
+        interactive={false}
+      />
+      {secondary && <span className={styles.model}>{secondary}</span>}
     </span>
   )
 }

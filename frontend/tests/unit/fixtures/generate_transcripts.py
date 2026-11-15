@@ -144,9 +144,9 @@ def main() -> None:
 
     with TestClient(create_app()) as client:
         code, me = create_room(client, "Dana")
+        configure(client, code, 11)  # first: the seed also picks the seats' names
         add_seat(client, code, "llm:fake")
         add_seat(client, code, "bot")
-        configure(client, code, 11)
         with client.websocket_connect(f"/ws/player/{code}/{me}") as ws:
             start(client, code)
             human = HumanClient(ws, me)

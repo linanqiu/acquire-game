@@ -12,13 +12,16 @@ import { loadFixture } from './support/fixtures'
 import { expectFits } from './support/layout'
 import { openTab, tab, tabBadge } from '../support/tabs'
 
-const LLM = 'Fake LLM (test)'
+/** Catalog label of the test-mode LLM: in its seat badge, never its name (BL-010). */
+const MODEL = 'Fake LLM (test)'
 
 interface ChatRoom {
   code: string
   humanId: string
   bobId: string
   llmId: string
+  /** The LLM seat's character name, as the server gave it. */
+  llmName: string
 }
 
 async function chatRoom(page: Page, viewport: { width: number; height: number }) {
@@ -37,7 +40,10 @@ async function chatRoom(page: Page, viewport: { width: number; height: number })
     data: { agent_id: 'llm:fake' },
   })
   expect(add.ok(), await add.text()).toBeTruthy()
-  const llmId = ((await add.json()) as { player_id: string }).player_id
+  const added = (await add.json()) as { player_id: string; name: string }
+  const llmId = added.player_id
+  const llmName = added.name
+  expect(llmName).not.toContain(MODEL)
   const join = await page.request.post('/api/join', {
     form: { room_code: code, player_name: 'Bob' },
   })
@@ -52,7 +58,7 @@ async function chatRoom(page: Page, viewport: { width: number; height: number })
   expect(load.ok(), await load.text()).toBeTruthy()
   await expect(page.getByTestId('game-phase')).toBeVisible()
   await expect(page.getByTestId('tile-rack')).toBeVisible()
-  return { code, humanId, bobId, llmId } satisfies ChatRoom
+  return { code, humanId, bobId, llmId, llmName } satisfies ChatRoom
 }
 
 async function bobSays(page: Page, room: ChatRoom, text: string) {
@@ -109,7 +115,7 @@ test('chat on desktop: talk to the table, the Fake LLM answers, the host view re
   // The chat is a tab of the sidebar; the board stays on the left.
   await openTab(page, 'chat')
   await expect(page.getByTestId('chat-readers')).toHaveText(
-    `AI that reads chat and may answer: ${LLM}. Talk is not binding; deals happen through trade offers.`
+    `AI that reads chat and may answer: ${room.llmName}. Talk is not binding; deals happen through trade offers.`
   )
   await expectApart(page, '[data-testid="chat-panel"]', '[data-testid="board"]')
   await expectApart(page, '[data-testid="chat-panel"]', '[data-testid="tile-rack"]')
@@ -127,11 +133,14 @@ test('chat on desktop: talk to the table, the Fake LLM answers, the host view re
   const reply = lines(page).filter({ hasText: 'Fake LLM heard you' })
   await expect(reply).toHaveCount(1)
   await expect(reply).toHaveAttribute('data-kind', 'llm')
-  await expect(reply).toContainText(`${LLM}AI`)
+  // Author: the character name and the seat badge, whose accessible name carries the model.
+  await expect(reply).toContainText(room.llmName)
+  await expect(reply).not.toContainText(MODEL)
+  await expect(reply.getByRole('button', { name: `AI player, ${MODEL}` })).toBeVisible()
   await shots.take(page, 'chat-llm-replied')
 
   // Another human's message arrives live; the LLM answers him too.
-  await bobSays(page, room, `${LLM}, will you sell me shares?`)
+  await bobSays(page, room, `${room.llmName}, will you sell me shares?`)
   await expect(lines(page).filter({ hasText: 'will you sell me shares?' })).toHaveCount(2)
   await expect(lines(page)).toHaveCount(4)
 

@@ -46,7 +46,9 @@ describe('describeEvents on a real game', () => {
     const text = lines.map((l) => l.text).join('\n')
     expect(text).not.toMatch(/llm_4808f498|bot_40cdc7b2|a09d5ccf/)
     expect(text).toContain('Dana')
-    expect(text).toContain('Fake LLM (test)')
+    for (const s of full.header.seats as any[]) expect(text).toContain(s.name)
+    // AI seats have character names; the model (agent_label) is not how they are named.
+    expect(text).not.toContain('Fake LLM (test)')
   })
 
   it('sentences carry the facts of the event', () => {

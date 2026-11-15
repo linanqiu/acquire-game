@@ -80,6 +80,7 @@ export function Standings({
                 isBot={player.is_bot}
                 agentLabel={player.agent_label}
                 fallbacks={player.fallbacks}
+                playerName={player.name}
               />
               {isAiThinking(gameState.awaiting, id) && <AiThinking />}
             </span>

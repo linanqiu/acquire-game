@@ -218,14 +218,17 @@ describe('GamesPage', () => {
 })
 
 describe('TranscriptPage replay', () => {
-  it('shows an AI seat named after its agent with one badge, not its name twice', async () => {
+  it('shows an AI seat by its character name, the model only in its badge', async () => {
     mockApi(transcriptApi())
     renderAt('/games/g1?step=1')
     await screen.findByTestId('transcript-viewer')
     const card = screen.getByTestId(`replay-player-${llm.player_id}`)
-    expect(llm.name).toBe(llm.agent_label)
+    expect(llm.name).not.toBe(llm.agent_label)
     expect(within(card).getAllByText(llm.name)).toHaveLength(1)
-    expect(within(card).getByTestId(`seat-kind-${llm.player_id}`)).toHaveTextContent('AI')
+    expect(card).not.toHaveTextContent(llm.agent_label!)
+    expect(within(card).getByTestId(`seat-kind-${llm.player_id}`)).toHaveAccessibleName(
+      `AI player, ${llm.agent_label}`
+    )
   })
 
   it('steps forward and back, changing the board and the event text', async () => {

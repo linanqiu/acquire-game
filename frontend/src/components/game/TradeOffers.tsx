@@ -62,6 +62,7 @@ function PlayerName({ id, party }: { id: string; party?: TradeParty }) {
         kind={party?.kind}
         isBot={party?.is_bot}
         agentLabel={party?.agent_label}
+        playerName={party?.name}
       />
     </span>
   )
