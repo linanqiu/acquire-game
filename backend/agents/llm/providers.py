@@ -299,13 +299,21 @@ class OpenAICompatProvider:
             raise ProviderError("response truncated (finish_reason=length)")
         data = extract_json_object(text)
         usage = payload.get("usage") or {}
+        prompt = int(usage.get("prompt_tokens") or 0)
+        # Cached prompt tokens: OpenAI-style ``prompt_tokens_details.cached_tokens``
+        # or a top-level ``cached_tokens`` (Moonshot/Kimi). They are part of
+        # ``prompt_tokens``; report them apart so the cheaper cache price applies.
+        details = usage.get("prompt_tokens_details") or {}
+        cached = int(details.get("cached_tokens") or usage.get("cached_tokens") or 0)
+        cached = min(max(cached, 0), prompt)
         return ProviderResult(
             data=data,
             raw=text,
-            input_tokens=int(usage.get("prompt_tokens") or 0),
+            input_tokens=prompt - cached,
             output_tokens=int(usage.get("completion_tokens") or 0),
             latency_s=latency,
             model=payload.get("model") or self.model,
+            cache_read_tokens=cached,
         )
 
 

@@ -310,3 +310,26 @@ async def test_fake_provider_script_callable_and_errors():
         await FakeProvider([], strict=True).complete(**CALL)
     first = await FakeProvider().complete(**CALL)
     assert first.data == {"action": "end_turn"}
+
+
+@pytest.mark.parametrize(
+    "usage",
+    [
+        {
+            "prompt_tokens": 1000,
+            "completion_tokens": 50,
+            "prompt_tokens_details": {"cached_tokens": 800},
+        },
+        {"prompt_tokens": 1000, "completion_tokens": 50, "cached_tokens": 800},
+    ],
+)
+async def test_openai_cached_prompt_tokens_are_reported_apart(usage):
+    def handler(request):
+        return httpx.Response(200, json={**ok_body(), "usage": usage})
+
+    res = await openai_provider(handler).complete(**CALL)
+    assert (res.input_tokens, res.cache_read_tokens, res.output_tokens) == (
+        200,
+        800,
+        50,
+    )

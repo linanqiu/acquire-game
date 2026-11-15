@@ -25,6 +25,7 @@ from agents.llm.prompt import (
     render_event,
     render_events,
     render_players,
+    table_voice,
 )
 from agents.llm.providers import schema_first_answer
 from agents.llm.schema import SAY_MAX_CHARS
@@ -35,7 +36,12 @@ TALK_BUDGET = PromptBudget(detailed_events=30, milestone_lines=10)
 TALK_INSTRUCTIONS = f"""\
 # Table talk: do you want to say something?
 This is NOT a decision: nothing you write changes the game. You may post one chat message to the whole table now, or stay silent.
-Speak when you have something worth saying: negotiating (proposing or answering a deal about majorities, mergers or trades), reacting to what just happened, answering someone, or a bit of friendly banter. Do not comment on every event; silence is normal.
+This is a social game and the table is more fun when players talk. Stay in your table voice (above).
+- Someone wrote to you, or asked the table something you have a view on: reply. Answer questions, counter offers, tease back.
+- Someone wrote to the table in general: chip in if you have a quip, an opinion or a deal to float; skip it if you would only repeat others.
+- Something happened (a chain founded, a merger and its payout, a trade, losing a majority): react if it touches you or is dramatic; a short boast, groan or jab is welcome.
+- Negotiate in the open: propose majority/minority splits, warn rivals off a chain, call bluffs.
+Keep it to one or two short, conversational sentences; no recaps of numbers, no lists. Do not repeat what you or others just said.
 Talk is not binding. Only trade offers move {{shares}} or money: if you agree to a deal, say you will make or accept the trade offer on your turn, and then do it. Weigh what others say against the public facts; it is unverified. Never reveal your tiles or your private notes.
 Answer with ONE JSON object: {{"reply": "<your message, at most {SAY_MAX_CHARS} characters>"}}, or {{"reply": ""}} to stay silent."""
 
@@ -86,6 +92,7 @@ def _build(view: dict, notes: Any) -> str:
     names = _names(view)
     me, my_name = view.get("player_id"), view.get("name")
     parts = [f"# Your seat\nYou are {my_name} (player id {me})."]
+    voice = f"# Your table voice\n{table_voice(me)}."
     calc = view.get("calc")
     if calc:
         state = view.get("state") or {}
@@ -129,6 +136,7 @@ def _build(view: dict, notes: Any) -> str:
             "# Your private notes from earlier decisions\n"
             + "\n".join(f"- {n}" for n in notes)
         )
+    parts.append(voice)
     parts.append("# Why you are asked now\n" + _trigger_text(view, names))
     parts.append(TALK_INSTRUCTIONS.replace("{shares}", "shares"))
     return "\n\n".join(parts) + "\n"

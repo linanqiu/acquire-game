@@ -55,10 +55,10 @@ class Settings(BaseSettings):
     # chat messages and notable game events; one model call each, at the
     # seat's normal effort; cost counted in the transcript totals).
     chat_replies_enabled: bool = True
-    chat_reply_cooldown_s: float = 8.0  # per seat, between talk calls
-    chat_ai_streak_max: int = 3  # AI messages in a row before AI talk stops
+    chat_reply_cooldown_s: float = 4.0  # per seat, between talk calls
+    chat_ai_streak_max: int = 4  # AI messages in a row before AI talk stops
     #                              triggering more (a human message or a move resets)
-    chat_reply_max_per_game: int = 60  # runaway guard per seat per game (and lobby)
+    chat_reply_max_per_game: int = 100  # runaway guard per seat per game (and lobby)
     chat_reply_max_tokens: int = (
         2048  # output cap (thinking included); replies are short
     )

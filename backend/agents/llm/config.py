@@ -21,7 +21,9 @@ Environment (read at call time, so tests and deployments can change it):
 (``anthropic`` | ``openai``), ``model``; optional ``api_key_env`` (env var name
 holding the key), ``api_key`` (inline, discouraged), ``base_url``,
 ``base_url_env``, ``timeout`` (s), ``max_tokens``, ``effort``, ``json_mode``,
-``max_illegal_retries`` (default 4: retries after an illegal answer).
+``max_illegal_retries`` (default 4: retries after an illegal answer),
+``extra_body`` (``openai`` only: extra request fields, e.g.
+``{"reasoning_effort": "high"}`` for a model that thinks at "max" by default).
 """
 
 from __future__ import annotations
@@ -30,6 +32,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass
+from typing import Any
 from urllib.parse import urlparse
 
 from agents.llm.agent import (
@@ -66,6 +69,8 @@ class CatalogEntry:
     effort: str | None = "medium"
     json_mode: str = "json_object"
     max_illegal_retries: int = DEFAULT_MAX_ILLEGAL_RETRIES
+    # openai provider only: extra fields merged into the request body.
+    extra_body: tuple[tuple[str, Any], ...] = ()
 
     def resolved_key(self) -> str | None:
         if self.api_key:
@@ -181,7 +186,20 @@ def _entry_from_json(d: dict) -> CatalogEntry:
         max_illegal_retries=max(
             0, int(d.get("max_illegal_retries", DEFAULT_MAX_ILLEGAL_RETRIES))
         ),
+        extra_body=_extra_body(d.get("extra_body")),
     )
+
+
+def _extra_body(value: Any) -> tuple[tuple[str, Any], ...]:
+    if value is None:
+        return ()
+    if not isinstance(value, dict):
+        raise ValueError("extra_body must be a JSON object")
+    reserved = {"model", "messages", "response_format", "max_tokens"}
+    clash = reserved & set(value)
+    if clash:
+        raise ValueError(f"extra_body may not set {sorted(clash)}")
+    return tuple(value.items())
 
 
 def _fake_entry() -> CatalogEntry:
@@ -230,6 +248,7 @@ def _build_provider(entry: CatalogEntry) -> Provider:
         api_key=entry.resolved_key(),
         model=entry.model,
         json_mode=entry.json_mode,
+        extra_body=dict(entry.extra_body),
     )
 
 
