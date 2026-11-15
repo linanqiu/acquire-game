@@ -3,6 +3,7 @@ import styles from './Tile.module.css'
 import type { ChainId } from '../../types/ruleset'
 import type { Coordinate, TileVisualState } from '../../types/game'
 import { useRules } from '../../ruleset/useRules'
+import { reducedMotion } from '../../lib/motion'
 
 interface TileProps {
   coordinate: Coordinate
@@ -51,7 +52,7 @@ export function Tile({
     const el = ref.current
     const before = prevBg.current
     prevBg.current = bg
-    if (!el || before === undefined || before === bg || bg === null) return
+    if (!el || before === undefined || before === bg || bg === null || reducedMotion()) return
     const kind = before === null ? 'place' : 'sweep'
     if (kind === 'sweep') {
       el.style.setProperty('--chain-prev', before === 'orphan' ? 'var(--chain-orphan)' : before)

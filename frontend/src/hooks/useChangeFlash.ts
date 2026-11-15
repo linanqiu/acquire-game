@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { reducedMotion } from '../lib/motion'
 
 /**
  * Flash a number when it changes (cash, net worth): sets `data-flash="up"` or `"down"` on the
@@ -12,7 +13,7 @@ export function useChangeFlash<T extends HTMLElement>(value: number | null | und
     const el = ref.current
     const before = prev.current
     prev.current = value
-    if (!el || before == null || value == null || before === value) return
+    if (!el || before == null || value == null || before === value || reducedMotion()) return
     el.removeAttribute('data-flash')
     void el.offsetWidth // restart if a flash is still running
     el.setAttribute('data-flash', value > before ? 'up' : 'down')
