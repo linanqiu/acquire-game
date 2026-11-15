@@ -64,7 +64,7 @@ export function useServerRuleset(): Ruleset {
 }
 
 /** The ruleset in effect here: the nearest RulesetScope, else the server's. */
-export function useRuleset(): Ruleset {
+function useRuleset(): Ruleset {
   const scoped = useContext(RulesetContext)
   const server = useServerRuleset()
   return scoped ?? server

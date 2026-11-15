@@ -17,7 +17,7 @@ const KIND_LABEL: Record<string, string> = {
   scripted: 'SCRIPTED',
 }
 
-export function KindBadge({ kind }: { kind: string }) {
+function KindBadge({ kind }: { kind: string }) {
   return (
     <Badge
       label={KIND_LABEL[kind] ?? kind.toUpperCase()}

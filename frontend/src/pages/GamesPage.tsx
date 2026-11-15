@@ -173,7 +173,7 @@ export function GamesPage() {
   )
 }
 
-export function GameRow({ game }: { game: GameSummary }) {
+function GameRow({ game }: { game: GameSummary }) {
   const winners = new Set(game.winners)
   const winnerNames = game.seats.filter((s) => winners.has(s.player_id)).map((s) => s.name)
   return (

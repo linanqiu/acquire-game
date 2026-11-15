@@ -9,7 +9,7 @@ import {
   BenchPage,
   BenchSeriesPage,
 } from './pages'
-import { ToastProvider } from './components/ui'
+import { ToastProvider } from './components/ui/ToastProvider'
 import { RulesetGate } from './ruleset/RulesetGate'
 import './App.css'
 
@@ -34,5 +34,3 @@ export function App() {
     </ToastProvider>
   )
 }
-
-export default App

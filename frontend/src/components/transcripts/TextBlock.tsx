@@ -3,7 +3,7 @@ import { formatBytes } from '../../lib/format'
 import styles from './TextBlock.module.css'
 
 /** Above this many characters the block shows a prefix until the reader asks for everything. */
-export const TEXT_PREVIEW_LIMIT = 60_000
+const TEXT_PREVIEW_LIMIT = 60_000
 
 interface TextBlockProps {
   label: string

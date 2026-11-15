@@ -9,7 +9,7 @@ import { withArticle } from './ruleset'
 
 const up = (s: string) => s.toUpperCase()
 
-export function foundPhaseText(rs: Ruleset): string {
+function foundPhaseText(rs: Ruleset): string {
   return up(`Choose ${withArticle(rs.theme.chain_noun)}`)
 }
 

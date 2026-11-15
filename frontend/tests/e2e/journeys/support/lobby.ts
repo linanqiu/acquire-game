@@ -60,7 +60,7 @@ export async function joinGame(
   await j.shot(page, `${who}-lobby-joined`)
 }
 
-export async function lobbyCount(page: Page): Promise<number> {
+async function lobbyCount(page: Page): Promise<number> {
   const text = (await page.getByText(/^\d\/6 players$/).textContent()) ?? ''
   return Number(text.split('/')[0])
 }

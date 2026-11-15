@@ -25,7 +25,7 @@ interface TimelineProps {
   onSelect: (step: number) => void
 }
 
-export const TIMELINE_ROW_HEIGHT = 32
+const TIMELINE_ROW_HEIGHT = 32
 
 /** Decisions grouped by turn, windowed so thousands of rows stay cheap. */
 export function Timeline({ replay, names, current, onSelect }: TimelineProps) {

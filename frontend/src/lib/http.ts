@@ -22,7 +22,7 @@ export interface RetryOptions {
 
 const TRANSIENT_STATUS = new Set([502, 503, 504])
 
-export function isTransientStatus(status: number): boolean {
+function isTransientStatus(status: number): boolean {
   return TRANSIENT_STATUS.has(status)
 }
 
