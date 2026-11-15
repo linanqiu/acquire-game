@@ -1,8 +1,12 @@
 import type { BrowserContext, Page } from '@playwright/test'
 import { test as base, expect } from './support/test'
 import { startFromSnapshot, type RoomContext } from './support/room'
-import { dollars } from './support/fixtures'
+import { dollars, loadFixture } from './support/fixtures'
 import { playHumanTurns } from './support/ui'
+
+/** The seat the 'disposition-waiting-on-other' fixture is waiting on (read from the fixture). */
+const WAITING_ON = loadFixture('disposition-waiting-on-other').expect.decisions[0]
+  .player_id as string
 
 /**
  * Open the host/spectator page for the same room in its own browser context (a second tab in
@@ -79,7 +83,9 @@ test('host view of a busy mid-game board follows the players turn by turn', asyn
     tile: string
     outcome: string
   }>
-  const simple = tiles.find((t) => t.outcome === 'nothing') ?? tiles[0]
+  // A tile that neither founds nor merges, so the turn goes straight to the buy phase.
+  const simple = tiles.find((t) => t.outcome === 'nothing' || t.outcome === 'expand')
+  if (!simple) throw new Error('three-player-midgame: the human holds no plain or expanding tile')
   await page.getByTestId('tile-rack').getByTestId(`tile-${simple.tile}`).click()
   await page.getByTestId('place-tile-button').click()
   await expect(hostPhase(host)).toHaveText(`${currentName}'s TURN - BUY STOCKS`)
@@ -93,8 +99,8 @@ test('host view of a merger in progress shows the merging state and who the tabl
   openHost,
   shots,
 }) => {
-  // p3 is an idle seat, so the merger stays in progress while the host looks at it.
-  const room = await startFromSnapshot(page, 'disposition-waiting-on-other', { idle: ['p3'] })
+  // The seat the merger waits on is idle, so the merger stays in progress while the host looks.
+  const room = await startFromSnapshot(page, 'disposition-waiting-on-other', { idle: [WAITING_ON] })
   const host = await openHost(room)
   const decider = room.names[room.seatMap[room.fixture.expect.decisions[0].player_id]]
 

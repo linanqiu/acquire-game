@@ -232,16 +232,19 @@ test('server refuses a trade mid-merger: reason shown in the builder and as a to
   shots,
 }) => {
   guard.allow(/\[Game Error\].*merger/) // the app logs the refusal it is about to show
-  const room = await startFromSnapshot(page, 'disposition-waiting-on-other', { idle: ['p3'] })
+  const room = await startFromSnapshot(page, 'disposition-waiting-on-other', {
+    idle: [loadFixture('disposition-waiting-on-other').expect.decisions[0].player_id],
+  })
   const { human, players } = room.fixture.expect
   const merging = (room.fixture.snapshot.merger as { chains: string[] }).chains
   const chain = merging.find((c) => (human.holdings[c] ?? 0) > 0)!
-  const partner = players.find((p) => p.player_id === 'p4')!
+  // A partner who can pay the $100 asked for (the fixture decides who has cash).
+  const partner = players.find((p) => p.player_id !== room.fixture.human_seat && p.cash >= 100)!
 
   await page.getByRole('button', { name: 'PROPOSE TRADE' }).click()
   // The builder warns up front that merging chains cannot be traded.
   await expect(page.getByTestId('trade-builder')).toContainText('A merger is in progress')
-  await page.getByTestId(`player-select-${room.seatMap.p4}`).click()
+  await page.getByTestId(`player-select-${room.seatMap[partner.player_id]}`).click()
   // Offer one share of a merging chain I hold.
   const offerRow = page
     .getByTestId('trade-builder')

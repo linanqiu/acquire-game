@@ -1,8 +1,12 @@
 import type { Page } from '@playwright/test'
 import { test, expect } from './support/test'
 import { startFromSnapshot, type RoomContext } from './support/room'
-import { dollars } from './support/fixtures'
+import { dollars, loadFixture } from './support/fixtures'
 import { headerCash, phaseBanner, playHumanTurns } from './support/ui'
+
+/** The seat the 'disposition-waiting-on-other' fixture is waiting on (read from the fixture). */
+const WAITING_ON = loadFixture('disposition-waiting-on-other').expect.decisions[0]
+  .player_id as string
 
 const ALL_CHAINS = ['sandpiper', 'marlowe', 'halcyon', 'meridian', 'juniper', 'obsidian', 'aurelia']
 
@@ -227,8 +231,8 @@ test('disposition (waiting): another stockholder decides first; the page names t
   page,
   shots,
 }) => {
-  // p3 (the player the engine is waiting on) is an idle human seat, so the waiting state is stable.
-  const room = await startFromSnapshot(page, 'disposition-waiting-on-other', { idle: ['p3'] })
+  // The player the engine is waiting on is an idle human seat, so the waiting state is stable.
+  const room = await startFromSnapshot(page, 'disposition-waiting-on-other', { idle: [WAITING_ON] })
   const { decisions, human } = room.fixture.expect
   const waitingOn = room.names[room.seatMap[decisions[0].player_id]]
   await shots.take(page, 'waiting')

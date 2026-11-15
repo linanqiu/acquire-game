@@ -14,7 +14,8 @@ test('buy phase: prices and availability shown, 3-share cap, buy a mix', async (
   page,
   shots,
 }) => {
-  const room = await startFromSnapshot(page, 'buy-phase-multi-chain')
+  // p2 (next to play) is idle, so no other turn changes the human's cash before it is read.
+  const room = await startFromSnapshot(page, 'buy-phase-multi-chain', { idle: ['p2'] })
   const { human, active_chains } = room.fixture.expect
   const chains = Object.keys(active_chains)
   await shots.take(page, 'buy-phase')
@@ -73,7 +74,9 @@ test('buy phase: prices and availability shown, 3-share cap, buy a mix', async (
 })
 
 test('buy phase: skip buying keeps cash and ends the turn', async ({ page, shots }) => {
-  const room = await startFromSnapshot(page, 'buy-phase-multi-chain')
+  // The next seat (p2) is idle, so no other turn (e.g. a merger paying the human a bonus) can
+  // change the human's cash before it is read.
+  const room = await startFromSnapshot(page, 'buy-phase-multi-chain', { idle: ['p2'] })
   const { human } = room.fixture.expect
   await shots.take(page, 'buy-phase')
   await page.getByTestId('end-turn-button').click()
