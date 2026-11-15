@@ -11,9 +11,8 @@ from fastapi import WebSocket
 if TYPE_CHECKING:
     from game.game import Game
 
-# Seat kinds (see docs/architecture/seat-contract.md)
+# Seat kinds: human | bot | llm | scripted (docs/architecture/seat-contract.md)
 HUMAN = "human"
-SEAT_KINDS = ("human", "bot", "llm", "scripted")
 
 
 @dataclass
@@ -23,7 +22,6 @@ class PlayerConnection:
     player_id: str
     name: str
     websockets: list[WebSocket] = field(default_factory=list)
-    is_bot: bool = False  # True for every non-human seat (compatibility)
     is_host: bool = False
     kind: str = HUMAN  # human | bot | llm | scripted
     agent_id: Optional[str] = None  # catalog id for AI seats
@@ -123,26 +121,6 @@ class SessionManager:
         )
         return True
 
-    def leave_room(self, room_code: str, player_id: str):
-        """Remove player from room."""
-        room = self.get_room(room_code)
-        if room is None:
-            return
-        if player_id not in room.players:
-            return
-
-        was_host = room.players[player_id].is_host
-        del room.players[player_id]
-
-        # If host left and there are remaining players, assign new host
-        if was_host and room.players:
-            next_player = next(iter(room.players.values()))
-            next_player.is_host = True
-
-        # Delete room if empty
-        if not room.players:
-            self.delete_room(room_code)
-
     def add_bot(self, room_code: str) -> Optional[str]:
         """Add a heuristic bot seat, return its player_id (None if not allowed)."""
         from agents.registry import create
@@ -199,7 +177,6 @@ class SessionManager:
         room.players[seat_id] = PlayerConnection(
             player_id=seat_id,
             name=name,
-            is_bot=True,
             kind=kind,
             agent_id=agent_id,
             agent_label=agent_label,
@@ -273,7 +250,7 @@ class SessionManager:
             return
 
         for player in room.players.values():
-            if player.is_bot or player.is_agent:
+            if player.is_agent:
                 continue
             await self._send_to_websockets(player, message)
 
@@ -309,11 +286,5 @@ class SessionManager:
         if len(room.players) < room.min_players:
             return False
 
-        room.started = True
-        # Game initialization will be added when Game class is implemented
+        room.started = True  # the caller builds room.game (lifecycle.initialize_game)
         return True
-
-    def delete_room(self, room_code: str):
-        """Delete a room."""
-        if room_code in self._rooms:
-            del self._rooms[room_code]

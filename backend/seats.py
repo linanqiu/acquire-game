@@ -250,7 +250,7 @@ def seat_descriptions(room) -> list[dict]:
                 "agent_label": seat.agent_label,
                 "model": getattr(provider, "model", None)
                 or getattr(agent, "model", None),
-                "is_bot": bool(seat.is_agent or seat.is_bot),
+                "is_bot": seat.is_agent,
             }
         )
     return out

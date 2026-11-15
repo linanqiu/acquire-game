@@ -31,7 +31,6 @@ from game.decisions import (
 )
 from game.game import Game, GamePhase
 from game.hotel import Hotel
-from game.player import Player
 from game.rules import Rules
 from game.ruleset import (
     RULESETS_DIR,
@@ -229,12 +228,6 @@ def test_default_matches_previous_constants():
         rs.max_players,
         rs.max_pending_trades_per_player,
     ) == (25, 6000, 6, 3, 11, 41, 1, 2, 3, 6, 5)
-    # Aliases kept for older callers
-    assert Board.COLUMNS == 12 and Board.ROWS == "ABCDEFGHI"
-    assert Player.STARTING_MONEY == 6000 and Player.MAX_HAND_SIZE == 6
-    assert Player.MAX_STOCKS_PER_CHAIN == 25
-    assert (Game.MIN_PLAYERS, Game.MAX_PLAYERS, Game.MAX_STOCKS_PER_TURN) == (3, 6, 3)
-    assert Hotel.TOTAL_STOCKS_PER_CHAIN == 25
     assert Game().ruleset is default_ruleset()
 
 
@@ -247,15 +240,14 @@ def test_default_prices_and_bonuses_equal_frozen_table():
     assert frozen["max_chains"] == len(default_ruleset().chains)
     assert frozen["stocks_per_chain"] == default_ruleset().stocks_per_chain
     for name, info in frozen["chains"].items():
-        assert Hotel.CHAINS[name].tier.value == info["tier"]
-        assert Hotel.CHAINS[name].color == info["color"]
+        assert default_ruleset().chain(name).tier == info["tier"]
+        assert default_ruleset().chain(name).color == info["color"]
         for size, (price, maj, mino, safe) in info["by_size"].items():
             s = int(size)
             assert hotel.get_stock_price(name, s) == price, (name, s)
             assert hotel.get_majority_bonus(name, s) == maj, (name, s)
             assert hotel.get_minority_bonus(name, s) == mino, (name, s)
             assert hotel.is_chain_safe(name, s) == safe, (name, s)
-            assert Hotel.CHAINS[name].get_stock_price(s) == price
 
     cases = {
         "solo": {"a": 3},
@@ -434,7 +426,7 @@ def test_board_and_tiles_follow_the_ruleset():
     board = Board(MINI)
     tiles = board.all_tiles()
     assert len(tiles) == 63 and str(tiles[-1]) == "9G"
-    assert len(Board.all_tiles()) == 108  # class-level alias: default
+    assert len(Board().all_tiles()) == 108
     with pytest.raises(ValueError):
         Tile(10, "A", MINI.board)
     with pytest.raises(ValueError):

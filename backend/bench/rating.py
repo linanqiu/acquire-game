@@ -131,8 +131,3 @@ def bootstrap(
         hi = vals[min(len(vals) - 1, int(math.ceil(hi_q * len(vals))) - 1)]
         out[a] = (lo, hi)
     return out
-
-
-def expected_score(r_a: float, r_b: float) -> float:
-    """Probability that ``a`` finishes ahead of ``b``."""
-    return 1 / (1 + 10 ** ((r_b - r_a) / 400))

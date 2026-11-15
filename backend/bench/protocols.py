@@ -214,16 +214,6 @@ def schedule(
     return specs
 
 
-def balance(specs: Sequence[GameSpec]) -> dict[str, dict[int, int]]:
-    """``{agent label: {position: games}}`` of a schedule (balance check)."""
-    out: dict[str, dict[int, int]] = {}
-    for spec in specs:
-        for pos, s in enumerate(spec.seating):
-            d = out.setdefault(seat_label(s), {})
-            d[pos] = d.get(pos, 0) + 1
-    return out
-
-
 # ------------------------------------------------------------------ running
 
 

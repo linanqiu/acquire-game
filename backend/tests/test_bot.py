@@ -21,123 +21,33 @@ class TestBotInit:
             Bot(player, difficulty="extreme")
 
 
-class TestChooseTileToPlay:
-    """Tests for tile selection strategy."""
+class TestScoreTile:
+    """Tile scores (``HeuristicAgent`` plays the best-scoring legal tile)."""
 
-    def test_no_valid_tiles_returns_none(self):
-        """Test returns None when no playable tiles."""
+    def test_founding_tile_scores_above_an_isolated_tile(self):
         player = Player("bot1", "Bot Player")
         bot = Bot(player, difficulty="hard")
         board = Board()
         hotel = Hotel()
-
-        # Player has no tiles
-        result = bot.choose_tile_to_play(board, hotel)
-        assert result is None
-
-    def test_prefers_founding_tiles(self):
-        """Test bot prefers tiles that would found a new chain."""
-        player = Player("bot1", "Bot Player")
-        bot = Bot(player, difficulty="hard")
-        board = Board()
-        hotel = Hotel()
-
-        # Add tiles to hand
-        founding_tile = Tile(1, "B")  # Adjacent to played tile
-        non_founding_tile = Tile(5, "E")  # Isolated
-
-        player.add_tile(founding_tile)
-        player.add_tile(non_founding_tile)
-
-        # Place a tile on board that founding_tile would connect to
         board.place_tile(Tile(1, "A"))
 
-        result = bot.choose_tile_to_play(board, hotel)
-        assert result == founding_tile
+        assert bot._score_tile(Tile(1, "B"), board, hotel) > bot._score_tile(
+            Tile(5, "E"), board, hotel
+        )
 
-    def test_prefers_expanding_owned_chains(self):
-        """Test bot prefers tiles that expand chains it owns stock in."""
+    def test_expanding_an_owned_chain_scores_above_an_isolated_tile(self):
         player = Player("bot1", "Bot Player")
         bot = Bot(player, difficulty="hard")
         board = Board()
         hotel = Hotel()
-
-        # Set up a chain on the board
-        board.place_tile(Tile(1, "A"))
-        board.place_tile(Tile(1, "B"))
-        board.set_chain(Tile(1, "A"), "sandpiper")
-        board.set_chain(Tile(1, "B"), "sandpiper")
+        for t in (Tile(1, "A"), Tile(1, "B")):
+            board.place_tile(t)
+            board.set_chain(t, "sandpiper")
         hotel.activate_chain("sandpiper")
-
-        # Give player stock in sandpiper
         player._stocks["sandpiper"] = 5
 
-        # Add tiles to hand
-        expand_tile = Tile(1, "C")  # Would expand sandpiper
-        isolated_tile = Tile(10, "I")  # Isolated
-
-        player.add_tile(expand_tile)
-        player.add_tile(isolated_tile)
-
-        result = bot.choose_tile_to_play(board, hotel)
-        assert result == expand_tile
-
-    def test_avoids_illegal_mergers(self):
-        """Test bot doesn't select tiles that would illegally merge safe chains."""
-        player = Player("bot1", "Bot Player")
-        bot = Bot(player, difficulty="hard")
-        board = Board()
-        hotel = Hotel()
-
-        # Create two safe chains (11+ tiles each)
-        # Chain 1: sandpiper (columns 1-11, row A)
-        for col in range(1, 12):
-            tile = Tile(col, "A")
-            board.place_tile(tile)
-            board.set_chain(tile, "sandpiper")
-        hotel.activate_chain("sandpiper")
-
-        # Chain 2: marlowe (columns 1-11, row C)
-        for col in range(1, 12):
-            tile = Tile(col, "C")
-            board.place_tile(tile)
-            board.set_chain(tile, "marlowe")
-        hotel.activate_chain("marlowe")
-
-        # Add tiles to hand
-        illegal_tile = Tile(1, "B")  # Would merge two safe chains
-        legal_tile = Tile(12, "I")  # Safe isolated tile
-
-        player.add_tile(illegal_tile)
-        player.add_tile(legal_tile)
-
-        result = bot.choose_tile_to_play(board, hotel)
-        assert result == legal_tile
-
-    def test_easy_difficulty_random_selection(self):
-        """Test easy difficulty uses random selection based on RNG seed."""
-        board = Board()
-        hotel = Hotel()
-
-        # Add multiple tiles to player hands
-        tiles = [Tile(1, "A"), Tile(5, "E"), Tile(10, "I")]
-
-        # Use many different seeds to prove randomness is used
-        # With 3 options and 20 seeds, probability of all same is (1/3)^19 ≈ 0%
-        results_by_seed = {}
-        for seed in range(20):
-            player = Player("bot1", "Bot Player")
-            for tile in tiles:
-                player.add_tile(tile)
-            rng = random.Random(seed)
-            bot = Bot(player, difficulty="easy", rng=rng)
-            result = bot.choose_tile_to_play(board, hotel)
-            results_by_seed[seed] = result
-
-        # Different seeds should produce different results (proves randomness is used)
-        unique_results = set(results_by_seed.values())
-        assert len(unique_results) >= 2, (
-            "Easy mode should use randomness - different seeds should give different tiles"
+        assert bot._score_tile(Tile(1, "C"), board, hotel) > bot._score_tile(
+            Tile(10, "I"), board, hotel
         )
 
 

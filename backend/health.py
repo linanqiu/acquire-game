@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 import psutil
 from fastapi import APIRouter
 
+from app_state import session_manager
+
 router = APIRouter(tags=["health"])
 
 START_TIME = time.time()
@@ -20,8 +22,6 @@ async def health_check():
 @router.get("/health/detailed")
 async def detailed_health_check():
     """Detailed health check with system metrics."""
-    from main import session_manager
-
     process = psutil.Process()
 
     # Count active WebSocket connections across all rooms

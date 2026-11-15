@@ -3,18 +3,11 @@
 from typing import Optional
 
 from game.board import Tile
-from game.ruleset import Ruleset, default_ruleset, resolve
+from game.ruleset import Ruleset, resolve
 
 
 class Player:
-    """Represents a player in the Buyout game.
-
-    Limits come from the ruleset; the class constants are default aliases.
-    """
-
-    STARTING_MONEY = default_ruleset().starting_cash
-    MAX_HAND_SIZE = default_ruleset().hand_size
-    MAX_STOCKS_PER_CHAIN = default_ruleset().stocks_per_chain
+    """Represents a player in the Buyout game (limits come from the ruleset)."""
 
     def __init__(self, player_id: str, name: str, ruleset: Optional[Ruleset] = None):
         """Initialize a new player.
@@ -353,39 +346,6 @@ class Player:
                 self._stocks[chain_name] += quantity
 
         return True
-
-    def get_state(self) -> dict:
-        """Get serializable player state.
-
-        Returns:
-            Dict containing player state
-        """
-        return {
-            "player_id": self.player_id,
-            "name": self.name,
-            "money": self._money,
-            "hand": [str(tile) for tile in self._hand],
-            "stocks": dict(self._stocks),
-        }
-
-    @classmethod
-    def from_state(cls, state: dict, ruleset: Optional[Ruleset] = None) -> "Player":
-        """Create a player from serialized state.
-
-        Args:
-            state: Dict containing player state
-            ruleset: Game parameters (default: the default ruleset)
-
-        Returns:
-            Player instance
-        """
-        player = cls(state["player_id"], state["name"], ruleset)
-        player._money = state["money"]
-        player._hand = [
-            Tile.from_string(s, player.ruleset.board) for s in state["hand"]
-        ]
-        player._stocks = dict(state["stocks"])
-        return player
 
     def __repr__(self) -> str:
         return f"Player(id={self.player_id}, name={self.name}, money=${self._money})"

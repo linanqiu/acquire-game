@@ -23,7 +23,8 @@ from typing import TYPE_CHECKING, Any
 
 from game.action import TradeOffer
 from game.board import Tile
-from game.game import GamePhase, trade_multiple_error
+from game.game import GamePhase
+from game.merger import trade_multiple_error
 from game.rules import PlacementResult, Rules
 
 if TYPE_CHECKING:
@@ -48,14 +49,6 @@ ACTION_TYPES = (
     "buy_stocks",
     "end_turn",
     "declare_end_game",
-    "propose_trade",
-    "accept_trade",
-    "reject_trade",
-    "cancel_trade",
-)
-
-# Actions any player may send regardless of whose decision is pending.
-OUT_OF_TURN_ACTIONS = (
     "propose_trade",
     "accept_trade",
     "reject_trade",
