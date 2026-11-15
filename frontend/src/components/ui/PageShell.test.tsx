@@ -17,15 +17,14 @@ describe('PageShell', () => {
     expect(screen.getByTestId('header-tile-pool')).toHaveTextContent('[80]')
   })
 
-  it('a page can bring its own header, or none; the banner and footer only show when given', () => {
+  it('a page can bring its own header, or none; the banner only shows when given', () => {
     const { rerender } = render(
-      <PageShell header={<header>Host header</header>} footer={<button>RACK</button>}>
+      <PageShell header={<header>Host header</header>}>
         <p>content</p>
       </PageShell>
     )
     expect(screen.getByText('Host header')).toBeInTheDocument()
     expect(screen.queryByTestId('header-title')).not.toBeInTheDocument()
-    expect(screen.getByRole('contentinfo')).toHaveTextContent('RACK')
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     rerender(
       <PageShell header={null}>
@@ -33,7 +32,6 @@ describe('PageShell', () => {
       </PageShell>
     )
     expect(screen.queryByTestId('header-title')).not.toBeInTheDocument()
-    expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument()
     expect(screen.getByText('content')).toBeInTheDocument()
   })
 })

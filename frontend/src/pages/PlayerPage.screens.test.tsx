@@ -345,7 +345,10 @@ describe('trades', () => {
     const view = loadSnapshotAsPlayer('trade-incoming')
     renderPage()
     const [offer] = stateOf(view).incoming_trades
-    const offers = screen.getByTestId('trade-offers')
+    // Offers waiting for my answer are in the "now" area, whatever tab is open.
+    const offers = screen.getByTestId('trade-incoming')
+    expect(within(screen.getByTestId('now-area')).getByTestId('trade-incoming')).toBe(offers)
+    expect(screen.getByTestId('tab-badge-trades')).toHaveTextContent('1')
     fireEvent.click(within(offers).getByTestId(`trade-${button}-${offer.trade_id}`))
     expect(lastAction()).toEqual({ action, trade_id: offer.trade_id })
   })
@@ -354,6 +357,7 @@ describe('trades', () => {
     const view = loadSnapshotAsPlayer('trade-outgoing-pending')
     renderPage()
     const [offer] = stateOf(view).outgoing_trades
+    fireEvent.click(screen.getByRole('tab', { name: /Trades/ }))
     fireEvent.click(screen.getByTestId(`trade-cancel-${offer.trade_id}`))
     expect(lastAction()).toEqual({ action: 'cancel_trade', trade_id: offer.trade_id })
   })

@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom'
 import { useRoom } from '../hooks/useRoom'
 import { useHostWebSocket } from '../hooks/useHostWebSocket'
 import { PageShell } from '../components/ui/PageShell'
-import { Panel } from '../components/ui/Panel'
 import { Button } from '../components/ui/Button'
 import { Spinner } from '../components/ui/Spinner'
 import { Board } from '../components/game/Board'
@@ -15,6 +14,8 @@ import { MergerResult, MergerLog } from '../components/game/MergerResult'
 import { useMergerResult } from '../hooks/useMergerResult'
 import { GameOver } from '../components/game/GameOver'
 import { ChatPanel } from '../components/game/ChatPanel'
+import { GameLayout } from '../components/game/GameLayout'
+import { shortLabel } from '../lib/gameTabs'
 import { AddAiControl } from '../components/game/AddAiControl'
 import { ReconnectionOverlay } from '../components/game/ReconnectionOverlay'
 import { SeatKindBadge } from '../components/game/SeatKindBadge'
@@ -207,80 +208,95 @@ export function HostPage() {
     </div>
   )
 
-  const renderGameView = () => (
-    <div className={styles.gameLayout}>
-      <div className={styles.boardSection}>
-        <Board tiles={boardTileStates} size="lg" />
-      </div>
-
-      <div className={styles.sidebar}>
-        {/* What just happened: the merger result stays until closed (reopen it from the log). */}
-        {mergerResult.shown && gameState && (
-          <MergerResult
-            merger={mergerResult.shown}
-            players={gameState.players}
-            onDismiss={mergerResult.dismiss}
-          />
-        )}
-
-        {gameState && (
-          <Panel title="PLAYERS">
-            <Standings gameState={gameState} rowTestId="player-card" testId="scoreboard" />
-          </Panel>
-        )}
-
-        {gameState && (
-          <Panel title={theme.chain_noun_plural.toUpperCase()}>
-            <ChainTable gameState={gameState} />
-          </Panel>
-        )}
-
-        {publicTrades.length > 0 && gameState && (
-          <Panel title="PENDING TRADES">
-            <ul className={styles.pendingTrades} data-testid="pending-trades">
-              {publicTrades.map((t) => (
-                <li key={t.trade_id} data-testid={`pending-trade-${t.trade_id}`}>
-                  <strong>{gameState.players[t.from_player_id]?.name ?? '?'}</strong>
-                  {' → '}
-                  <strong>{gameState.players[t.to_player_id]?.name ?? '?'}</strong>
-                  <span className={styles.tradeText}>{describeTrade(rules, t)}</span>
-                </li>
-              ))}
-            </ul>
-          </Panel>
-        )}
-
-        <Panel title="ACTIVITY">
-          <div
-            className={styles.activityLog}
-            role="log"
-            aria-live="polite"
-            aria-label="Game activity"
-          >
-            {gameState && (
-              <MergerLog
-                mergers={gameState.mergers ?? []}
-                players={gameState.players}
-                openSeq={mergerResult.shown?.seq}
-                onOpen={mergerResult.open}
-              />
-            )}
-            {activityLog
-              .slice(-5)
-              .reverse()
-              .map((entry) => (
-                <span key={entry.id} className={styles.logEntry}>
-                  {entry.text}
-                </span>
-              ))}
-          </div>
-        </Panel>
-
-        {/* Table chat (read-only for the host): last card of the side column. */}
-        <ChatPanel room={room} mode="spectator" />
-      </div>
-    </div>
-  )
+  const renderGameView = () =>
+    gameState && (
+      <GameLayout
+        room={room}
+        scope="host"
+        mergers={gameState.mergers}
+        board={<Board tiles={boardTileStates} size="lg" />}
+        banner={
+          mergerResult.shown && (
+            <MergerResult
+              merger={mergerResult.shown}
+              players={gameState.players}
+              onDismiss={mergerResult.dismiss}
+            />
+          )
+        }
+        wideDefault="players"
+        logTab="log"
+        // A TV: players and chains side by side without touching anything.
+        pin={['players', 'chains']}
+        pinQuery="(min-width: 1600px) and (min-height: 900px)"
+        tabs={[
+          {
+            id: 'players',
+            label: 'Players',
+            content: (
+              <Standings gameState={gameState} rowTestId="player-card" testId="scoreboard" />
+            ),
+          },
+          {
+            id: 'chains',
+            label: shortLabel(theme.chain_noun_plural),
+            content: <ChainTable gameState={gameState} />,
+          },
+          {
+            id: 'chat',
+            label: 'Chat',
+            content: (shown) => <ChatPanel room={room} mode="spectator" inTab active={shown} />,
+          },
+          {
+            id: 'log',
+            label: 'Log',
+            content: (
+              <div className={styles.logTab}>
+                {publicTrades.length > 0 && (
+                  <section aria-label="Pending trades">
+                    <h4 className={styles.logTitle}>PENDING TRADES</h4>
+                    <ul className={styles.pendingTrades} data-testid="pending-trades">
+                      {publicTrades.map((t) => (
+                        <li key={t.trade_id} data-testid={`pending-trade-${t.trade_id}`}>
+                          <strong>{gameState.players[t.from_player_id]?.name ?? '?'}</strong>
+                          {' → '}
+                          <strong>{gameState.players[t.to_player_id]?.name ?? '?'}</strong>
+                          <span className={styles.tradeText}>{describeTrade(rules, t)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+                <section aria-label="Activity">
+                  <h4 className={styles.logTitle}>ACTIVITY</h4>
+                  <div
+                    className={styles.activityLog}
+                    role="log"
+                    aria-live="polite"
+                    aria-label="Game activity"
+                  >
+                    <MergerLog
+                      mergers={gameState.mergers ?? []}
+                      players={gameState.players}
+                      openSeq={mergerResult.shown?.seq}
+                      onOpen={mergerResult.open}
+                    />
+                    {activityLog
+                      .slice(-5)
+                      .reverse()
+                      .map((entry) => (
+                        <span key={entry.id} className={styles.logEntry}>
+                          {entry.text}
+                        </span>
+                      ))}
+                  </div>
+                </section>
+              </div>
+            ),
+          },
+        ]}
+      />
+    )
 
   const renderPage = () => {
     if (unavailable) {
@@ -332,6 +348,7 @@ export function HostPage() {
       <PageShell
         header={<HostHeader roomCode={room} />}
         phase={hostPhaseText(ruleset, phase, currentPlayerName)}
+        fill
       >
         {renderGameView()}
       </PageShell>
