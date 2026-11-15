@@ -87,14 +87,18 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | PG-10 | End game button (`end-game-button`), offered only when declarable | | `screens/end-game.spec.ts : end game available`; `screens/turn-basics.spec.ts : opening turn`; `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 3, 4 |
 | PG-11 | Waiting for another player ("Waiting for X to place a tile") | not my turn | `screens/merger.spec.ts : disposition (waiting)`; `journeys/two-humans-and-bot.spec.ts : two humans and a bot` | 3, 4 |
 | PG-12 | Thinking indicator while an AI seat decides (`AiThinking`) | AI on turn | `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI`; GAP: no screen test, the scripted and fake-LLM seats answer instantly and have no delay option in test mode, so there is no stable state to assert on | 4 |
-| PG-13 | Players panel (cash and stock badges per player, YOU badge) (`PlayersPanel`) | all game phases | `screens/layout.spec.ts : busy`; `screens/place-tile.spec.ts : opening`; `journeys/two-humans-and-bot.spec.ts : two humans and a bot` | 3, 4 |
-| PG-14 | Portfolio strip, header cash and tile-pool counter (`PageShell`, `Header`, `Portfolio`) | all game phases | `screens/buy-phase.spec.ts : buy phase: prices and availability shown`; `screens/turn-basics.spec.ts : opening turn`; `journeys/reconnect-and-refresh.spec.ts : reconnect and refresh` | 3, 4 |
+| PG-13 | Players table (`Standings`): rank, cash, shares at current prices, net worth, stock badges, YOU badge, turn marker | all game phases | `screens/table-view.spec.ts : table view on desktop`; `screens/table-view.spec.ts : table view on phone`; `screens/layout.spec.ts : busy`; `screens/place-tile.spec.ts : opening`; `journeys/two-humans-and-bot.spec.ts : two humans and a bot` | 3, 4 |
+| PG-14 | Header: cash, net worth and rank, bag counter (`PageShell`, `Header`); my holdings in the chains table (`portfolio-row-*`, `portfolio-empty`; the separate Portfolio panel was removed in BL-007) | all game phases | `screens/buy-phase.spec.ts : buy phase: prices and availability shown`; `screens/turn-basics.spec.ts : opening turn`; `journeys/reconnect-and-refresh.spec.ts : reconnect and refresh` | 3, 4 |
 | PG-15 | Game over (`GameOver`) on player page: standings, winner, breakdown, tie | `game_over` | `screens/end-game.spec.ts : game over: standings`; `screens/end-game.spec.ts : game over with a tie`; `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 3, 4 |
 | PG-16 | Play again / back to lobby (`GameOver`) | after game over | `screens/end-game.spec.ts : game over: standings`; `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 3, 4 |
 | PG-17 | Board colours and chain sizes follow the play (expansion, absorbed lone tiles) | | `screens/turn-basics.spec.ts : expanding a chain` | 3 |
 | PG-18 | Rack refills and bag counter shrinks after a turn; lone tile shown on the board | | `screens/turn-basics.spec.ts : opening turn` | 3 |
 | PG-19 | Merger payout: majority/minority bonuses reach the right players on screen | | `screens/merger-payout.spec.ts : merger payout` | 3 |
 | PG-20 | AI seat badge in the players panel (`SeatKindBadge`) | bot / LLM seats | `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 4 |
+| PG-22 | Chains table (`ChainTable`): size, price, bank stock, SAFE, majority and minority holders with shares and bonus if bought now (ties marked), my shares and position ("2nd, 1 ahead", "3 behind 2nd") | all game phases | `screens/table-view.spec.ts : table view on desktop`; `screens/table-view.spec.ts : table view on phone`; `src/components/game/TableView.test.tsx : names the 1st and 2nd holders` | 3 |
+| PG-23 | Merger result card (`MergerResult`): takeover, sizes, bonuses paid, each stockholder's sell/trade/keep as it comes in, CLOSE | a merger starts (or is in progress on load) | `screens/table-view.spec.ts : merger result: bonuses at once`; `screens/table-view.spec.ts : merger result after the human's own merger`; `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 3, 4 |
+| PG-24 | Merger log (`MergerLog`): every merger of the game, reopens its result card | after the first merger | `screens/table-view.spec.ts : merger result: bonuses at once` | 3 |
+| PG-25 | Desktop layout at 1366x768: board with the rack under it, action panel beside it, rack on screen without scrolling in every phase | all decision phases | `screens/table-view.spec.ts : 1366x768, place tile`; `screens/table-view.spec.ts : 1366x768, disposition`; `screens/table-view.spec.ts : 1366x768, buy` | 3 |
 | PG-21 | AI fallback marker ("BOT ASSIST xN") when an LLM seat had to be replaced by the bot | `seat-fallback-*` | `src/components/game/AgentFallback.test.tsx : fallback`; GAP: browser coverage needs a fake LLM that answers illegally on purpose; the test-mode fake LLM only plays legal first moves (protocol side: `backend/tests/protocol/test_llm_retries.py`) | unit |
 
 ## 5. Player page: modals and trading
@@ -115,13 +119,15 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 |----|---------|-------|------------|------|
 | HO-01 | Host lobby: "WAITING FOR PLAYERS", player list | | `journeys/spectator-host-view.spec.ts : spectator host view`; `screens/lobby.spec.ts : host/spectator lobby` | 3, 4 |
 | HO-02 | Host lobby: add AI control, START GAME | | `journeys/spectator-host-view.spec.ts : spectator host view`; `screens/lobby.spec.ts : host/spectator lobby` | 3, 4 |
-| HO-03 | Host in-game view: board (large), player cards (`PlayerCard`), chain list | | `screens/host.spec.ts : host view of a busy mid-game board`; `journeys/spectator-host-view.spec.ts : spectator host view` | 3, 4 |
+| HO-03 | Host in-game view: board (large), players table (`Standings`, rows `player-card`), chains table (`ChainTable`) | | `screens/host.spec.ts : host view of a busy mid-game board`; `journeys/spectator-host-view.spec.ts : spectator host view` | 3, 4 |
 | HO-04 | Host: merger in progress | | `screens/host.spec.ts : host view of a merger in progress` | 3, 4 |
 | HO-05 | Host: thinking indicator | | `journeys/spectator-host-view.spec.ts : spectator host view`; GAP: no screen test, same reason as PG-12 | 4 |
 | HO-06 | Host: game over with the full results table | | `screens/host.spec.ts : host view of a finished game`; `journeys/spectator-host-view.spec.ts : spectator host view` | 3, 4 |
-| HO-07 | Host: activity log ("Bot 1 joined", ...) | `role=log` | `journeys/spectator-host-view.spec.ts : spectator host view` | 4 |
+| HO-07 | Host: activity log ("Bot 1 joined", ..., and the mergers) | `role=log` | `journeys/spectator-host-view.spec.ts : spectator host view` | 4 |
 | HO-08 | Host: start/add failure toast | | `screens/lobby.spec.ts : host/spectator lobby` | 3 |
 | HO-09 | Host: pending trades list | `pending-trades` | `screens/host.spec.ts : host view lists a pending trade` | 3 |
+| HO-10 | Host: net worth and rank per player, majority/minority holders per chain | | `screens/table-view.spec.ts : table view on desktop`; `screens/table-view.spec.ts : table view on phone` | 3 |
+| HO-11 | Host: merger result card and its entry in the activity log (reopen after closing) | | `screens/table-view.spec.ts : merger result: bonuses at once` | 3 |
 
 ## 7. Connection and error states
 
@@ -175,8 +181,9 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | `ChainMarker` | each of 7 chains, size, price, stock left | PG-04, HO-03 | `screens/host.spec.ts : host view of a busy mid-game board`; `screens/buy-phase.spec.ts : buy phase: prices and availability shown` |
 | `ChainSelector` | available chains only; "NOT TIED" in a survivor choice | PG-04, PG-05 | `screens/found-chain.spec.ts : found chain`; `screens/merger.spec.ts : merger: tie between two equal chains` |
 | `MergerDisposition` / `StockStepper` | sell/trade/hold limits, trade max by survivor stock, buy stepper | PG-06, PG-08 | `screens/merger.spec.ts : disposition (human first)`; `screens/buy-phase.spec.ts : buy phase: prices and availability shown` |
-| `Portfolio` | holdings with prices, zero holdings | PG-14 | `screens/place-tile.spec.ts : opening`; `screens/buy-phase.spec.ts : buy phase: prices and availability shown` |
-| `PlayerCard` | current turn marker, cash, stocks | HO-03 | `screens/host.spec.ts : host view of a busy mid-game board` |
+| `Standings` | rank (ties "="), cash, share value, net worth, badges, turn marker, YOU | PG-13, HO-03, HO-10 | `screens/table-view.spec.ts : table view on desktop`; `screens/table-view.spec.ts : table view on phone`; `screens/host.spec.ts : host view of a busy mid-game board` |
+| `ChainTable` | majority, minority, ties, sole holder, nobody; my position; held off-board chains; no holdings | PG-14, PG-22 | `screens/table-view.spec.ts : table view on desktop`; `screens/table-view.spec.ts : table view on phone`; `screens/place-tile.spec.ts : opening`; `screens/merger.spec.ts : disposition (human first)` |
+| `MergerResult`, `MergerLog` | in progress (deciding / to decide), bonuses with ties, complete with dispositions, closed, reopened | PG-23, PG-24, HO-11 | `screens/table-view.spec.ts : merger result: bonuses at once` |
 | `TradeBuilder` | stocks and money both ways, player picker | TR-01 | `screens/trades.spec.ts : propose a trade through the builder` |
 | `TradeOffers` | incoming, outgoing, none | TR-03, TR-06 | `screens/trades.spec.ts : outgoing offer stays pending until cancelled` |
 | `GameOver` | final scores, winner, ties, breakdown | PG-15, HO-06 | `screens/end-game.spec.ts : game over with a tie`; `screens/host.spec.ts : host view of a finished game` |
@@ -188,6 +195,10 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | `Header`, `PageShell` | room, name, cash, tile pool | PG-14 | `screens/turn-basics.spec.ts : opening turn` |
 | `Slider`, `Badge` | disposition sliders; status and kind badges | PG-06, TX-01 | `screens/merger.spec.ts : disposition (human first)` |
 | `DecisionPanel`, `LlmPanel`, `TextBlock`, `Timeline`, `VirtualList`, `ReplayBoard`, `SummaryHeader`, `SeatChip`, `RangeBar`, `PageFrame` | transcript and bench widgets | TX-01..TX-15, BN-01..BN-07 | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` |
+
+Chat slot (BL-007): `ChatSlot` reserves the place for the table chat on both game pages (last card
+of the side column; a CHAT button in the flow on phones). It renders nothing until the chat branch
+mounts `ChatPanel` in it, so it has no row yet; the chat branch adds one.
 
 ## Known gaps (also listed by the check script)
 
@@ -211,8 +222,8 @@ Facts learned while filling this map (2026-11-14):
 
 ## Summary (checked by the script; update when rows change)
 
-- Surfaces: 116
-- Covered: 112
+- Surfaces: 123
+- Covered: 119
 - GAP: 6
 - Journeys: 7
 

@@ -477,7 +477,7 @@ driver, the one action path), `lifecycle.py` (start / host-forced end),
   `tile_playability`, `end_game_available`, `incoming_trades`,
   `outgoing_trades`. `awaiting` is the agent decision being thought about, else
   the flow decision (`kind` may be `human`), else null.
-- **Table view in `game_state`** (UI-001, 2026-11-15; public, sent to the host
+- **Table view in `game_state`** (BL-007, 2026-11-15; public, sent to the host
   and every player alike; computed by `game/calculator.py`, never by clients):
   - per player `stock_value` (shares at current prices; a defunct chain's
     shares count 0), `net_worth` (`money + stock_value`) and `rank`

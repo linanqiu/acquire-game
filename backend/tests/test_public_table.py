@@ -1,4 +1,4 @@
-"""Tier 1: the table view every client gets in ``game_state`` (UI-001).
+"""Tier 1: the table view every client gets in ``game_state`` (BL-007).
 
 ``public_net_worth``, ``public_chain_holders`` and ``merger_history`` in
 ``game/calculator.py``: net worth and rank, majority/minority holders with ties,

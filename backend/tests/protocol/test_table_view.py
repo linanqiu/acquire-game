@@ -1,5 +1,5 @@
 """Tier 2: ``game_state`` carries net worth, chain holders and the merger record
-(UI-001) to the host and the players, as the engine computes them."""
+(BL-007) to the host and the players, as the engine computes them."""
 
 from __future__ import annotations
 
