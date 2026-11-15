@@ -66,6 +66,7 @@
   font-size: var(--text-xs);
   text-align: right;
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
 }
 
 .who {

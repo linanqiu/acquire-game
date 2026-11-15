@@ -36,6 +36,7 @@
   font-weight: var(--font-medium);
   color: var(--text-positive);
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
 }
 
 .label {
@@ -49,6 +50,7 @@
   font-weight: var(--font-bold);
   color: var(--text-positive);
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
 }
 
 .rank {
@@ -59,6 +61,7 @@
   font-size: var(--text-sm);
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
 }
 
 /* Responsive adjustments */

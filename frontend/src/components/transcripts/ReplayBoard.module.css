@@ -61,6 +61,7 @@
   text-align: right;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
   white-space: nowrap;
 }
 
@@ -106,6 +107,7 @@
 .cash {
   margin-left: auto;
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
   color: var(--text-positive);
   font-size: var(--text-sm);
 }

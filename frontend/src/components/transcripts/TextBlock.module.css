@@ -19,7 +19,7 @@
 .toggle,
 .copy,
 .more {
-  font-family: var(--font-primary);
+  font-family: var(--font-mono);
   font-size: var(--text-sm);
   color: var(--text-primary);
   background: none;
@@ -66,7 +66,7 @@
   overflow: auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font-family: var(--font-primary);
+  font-family: var(--font-mono);
   font-size: var(--text-sm);
   line-height: var(--line-height-normal);
   color: var(--text-primary);

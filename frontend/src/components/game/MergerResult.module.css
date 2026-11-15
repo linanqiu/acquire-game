@@ -99,6 +99,7 @@
   text-align: right;
   color: var(--text-positive);
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
   white-space: nowrap;
 }
 

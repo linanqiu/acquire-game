@@ -132,6 +132,7 @@
   text-align: right !important;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
 }
 
 .rank {

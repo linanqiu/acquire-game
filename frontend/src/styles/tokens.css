@@ -47,7 +47,15 @@
   /* ==========================================================================
      Typography
      ========================================================================== */
-  --font-primary: 'IBM Plex Mono', 'Fira Code', 'Consolas', monospace;
+  /* Two system stacks, no font files and no network requests:
+     sans for names, labels, chat and body text; mono for numbers, coordinates and money. */
+  --font-sans:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', 'Liberation Sans',
+    Arial, sans-serif;
+  --font-mono:
+    ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Menlo, Consolas, 'Liberation Mono',
+    'DejaVu Sans Mono', monospace;
+  --font-primary: var(--font-sans);
 
   /* Type Scale */
   --text-xl: 24px; /* Phase announcements, winner declaration */

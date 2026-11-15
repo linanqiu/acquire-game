@@ -54,7 +54,7 @@
   align-items: center;
   justify-content: center;
   color: var(--text-secondary);
-  font-family: var(--font-primary);
+  font-family: var(--font-mono);
   font-size: clamp(8px, calc(var(--cell) * 0.32), var(--text-sm));
   line-height: 1;
   min-width: 0;
