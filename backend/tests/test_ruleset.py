@@ -213,7 +213,7 @@ def test_default_matches_previous_constants():
         "halcyon": "#1F7A8C",
         "meridian": "#E07A3F",
         "juniper": "#3E7C4A",
-        "obsidian": "#2E3A59",
+        "obsidian": "#3F5BD9",
         "aurelia": "#B48CDB",
     }
     assert (

@@ -196,7 +196,7 @@ export const DEFAULT_RULESET: Ruleset = {
       id: 'obsidian',
       name: 'Obsidian',
       tier: 'expensive',
-      color: '#2E3A59',
+      color: '#3F5BD9',
       abbreviation: 'OB',
     },
     {

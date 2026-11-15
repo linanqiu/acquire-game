@@ -33,7 +33,7 @@ Buyout is played in the browser; the server holds every piece of state.
 | **Juniper** | Medium | Forest green `#3E7C4A` | $300 |
 | **Meridian** | Medium | Terracotta `#E07A3F` | $300 |
 | **Aurelia** | Expensive | Lavender `#B48CDB` | $400 |
-| **Obsidian** | Expensive | Slate navy `#2E3A59` | $400 |
+| **Obsidian** | Expensive | Royal blue `#3F5BD9` | $400 |
 
 **Note**: Names, tiers and colours come from `backend/rulesets/default.json`.
 

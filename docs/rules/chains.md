@@ -28,7 +28,7 @@ Buyout features seven hotel chains organized into three pricing tiers:
 | Chain | Colour | Starting Price | Stock per Share (2 tiles) |
 |-------|--------|----------------|---------------------------|
 | **Aurelia** | Lavender `#B48CDB` | $400 | $400 |
-| **Obsidian** | Slate navy `#2E3A59` | $400 | $400 |
+| **Obsidian** | Royal blue `#3F5BD9` | $400 | $400 |
 
 ---
 

@@ -12,7 +12,7 @@ The seven hotel chains are divided into three pricing tiers:
 |------|--------|---------|
 | **Cheap** | Sandpiper, Marlowe | Sand gold, wine |
 | **Medium** | Halcyon, Meridian, Juniper | Teal, terracotta, forest green |
-| **Expensive** | Obsidian, Aurelia | Slate navy, lavender |
+| **Expensive** | Obsidian, Aurelia | Royal blue, lavender |
 
 **Note**: Names, tiers and colours come from `backend/rulesets/default.json`; other rulesets
 use their own.
