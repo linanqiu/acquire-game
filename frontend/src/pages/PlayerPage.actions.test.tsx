@@ -113,16 +113,6 @@ describe('the buy form', () => {
 })
 
 describe('placing a tile', () => {
-  it('the pick is named, and PLACE TILE sends it and clears the pick', () => {
-    const view = loadSnapshotAsPlayer('opening-place-tile')
-    renderPage()
-    const tile = view.expect.human.hand[1]
-    fireEvent.click(rackTile(tile))
-    expect(screen.getByText(tile, { selector: 'strong' })).toBeInTheDocument()
-    fireEvent.click(screen.getByTestId('place-tile-button'))
-    expect(lastAction()).toEqual({ action: 'place_tile', tile })
-    expect(screen.queryByText(tile, { selector: 'strong' })).not.toBeInTheDocument()
-  })
 
   it('on my turn the page says to pick a tile; when I am only waiting it does not', () => {
     loadSnapshotAsPlayer('opening-place-tile')

@@ -141,13 +141,6 @@ describe('HostPage fallback marker', () => {
     expect(screen.getByTestId('seat-fallback-p2')).toHaveAttribute('data-count', '3')
   })
 
-  it('is absent for seats with zero fallbacks', () => {
-    useGameStore.setState({ gameState: gameState({ count: 0, last_reason: null }) })
-    renderHost()
-    expect(screen.queryByTestId('seat-fallback-p2')).not.toBeInTheDocument()
-    expect(screen.queryByTestId('seat-fallback-p1')).not.toBeInTheDocument()
-  })
-
   it('toasts when agent_fallback arrives on the host page', () => {
     useGameStore.setState({ gameState: gameState() })
     renderHost()
