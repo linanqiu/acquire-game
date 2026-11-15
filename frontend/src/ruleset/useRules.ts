@@ -2,7 +2,7 @@ import { useContext } from 'react'
 import type { CSSProperties } from 'react'
 import { RulesetContext } from './context'
 import { useRulesetStore } from './store'
-import { CLASSIC_RULESET } from './classic'
+import { DEFAULT_RULESET } from './defaultRuleset'
 import {
   chainName,
   chainSpec,
@@ -56,11 +56,11 @@ export function rulesFor(rs: Ruleset): Rules {
 }
 
 /**
- * The server's configured ruleset. Classic only until it has loaded, which in the app never
- * renders (RulesetGate waits); unit tests that do not set one get classic.
+ * The server's configured ruleset. Default only until it has loaded, which in the app never
+ * renders (RulesetGate waits); unit tests that do not set one get default.
  */
 export function useServerRuleset(): Ruleset {
-  return useRulesetStore((s) => s.ruleset) ?? CLASSIC_RULESET
+  return useRulesetStore((s) => s.ruleset) ?? DEFAULT_RULESET
 }
 
 /** The ruleset in effect here: the nearest RulesetScope, else the server's. */
@@ -74,7 +74,12 @@ export function useRules(): Rules {
   return rulesFor(useRuleset())
 }
 
-/** Rules for the server's product (page chrome: title, bench name), ignoring any scope. */
+/** The product name (server setting `GAME_BRAND_NAME`): site title, headers, bench pages. */
+export function useBrand(): string {
+  return useRulesetStore((s) => s.brand)
+}
+
+/** Rules for the server's configured ruleset (home page pitch, numbers), ignoring any scope. */
 export function useServerRules(): Rules {
   return rulesFor(useServerRuleset())
 }

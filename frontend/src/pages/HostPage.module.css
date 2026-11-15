@@ -57,6 +57,17 @@
   letter-spacing: 12px;
 }
 
+.lobbyTheme {
+  font-family: var(--font-primary);
+  font-size: var(--text-md);
+  color: var(--text-secondary);
+  margin: 0;
+  margin-top: calc(-1 * var(--space-6));
+  margin-bottom: var(--space-8);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+}
+
 .joinInfo {
   display: flex;
   flex-direction: column;

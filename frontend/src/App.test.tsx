@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import type { Ruleset } from './types/ruleset'
-import { CLASSIC, VALLEY, classicLeaks } from '../tests/unit/fixtures/rulesets'
+import { DEFAULT_RS, VALLEY, defaultLeaks } from '../tests/unit/fixtures/rulesets'
 import { App } from './App'
 import { useGameStore } from './store/gameStore'
 
@@ -36,19 +36,20 @@ afterEach(() => {
 
 describe('App', () => {
   it("loads the server's ruleset first, then renders the home page with its title", async () => {
-    serveRuleset(CLASSIC)
+    serveRuleset(DEFAULT_RS)
     render(<App />)
     expect(screen.getByTestId('ruleset-loading')).toBeInTheDocument()
-    expect(await screen.findByRole('heading', { name: 'ACQUIRE' })).toBeInTheDocument()
-    expect(document.title).toBe('Acquire')
+    expect(await screen.findByRole('heading', { name: 'BUYOUT' })).toBeInTheDocument()
+    expect(document.title).toBe('Buyout')
   })
 
-  it("shows another ruleset's name everywhere, never the classic one", async () => {
+  it("shows another ruleset's theme under the brand, never the default theme", async () => {
     serveRuleset(VALLEY)
     render(<App />)
-    expect(await screen.findByRole('heading', { name: 'ACQUIHIRE' })).toBeInTheDocument()
-    expect(document.title).toBe('Acquihire')
-    expect(classicLeaks(document.body.textContent ?? '')).toEqual([])
+    expect(await screen.findByRole('heading', { name: 'BUYOUT' })).toBeInTheDocument()
+    expect(screen.getByTestId('home-theme')).toHaveTextContent('Acquihire')
+    expect(document.title).toBe('Buyout')
+    expect(defaultLeaks(document.body.textContent ?? '')).toEqual([])
   })
 
   it('offers a retry when the configuration cannot be loaded', async () => {
@@ -62,7 +63,7 @@ describe('App', () => {
   })
 
   it('the real routes: a typed room code opens that room upper-cased, host and unknown URLs have pages', async () => {
-    serveRuleset(CLASSIC)
+    serveRuleset(DEFAULT_RS)
     useGameStore.setState({ connectionStatus: 'connected' })
     window.history.pushState({}, '', '/play/abcd')
     const { unmount } = render(<App />)

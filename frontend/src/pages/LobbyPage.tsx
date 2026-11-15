@@ -7,14 +7,16 @@ import { Button } from '../components/ui/Button'
 import { useToast } from '../components/ui/useToast'
 import { WakingBanner } from '../components/transcripts/PageFrame'
 import { warmUpServer } from '../lib/http'
-import { useServerRules } from '../ruleset/useRules'
+import { useBrand, useServerRules } from '../ruleset/useRules'
 import { playerRange } from '../lib/ruleset'
 import styles from './LobbyPage.module.css'
 
 export function LobbyPage() {
   const navigate = useNavigate()
   const { toast } = useToast()
-  // The home page is the product's front door: its name and pitch come from the server's ruleset.
+  // The home page is the product's front door: its name is the brand (server setting
+  // GAME_BRAND_NAME); the theme title, pitch and numbers come from the server's ruleset.
+  const brand = useBrand()
   const product = useServerRules()
 
   // Create game state
@@ -80,9 +82,8 @@ export function LobbyPage() {
         throw new Error(data.detail || 'Failed to create game')
       }
 
-      // Store credentials for WebSocket auth
+      // Remember who this browser is (the server identifies a player by room code + player id)
       sessionStorage.setItem('player_id', data.player_id)
-      sessionStorage.setItem('session_token', data.session_token)
       sessionStorage.setItem('player_name', createName.trim())
 
       toast('Game created!', 'success')
@@ -129,9 +130,8 @@ export function LobbyPage() {
         throw new Error(data.detail || 'Failed to join game')
       }
 
-      // Store credentials for WebSocket auth
+      // Remember who this browser is (the server identifies a player by room code + player id)
       sessionStorage.setItem('player_id', data.player_id)
-      sessionStorage.setItem('session_token', data.session_token)
       sessionStorage.setItem('player_name', joinName.trim())
 
       toast('Joined game!', 'success')
@@ -172,7 +172,6 @@ export function LobbyPage() {
 
       // Clear any existing player credentials (we're not a player)
       sessionStorage.removeItem('player_id')
-      sessionStorage.removeItem('session_token')
       sessionStorage.removeItem('player_name')
 
       toast('Spectator room created!', 'success')
@@ -189,8 +188,11 @@ export function LobbyPage() {
     <PageShell header={null}>
       <div className={styles.lobby}>
         <h1 className={styles.title} data-testid="home-title">
-          {product.title.toUpperCase()}
+          {brand.toUpperCase()}
         </h1>
+        <p className={styles.theme} data-testid="home-theme">
+          {product.title}
+        </p>
         <p className={styles.subtitle} data-testid="home-tagline">
           {product.theme.tagline}
         </p>
@@ -305,7 +307,7 @@ export function LobbyPage() {
             Games &amp; transcripts
           </Link>
           <Link to="/bench" data-testid="bench-link">
-            {product.title} Bench
+            {brand} Bench
           </Link>
         </nav>
       </div>

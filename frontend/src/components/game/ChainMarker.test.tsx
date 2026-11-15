@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest'
 import { ChainMarker } from './ChainMarker'
 import { RulesetScope } from '../../ruleset/RulesetScope'
 import { readableText } from '../../lib/ruleset'
-import { ALL_RULESETS, CLASSIC, VALLEY } from '../../../tests/unit/fixtures/rulesets'
+import { ALL_RULESETS, DEFAULT_RS, VALLEY } from '../../../tests/unit/fixtures/rulesets'
 import type { Ruleset } from '../../types/ruleset'
 
 function renderIn(rs: Ruleset, ui: React.ReactElement) {
@@ -13,11 +13,11 @@ function renderIn(rs: Ruleset, ui: React.ReactElement) {
 describe('ChainMarker', () => {
   describe('icon variant', () => {
     it('shows the abbreviation on the chain colour with a readable foreground', () => {
-      renderIn(CLASSIC, <ChainMarker chain="Luxor" variant="icon" />)
-      const marker = screen.getByTestId('chain-marker-luxor')
-      expect(marker).toHaveTextContent('L')
-      expect(marker.style.getPropertyValue('--chain-bg')).toBe('#FFD700')
-      expect(marker.style.getPropertyValue('--chain-fg')).toBe(readableText('#FFD700'))
+      renderIn(DEFAULT_RS, <ChainMarker chain="sandpiper" variant="icon" />)
+      const marker = screen.getByTestId('chain-marker-sandpiper')
+      expect(marker).toHaveTextContent('SP')
+      expect(marker.style.getPropertyValue('--chain-bg')).toBe('#E3B448')
+      expect(marker.style.getPropertyValue('--chain-fg')).toBe(readableText('#E3B448'))
     })
 
     it('names the chain in its title and accessible name', () => {
@@ -33,8 +33,8 @@ describe('ChainMarker', () => {
     it('renders swatch + display name', () => {
       renderIn(VALLEY, <ChainMarker chain="gradient" />)
       const marker = screen.getByTestId('chain-marker-gradient')
-      expect(marker).toHaveTextContent('GL')
-      expect(marker).toHaveTextContent('Gradient Labs')
+      expect(marker).toHaveTextContent('GF')
+      expect(marker).toHaveTextContent('Gradientfold')
     })
 
     it("shows the ruleset's safe phrase when safe", () => {
@@ -43,7 +43,7 @@ describe('ChainMarker', () => {
     })
 
     it('shows no safe badge when not safe', () => {
-      renderIn(CLASSIC, <ChainMarker chain="Tower" />)
+      renderIn(DEFAULT_RS, <ChainMarker chain="marlowe" />)
       expect(screen.queryByText('safe')).not.toBeInTheDocument()
     })
   })
@@ -51,11 +51,11 @@ describe('ChainMarker', () => {
   describe('full variant', () => {
     it('shows name, size, price (ruleset currency) and stock left', () => {
       renderIn(
-        CLASSIC,
-        <ChainMarker chain="Continental" variant="full" size={12} price={1200} available={8} safe />
+        DEFAULT_RS,
+        <ChainMarker chain="aurelia" variant="full" size={12} price={1200} available={8} safe />
       )
-      const marker = screen.getByTestId('chain-marker-continental')
-      expect(marker).toHaveTextContent('Continental')
+      const marker = screen.getByTestId('chain-marker-aurelia')
+      expect(marker).toHaveTextContent('Aurelia')
       expect(marker).toHaveTextContent('12 tiles')
       expect(marker).toHaveTextContent('$1,200')
       expect(marker).toHaveTextContent('[8]')
@@ -63,8 +63,8 @@ describe('ChainMarker', () => {
     })
 
     it('omits what is not provided', () => {
-      renderIn(CLASSIC, <ChainMarker chain="Imperial" variant="full" />)
-      const marker = screen.getByTestId('chain-marker-imperial')
+      renderIn(DEFAULT_RS, <ChainMarker chain="obsidian" variant="full" />)
+      const marker = screen.getByTestId('chain-marker-obsidian')
       expect(marker).not.toHaveTextContent('tiles')
       expect(marker).not.toHaveTextContent('$')
     })

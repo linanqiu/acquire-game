@@ -8,12 +8,12 @@ import styles from './RulesetGate.module.css'
 /**
  * Loads the server's ruleset (`/api/config/game`) before rendering the app, so no screen ever
  * shows another game's name or numbers while it loads. Also keeps `document.title` on the
- * configured product name.
+ * product name (brand).
  */
 export function RulesetGate({ children }: { children: ReactNode }) {
   const status = useRulesetStore((s) => s.status)
   const error = useRulesetStore((s) => s.error)
-  const title = useRulesetStore((s) => s.ruleset?.title)
+  const brand = useRulesetStore((s) => s.brand)
   const load = useRulesetStore((s) => s.load)
   const waking = useServerWaking()
 
@@ -22,8 +22,8 @@ export function RulesetGate({ children }: { children: ReactNode }) {
   }, [load])
 
   useEffect(() => {
-    if (title) document.title = title
-  }, [title])
+    if (status === 'ready') document.title = brand
+  }, [status, brand])
 
   if (status === 'ready') return <>{children}</>
 

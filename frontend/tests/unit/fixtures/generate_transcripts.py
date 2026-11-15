@@ -2,7 +2,7 @@
 
 Usage (from the repo root):
 
-    ACQUIRE_TEST_MODE=1 python3 frontend/tests/unit/fixtures/generate_transcripts.py
+    GAME_TEST_MODE=1 python3 frontend/tests/unit/fixtures/generate_transcripts.py
 
 Nothing here is synthesised: every file is the body of a real HTTP response from
 the FastAPI app (via TestClient) after real games were played:
@@ -40,11 +40,11 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[3]
 BACKEND = ROOT / "backend"
 
-WORK = Path(tempfile.mkdtemp(prefix="acquire-fixtures-"))
-os.environ["ACQUIRE_TEST_MODE"] = "1"
-os.environ["ACQUIRE_TRANSCRIPT_DIR"] = str(WORK / "transcripts")
-os.environ["ACQUIRE_BENCH_DIR"] = str(WORK / "bench")
-os.environ["ACQUIRE_TEST_MODE_ACTION_DELAY"] = "0"
+WORK = Path(tempfile.mkdtemp(prefix="game-fixtures-"))
+os.environ["GAME_TEST_MODE"] = "1"
+os.environ["GAME_TRANSCRIPT_DIR"] = str(WORK / "transcripts")
+os.environ["GAME_BENCH_DIR"] = str(WORK / "bench")
+os.environ["GAME_TEST_MODE_ACTION_DELAY"] = "0"
 sys.path.insert(0, str(BACKEND))
 
 ILLEGAL = {"why": "x", "action": {"action": "found_chain", "chain": "Nope"}, "note": ""}
@@ -68,7 +68,7 @@ def run_bench() -> Path:
             "bench",
             "run",
             "--protocol",
-            "acquire-bench-v1",
+            "bench-v1",
             "--models",
             "llm:fake",
             "--track",
@@ -187,7 +187,7 @@ def main() -> None:
         dump("series.json", series.text)
 
         # An empty bench dir
-        os.environ["ACQUIRE_BENCH_DIR"] = str(WORK / "empty")
+        os.environ["GAME_BENCH_DIR"] = str(WORK / "empty")
         dump("leaderboard-empty.json", client.get("/api/bench/leaderboard").text)
 
     summary = {

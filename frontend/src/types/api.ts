@@ -333,14 +333,12 @@ export type GameAction =
 export interface CreateRoomResponse {
   room_code: string
   player_id: string
-  session_token: string
   is_host: boolean
 }
 
 export interface JoinRoomResponse {
   room_code: string
   player_id: string
-  session_token: string
 }
 
 export interface AddBotResponse {

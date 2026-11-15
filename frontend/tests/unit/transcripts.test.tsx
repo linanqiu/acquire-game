@@ -12,7 +12,7 @@ import { GameOver } from '../../src/components/game/GameOver'
 import { buildReplay } from '../../src/lib/replay'
 import { describeEvents } from '../../src/lib/eventText'
 import { ToastProvider } from '../../src/components/ui/ToastProvider'
-import { CLASSIC } from './fixtures/rulesets'
+import { DEFAULT_RS } from './fixtures/rulesets'
 import type {
   Transcript,
   DecisionEntry,
@@ -253,7 +253,7 @@ describe('TranscriptPage replay', () => {
     for (let i = 0; i < target; i++) fireEvent.click(screen.getByTestId('step-next'))
     expect(screen.getByTestId('step-counter')).toHaveTextContent(`Step ${target} /`)
     expect(cash()).not.toBe(startCash)
-    const sentence = describeEvents(replay.steps[target].events, names, CLASSIC)[0].text
+    const sentence = describeEvents(replay.steps[target].events, names, DEFAULT_RS)[0].text
     expect(screen.getByTestId('event-log')).toHaveTextContent(sentence)
     expect(screen.getByTestId('decision-panel')).toHaveTextContent(`STEP ${target}`)
 
@@ -547,7 +547,7 @@ describe('transcript errors', () => {
   })
 })
 
-describe('Acquire Bench', () => {
+describe('Buyout Bench', () => {
   it('renders the ranked table with interval bars, the anchor and the protocol', async () => {
     mockApi(() => ({ body: board }))
     renderAt('/bench')
@@ -629,9 +629,9 @@ describe('Acquire Bench', () => {
 
   it('passes ?protocol= to the API', async () => {
     const api = mockApi(() => ({ body: board }))
-    renderAt('/bench?protocol=acquire-bench-v1')
+    renderAt('/bench?protocol=bench-v1')
     await screen.findByTestId('leaderboard-table')
-    expect(String(api.mock.calls[0][0])).toContain('protocol=acquire-bench-v1')
+    expect(String(api.mock.calls[0][0])).toContain('protocol=bench-v1')
   })
 
   it('older backend: not available', async () => {

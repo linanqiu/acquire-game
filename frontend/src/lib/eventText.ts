@@ -228,7 +228,7 @@ export function describeEvents(events: EngineEvent[], names: Names, rs: Ruleset)
   return lines
 }
 
-/** One-line summary of an action, e.g. `place 9D`, `buy 2 Luxor, 1 Tower`. */
+/** One-line summary of an action, e.g. `place 9D`, `buy 2 Sandpiper, 1 Marlowe`. */
 export function describeAction(
   action: Record<string, unknown> | null | undefined,
   rs: Ruleset

@@ -2,7 +2,7 @@
 
 Usage (from the repo root):
 
-    ACQUIRE_TEST_MODE=1 python3 frontend/tests/unit/fixtures/generate_wire_messages.py
+    GAME_TEST_MODE=1 python3 frontend/tests/unit/fixtures/generate_wire_messages.py
 
 Nothing is hand-written. Two sources, both through the FastAPI app (TestClient):
 
@@ -11,7 +11,7 @@ Nothing is hand-written. Two sources, both through the FastAPI app (TestClient):
   WebSocket and the host WebSocket are read when they connect: ``player`` is what the
   seat receives (prompt messages, the ``game_state`` with private fields, ``game_over``),
   ``host`` the spectator's ``game_state``;
-* one short real game per shipped ruleset (classic, valley, mini): a scripted human
+* one short real game per shipped ruleset (default, valley, mini): a scripted human
   plays the first turns against a bot and a scripted seat, the first ``game_state`` of
   every phase/decision the human faces is kept (so the unit tests see each ruleset's own
   board size, chains, prices and limits).
@@ -31,8 +31,8 @@ ROOT = HERE.parents[3]
 BACKEND = ROOT / "backend"
 SNAPSHOTS = ROOT / "frontend" / "tests" / "e2e" / "fixtures" / "snapshots"
 
-os.environ["ACQUIRE_TEST_MODE"] = "1"
-os.environ["ACQUIRE_TEST_MODE_ACTION_DELAY"] = "0"
+os.environ["GAME_TEST_MODE"] = "1"
+os.environ["GAME_TEST_MODE_ACTION_DELAY"] = "0"
 sys.path.insert(0, str(BACKEND))
 
 PROMPTS = ("choose_chain", "choose_merger_survivor", "stock_disposition_required")
@@ -210,12 +210,12 @@ def refusals(client) -> list[str]:
         )
         attempts = [
             {"action": "place_tile", "tile": absent},
-            {"action": "buy_stocks", "purchases": {"Luxor": 1}},
+            {"action": "buy_stocks", "purchases": {"sandpiper": 1}},
             {"action": "end_turn"},
-            {"action": "found_chain", "chain": "Luxor"},
+            {"action": "found_chain", "chain": "sandpiper"},
             {"action": "accept_trade", "trade_id": "nope"},
             {"action": "cancel_trade", "trade_id": "nope"},
-            {"action": "merger_choice", "surviving_chain": "Luxor"},
+            {"action": "merger_choice", "surviving_chain": "sandpiper"},
         ]
         for attempt in attempts:
             ws.send_json(attempt)
@@ -341,9 +341,9 @@ def main() -> None:
         out["refusals"] = refusals(client)
         out["catalog"] = client.get("/agents/catalog").json()
         out["home"] = home_page_api(client)
-        for ruleset, seed in (("classic", 3), ("valley", 3), ("mini", 4)):
+        for ruleset, seed in (("default", 3), ("valley", 3), ("mini", 4)):
             out["games"][ruleset] = played_game(client, ruleset, seed)
-        get_settings().game_ruleset = "classic"
+        get_settings().game_ruleset = "default"
     (HERE / "wire-messages.json").write_text(json.dumps(out, ensure_ascii=False) + "\n")
     size = (HERE / "wire-messages.json").stat().st_size
     print(f"wrote wire-messages.json ({size} bytes)")

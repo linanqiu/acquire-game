@@ -66,15 +66,15 @@ function player(extra = {}) {
   const onError = vi.fn()
   const onClose = vi.fn()
   const view = renderHook(() =>
-    useWebSocket({ roomCode: 'ABCD', playerId: 'p1', token: 'tok', onError, onClose, ...extra })
+    useWebSocket({ roomCode: 'ABCD', playerId: 'p1', onError, onClose, ...extra })
   )
   return { ...view, onError, onClose }
 }
 
 describe('player socket', () => {
-  it('connects to the player route with its id and token, and is "connected" once the socket opens', () => {
+  it('connects to the player route with its id (no token: the server uses none), and is "connected" once the socket opens', () => {
     const { result } = player()
-    expect(latest().url).toMatch(/^wss?:\/\/.+\/ws\/player\/ABCD\/p1\?token=tok$/)
+    expect(latest().url).toMatch(/^wss?:\/\/.+\/ws\/player\/ABCD\/p1$/)
     expect(status()).toBe('connecting')
     expect(result.current.isConnected).toBe(false)
     act(() => latest().open())
@@ -83,8 +83,8 @@ describe('player socket', () => {
   })
 
   it('a browser without credentials still connects (the server answers "Player not found")', () => {
-    renderHook(() => useWebSocket({ roomCode: 'ABCD', playerId: '', token: '' }))
-    expect(latest().url).toContain('/ws/player/ABCD/-?token=')
+    renderHook(() => useWebSocket({ roomCode: 'ABCD', playerId: '' }))
+    expect(latest().url).toMatch(/\/ws\/player\/ABCD\/-$/)
   })
 
   it('real server messages reach the store: the game state with my hand, and the prompt that goes with it', () => {
@@ -112,9 +112,9 @@ describe('player socket', () => {
     const { onError } = player()
     act(() => latest().open())
     act(() =>
-      latest().receive({ type: 'error', message: 'Cannot trade Festival stock during its merger' })
+      latest().receive({ type: 'error', message: 'Cannot trade juniper stock during its merger' })
     )
-    expect(onError).toHaveBeenCalledWith('Cannot trade Festival stock during its merger')
+    expect(onError).toHaveBeenCalledWith('Cannot trade juniper stock during its merger')
     expect(useGameStore.getState().gameState).toBeNull()
   })
 
@@ -217,7 +217,7 @@ describe('player socket', () => {
     unmount()
     act(() => vi.advanceTimersByTime(60_000))
     expect(sockets()).toHaveLength(1)
-    const second = renderHook(() => useWebSocket({ roomCode: 'ABCD', playerId: 'p1', token: 't' }))
+    const second = renderHook(() => useWebSocket({ roomCode: 'ABCD', playerId: 'p1' }))
     act(() => latest().open())
     const open = latest()
     second.unmount()
@@ -272,15 +272,15 @@ describe('player socket', () => {
   })
 
   it('works without any callbacks: an error message, a final close and a refusal do not throw', () => {
-    renderHook(() => useWebSocket({ roomCode: 'ABCD', playerId: 'p1', token: 't' }))
+    renderHook(() => useWebSocket({ roomCode: 'ABCD', playerId: 'p1' }))
     act(() => latest().open())
     act(() => latest().receive({ type: 'error', message: 'Not allowed' }))
     act(() => latest().drop(true, 1000))
     expect(status()).toBe('disconnected')
-    renderHook(() => useWebSocket({ roomCode: 'ABCD', playerId: 'p1', token: 't' }))
+    renderHook(() => useWebSocket({ roomCode: 'ABCD', playerId: 'p1' }))
     act(() => latest().drop(true, 4004, 'Room not found'))
     expect(status()).toBe('error')
-    renderHook(() => useWebSocket({ roomCode: 'ABCD', playerId: 'p1', token: 't' }))
+    renderHook(() => useWebSocket({ roomCode: 'ABCD', playerId: 'p1' }))
     for (let i = 0; i < 6; i++) {
       act(() => latest().drop())
       act(() => vi.advanceTimersByTime(60_000))
@@ -290,10 +290,10 @@ describe('player socket', () => {
 
   it('a configured WebSocket address (VITE_WS_URL) is used as it is, for players and spectators', () => {
     vi.stubEnv('VITE_WS_URL', 'ws://game.example:9000')
-    renderHook(() => useWebSocket({ roomCode: 'ABCD', playerId: 'p1', token: 'tok' }))
-    expect(latest().url).toBe('ws://game.example:9000/ws/player/ABCD/p1?token=tok')
-    renderHook(() => useWebSocket({ roomCode: 'ABCD', playerId: '', token: '' }))
-    expect(latest().url).toBe('ws://game.example:9000/ws/player/ABCD/-?token=')
+    renderHook(() => useWebSocket({ roomCode: 'ABCD', playerId: 'p1' }))
+    expect(latest().url).toBe('ws://game.example:9000/ws/player/ABCD/p1')
+    renderHook(() => useWebSocket({ roomCode: 'ABCD', playerId: '' }))
+    expect(latest().url).toBe('ws://game.example:9000/ws/player/ABCD/-')
     renderHook(() => useHostWebSocket({ roomCode: 'WXYZ' }))
     expect(latest().url).toBe('ws://game.example:9000/ws/host/WXYZ')
     vi.unstubAllEnvs()

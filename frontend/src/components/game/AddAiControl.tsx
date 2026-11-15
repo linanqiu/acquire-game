@@ -17,7 +17,7 @@ export interface AddAiControlProps {
 /**
  * Lobby control for adding AI opponents.
  *
- * Always renders the classic "+ ADD BOT" button (legacy `add-bot` route, so older
+ * Always renders the plain "+ ADD BOT" button (legacy `add-bot` route, so older
  * backends and existing flows keep working). When `GET /api/agents/catalog`
  * succeeds, also renders "+ ADD AI" which lists the catalog entries.
  */

@@ -1,7 +1,7 @@
 /**
- * Every key screen under the shipped non-classic rulesets (valley "Acquihire", mini
- * "Harborline"): names, numbers, wording and board size come from the ruleset, and no classic
- * chain name or "Acquire" leaks into the page.
+ * Every key screen under the shipped non-default rulesets (valley "Acquihire", mini
+ * "Harborline"): names, numbers, wording and board size come from the ruleset, and no default
+ * chain name or default theme title leaks into the page (the brand "Buyout" shows everywhere).
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -16,16 +16,16 @@ import { TranscriptPage } from '../../src/pages/TranscriptPage'
 import { ToastProvider } from '../../src/components/ui/ToastProvider'
 import { useGameStore } from '../../src/store/gameStore'
 import { contrastRatio, readableText, rulesetForTranscript } from '../../src/lib/ruleset'
-import { CLASSIC_RULESET } from '../../src/ruleset/classic'
+import { DEFAULT_RULESET } from '../../src/ruleset/defaultRuleset'
 import type { GameStateMessage } from '../../src/types/api'
 import type { Ruleset } from '../../src/types/ruleset'
 import type { Transcript } from '../../src/types/transcripts'
 import {
   ALL_RULESETS,
-  CLASSIC,
+  DEFAULT_RS,
   MINI,
   VALLEY,
-  classicLeaks,
+  defaultLeaks,
   useServerRuleset,
 } from './fixtures/rulesets'
 
@@ -64,8 +64,8 @@ const renderPlayer = (query = '') =>
   renderAt(`/play/ROOM${query}`, [{ path: '/play/:room', element: <PlayerPage /> }])
 const renderHost = () => renderAt('/host/ROOM', [{ path: '/host/:room', element: <HostPage /> }])
 
-function expectNoClassicLeaks() {
-  expect(classicLeaks(document.body.textContent ?? '')).toEqual([])
+function expectNoDefaultLeaks() {
+  expect(defaultLeaks(document.body.textContent ?? '')).toEqual([])
 }
 
 /** A plausible in-game state for `rs`: three active chains (one safe), three players. */
@@ -145,19 +145,20 @@ afterEach(() => {
 })
 
 describe.each(THEMED)('%s ruleset', (_name, rs) => {
-  const upperTitle = rs.title.toUpperCase()
+  const BRAND = 'Buyout' // the product name (server setting GAME_BRAND_NAME), the same in every theme
 
   it('home page: title, tagline, players, board and chain count', () => {
     useServerRuleset(rs)
     renderAt('/', [{ path: '/', element: <LobbyPage /> }])
-    expect(screen.getByRole('heading', { name: upperTitle })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: BRAND.toUpperCase() })).toBeInTheDocument()
+    expect(screen.getByTestId('home-theme')).toHaveTextContent(rs.title)
     expect(screen.getByTestId('home-tagline')).toHaveTextContent(rs.theme.tagline)
     const meta = screen.getByTestId('home-meta')
     expect(meta).toHaveTextContent(`${rs.min_players}-${rs.max_players} players`)
     expect(meta).toHaveTextContent(`${rs.board.columns}×${rs.board.rows} board`)
     expect(meta).toHaveTextContent(`${rs.chains.length} ${rs.theme.chain_noun_plural}`)
-    expect(screen.getByTestId('bench-link')).toHaveTextContent(`${rs.title} Bench`)
-    expectNoClassicLeaks()
+    expect(screen.getByTestId('bench-link')).toHaveTextContent(`${BRAND} Bench`)
+    expectNoDefaultLeaks()
   })
 
   it('room lobby: seat limits from the ruleset', () => {
@@ -170,8 +171,8 @@ describe.each(THEMED)('%s ruleset', (_name, rs) => {
     expect(screen.getByText(`1/${rs.max_players} players`)).toBeInTheDocument()
     const need = rs.min_players - 1
     expect(screen.getByTestId('start-hint')).toHaveTextContent(`Need ${need} more player`)
-    expect(screen.getByTestId('header-title')).toHaveTextContent(upperTitle)
-    expectNoClassicLeaks()
+    expect(screen.getByTestId('header-title')).toHaveTextContent(BRAND.toUpperCase())
+    expectNoDefaultLeaks()
   })
 
   it('board: columns x rows from the ruleset, chain squares named and coloured', () => {
@@ -196,7 +197,7 @@ describe.each(THEMED)('%s ruleset', (_name, rs) => {
     expect(badge).toHaveTextContent(/^2$/)
     expect(badge).toHaveAttribute('data-abbr', a.abbreviation)
     expect(badge.style.getPropertyValue('--chain-bg')).toBe(a.color)
-    expectNoClassicLeaks()
+    expectNoDefaultLeaks()
   })
 
   it('buy screen: names, prices in the currency, per-turn limit from the ruleset', () => {
@@ -225,7 +226,7 @@ describe.each(THEMED)('%s ruleset', (_name, rs) => {
     // The board stays on the page during the buy phase (folded only on phones, by CSS).
     expect(screen.getByTestId('board')).toBeInTheDocument()
     expect(screen.getByTestId('board-toggle')).toHaveTextContent('SHOW BOARD')
-    expectNoClassicLeaks()
+    expectNoDefaultLeaks()
   })
 
   it('disposition: chain names, share noun, merger noun and trade ratio from the ruleset', () => {
@@ -257,7 +258,7 @@ describe.each(THEMED)('%s ruleset', (_name, rs) => {
     expect(
       within(form).getByText(`TRADE ${r}:1 for ${survivor.name.toUpperCase()}`)
     ).toBeInTheDocument()
-    expectNoClassicLeaks()
+    expectNoDefaultLeaks()
   })
 
   it('portfolio: holdings with names and amounts in the currency', () => {
@@ -273,7 +274,7 @@ describe.each(THEMED)('%s ruleset', (_name, rs) => {
         ch.name
       )
     }
-    expectNoClassicLeaks()
+    expectNoDefaultLeaks()
   })
 
   it('game over: standings in the currency, wording from the ruleset', () => {
@@ -297,21 +298,22 @@ describe.each(THEMED)('%s ruleset', (_name, rs) => {
       `${rs.theme.currency_symbol}${(rs.starting_cash * 10).toLocaleString('en-US')}`
     )
     expect(screen.getByTestId('breakdown')).toHaveTextContent(`${rs.theme.stock_label} sold`)
-    expectNoClassicLeaks()
+    expectNoDefaultLeaks()
   })
 
   it('host page: title, seat limits in the lobby; chains panel and board in the game', () => {
     useServerRuleset(rs)
     useGameStore.setState({ connectionStatus: 'connected', lobbyPlayers: [] })
     const { unmount } = renderHost()
-    expect(screen.getByTestId('host-title')).toHaveTextContent(upperTitle)
+    expect(screen.getByTestId('host-title')).toHaveTextContent(BRAND.toUpperCase())
+    expect(screen.getByTestId('host-theme')).toHaveTextContent(rs.title)
     expect(screen.getByText(`PLAYERS (0/${rs.max_players})`)).toBeInTheDocument()
-    expectNoClassicLeaks()
+    expectNoDefaultLeaks()
     unmount()
 
     useGameStore.setState({ gameState: gameStateFor(rs, 'buy_stocks') })
     renderHost()
-    expect(screen.getByTestId('header-title')).toHaveTextContent(upperTitle)
+    expect(screen.getByTestId('header-title')).toHaveTextContent(BRAND.toUpperCase())
     expect(screen.getByText(rs.theme.chain_noun_plural.toUpperCase())).toBeInTheDocument()
     const list = screen.getByTestId('chain-list')
     const safeChain = rs.chains[2]
@@ -324,7 +326,7 @@ describe.each(THEMED)('%s ruleset', (_name, rs) => {
     expect(screen.getByTestId('game-phase')).toHaveTextContent(
       `BUY ${rs.theme.stock_label.toUpperCase()}`
     )
-    expectNoClassicLeaks()
+    expectNoDefaultLeaks()
   })
 
   it('bench page: "<title> Bench" in the heading and the document title', () => {
@@ -334,9 +336,9 @@ describe.each(THEMED)('%s ruleset', (_name, rs) => {
       vi.fn(async () => new Response('{}', { status: 404 }))
     )
     renderAt('/bench', [{ path: '/bench', element: <BenchPage /> }])
-    expect(screen.getByTestId('bench-title')).toHaveTextContent(`${upperTitle} BENCH`)
-    expect(document.title).toBe(`${rs.title} Bench`)
-    expectNoClassicLeaks()
+    expect(screen.getByTestId('bench-title')).toHaveTextContent(`${BRAND.toUpperCase()} BENCH`)
+    expect(document.title).toBe(`${BRAND} Bench`)
+    expectNoDefaultLeaks()
   })
 })
 
@@ -346,10 +348,10 @@ const FULL = JSON.parse(
   readFileSync(join(__dirname, 'fixtures', 'transcript-full.json'), 'utf8')
 ) as Transcript
 
-/** The classic fixture with every chain id swapped for a valley one (same numbers, same tiers). */
+/** The default fixture with every chain id swapped for a valley one (same numbers, same tiers). */
 function asValley(t: Transcript, withHeader: boolean): Transcript {
   const map: Record<string, string> = {}
-  CLASSIC.chains.forEach((c, i) => (map[c.id] = VALLEY.chains[i].id))
+  DEFAULT_RS.chains.forEach((c, i) => (map[c.id] = VALLEY.chains[i].id))
   const swap = (v: unknown): unknown => {
     if (typeof v === 'string') return map[v] ?? v
     if (Array.isArray(v)) return v.map(swap)
@@ -388,9 +390,9 @@ describe('transcript viewer under the transcript ruleset', () => {
     const names = VALLEY.chains.map((c) => c.name)
     const table = screen.getByTestId('chain-table')
     expect(names.some((n) => table.textContent?.includes(n))).toBe(true)
-    // Chrome keeps the server's product name
-    expect(screen.getAllByText(/Harborline Bench/).length).toBeGreaterThan(0)
-    expectNoClassicLeaks()
+    // Chrome keeps the product name (the brand), not the transcript's theme
+    expect(screen.getAllByText(/Buyout Bench/).length).toBeGreaterThan(0)
+    expectNoDefaultLeaks()
   })
 
   it('falls back to chains and board seen in the states when the header has no ruleset', () => {
@@ -402,19 +404,19 @@ describe('transcript viewer under the transcript ruleset', () => {
     )
     // On a server running that ruleset: the server's
     expect(rulesetForTranscript(undefined, states, [VALLEY])).toBe(VALLEY)
-    // Elsewhere: rebuilt from the states (ids as names, never the classic title)
+    // Elsewhere: rebuilt from the states (ids as names, never the default title)
     const rs = rulesetForTranscript(undefined, states, [MINI])
     expect(rs.chains.map((c) => c.id).every((id) => VALLEY.chains.some((v) => v.id === id))).toBe(
       true
     )
     expect(rs.title).toBe('')
-    // A classic transcript without a header ruleset is classic
-    const classicStates = FULL.entries.flatMap((e) =>
+    // A default transcript without a header ruleset is default
+    const defaultStates = FULL.entries.flatMap((e) =>
       e.type === 'state'
         ? [(e as { public: Parameters<typeof rulesetForTranscript>[1][number] }).public]
         : []
     )
-    expect(rulesetForTranscript(undefined, classicStates, [VALLEY])).toBe(CLASSIC_RULESET)
+    expect(rulesetForTranscript(undefined, defaultStates, [VALLEY])).toBe(DEFAULT_RULESET)
   })
 })
 
@@ -438,8 +440,8 @@ describe('chain colours are readable', () => {
   })
 })
 
-describe('the built-in classic fallback', () => {
-  it('is identical to backend/rulesets/classic.json', () => {
-    expect(CLASSIC_RULESET).toEqual(CLASSIC)
+describe('the built-in default fallback', () => {
+  it('is identical to backend/rulesets/default.json', () => {
+    expect(DEFAULT_RULESET).toEqual(DEFAULT_RS)
   })
 })

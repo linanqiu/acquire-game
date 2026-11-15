@@ -2,7 +2,7 @@
  * Game-specific types for UI components
  *
  * Note: The backend sends board state as:
- *   { cells: { "1A": { state: "played", chain: null }, "2B": { state: "in_chain", chain: "Tower" } } }
+ *   { cells: { "1A": { state: "played", chain: null }, "2B": { state: "in_chain", chain: "marlowe" } } }
  *
  * TileState here uses semantic states ('empty'/'orphan'/'chain') for UI rendering.
  * Transformation from backend format should happen in the game store (RT-002).

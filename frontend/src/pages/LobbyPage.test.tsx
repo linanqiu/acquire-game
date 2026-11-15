@@ -87,6 +87,8 @@ describe('create a game', () => {
     expect(init.headers).toEqual({ 'Content-Type': 'application/x-www-form-urlencoded' })
     expect(form(fn, '/api/create').get('player_name')).toBe('n'.repeat(20))
     expect(sessionStorage.getItem('player_id')).toBe(home.create.body.player_id)
+    // /create sends no token and the browser stores none (it once stored "undefined")
+    expect(sessionStorage.getItem('session_token')).toBeNull()
     expect(sessionStorage.getItem('player_name')).toBe('n'.repeat(20))
   })
 
@@ -142,6 +144,7 @@ describe('join a game', () => {
     expect(form(fn, '/api/join').get('room_code')).toBe('UBQO')
     expect(form(fn, '/api/join').get('player_name')).toBe('Bob')
     expect(sessionStorage.getItem('player_id')).toBe(home.join.body.player_id)
+    expect(sessionStorage.getItem('session_token')).toBeNull()
     expect(sessionStorage.getItem('player_name')).toBe('Bob')
   })
 
@@ -174,7 +177,6 @@ describe('watch bots play', () => {
   it('creates a spectator room, forgets any player seat of this browser, and opens the host view', async () => {
     sessionStorage.setItem('player_id', 'old')
     sessionStorage.setItem('player_name', 'Old')
-    sessionStorage.setItem('session_token', 'old')
     const fn = serve({ '/api/create-spectator': home.spectator })
     mount()
     fireEvent.click(screen.getByTestId('watch-bots-button'))
@@ -184,7 +186,6 @@ describe('watch bots play', () => {
     expect(post(fn, '/api/create-spectator')![1].method).toBe('POST')
     expect(sessionStorage.getItem('player_id')).toBeNull()
     expect(sessionStorage.getItem('player_name')).toBeNull()
-    expect(sessionStorage.getItem('session_token')).toBeNull()
   })
 
   it('a failure is shown and nothing changes', async () => {

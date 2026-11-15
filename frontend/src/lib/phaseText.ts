@@ -1,6 +1,6 @@
 /**
  * Phase banner text, worded from the ruleset's theme (chain noun, share noun, merger noun,
- * stock label). Classic: "CHOOSE A HOTEL CHAIN", "DISPOSE YOUR SHARES", "BUY STOCKS".
+ * stock label). Default: "CHOOSE A HOTEL CHAIN", "DISPOSE YOUR SHARES", "BUY STOCKS".
  */
 
 import type { GamePhase } from '../types/api'

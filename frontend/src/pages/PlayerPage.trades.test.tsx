@@ -85,9 +85,7 @@ describe('the offers panel', () => {
     // deliver the doctored copy of the real state
     useGameStore.getState().setRoomCode('TEST')
     useGameStore.getState().setConnectionStatus('connected')
-    useGameStore
-      .getState()
-      .setCurrentPlayer({ id: view.human, name: 'Alice', token: 't', isHost: false })
+    useGameStore.getState().setCurrentPlayer({ id: view.human, name: 'Alice', isHost: false })
     useGameStore.getState().handleMessage(state)
     mount()
     expect(screen.getByTestId(`trade-accept-${offer.trade_id}`)).toBeDisabled()

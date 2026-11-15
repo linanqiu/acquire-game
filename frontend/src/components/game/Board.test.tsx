@@ -18,7 +18,7 @@ function drawBoard(state, props = {}) {
 
 describe('Board', () => {
   it('draws every square the ruleset has, labelled by column and row', () => {
-    for (const name of ['classic', 'valley', 'mini']) {
+    for (const name of ['default', 'valley', 'mini']) {
       const state = playedGame(name).states['place_tile/place_tile']
       const { columns, rows } = rulesetOf(name).board
       const { unmount } = render(

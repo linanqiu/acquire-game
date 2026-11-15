@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MergerDisposition } from './MergerDisposition'
 import { RulesetScope } from '../../ruleset/RulesetScope'
-import { CLASSIC, VALLEY, MINI } from '../../../tests/unit/fixtures/rulesets'
+import { DEFAULT_RS, VALLEY, MINI } from '../../../tests/unit/fixtures/rulesets'
 import { snapshot } from '../../../tests/unit/fixtures/wire'
 
 const sell = () => screen.getByTestId('slider-sell-to-bank')
@@ -10,7 +10,7 @@ const trade = () => screen.getByTestId(/^slider-trade-/)
 const summary = () => screen.getByTestId('disposition-summary')
 const set = (slider, value) => fireEvent.change(slider, { target: { value: String(value) } })
 
-function mount(props = {}, rs = CLASSIC) {
+function mount(props = {}, rs = DEFAULT_RS) {
   const onConfirm = vi.fn()
   render(
     <RulesetScope ruleset={rs}>
@@ -100,7 +100,7 @@ describe('MergerDisposition', () => {
   })
 
   it.each([
-    ['classic', CLASSIC],
+    ['default', DEFAULT_RS],
     ['valley', VALLEY],
     ['mini', MINI],
   ])('%s: names the chains, shares and takeover in the ruleset words', (_name, rs) => {
@@ -115,7 +115,7 @@ describe('MergerDisposition', () => {
   })
 
   it("the trade ratio is the ruleset's: at 3:1 the slider steps by three and three shares make one", () => {
-    const rs = { ...CLASSIC, merger_trade_ratio: 3 }
+    const rs = { ...DEFAULT_RS, merger_trade_ratio: 3 }
     mount({ sharesOwned: 10, survivorStockAvailable: 2 }, rs)
     expect(trade()).toHaveAttribute('step', '3')
     expect(trade()).toHaveAttribute('max', '6')

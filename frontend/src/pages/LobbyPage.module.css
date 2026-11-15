@@ -19,6 +19,17 @@
   text-align: center;
 }
 
+.theme {
+  font-family: var(--font-primary);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  margin: 0;
+  margin-bottom: var(--space-2);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  text-align: center;
+}
+
 .subtitle {
   font-family: var(--font-primary);
   font-size: var(--text-md);

@@ -25,7 +25,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       include: ['src/store/**', 'src/hooks/**', 'src/lib/**', 'src/ruleset/**', 'src/utils/**'],
-      exclude: ['**/*.test.{ts,tsx}', '**/index.ts', 'src/ruleset/classic.ts'],
+      exclude: ['**/*.test.{ts,tsx}', '**/index.ts', 'src/ruleset/defaultRuleset.ts'],
       // Logic-bearing directories only (components and pages are judged by mutation score and the
       // browser tiers). Enforced by `npm run test:coverage`.
       thresholds: {

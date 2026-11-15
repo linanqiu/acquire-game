@@ -7,7 +7,7 @@ import {
   unplayableReasons,
 } from '../../utils/transforms'
 import { playerState } from '../../../tests/unit/fixtures/wire'
-import { CLASSIC } from '../../../tests/unit/fixtures/rulesets'
+import { DEFAULT_RS } from '../../../tests/unit/fixtures/rulesets'
 
 /** The rack props the page builds from a real server state (same transforms as PlayerPage). */
 function rackFrom(name: string) {
@@ -15,7 +15,7 @@ function rackFrom(name: string) {
   return transformHandToRackTiles(
     state.your_hand,
     transformPlayabilityMap(state.tile_playability),
-    unplayableReasons(state.tile_playability, CLASSIC)
+    unplayableReasons(state.tile_playability, DEFAULT_RS)
   )
 }
 
@@ -44,11 +44,11 @@ describe('TileRack with a real hand', () => {
   it('a permanently dead tile cannot be picked, is crossed out, and the rack says why', () => {
     const { tiles, onTileSelect, tile } = mount('dead-tile-in-hand')
     const dead = tiles.find((t) => t.playability === 'perm_unplayable')
-    expect(dead.coordinate).toBe('10F')
-    fireEvent.click(tile('10F'))
+    expect(dead.coordinate).toBe('4G')
+    fireEvent.click(tile('4G'))
     expect(onTileSelect).not.toHaveBeenCalled()
-    expect(tile('10F')).toHaveTextContent('✕')
-    expect(screen.getByTestId('rack-note-10F')).toHaveTextContent(
+    expect(tile('4G')).toHaveTextContent('✕')
+    expect(screen.getByTestId('rack-note-4G')).toHaveTextContent(
       /can't be played: it would start an 8th hotel chain \(all 7 are already on the board\)/
     )
   })
@@ -75,6 +75,6 @@ describe('TileRack with a real hand', () => {
     const { tiles, onTileSelect, tile } = mount('dead-tile-in-hand', { disabled: true })
     for (const t of tiles) fireEvent.click(tile(t.coordinate))
     expect(onTileSelect).not.toHaveBeenCalled()
-    expect(screen.getByTestId('rack-note-10F')).toBeInTheDocument()
+    expect(screen.getByTestId('rack-note-4G')).toBeInTheDocument()
   })
 })

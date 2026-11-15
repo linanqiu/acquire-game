@@ -10,6 +10,7 @@ import { HostPage } from './HostPage'
 import { ToastProvider } from '../components/ui/ToastProvider'
 import { useGameStore } from '../store/gameStore'
 import { playedGame, serverRuleset, snapshot } from '../../tests/unit/fixtures/wire'
+import { DEFAULT_RS } from '../../tests/unit/fixtures/rulesets'
 
 vi.mock('../hooks/useHostWebSocket', () => ({
   useHostWebSocket: () => ({
@@ -37,7 +38,7 @@ function renderHostPage(room = 'TEST') {
 const deliver = (msg: Record<string, unknown>) =>
   act(() => useGameStore.getState().handleMessage(msg as never))
 const money = (n: number) => `$${n.toLocaleString('en-US')}`
-const lobby = () => playedGame('classic').lobby
+const lobby = () => playedGame('default').lobby
 
 beforeEach(() => {
   useGameStore.getState().reset()
@@ -48,7 +49,7 @@ describe('host lobby', () => {
   it('shows the game title, room code, join link and every seat; AI seats are marked and removable', () => {
     deliver(lobby())
     renderHostPage('WXYZ')
-    expect(screen.getByTestId('host-title')).toHaveTextContent('ACQUIRE')
+    expect(screen.getByTestId('host-title')).toHaveTextContent('BUYOUT')
     expect(screen.getByText('WXYZ')).toBeInTheDocument()
     expect(screen.getByText(`${window.location.origin}/play/WXYZ`)).toBeInTheDocument()
     const [human, bot, scripted] = lobby().players
@@ -74,16 +75,18 @@ describe('host lobby', () => {
     expect(screen.getByText('Ready to start!')).toBeInTheDocument()
   })
 
-  it("the title and the seat limit are the server ruleset's: ACQUIHIRE and 3/6, HARBORLINE and 3/5", () => {
+  it("the brand on top, then the server ruleset's theme and seat limit: Acquihire 3/6, Harborline 3/5", () => {
     serverRuleset('valley')
     deliver(lobby())
     const { unmount } = renderHostPage()
-    expect(screen.getByTestId('host-title')).toHaveTextContent('ACQUIHIRE')
+    expect(screen.getByTestId('host-title')).toHaveTextContent('BUYOUT')
+    expect(screen.getByTestId('host-theme')).toHaveTextContent('Acquihire')
     unmount()
     serverRuleset('mini')
     deliver(lobby())
     renderHostPage()
-    expect(screen.getByTestId('host-title')).toHaveTextContent('HARBORLINE')
+    expect(screen.getByTestId('host-title')).toHaveTextContent('BUYOUT')
+    expect(screen.getByTestId('host-theme')).toHaveTextContent('Harborline')
     expect(screen.getByText('PLAYERS (3/5)')).toBeInTheDocument()
   })
 
@@ -129,11 +132,12 @@ describe('host view of a running game', () => {
       expect(marker).toHaveTextContent(`[${info.available}]`)
       if (info.safe) expect(marker).toHaveTextContent(/safe/i)
     }
-    expect(within(panel).queryByTestId('chain-marker-worldwide')).not.toBeInTheDocument()
+    const inactive = DEFAULT_RS.chains.find((c) => !(c.id in view.expect.active_chains))!.id
+    expect(within(panel).queryByTestId(`chain-marker-${inactive}`)).not.toBeInTheDocument()
   })
 
   it('before any chain exists it says so', () => {
-    const state = playedGame('classic').states['place_tile/place_tile']
+    const state = playedGame('default').states['place_tile/place_tile']
     deliver(state)
     renderHostPage()
     expect(screen.getByText(/No active hotel chains/)).toBeInTheDocument()

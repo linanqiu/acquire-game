@@ -1,6 +1,6 @@
 /**
- * Game transcript and Acquire Bench wire types.
- * Source of truth: docs/architecture/seat-contract.md, "Game transcripts and Acquire Bench".
+ * Game transcript and Buyout Bench wire types.
+ * Source of truth: docs/architecture/seat-contract.md, "Game transcripts and Buyout Bench".
  */
 
 import type { ChainId, SeatKind } from './api'
@@ -106,7 +106,7 @@ export interface TranscriptHeader {
   system_prompts: Record<string, string>
   /** True for a transcript that starts at a loaded snapshot (test mode), not at a deal. */
   loaded_from_snapshot?: boolean
-  /** The game's ruleset (current backends); older transcripts were all classic. */
+  /** The game's ruleset (current backends); older transcripts were all default. */
   ruleset?: Ruleset | null
   start_seq?: number
 }

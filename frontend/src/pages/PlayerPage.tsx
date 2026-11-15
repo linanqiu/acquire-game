@@ -95,7 +95,6 @@ export function PlayerPage() {
   const { sendAction, reconnect } = useWebSocket({
     roomCode: room,
     playerId: sessionStorage.getItem('player_id') || '',
-    token: sessionStorage.getItem('session_token') || '',
     onError: handleWsError,
   })
 
@@ -122,17 +121,15 @@ export function PlayerPage() {
   useEffect(() => {
     const playerId = sessionStorage.getItem('player_id')
     const playerName = sessionStorage.getItem('player_name')
-    const token = sessionStorage.getItem('session_token')
 
     console.log('[PlayerPage] Initializing currentPlayer:', {
       playerId,
       playerName,
-      hasToken: !!token,
       isHost,
     })
 
-    if (playerId && playerName && token) {
-      setCurrentPlayer({ id: playerId, name: playerName, token, isHost })
+    if (playerId && playerName) {
+      setCurrentPlayer({ id: playerId, name: playerName, isHost })
     }
   }, [setCurrentPlayer, isHost])
 
@@ -307,12 +304,10 @@ export function PlayerPage() {
   const handleStartGame = useCallback(async () => {
     setActionLoading(true)
     try {
-      const sessionToken = sessionStorage.getItem('session_token')
       const res = await fetch(`/api/room/${room}/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
         },
       })
       if (!res.ok) {

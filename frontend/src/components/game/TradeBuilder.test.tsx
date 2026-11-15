@@ -158,11 +158,11 @@ describe('TradeBuilder', () => {
 
   it("shows the server's refusal and the notice, and cannot be submitted while a proposal is in flight", () => {
     mount({
-      serverError: 'Cannot trade Luxor stock during its merger',
+      serverError: 'Cannot trade Sandpiper stock during its merger',
       notice: 'A merger is on',
       submitting: true,
     })
-    expect(error()).toBe('Cannot trade Luxor stock during its merger')
+    expect(error()).toBe('Cannot trade Sandpiper stock during its merger')
     expect(screen.getByText('A merger is on')).toBeInTheDocument()
     expect(screen.getByTestId('propose-trade')).toBeDisabled()
   })

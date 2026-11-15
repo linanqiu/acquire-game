@@ -143,7 +143,9 @@ describe('placing a tile', () => {
     fireEvent.click(rackTile(dead))
     expect(screen.queryByTestId('place-tile-button')).not.toBeInTheDocument()
     // A playable one still works.
-    const ok = view.expect.human.hand.find((t) => t !== dead)
+    const ok = view.expect.human.hand.find(
+      (t: string) => !(t in view.expect.human.unplayable_tiles)
+    )
     fireEvent.click(rackTile(ok))
     expect(screen.getByTestId('place-tile-button')).toBeInTheDocument()
   })
@@ -275,7 +277,7 @@ describe('buying shares', () => {
   const row = (chain) => screen.getByTestId(`buy-row-${chain.toLowerCase()}`)
 
   it.each([
-    ['classic', 3],
+    ['default', 3],
     ['valley', 3],
     ['mini', 4],
   ])(
@@ -304,9 +306,9 @@ describe('buying shares', () => {
   it('a chain the bank has sold out cannot be bought; cash caps what is affordable', () => {
     loadSnapshotAsPlayer('buy-phase-multi-chain')
     renderPage()
-    expect(within(row('american')).getByTestId('buy-available')).toHaveTextContent('[0]')
-    expect(within(row('american')).getByTestId('stepper-increment')).toBeDisabled()
-    expect(within(row('imperial')).getByTestId('stepper-increment')).not.toBeDisabled()
+    expect(within(row('halcyon')).getByTestId('buy-available')).toHaveTextContent('[0]')
+    expect(within(row('halcyon')).getByTestId('stepper-increment')).toBeDisabled()
+    expect(within(row('obsidian')).getByTestId('stepper-increment')).not.toBeDisabled()
   })
 
   it('with no cash for any chain the page says so, and skipping sends end_turn', () => {
@@ -320,14 +322,14 @@ describe('buying shares', () => {
   it('buying sends the purchases, priced as the server prices the chain', () => {
     const view = loadSnapshotAsPlayer('buy-phase-multi-chain')
     renderPage()
-    const price = view.expect.active_chains.Imperial.price
-    fireEvent.click(within(row('imperial')).getByTestId('stepper-increment'))
-    fireEvent.click(within(row('imperial')).getByTestId('stepper-increment'))
+    const price = view.expect.active_chains.obsidian.price
+    fireEvent.click(within(row('obsidian')).getByTestId('stepper-increment'))
+    fireEvent.click(within(row('obsidian')).getByTestId('stepper-increment'))
     expect(screen.getByTestId('purchase-total')).toHaveTextContent(
       `$${(2 * price).toLocaleString('en-US')}`
     )
     fireEvent.click(screen.getByTestId('end-turn-button'))
-    expect(lastAction()).toEqual({ action: 'buy_stocks', purchases: { Imperial: 2 } })
+    expect(lastAction()).toEqual({ action: 'buy_stocks', purchases: { obsidian: 2 } })
   })
 })
 

@@ -15,20 +15,19 @@ const NO_PLAYER = '-'
 
 // Helper to build WebSocket URL
 // Use relative path to go through Vite proxy in dev, works in prod too
-function getWebSocketUrl(roomCode: string, playerId: string, token: string): string {
+function getWebSocketUrl(roomCode: string, playerId: string): string {
   // If explicit WS URL is configured, use it (bypasses Vite proxy)
   if (import.meta.env.VITE_WS_URL) {
-    return `${import.meta.env.VITE_WS_URL}/ws/player/${roomCode}/${playerId || NO_PLAYER}?token=${token}`
+    return `${import.meta.env.VITE_WS_URL}/ws/player/${roomCode}/${playerId || NO_PLAYER}`
   }
   // Otherwise, use relative URL (goes through Vite proxy in dev)
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${protocol}//${window.location.host}/ws/player/${roomCode}/${playerId || NO_PLAYER}?token=${token}`
+  return `${protocol}//${window.location.host}/ws/player/${roomCode}/${playerId || NO_PLAYER}`
 }
 
 interface UseWebSocketOptions {
   roomCode: string
   playerId: string
-  token: string
   onError?: (error: string) => void
   onClose?: () => void
 }
@@ -45,7 +44,6 @@ interface UseWebSocketReturn {
 export function useWebSocket({
   roomCode,
   playerId,
-  token,
   onError,
   onClose,
 }: UseWebSocketOptions): UseWebSocketReturn {
@@ -113,7 +111,7 @@ export function useWebSocket({
 
       setConnectionStatus('connecting')
 
-      const wsUrl = getWebSocketUrl(roomCode, playerId, token)
+      const wsUrl = getWebSocketUrl(roomCode, playerId)
       const ws = new WebSocket(wsUrl)
 
       ws.onopen = () => {
@@ -232,7 +230,7 @@ export function useWebSocket({
       reconnectAttemptsRef.current = maxReconnectAttempts
       wsRef.current?.close()
     }
-  }, [roomCode, playerId, token, setConnectionStatus, handleMessage, onError, onClose])
+  }, [roomCode, playerId, setConnectionStatus, handleMessage, onError, onClose])
 
   return {
     sendAction,

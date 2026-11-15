@@ -9,7 +9,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { PlayerPage } from './PlayerPage'
 import { ToastProvider } from '../components/ui/ToastProvider'
 import { useGameStore } from '../store/gameStore'
-import { CLASSIC } from '../../tests/unit/fixtures/rulesets'
+import { DEFAULT_RS } from '../../tests/unit/fixtures/rulesets'
 import { deliver, loadSnapshotAsPlayer, playedGame, snapshot } from '../../tests/unit/fixtures/wire'
 
 const { sendAction, socket } = vi.hoisted(() => ({
@@ -64,7 +64,7 @@ describe('the buy form', () => {
     const ids = screen
       .getAllByTestId(/^buy-row-/)
       .map((r) => r.getAttribute('data-testid')!.slice('buy-row-'.length))
-    const order = CLASSIC.chains.map((c) => c.id.toLowerCase())
+    const order = DEFAULT_RS.chains.map((c) => c.id.toLowerCase())
     expect(ids).toEqual(order.filter((id) => ids.includes(id)))
     expect(ids.length).toBeGreaterThan(2)
   })
@@ -75,16 +75,17 @@ describe('the buy form', () => {
     expect(screen.getAllByTestId(/^buy-row-/)).toHaveLength(
       Object.keys(view.expect.active_chains).length
     )
-    expect(screen.queryByTestId('buy-row-worldwide')).not.toBeInTheDocument()
+    const inactive = DEFAULT_RS.chains.find((c) => !(c.id in view.expect.active_chains))!.id
+    expect(screen.queryByTestId(`buy-row-${inactive}`)).not.toBeInTheDocument()
   })
 
   it('the button says SKIP when nothing is chosen and BUY once something is', () => {
     loadSnapshotAsPlayer('buy-phase-multi-chain')
     renderPage()
     expect(screen.getByTestId('end-turn-button')).toHaveTextContent('SKIP & END TURN')
-    fireEvent.click(within(row('imperial')).getByTestId('stepper-increment'))
+    fireEvent.click(within(row('obsidian')).getByTestId('stepper-increment'))
     expect(screen.getByTestId('end-turn-button')).toHaveTextContent('BUY & END TURN')
-    fireEvent.click(within(row('imperial')).getByTestId('stepper-decrement'))
+    fireEvent.click(within(row('obsidian')).getByTestId('stepper-decrement'))
     expect(screen.getByTestId('end-turn-button')).toHaveTextContent('SKIP & END TURN')
   })
 
@@ -186,27 +187,26 @@ describe('the players panel', () => {
 describe('the page and the socket', () => {
   it('connects with the credentials this browser holds for the room', () => {
     sessionStorage.setItem('player_id', 'p-1')
-    sessionStorage.setItem('session_token', 'tok-1')
     renderPage()
-    expect(socket.opts).toMatchObject({ roomCode: 'TEST', playerId: 'p-1', token: 'tok-1' })
+    expect(socket.opts).toMatchObject({ roomCode: 'TEST', playerId: 'p-1' })
+    expect(socket.opts).not.toHaveProperty('token')
   })
 
   it('a browser with no credentials connects without them (the server then says "Player not found")', () => {
     renderPage()
-    expect(socket.opts).toMatchObject({ roomCode: 'TEST', playerId: '', token: '' })
+    expect(socket.opts).toMatchObject({ roomCode: 'TEST', playerId: '' })
   })
 })
 
 describe('starting the game as host', () => {
-  const lobby = () => playedGame('classic').lobby
+  const lobby = () => playedGame('default').lobby
   const answer = (status: number) => {
     const fn = vi.fn(async () => new Response('{}', { status }))
     vi.stubGlobal('fetch', fn)
     return fn
   }
 
-  it('START GAME posts to the room with the host token, and says so', async () => {
-    sessionStorage.setItem('session_token', 'tok-1')
+  it('START GAME posts to the room (no auth header: the server uses none), and says so', async () => {
     const fn = answer(200)
     useGameStore.getState().handleMessage(lobby())
     useGameStore.setState({ connectionStatus: 'connected' })
@@ -217,7 +217,7 @@ describe('starting the game as host', () => {
     const [url, init] = call as unknown as [string, RequestInit]
     expect(url).toBe('/api/room/TEST/start')
     expect(init.method).toBe('POST')
-    expect(init.headers).toMatchObject({ Authorization: 'Bearer tok-1' })
+    expect(init.headers).not.toHaveProperty('Authorization')
   })
 
   it('a refusal shows "Failed to start game" and the button works again', async () => {
@@ -238,7 +238,7 @@ describe('starting the game as host', () => {
     expect(screen.queryByTestId(`remove-seat-${players[0].player_id}`)).not.toBeInTheDocument()
     expect(screen.getByTestId(`remove-seat-${players[1].player_id}`)).toBeInTheDocument()
     first.unmount()
-    // Six seats fill a classic room.
+    // Six seats fill a default room.
     const six = Array.from({ length: 6 }, (_, i) => ({
       ...players[1],
       player_id: `bot_${i}`,

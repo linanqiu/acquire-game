@@ -129,7 +129,7 @@ describe('decision prompts', () => {
 
   it('every prompt is cleared when the game is back in an ordinary phase', () => {
     loadSnapshotAsPlayer('disposition-human-first')
-    store().handleMessage({ type: 'choose_chain', available_chains: ['Luxor'] })
+    store().handleMessage({ type: 'choose_chain', available_chains: ['sandpiper'] })
     const buy = snapshot('buy-phase-multi-chain')
     store().handleMessage(buy.player.find((m) => m.type === 'game_state'))
     expect(store().pendingStockDisposition).toBeNull()

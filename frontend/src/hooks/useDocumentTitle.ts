@@ -1,12 +1,12 @@
 import { useEffect } from 'react'
-import { useServerRuleset } from '../ruleset/useRules'
+import { useBrand } from '../ruleset/useRules'
 
 /**
  * Sets `document.title` while the calling page is mounted and restores the product name
- * (the server ruleset's title) when it unmounts.
+ * (the brand, server setting GAME_BRAND_NAME) when it unmounts.
  */
 export function useDocumentTitle(title: string) {
-  const product = useServerRuleset().title
+  const product = useBrand()
   useEffect(() => {
     document.title = title
     return () => {

@@ -38,26 +38,28 @@ describe('Portfolio', () => {
     render(
       <Portfolio
         holdings={[
-          { chain: 'Luxor', quantity: 3 },
-          { chain: 'Tower', quantity: 0 },
+          { chain: 'sandpiper', quantity: 3 },
+          { chain: 'marlowe', quantity: 0 },
         ]}
-        prices={{ Luxor: 800, Tower: 700 }}
+        prices={{ sandpiper: 800, marlowe: 700 }}
         showTotal={false}
       />
     )
-    expect(screen.getByTestId('portfolio-row-luxor')).toBeInTheDocument()
-    expect(screen.queryByTestId('portfolio-row-tower')).not.toBeInTheDocument()
+    expect(screen.getByTestId('portfolio-row-sandpiper')).toBeInTheDocument()
+    expect(screen.queryByTestId('portfolio-row-marlowe')).not.toBeInTheDocument()
     expect(screen.queryByTestId('portfolio-total')).not.toBeInTheDocument()
   })
 
   it('a player with no shares sees that, in the ruleset words', () => {
-    render(<Portfolio holdings={[{ chain: 'Luxor', quantity: 0 }]} prices={{ Luxor: 800 }} />)
+    render(
+      <Portfolio holdings={[{ chain: 'sandpiper', quantity: 0 }]} prices={{ sandpiper: 800 }} />
+    )
     expect(screen.getByTestId('portfolio-empty')).toHaveTextContent('No shares owned')
   })
 
   it('a chain that is not on the board (no price yet) is worth nothing, not NaN', () => {
-    render(<Portfolio holdings={[{ chain: 'Luxor', quantity: 4 }]} prices={{}} />)
-    expect(screen.getByTestId('portfolio-row-luxor')).toHaveTextContent('$0')
+    render(<Portfolio holdings={[{ chain: 'sandpiper', quantity: 4 }]} prices={{}} />)
+    expect(screen.getByTestId('portfolio-row-sandpiper')).toHaveTextContent('$0')
     expect(screen.getByTestId('portfolio-total')).toHaveTextContent('$0')
   })
 })

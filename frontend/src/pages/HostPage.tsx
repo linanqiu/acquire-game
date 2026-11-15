@@ -24,12 +24,12 @@ import { useErrorHandler } from '../hooks/useErrorHandler'
 import { transformBoardToTileStates } from '../utils/transforms'
 import type { ChainId, TradeOffer } from '../types/api'
 import { RulesetScope } from '../ruleset/RulesetScope'
-import { rulesFor, useServerRules, useServerRuleset, type Rules } from '../ruleset/useRules'
+import { rulesFor, useBrand, useServerRuleset, type Rules } from '../ruleset/useRules'
 import { orderChainIds } from '../lib/ruleset'
 import { hostPhaseText } from '../lib/phaseText'
 import styles from './HostPage.module.css'
 
-/** "2 Luxor + $100" style summary of one side of a trade. */
+/** "2 sandpiper + $100" style summary of one side of a trade. */
 function describeSide(
   rules: Rules,
   stocks: Partial<Record<ChainId, number>> | undefined,
@@ -198,12 +198,15 @@ export function HostPage() {
   }, [room])
 
   // Render lobby view
-  const product = useServerRules()
+  const brand = useBrand()
   const renderLobbyView = () => (
     <div className={styles.lobby}>
       <h1 className={styles.lobbyTitle} data-testid="host-title">
-        {product.title.toUpperCase()}
+        {brand.toUpperCase()}
       </h1>
+      <p className={styles.lobbyTheme} data-testid="host-theme">
+        {serverRuleset.title}
+      </p>
       <div className={styles.joinInfo}>
         <div className={styles.qrSection}>
           <div className={styles.qrPlaceholder}>
@@ -442,11 +445,11 @@ export function HostPage() {
 
 // Custom header component for host view
 function HostHeader({ roomCode }: { roomCode: string }) {
-  const product = useServerRules()
+  const brand = useBrand()
   return (
     <header className={styles.hostHeader}>
       <div className={styles.hostLogo} data-testid="header-title">
-        {product.title.toUpperCase()}
+        {brand.toUpperCase()}
       </div>
       <div className={styles.hostRoomCode}>
         <span className={styles.roomLabel}>ROOM</span>

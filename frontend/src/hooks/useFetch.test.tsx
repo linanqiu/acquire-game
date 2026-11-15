@@ -72,11 +72,11 @@ describe('useFetch', () => {
 })
 
 describe('useDocumentTitle', () => {
-  it('sets the page title while mounted and puts the game title back after', () => {
+  it('sets the page title while mounted and puts the brand back after', () => {
     serverRuleset('valley')
-    const { unmount } = renderHook(() => useDocumentTitle('Acquihire Bench'))
-    expect(document.title).toBe('Acquihire Bench')
+    const { unmount } = renderHook(() => useDocumentTitle('Buyout Bench'))
+    expect(document.title).toBe('Buyout Bench')
     unmount()
-    expect(document.title).toBe('Acquihire')
+    expect(document.title).toBe('Buyout')
   })
 })

@@ -26,7 +26,7 @@ export function MergerDisposition({
 }: MergerDispositionProps) {
   const rules = useRules()
   const { theme } = rules
-  // Defunct shares per survivor share (the ruleset's merger_trade_ratio; 2 in classic).
+  // Defunct shares per survivor share (the ruleset's merger_trade_ratio; 2 in default).
   const ratio = Math.max(1, rules.rs.merger_trade_ratio)
   const defunctName = rules.name(defunctChain)
   const survivorName = rules.name(survivorChain)

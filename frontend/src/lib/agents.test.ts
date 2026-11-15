@@ -16,7 +16,7 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
 describe('what a seat is called', () => {
-  const [human, bot, scripted] = playedGame('classic').lobby.players
+  const [human, bot, scripted] = playedGame('default').lobby.players
 
   it('real seats: a human, a rules-based bot and a scripted seat', () => {
     expect(resolveSeatKind(human)).toBe('human')

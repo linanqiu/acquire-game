@@ -14,10 +14,10 @@ import { unplayableReasonText } from '../lib/ruleset'
  * Transform backend board cells to UI tile states.
  *
  * Backend format:
- *   { cells: { "1A": { state: "played", chain: null }, "2B": { state: "in_chain", chain: "Tower" } } }
+ *   { cells: { "1A": { state: "played", chain: null }, "2B": { state: "in_chain", chain: "marlowe" } } }
  *
  * UI format:
- *   { "1A": { state: 'orphan' }, "2B": { state: 'chain', chain: 'Tower' } }
+ *   { "1A": { state: 'orphan' }, "2B": { state: 'chain', chain: 'marlowe' } }
  *
  * Transformation rules:
  *   - If tile not in cells → not included (empty by default)

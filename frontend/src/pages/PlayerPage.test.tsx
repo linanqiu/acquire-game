@@ -32,7 +32,7 @@ function renderPlayerPage(room = 'TEST', query = '') {
 }
 
 /** The lobby the server sent to a player joining a room with a bot and a scripted seat. */
-const lobby = () => playedGame('classic').lobby
+const lobby = () => playedGame('default').lobby
 
 describe('PlayerPage lobby', () => {
   beforeEach(() => {
@@ -78,7 +78,7 @@ describe('PlayerPage lobby', () => {
     expect(screen.getByTestId('start-hint')).toHaveTextContent('Ready to start!')
   })
 
-  it('the host sees why START is off: how many more players are needed (3 in classic, 2 in mini)', () => {
+  it('the host sees why START is off: how many more players are needed (3 in default, 2 in mini)', () => {
     const one = { ...lobby(), players: lobby().players.slice(0, 1), can_start: false }
     useGameStore.getState().handleMessage(one)
     const { unmount } = renderPlayerPage('TEST', '?is_host=1')

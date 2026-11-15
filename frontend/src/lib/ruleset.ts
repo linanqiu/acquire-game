@@ -6,7 +6,7 @@
  */
 
 import type { ChainId, ChainSpec, Ruleset, TierSpec } from '../types/ruleset'
-import { CLASSIC_RULESET } from '../ruleset/classic'
+import { DEFAULT_RULESET } from '../ruleset/defaultRuleset'
 
 // -- Board --------------------------------------------------------------------
 
@@ -114,7 +114,7 @@ export function orderChainIds(rs: Ruleset, ids: Iterable<ChainId>): ChainId[] {
   return [...known, ...unknown]
 }
 
-/** Test id suffix for a chain (ids are opaque; lower-cased so classic ids keep their old test ids). */
+/** Test id suffix for a chain (ids are opaque; lower-cased so test ids are stable). */
 export function chainTestId(chain: ChainId): string {
   return chain.toLowerCase()
 }
@@ -192,14 +192,14 @@ interface StateLike {
 /**
  * The ruleset of a transcript. Headers written by current backends carry it; older ones do not,
  * so it is rebuilt from what the state lines show: the first of `candidates` (normally the
- * server's ruleset, then classic: transcripts from before rulesets were all classic) whose chains
- * and board hold everything seen; failing that, classic numbers with the chains (ids and
+ * server's ruleset, then the default one) whose chains
+ * and board hold everything seen; failing that, default numbers with the chains (ids and
  * colours) and board extent seen in the states.
  */
 export function rulesetForTranscript(
   headerRuleset: Ruleset | null | undefined,
   states: StateLike[],
-  candidates: Ruleset[] = [CLASSIC_RULESET]
+  candidates: Ruleset[] = [DEFAULT_RULESET]
 ): Ruleset {
   if (headerRuleset && Array.isArray(headerRuleset.chains)) return headerRuleset
   const chainIds: string[] = []
@@ -222,23 +222,23 @@ export function rulesetForTranscript(
     chainIds.every((id) => rs.chains.some((c) => c.id === id)) &&
     maxCol <= rs.board.columns &&
     maxRow <= rs.board.rows
-  const known = [...candidates, CLASSIC_RULESET].find(fits)
+  const known = [...candidates, DEFAULT_RULESET].find(fits)
   if (known) return known
-  const classicIds = new Set(CLASSIC_RULESET.chains.map((c) => c.id))
-  const tier = CLASSIC_RULESET.tiers[Math.floor(CLASSIC_RULESET.tiers.length / 2)]
+  const defaultIds = new Set(DEFAULT_RULESET.chains.map((c) => c.id))
+  const tier = DEFAULT_RULESET.tiers[Math.floor(DEFAULT_RULESET.tiers.length / 2)]
   return {
-    ...CLASSIC_RULESET,
+    ...DEFAULT_RULESET,
     id: 'unknown',
-    // Not shown: page chrome uses the server's title. Never claim the classic name for it.
+    // Not shown: page chrome uses the server's title. Never claim the default name for it.
     title: '',
     board: {
       columns: Math.max(maxCol, 2),
       rows: Math.max(maxRow, 2),
     },
     chains: chainIds.map((id) => ({
-      ...chainSpec(CLASSIC_RULESET, id),
-      tier: classicIds.has(id) ? chainSpec(CLASSIC_RULESET, id).tier : tier.id,
-      color: colors[id] ?? chainSpec(CLASSIC_RULESET, id).color,
+      ...chainSpec(DEFAULT_RULESET, id),
+      tier: defaultIds.has(id) ? chainSpec(DEFAULT_RULESET, id).tier : tier.id,
+      color: colors[id] ?? chainSpec(DEFAULT_RULESET, id).color,
     })),
   }
 }

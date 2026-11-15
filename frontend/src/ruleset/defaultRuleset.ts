@@ -1,17 +1,16 @@
 /**
- * The classic ruleset, used ONLY as a fallback: before the server's configuration has loaded in
- * unit tests, and for transcripts recorded before transcript headers carried their ruleset (those
- * games were all classic). The running app always shows the server's ruleset
- * (`GET /api/config/game`) or the game's own (`game_state.ruleset`).
+ * The default ruleset, used ONLY as a fallback: before the server's configuration has loaded in
+ * unit tests, and for transcripts whose header carries no ruleset. The running app always shows
+ * the server's ruleset (`GET /api/config/game`) or the game's own (`game_state.ruleset`).
  *
- * Mirrors backend/rulesets/classic.json (a unit test keeps the two identical).
+ * Mirrors backend/rulesets/default.json (a unit test keeps the two identical).
  */
 import type { Ruleset } from '../types/ruleset'
 
-export const CLASSIC_RULESET: Ruleset = {
-  id: 'classic',
+export const DEFAULT_RULESET: Ruleset = {
+  id: 'default',
   version: 1,
-  title: 'Acquire',
+  title: 'Grand Hotels',
   theme: {
     chain_noun: 'hotel chain',
     chain_noun_plural: 'hotel chains',
@@ -23,7 +22,7 @@ export const CLASSIC_RULESET: Ruleset = {
     safe_phrase: 'safe',
     currency_symbol: '$',
     tagline: 'Found hotel chains, buy stock, merge for profit.',
-    game_description: "Sid Sackson's hotel-chain board game",
+    game_description: 'a board game about founding and merging hotel chains',
   },
   board: {
     columns: 12,
@@ -159,53 +158,53 @@ export const CLASSIC_RULESET: Ruleset = {
   ],
   chains: [
     {
-      id: 'Luxor',
-      name: 'Luxor',
+      id: 'sandpiper',
+      name: 'Sandpiper',
       tier: 'cheap',
-      color: '#FFD700',
-      abbreviation: 'L',
+      color: '#E3B448',
+      abbreviation: 'SP',
     },
     {
-      id: 'Tower',
-      name: 'Tower',
+      id: 'marlowe',
+      name: 'Marlowe',
       tier: 'cheap',
-      color: '#8B4513',
-      abbreviation: 'T',
+      color: '#8E2C48',
+      abbreviation: 'MA',
     },
     {
-      id: 'American',
-      name: 'American',
+      id: 'halcyon',
+      name: 'Halcyon',
       tier: 'medium',
-      color: '#0000FF',
-      abbreviation: 'A',
+      color: '#1F7A8C',
+      abbreviation: 'HA',
     },
     {
-      id: 'Worldwide',
-      name: 'Worldwide',
+      id: 'meridian',
+      name: 'Meridian',
       tier: 'medium',
-      color: '#800080',
-      abbreviation: 'W',
+      color: '#E07A3F',
+      abbreviation: 'ME',
     },
     {
-      id: 'Festival',
-      name: 'Festival',
+      id: 'juniper',
+      name: 'Juniper',
       tier: 'medium',
-      color: '#008000',
-      abbreviation: 'F',
+      color: '#3E7C4A',
+      abbreviation: 'JU',
     },
     {
-      id: 'Imperial',
-      name: 'Imperial',
+      id: 'obsidian',
+      name: 'Obsidian',
       tier: 'expensive',
-      color: '#FF0000',
-      abbreviation: 'I',
+      color: '#2E3A59',
+      abbreviation: 'OB',
     },
     {
-      id: 'Continental',
-      name: 'Continental',
+      id: 'aurelia',
+      name: 'Aurelia',
       tier: 'expensive',
-      color: '#00FFFF',
-      abbreviation: 'C',
+      color: '#B48CDB',
+      abbreviation: 'AU',
     },
   ],
   bonuses: {

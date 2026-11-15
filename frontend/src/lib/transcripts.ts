@@ -1,6 +1,6 @@
 /**
- * HTTP client for game transcripts and Acquire Bench
- * (docs/architecture/seat-contract.md, "Game transcripts and Acquire Bench").
+ * HTTP client for game transcripts and Buyout Bench
+ * (docs/architecture/seat-contract.md, "Game transcripts and Buyout Bench").
  * Same-origin `/api/...` calls; the Vite proxy strips the `/api` prefix.
  */
 

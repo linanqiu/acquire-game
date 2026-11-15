@@ -10,7 +10,7 @@ import { useRulesetStore } from '../../../src/ruleset/store'
 import type { Ruleset } from '../../../src/types/ruleset'
 import { ALL_RULESETS } from './rulesets'
 
-export type RulesetName = 'classic' | 'valley' | 'mini'
+export type RulesetName = 'default' | 'valley' | 'mini'
 export type SnapshotName = keyof typeof raw.snapshots
 
 export interface SnapshotView {

@@ -26,7 +26,6 @@ export type LobbyPlayer = LobbySeat
 export interface CurrentPlayer {
   id: string
   name: string
-  token: string
   isHost: boolean
 }
 
