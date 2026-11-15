@@ -10,6 +10,7 @@ import {
   playerRows,
   rack,
 } from './support/ui'
+import { openTab, showBoard } from '../support/tabs'
 
 const VIEWPORTS = [
   { label: 'desktop', width: 1280, height: 800 },
@@ -55,6 +56,7 @@ for (const fixtureName of ['three-player-midgame', 'six-player-midgame']) {
       await expect(headerCash(page)).toHaveText(dollars(human.cash))
 
       // Every seat has its card with the right cash; the human's is marked YOU.
+      await openTab(page, 'players')
       await expect(playerRows(page)).toHaveCount(players.length)
       for (const p of players) {
         const row = playerRows(page).filter({ hasText: p.name })
@@ -68,7 +70,7 @@ for (const fixtureName of ['three-player-midgame', 'six-player-midgame']) {
       await expect(playerRows(page).filter({ hasText: human.name })).toContainText('YOU')
 
       // Board and rack are fully on screen horizontally and the rack is usable.
-      await expect(page.getByTestId('board')).toBeVisible()
+      await showBoard(page)
       await expect(rack(page).locator('[data-testid^="tile-"]')).toHaveCount(human.hand.length)
       await expect(clickableRackTiles(page)).toHaveCount(
         human.hand.length - Object.keys(human.unplayable_tiles).length
@@ -87,13 +89,16 @@ for (const fixtureName of ['three-player-midgame', 'six-player-midgame']) {
         })
       }
       await expectWithinViewportWidth(page, '[data-testid="tile-rack"] > *', 'rack tiles')
+      await openTab(page, 'players')
       await expectWithinViewportWidth(page, '[data-testid="player-row"]', 'player cards')
+      await openTab(page, 'trades')
       await expectWithinViewportWidth(page, '[data-testid="trade-offers"]', 'trade panel')
       await shots.take(page, `${vp.label}-checked`)
 
       // The layout holds up through real turns too (buy phase, other seats' moves).
       await playHumanTurns(page, room, 3, shots)
       await expectNoHorizontalScroll(page)
+      await openTab(page, 'players')
       await expectWithinViewportWidth(page, '[data-testid="player-row"]', 'player cards')
       await shots.take(page, `${vp.label}-after-turns`)
     })

@@ -98,16 +98,24 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | PG-22 | Chains table (`ChainTable`): size, price, bank stock, SAFE, majority and minority holders with shares and bonus if bought now (ties marked), my shares and position ("2nd, 1 ahead", "3 behind 2nd") | all game phases | `screens/table-view.spec.ts : table view on desktop`; `screens/table-view.spec.ts : table view on phone`; `src/components/game/TableView.test.tsx : names the 1st and 2nd holders` | 3 |
 | PG-23 | Merger result card (`MergerResult`): takeover, sizes, bonuses paid, each stockholder's sell/trade/keep as it comes in, CLOSE | a merger starts (or is in progress on load) | `screens/table-view.spec.ts : merger result: bonuses at once`; `screens/table-view.spec.ts : merger result after the human's own merger`; `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 3, 4 |
 | PG-24 | Merger log (`MergerLog`): every merger of the game, reopens its result card | after the first merger | `screens/table-view.spec.ts : merger result: bonuses at once` | 3 |
-| PG-25 | Desktop layout at 1366x768: board with the rack under it, action panel beside it, rack on screen without scrolling in every phase | all decision phases | `screens/table-view.spec.ts : 1366x768, place tile`; `screens/table-view.spec.ts : 1366x768, disposition`; `screens/table-view.spec.ts : 1366x768, buy` | 3 |
+| PG-25 | Desktop layout at 1366x768: board with the rack under it, the "now" area (action card) on top of the sidebar and the tabs below it, rack on screen without scrolling in every phase, each tab fits | all decision phases | `screens/table-view.spec.ts : 1366x768, place tile`; `screens/table-view.spec.ts : 1366x768, disposition`; `screens/table-view.spec.ts : 1366x768, buy` | 3 |
+| PG-26 | Phone tab bar (`GameLayout`, `TabList`, `tab-bar`): Board / Players / Chains / Chat / Trades at the bottom, under the "now" dock (`now-area`: action card, incoming offers, rack); at 390x844 and 360x640 in place-tile, buy, disposition and waiting states the dock, the rack and the bar are on screen, apart, and the page does not scroll | phones (< 768px) | `screens/tabs.spec.ts : action card, rack and tabs fit; every tab shows its content`; `journeys/mobile-player.spec.ts : mobile player` | 3, 4 |
+| PG-27 | Sidebar tabs on wide screens (`tab-list`): Players / Chains / Chat / Trades under the action card, board always on the left (no Board tab); at 1366x768 and 768x1024 each tab fits and the page does not scroll | tablets and up | `screens/tabs.spec.ts : action card, rack and tabs fit; every tab shows its content` | 3 |
+| PG-28 | Board tab (phones): the board fits the tab's width and height; opens by itself when my place-tile turn starts (not while I type in the chat); dot on the tab while my tile waits and another tab is open | phones | `screens/tabs.spec.ts : phone: my place-tile turn opens the Board`; `screens/tabs.spec.ts : phone: unread chat badge`; `screens/layout.spec.ts : busy`; `src/hooks/useGameTabs.test.ts : goes to the Board` | 3 |
+| PG-29 | Players tab (`tabpanel-players`): net worth from the fixture | all game phases | `screens/tabs.spec.ts : action card, rack and tabs fit; every tab shows its content`; `screens/table-view.spec.ts : table view on phone` | 3 |
+| PG-30 | Chains tab (`tabpanel-chains`, label from the ruleset: Chains / Startups / Lines): majority holders from the fixture | all game phases | `screens/tabs.spec.ts : action card, rack and tabs fit; every tab shows its content`; `screens/table-view.spec.ts : table view on phone` | 3 |
+| PG-31 | Chat tab (`tabpanel-chat`) with the unread badge (`tab-badge-chat`; history sent on a first visit counts as read) | all game phases | `screens/chat.spec.ts : chat on a phone`; `screens/tabs.spec.ts : phone: unread chat badge` | 3 |
+| PG-32 | Trades tab (`tabpanel-trades`): my offers, PROPOSE TRADE and the mergers log; badge with the number of offers waiting for my answer (`tab-badge-trades`), dot when a merger result arrives | all game phases | `screens/trades.spec.ts : outgoing offer stays pending until cancelled`; `screens/tabs.spec.ts : phone: an incoming trade offer`; `screens/tabs.spec.ts : phone: the merger result stays on top`; `screens/table-view.spec.ts : merger result after the human's own merger` | 3 |
+| PG-33 | Selected tab remembered per room for the session (reload keeps it) | | `screens/tabs.spec.ts : phone: my place-tile turn opens the Board`; `screens/chat.spec.ts : chat on desktop` | 3 |
 | PG-21 | AI fallback marker ("BOT ASSIST xN") when an LLM seat had to be replaced by the bot | `seat-fallback-*` | `src/components/game/AgentFallback.test.tsx : fallback`; GAP: browser coverage needs a fake LLM that answers illegally on purpose; the test-mode fake LLM only plays legal first moves (protocol side: `backend/tests/protocol/test_llm_retries.py`) | unit |
 
 ## 5. Player page: modals and trading
 
 | ID | Surface | Notes | Covered by | Tier |
 |----|---------|-------|------------|------|
-| TR-01 | Propose Trade modal (`Modal` + `TradeBuilder`) | opened from the trade panel | `screens/trades.spec.ts : propose a trade through the builder` | 3, 4 |
+| TR-01 | Propose Trade modal (`Modal` + `TradeBuilder`) | opened from the Trades tab | `screens/trades.spec.ts : propose a trade through the builder` | 3, 4 |
 | TR-02 | Trade builder validation (partner, offer, request; the steppers stop at what you hold) | | `screens/trades.spec.ts : propose a trade through the builder`; `journeys/trade-with-ai.spec.ts : trade with AI` | 3, 4 |
-| TR-03 | Incoming trade offer with accept/reject (`TradeOffers`), on my turn and on another's turn | | `screens/trades.spec.ts : incoming offer on my turn: accept it`; `screens/trades.spec.ts : incoming offer on my turn: reject it`; `screens/trades.spec.ts : incoming offer while another player is on turn`; `screens/reload.spec.ts : reload with a trade offer waiting` | 3, 4 |
+| TR-03 | Incoming trade offer with accept/reject (`TradeOffers part="incoming"`, `trade-incoming`), in the "now" area whatever tab is open, on my turn and on another's turn | | `screens/trades.spec.ts : incoming offer on my turn: accept it`; `screens/trades.spec.ts : incoming offer on my turn: reject it`; `screens/trades.spec.ts : incoming offer while another player is on turn`; `screens/reload.spec.ts : reload with a trade offer waiting` | 3, 4 |
 | TR-04 | Trade accepted/rejected/cancelled notifications (toasts, both sides) | | `screens/trades.spec.ts : outgoing offer: a scripted opponent accepts it`; `screens/trades.spec.ts : outgoing offer: a scripted opponent rejects it`; `journeys/two-humans-and-bot.spec.ts : two humans and a bot` | 3, 4 |
 | TR-05 | Trade with an LLM or scripted seat end to end | | `journeys/trade-with-ai.spec.ts : trade with AI`; `screens/trades.spec.ts : outgoing offer: a scripted opponent accepts it` | 3, 4 |
 | TR-06 | Outgoing offer pending, with cancel | `trade-outgoing-*`, `trade-cancel-*` | `screens/trades.spec.ts : outgoing offer stays pending until cancelled` | 3, 4 |
@@ -118,8 +126,8 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | ID | Surface | Notes | Covered by | Tier |
 |----|---------|-------|------------|------|
 | CH-01 | Chat in the player lobby: send with Enter, own line marked YOU, the Fake LLM answers | `chat-panel`, `chat-input`, `chat-message` | `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 4 |
-| CH-02 | Chat in game on desktop: open by default, AI reply with the AI badge, text shown as text (never HTML), the game untouched | `chat-send`, `chat-list` | `screens/chat.spec.ts : chat on desktop` | 3 |
-| CH-03 | Chat on a phone: collapsed by default behind a bar with an unread count; never over the board or the tile rack; open, send, collapse | `chat-toggle`, `chat-unread` | `screens/chat.spec.ts : chat on a phone` | 3 |
+| CH-02 | Chat in game on desktop: the sidebar's Chat tab, AI reply with the AI badge, text shown as text (never HTML), the game untouched | `chat-send`, `chat-list` | `screens/chat.spec.ts : chat on desktop` | 3 |
+| CH-03 | Chat on a phone: a tab of the bottom bar with an unread count; never over the board, the tile rack or the tab bar; open, send, back to the board (the old collapsing bar was removed in BL-008) | `tab-chat`, `tab-badge-chat` | `screens/chat.spec.ts : chat on a phone` | 3 |
 | CH-04 | Who reads the chat: the AI seats that may answer; "rules-based bots do not chat" | `chat-readers` | `screens/chat.spec.ts : chat on desktop`; `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 3, 4 |
 | CH-05 | Host / spectator view: same messages, read-only with the reason | `chat-read-only` | `screens/chat.spec.ts : chat on desktop` | 3 |
 | CH-06 | Chat history after a reload / reconnect, in order | `chat_history` | `screens/chat.spec.ts : chat on desktop`; `backend/tests/protocol/test_chat.py : test_reconnect_gets_the_history_in_order` | 2, 3 |
@@ -134,13 +142,14 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 |----|---------|-------|------------|------|
 | HO-01 | Host lobby: "WAITING FOR PLAYERS", player list | | `journeys/spectator-host-view.spec.ts : spectator host view`; `screens/lobby.spec.ts : host/spectator lobby` | 3, 4 |
 | HO-02 | Host lobby: add AI control, START GAME | | `journeys/spectator-host-view.spec.ts : spectator host view`; `screens/lobby.spec.ts : host/spectator lobby` | 3, 4 |
-| HO-03 | Host in-game view: board (large), players table (`Standings`, rows `player-card`), chains table (`ChainTable`) | | `screens/host.spec.ts : host view of a busy mid-game board`; `journeys/spectator-host-view.spec.ts : spectator host view` | 3, 4 |
+| HO-12 | Host on a TV (1920x1080): board, Players and Chains pinned side by side (`pinned-players`, `pinned-chains`) without a tap; Chat and Log stay tabs | `(min-width: 1600px) and (min-height: 900px)` | `screens/host.spec.ts : board, scoreboard and chain list do not overlap or leave the screen` | 3 |
+| HO-03 | Host in-game view: board (large; always visible on wide screens, a tab on phones), Players / Chains / Chat / Log tabs (`Standings` rows `player-card`, `ChainTable`); every tab fits at 390x844, 360x640, 768x1024, 1100x700 and 1366x768 without page scroll | | `screens/host.spec.ts : host view of a busy mid-game board`; `journeys/spectator-host-view.spec.ts : spectator host view` | 3, 4 |
 | HO-04 | Host: merger in progress | | `screens/host.spec.ts : host view of a merger in progress` | 3, 4 |
 | HO-05 | Host: thinking indicator | | `journeys/spectator-host-view.spec.ts : spectator host view`; GAP: no screen test, same reason as PG-12 | 4 |
 | HO-06 | Host: game over with the full results table | | `screens/host.spec.ts : host view of a finished game`; `journeys/spectator-host-view.spec.ts : spectator host view` | 3, 4 |
-| HO-07 | Host: activity log ("Bot 1 joined", ..., and the mergers) | `role=log` | `journeys/spectator-host-view.spec.ts : spectator host view` | 4 |
+| HO-07 | Host: activity log in the Log tab ("Bot 1 joined", ..., and the mergers) | `role=log` | `journeys/spectator-host-view.spec.ts : spectator host view` | 4 |
 | HO-08 | Host: start/add failure toast | | `screens/lobby.spec.ts : host/spectator lobby` | 3 |
-| HO-09 | Host: pending trades list | `pending-trades` | `screens/host.spec.ts : host view lists a pending trade` | 3 |
+| HO-09 | Host: pending trades list (Log tab) | `pending-trades` | `screens/host.spec.ts : host view lists a pending trade` | 3 |
 | HO-10 | Host: net worth and rank per player, majority/minority holders per chain | | `screens/table-view.spec.ts : table view on desktop`; `screens/table-view.spec.ts : table view on phone` | 3 |
 | HO-11 | Host: merger result card and its entry in the activity log (reopen after closing) | | `screens/table-view.spec.ts : merger result: bonuses at once` | 3 |
 
@@ -206,9 +215,10 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | `AddAiControl`, `RemoveSeatButton` | menu, disabled entry, remove | PL-02..04 | `screens/lobby.spec.ts : lobby: AI menu` |
 | `AiThinking` | shown while an AI seat decides | PG-12 | `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` |
 | `SeatKindBadge` | bot, LLM, scripted, fallback marker | PG-20, PG-21 | `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` |
-| `ChatPanel` | open, collapsed with unread count, read-only (spectator), AI badge | CH-01..CH-05 | `screens/chat.spec.ts : chat on a phone`; `screens/chat.spec.ts : chat on desktop` |
+| `ChatPanel` | card (lobby, game over), in a tab, read-only (spectator), AI badge | CH-01..CH-05 | `screens/chat.spec.ts : chat on a phone`; `screens/chat.spec.ts : chat on desktop` |
+| `GameLayout`, `Tabs` (`TabList`, `TabPanels`) | phone: tab panel + now dock + bottom bar; wide: board + sidebar (now area, tabs); TV: pinned Players and Chains; count and dot badges | PG-26..PG-33, HO-03, HO-12 | `screens/tabs.spec.ts : action card, rack and tabs fit; every tab shows its content`; `screens/host.spec.ts : board, scoreboard and chain list do not overlap or leave the screen`; `src/components/ui/Tabs.test.tsx : arrow keys` |
 | `Modal` | open (trade builder), backdrop | TR-01 | `screens/trades.spec.ts : propose a trade through the builder` |
-| `Header`, `PageShell` | room, name, cash, tile pool | PG-14 | `screens/turn-basics.spec.ts : opening turn` |
+| `Header`, `PageShell` | room, name, cash, tile pool; `fill` (in game: the screen, no page scroll) | PG-14, PG-26 | `screens/turn-basics.spec.ts : opening turn` |
 | `Slider`, `Badge` | disposition sliders; status and kind badges | PG-06, TX-01 | `screens/merger.spec.ts : disposition (human first)` |
 | `DecisionPanel`, `LlmPanel`, `TextBlock`, `Timeline`, `VirtualList`, `ReplayBoard`, `SummaryHeader`, `SeatChip`, `RangeBar`, `PageFrame` | transcript and bench widgets | TX-01..TX-15, BN-01..BN-07 | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` |
 
@@ -237,8 +247,8 @@ Facts learned while filling this map (2026-11-14):
 
 ## Summary (checked by the script; update when rows change)
 
-- Surfaces: 134
-- Covered: 129
+- Surfaces: 144
+- Covered: 139
 - GAP: 7
 - Journeys: 7
 

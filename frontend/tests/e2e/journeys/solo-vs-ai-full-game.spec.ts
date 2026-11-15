@@ -10,6 +10,7 @@ import { test, expect } from './support/journey'
 import { addAi, addBot, createGame, seatBadges, startGame } from './support/lobby'
 import { Seat, installObservers, observed } from './support/play'
 import { outgoingTo, proposeTrade } from './support/trade'
+import { openTab } from '../support/tabs'
 
 const MIN_TURNS = 20
 const LLM = 'Fake LLM (test)'
@@ -39,8 +40,9 @@ test('@ci solo vs AI: full game from the home page to game over and play again',
   await j.shot(page, 'lobby-with-ai-seats')
 
   // --- Table chat with the Fake LLM (UI only) ----------------------------------------------
+  // In the lobby the chat is under the content, no tab to open.
   const chat = page.getByTestId('chat-panel')
-  await expect(chat).toHaveAttribute('data-open', 'true')
+  await expect(chat).toBeVisible()
   await expect(page.getByTestId('chat-readers')).toContainText(
     `AI that reads chat and may answer: ${LLM}.`
   )
@@ -62,11 +64,13 @@ test('@ci solo vs AI: full game from the home page to game over and play again',
   await j.shot(page, 'lobby-chat-llm-replied')
 
   await startGame(page, j)
-  // The chat (and its history) stays through the start of the game.
-  await expect(mine.filter({ hasText: hello })).toHaveCount(1)
-  await j.shot(page, 'game-started')
+  // The chat (and its history) stays through the start of the game, in the Chat tab.
+  await openTab(page, 'chat')
+  await expect(mine.filter({ hasText: hello })).toBeVisible()
+  await j.shot(page, 'game-started-chat-tab')
 
   // AI seats carry their kind badges in the players panel.
+  await openTab(page, 'players')
   for (const id of aiIds)
     await expect(page.locator(`[data-testid="player-row"][data-player-id="${id}"]`)).toBeVisible()
   await expect(page.locator('[data-testid="player-row"] [data-kind="bot"]')).toHaveCount(1)

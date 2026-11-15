@@ -5,13 +5,15 @@
  * tapping instead of clicking. On every screen: no horizontal scrolling, and every
  * control needed for the turn (rack tiles, PLACE TILE, chain selector, disposition
  * sliders and CONFIRM, buy steppers and END TURN, the TRADES panel and the Propose
- * Trade modal) is inside the viewport's width and can be scrolled to and tapped.
+ * Trade modal) is inside the viewport's width and can be scrolled to and tapped. The reference
+ * views are reached through the bottom tab bar (BL-008): Board, Players, Chains, Chat, Trades.
  */
 import type { Locator, Page } from '@playwright/test'
 import { test, expect } from './support/journey'
 import { addAi, addBot, createGame, startGame } from './support/lobby'
 import { Seat, installObservers } from './support/play'
 import { outgoingTo, proposeTrade } from './support/trade'
+import { openTab } from '../support/tabs'
 
 const WIDTH = 390
 const LLM = 'Fake LLM (test)'
@@ -73,12 +75,32 @@ test('mobile player: 8 turns at phone size with trade panel and disposition', as
     seen.add(phase)
     switch (phase) {
       case 'PLACE A TILE': {
+        // My place-tile turn opens the Board tab by itself.
+        await expect(page.getByTestId('tab-board')).toHaveAttribute('aria-selected', 'true')
+        await expect(page.getByTestId('board')).toBeVisible()
         const tile = page.getByTestId('tile-rack').locator('[role="button"]').first()
         await reachable(tile, 'first playable rack tile')
-        await reachable(
-          page.getByTestId('trade-offers').getByRole('button', { name: 'PROPOSE TRADE' }),
-          'PROPOSE TRADE'
-        )
+        for (const name of ['board', 'players', 'chains', 'chat', 'trades']) {
+          await reachable(page.getByTestId(`tab-${name}`), `${name} tab`)
+        }
+        // Look around through the tab bar, then come back to the board to play.
+        if (!seen.has('tabs-visited')) {
+          seen.add('tabs-visited')
+          await openTab(page, 'players', { tap: true })
+          await expect(page.getByTestId('player-row').filter({ hasText: 'YOU' })).toBeVisible()
+          await openTab(page, 'chains', { tap: true })
+          await expect(page.getByTestId('tabpanel-chains')).toContainText(/You hold no|1st/i)
+          await expect(page.getByTestId('tabpanel-chains')).toBeInViewport()
+          await j.shot(page, 'mobile-chains-tab')
+          await openTab(page, 'trades', { tap: true })
+          await reachable(
+            page.getByTestId('trade-offers').getByRole('button', { name: 'PROPOSE TRADE' }),
+            'PROPOSE TRADE'
+          )
+          await j.shot(page, 'mobile-trades-tab')
+          await openTab(page, 'board', { tap: true })
+          await reachable(tile, 'first playable rack tile (back on the board)')
+        }
         break
       }
       case 'CHOOSE A HOTEL CHAIN':
@@ -104,6 +126,7 @@ test('mobile player: 8 turns at phone size with trade panel and disposition', as
         const holdings = await seat.holdings(myId)
         const chain = Object.keys(holdings).find((c) => holdings[c] > 0)
         if (!traded && chain && seat.turnsCompleted >= 4) {
+          await openTab(page, 'trades', { tap: true })
           await page
             .getByTestId('trade-offers')
             .getByRole('button', { name: 'PROPOSE TRADE' })
