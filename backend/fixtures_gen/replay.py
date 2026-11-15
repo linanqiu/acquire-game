@@ -10,7 +10,6 @@ from game.rules import Rules
 from game.ruleset import Ruleset
 
 PLAYER_NAMES = ["Alice", "Bob", "Cara", "Dev", "Eli", "Fay"]
-HUMAN_SEAT = "p1"
 
 
 class ReplayError(Exception):

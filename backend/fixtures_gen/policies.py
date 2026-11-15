@@ -32,10 +32,6 @@ class Policy:
     disp: str = "random"  # sell | hold | trade | random | split
     buy: str = "cheap"  # none | cheap | pricey | random | spread | focus
 
-    @property
-    def id(self) -> str:
-        return f"{self.tile}/{self.found}/{self.survivor}/{self.disp}/{self.buy}"
-
 
 # Outcome priority for tile modes (lower is preferred).
 _TILE_PRIORITY = {
