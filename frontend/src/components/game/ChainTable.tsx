@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { ChainMarker } from './ChainMarker'
 import { chainTestId } from '../../lib/ruleset'
 import { useRules, type Rules } from '../../ruleset/useRules'
@@ -17,43 +18,66 @@ function names(gameState: GameStateMessage, holders: ChainHolder[]): string {
   return holders.map((h) => gameState.players[h.player_id]?.name ?? '?').join(' & ')
 }
 
-/** One bonus line: who is 1st / 2nd, with how many shares and what they would be paid now. */
-function RoleLine({
+/**
+ * One holder chip: who is 1st / 2nd, with how many shares and what they would be paid now, and
+ * a thin bar for the share of the chain's stock they hold. Ties and a sole holder say so.
+ */
+function RoleChip({
   gameState,
   rules,
   info,
   role,
   chain,
+  me,
 }: {
   gameState: GameStateMessage
   rules: Rules
   info: ChainHolders
   role: 'majority' | 'minority'
   chain: ChainId
+  me?: string
 }) {
   const group = info.holders.filter((h) => h.role === role)
   const majorityTie = info.holders.filter((h) => h.role === 'majority').length > 1
   const sole = info.holders.length === 1
-  let body: string
+  let who: string
+  let detail: string
+  let shares = 0
   if (group.length > 0) {
     const tie = group.length > 1
-    const shares = group[0].shares
-    const pay = rules.money(group[0].bonus)
-    body = `${names(gameState, group)}: ${rules.shares(shares)} → ${pay}${tie ? ' each (tie)' : ''}${
+    shares = group[0].shares
+    who = names(gameState, group)
+    detail = `${shares} → ${rules.money(group[0].bonus)}${tie ? ' each (tie)' : ''}${
       sole ? ' (sole holder: both bonuses)' : ''
     }`
   } else if (role === 'minority' && majorityTie) {
-    body = 'none: the tie for 1st shares both bonuses'
+    who = 'none'
+    detail = 'the tie for 1st shares both bonuses'
   } else if (role === 'minority' && sole) {
     return null
   } else {
-    body = `nobody · ${rules.money(role === 'majority' ? info.majority_bonus : info.minority_bonus)}`
+    who = 'nobody'
+    detail = rules.money(role === 'majority' ? info.majority_bonus : info.minority_bonus)
   }
+  const isMe = !!me && group.some((h) => h.player_id === me)
+  const total = rules.rs.stocks_per_chain || 25
   return (
-    <div className={styles.role} data-testid={`chain-${role}-${chainTestId(chain)}`}>
+    <span
+      className={`${styles.chip} ${isMe ? styles.chipMe : ''}`}
+      data-testid={`chain-${role}-${chainTestId(chain)}`}
+      title={`${ORDINAL[role]}: ${who}, ${rules.shares(shares)}`}
+    >
       <span className={styles.roleLabel}>{ORDINAL[role]}</span>
-      <span className={styles.roleBody}>{body}</span>
-    </div>
+      <span className={styles.who}>{who}</span>
+      <span className={styles.figures}>{detail}</span>
+      {shares > 0 && (
+        <span
+          className={styles.bar}
+          style={{ '--share': Math.min(1, shares / total) } as CSSProperties}
+          aria-hidden="true"
+        />
+      )}
+    </span>
   )
 }
 
@@ -119,58 +143,70 @@ export function ChainTable({ gameState, myPlayerId }: ChainTableProps) {
         const mine = me?.stocks[chain.name] ?? 0
         const id = chainTestId(chain.name)
         return (
-          <div key={chain.name} className={styles.chain} data-testid={`chain-row-${id}`}>
-            <ChainMarker
-              chain={chain.name}
-              size={chain.size}
-              price={chain.price}
-              available={chain.stocks_available}
-              safe={chain.size >= safeSize}
-              variant="full"
-            />
-            {info && (
-              <div className={styles.roles}>
-                {info.holders.length === 0 ? (
-                  <div className={styles.role} data-testid={`chain-majority-${id}`}>
+          <div
+            key={chain.name}
+            className={`${styles.chain} ${me && mine > 0 ? styles.held : ''}`}
+            data-testid={`chain-row-${id}`}
+          >
+            <div className={styles.head}>
+              <ChainMarker
+                chain={chain.name}
+                size={chain.size}
+                price={chain.price}
+                available={chain.stocks_available}
+                safe={chain.size >= safeSize}
+                variant="full"
+              />
+            </div>
+            <div className={styles.roles}>
+              {info &&
+                (info.holders.length === 0 ? (
+                  <span className={styles.chip} data-testid={`chain-majority-${id}`}>
                     <span className={styles.roleLabel}>1st</span>
-                    <span className={styles.roleBody}>
+                    <span className={styles.figures}>
                       no {rules.theme.share_noun_plural} held yet ·{' '}
                       {rules.money(info.majority_bonus)} / {rules.money(info.minority_bonus)}
                     </span>
-                  </div>
+                  </span>
                 ) : (
                   <>
-                    <RoleLine
+                    <RoleChip
                       gameState={gameState}
                       rules={rules}
                       info={info}
                       role="majority"
                       chain={chain.name}
+                      me={myPlayerId}
                     />
-                    <RoleLine
+                    <RoleChip
                       gameState={gameState}
                       rules={rules}
                       info={info}
                       role="minority"
                       chain={chain.name}
+                      me={myPlayerId}
                     />
                   </>
-                )}
-              </div>
-            )}
-            {me && mine > 0 && (
-              <div className={styles.mine} data-testid={`portfolio-row-${id}`}>
-                <span className={styles.roleLabel}>you</span>
-                <span>
-                  {mine} {rules.name(chain.name)} = {rules.money(mine * chain.price)}
-                </span>
-                {info && (
-                  <span className={styles.position} data-testid={`chain-you-${id}`}>
-                    {myPosition(info, myPlayerId!)}
+                ))}
+              {me && mine > 0 && (
+                <span
+                  className={`${styles.chip} ${styles.mine}`}
+                  data-testid={`portfolio-row-${id}`}
+                >
+                  <span className={styles.roleLabel}>you</span>
+                  <span className={styles.figures}>
+                    {mine}
+                    <span className={styles.srOnly}> {rules.name(chain.name)}</span> ={' '}
+                    {rules.money(mine * chain.price)}
                   </span>
-                )}
-              </div>
-            )}
+                  {info && (
+                    <span className={styles.position} data-testid={`chain-you-${id}`}>
+                      {myPosition(info, myPlayerId!)}
+                    </span>
+                  )}
+                </span>
+              )}
+            </div>
           </div>
         )
       })}

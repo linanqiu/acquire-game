@@ -37,6 +37,9 @@
   --turn-accent: #5cc8ff;
   --turn-tint: #183a5c;
   --turn-card: #1a2d52;
+  /* Chains tab: holder chips, rows the viewer holds. */
+  --chip-bg: rgba(255, 255, 255, 0.05);
+  --held-bg: rgba(92, 200, 255, 0.05);
   /* A number that just went up / down (cash, net worth). */
   --flash-up: rgba(107, 255, 138, 0.35);
   --flash-down: rgba(255, 107, 107, 0.35);
