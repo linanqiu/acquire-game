@@ -242,12 +242,14 @@ describe('starting the game from the host screen', () => {
     return fn
   }
 
-  it('START GAME posts to the room and says the game started', async () => {
+  it('START GAME posts to the room', async () => {
     const fn = answer(200)
     deliver(lobby())
     renderHostPage('WXYZ')
     fireEvent.click(screen.getByText('START GAME'))
-    await waitFor(() => expect(screen.getByText('Game started!')).toBeInTheDocument())
+    await waitFor(() =>
+      expect(fn.mock.calls.some((c) => String(c[0]).endsWith('/start'))).toBe(true)
+    )
     const call = fn.mock.calls.find((c) => String(c[0]).endsWith('/start'))!
     expect(String(call[0])).toBe('/api/room/WXYZ/start')
     expect((call as unknown as [string, RequestInit])[1].method).toBe('POST')

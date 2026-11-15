@@ -76,38 +76,6 @@
   margin-bottom: var(--space-8);
 }
 
-.qrSection {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-}
-
-.qrPlaceholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.qrBox {
-  width: 120px;
-  height: 120px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--bg-tertiary);
-  border: 2px solid var(--border-color);
-  border-radius: var(--radius-md);
-  font-size: var(--text-xl);
-  color: var(--text-secondary);
-}
-
-.scanText {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  margin: 0;
-}
-
 .roomCodeDisplay {
   display: flex;
   flex-direction: column;
@@ -176,6 +144,10 @@
 
 .playerName {
   font-weight: var(--font-medium);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .botBadge {
@@ -332,19 +304,35 @@
 }
 
 @media (max-width: 1024px) {
+  /* One column: board, then the panels, then the activity log. Each needs its own row: the
+     desktop rule puts board and sidebar both in row 1, which stacked them on top of each other
+     on phones and tablets. */
   .gameLayout {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto 1fr auto;
+    grid-template-rows: auto auto auto;
     height: auto;
   }
 
+  .boardSection {
+    grid-row: 1;
+    --board-max-height: 70vh;
+  }
+
   .sidebar {
-    flex-direction: row;
-    overflow-x: auto;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+    align-items: start;
+    overflow: visible;
+    min-width: 0;
   }
 
   .sidebar > * {
-    min-width: 280px;
+    min-width: 0;
+  }
+
+  .activityLog {
+    grid-row: 3;
   }
 }
 
@@ -359,14 +347,22 @@
     letter-spacing: 4px;
   }
 
-  .qrSection {
-    flex-direction: column;
-    gap: var(--space-4);
+  .playerGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-width: auto;
   }
 
-  .playerGrid {
-    grid-template-columns: repeat(2, 1fr);
-    min-width: auto;
+  .lobbyPlayerCard {
+    font-size: var(--text-md);
+    padding: var(--space-2);
+  }
+
+  .lobby {
+    padding: var(--space-4);
+  }
+
+  .url {
+    word-break: break-all;
   }
 
   .lobbyActions {
@@ -376,6 +372,22 @@
   .gameLayout {
     padding: var(--space-2);
     gap: var(--space-2);
+    font-size: 16px;
+  }
+
+  .gameLayout h2,
+  .gameLayout h3,
+  .gameLayout h4 {
+    font-size: 18px;
+  }
+
+  .hostHeader {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .hostLogo {
+    font-size: var(--text-lg);
+    letter-spacing: 2px;
   }
 }
 
