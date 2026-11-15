@@ -53,6 +53,25 @@ DEFAULT_MAX_TOKENS = 6000
 DEFAULT_MAX_ILLEGAL_RETRIES = 4
 
 
+def forced_action(kind: str, legal: dict) -> dict | None:
+    """The action when nothing is left to decide, so no model call is made.
+
+    After a seat has made its purchase for the turn the engine asks the buy
+    decision once more, where the only moves are ending the turn or proposing
+    a trade. That second question was a third of all model calls. The seat
+    ends its turn there; it can still propose trades before it buys. A seat
+    that may declare the game over is still asked.
+    """
+    if kind != "buy_stocks":
+        return None
+    types = set(legal.get("action_types", []))
+    if "buy_stocks" in types or "declare_end_game" in types:
+        return None
+    if "end_turn" not in types:
+        return None
+    return {"action": "end_turn"}
+
+
 class LLMAgent:
     kind = "llm"
     # The driver may pass ``rejected=`` / ``deadline=`` to ``decide``.
@@ -155,6 +174,9 @@ class LLMAgent:
         """
         kind = ctx.decision.kind
         legal = self._effective_legal(ctx)
+        forced = forced_action(kind, legal)
+        if forced is not None and not rejected:
+            return forced
         view = self._trade_view(ctx)
         others = tuple(p for p in (view or {}).get("players", {}) if p != ctx.player_id)
         engine_rejected = [dict(r) for r in (rejected or [])]
