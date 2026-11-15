@@ -354,6 +354,10 @@ majority/minority holders and bonus payouts per chain if it were acquired now,
 the viewer's net worth and everyone's projected end-game score, and remaining
 tiles in the bag.
 
+The same module builds the public table view of `game_state`
+(`public_net_worth`, `public_chain_holders`, `merger_history`; see Server) from
+the same helpers, so the browser shows exactly the numbers the LLM seats see.
+
 ## Seats (`backend/agents/`)
 
 ```python
@@ -473,6 +477,29 @@ driver, the one action path), `lifecycle.py` (start / host-forced end),
   `tile_playability`, `end_game_available`, `incoming_trades`,
   `outgoing_trades`. `awaiting` is the agent decision being thought about, else
   the flow decision (`kind` may be `human`), else null.
+- **Table view in `game_state`** (UI-001, 2026-11-15; public, sent to the host
+  and every player alike; computed by `game/calculator.py`, never by clients):
+  - per player `stock_value` (shares at current prices; a defunct chain's
+    shares count 0), `net_worth` (`money + stock_value`) and `rank`
+    (competition rank by net worth, ties share a rank: 1, 1, 3)
+    (`public_net_worth`);
+  - `chain_holders: {chain: {size, price, majority_bonus, minority_bonus,
+    holders: [{player_id, shares, role: "majority"|"minority"|null, tied,
+    majority, minority, bonus}]}}` for active chains, holders most shares
+    first (seat order breaks ties); `role` and amounts are what
+    `Rules.calculate_bonuses` would pay if the chain were bought out now (a
+    sole holder gets both bonuses, role `majority`; a majority tie splits both
+    and pays no minority; a minority tie splits the minority); `tied` when
+    another holder shares the role (`public_chain_holders`);
+  - `mergers: [{seq, player_id, tile, survivor, sizes, defunct: [{chain, size,
+    price, bonuses: [{player_id, majority, minority}] | null, dispositions:
+    [{player_id, sell, trade, hold, sale_proceeds, survivor_shares_received}],
+    waiting_on: [player_id]}], survivor_size | null, complete}]`: every merger
+    of the game, oldest first, rebuilt from the `merger_started` /
+    `bonuses_paid` / `stock_disposition` / `merger_completed` events (amounts
+    as paid); `waiting_on` are the stockholders still to decide on the chain
+    being processed (`merger_history`). The snapshot fixtures' `expect` block
+    carries the same three (`net_worth`, `chain_holders`, `mergers`).
 - Starting needs `max(room.min_players, Game.MIN_PLAYERS)` = 3 seats (the
   room said 2; starting with 2 used to 500 and leave the room stuck).
 - Disconnects: unchanged -- a closed socket is dropped; nothing is skipped on a

@@ -23,6 +23,96 @@
         "size": 34
       }
     },
+    "chain_holders": {
+      "halcyon": {
+        "holders": [
+          {
+            "bonus": 10000,
+            "majority": 10000,
+            "minority": 0,
+            "player_id": "p2",
+            "role": "majority",
+            "shares": 9,
+            "tied": false
+          },
+          {
+            "bonus": 5000,
+            "majority": 0,
+            "minority": 5000,
+            "player_id": "p1",
+            "role": "minority",
+            "shares": 6,
+            "tied": false
+          },
+          {
+            "bonus": 0,
+            "majority": 0,
+            "minority": 0,
+            "player_id": "p3",
+            "role": null,
+            "shares": 5,
+            "tied": false
+          },
+          {
+            "bonus": 0,
+            "majority": 0,
+            "minority": 0,
+            "player_id": "p4",
+            "role": null,
+            "shares": 5,
+            "tied": false
+          }
+        ],
+        "majority_bonus": 10000,
+        "minority_bonus": 5000,
+        "price": 1000,
+        "size": 31
+      },
+      "obsidian": {
+        "holders": [
+          {
+            "bonus": 11000,
+            "majority": 11000,
+            "minority": 0,
+            "player_id": "p4",
+            "role": "majority",
+            "shares": 8,
+            "tied": false
+          },
+          {
+            "bonus": 5500,
+            "majority": 0,
+            "minority": 5500,
+            "player_id": "p1",
+            "role": "minority",
+            "shares": 7,
+            "tied": false
+          },
+          {
+            "bonus": 0,
+            "majority": 0,
+            "minority": 0,
+            "player_id": "p3",
+            "role": null,
+            "shares": 6,
+            "tied": false
+          },
+          {
+            "bonus": 0,
+            "majority": 0,
+            "minority": 0,
+            "player_id": "p2",
+            "role": null,
+            "shares": 4,
+            "tied": false
+          }
+        ],
+        "majority_bonus": 11000,
+        "minority_bonus": 5500,
+        "price": 1100,
+        "size": 34
+      }
+    },
     "current_player": "p1",
     "decisions": [
       {
@@ -181,6 +271,592 @@
       "meridian",
       "sandpiper"
     ],
+    "mergers": [
+      {
+        "complete": true,
+        "defunct": [
+          {
+            "bonuses": [
+              {
+                "majority": 7000,
+                "minority": 0,
+                "player_id": "p3"
+              },
+              {
+                "majority": 0,
+                "minority": 1800,
+                "player_id": "p1"
+              },
+              {
+                "majority": 0,
+                "minority": 1800,
+                "player_id": "p2"
+              }
+            ],
+            "chain": "aurelia",
+            "dispositions": [
+              {
+                "hold": 0,
+                "player_id": "p2",
+                "sale_proceeds": 0,
+                "sell": 0,
+                "survivor_shares_received": 2,
+                "trade": 4
+              },
+              {
+                "hold": 1,
+                "player_id": "p3",
+                "sale_proceeds": 2100,
+                "sell": 3,
+                "survivor_shares_received": 1,
+                "trade": 2
+              },
+              {
+                "hold": 1,
+                "player_id": "p4",
+                "sale_proceeds": 0,
+                "sell": 0,
+                "survivor_shares_received": 1,
+                "trade": 2
+              },
+              {
+                "hold": 0,
+                "player_id": "p1",
+                "sale_proceeds": 1400,
+                "sell": 2,
+                "survivor_shares_received": 1,
+                "trade": 2
+              }
+            ],
+            "price": 700,
+            "size": 5,
+            "waiting_on": []
+          }
+        ],
+        "player_id": "p2",
+        "seq": 175,
+        "sizes": {
+          "aurelia": 5,
+          "halcyon": 5
+        },
+        "survivor": "halcyon",
+        "survivor_size": 11,
+        "tile": "6H"
+      },
+      {
+        "complete": true,
+        "defunct": [
+          {
+            "bonuses": [
+              {
+                "majority": 5000,
+                "minority": 0,
+                "player_id": "p1"
+              },
+              {
+                "majority": 0,
+                "minority": 1300,
+                "player_id": "p3"
+              },
+              {
+                "majority": 0,
+                "minority": 1300,
+                "player_id": "p4"
+              }
+            ],
+            "chain": "sandpiper",
+            "dispositions": [
+              {
+                "hold": 3,
+                "player_id": "p4",
+                "sale_proceeds": 1000,
+                "sell": 2,
+                "survivor_shares_received": 0,
+                "trade": 0
+              },
+              {
+                "hold": 0,
+                "player_id": "p1",
+                "sale_proceeds": 500,
+                "sell": 1,
+                "survivor_shares_received": 3,
+                "trade": 6
+              },
+              {
+                "hold": 2,
+                "player_id": "p2",
+                "sale_proceeds": 1000,
+                "sell": 2,
+                "survivor_shares_received": 0,
+                "trade": 0
+              },
+              {
+                "hold": 0,
+                "player_id": "p3",
+                "sale_proceeds": 1500,
+                "sell": 3,
+                "survivor_shares_received": 1,
+                "trade": 2
+              }
+            ],
+            "price": 500,
+            "size": 5,
+            "waiting_on": []
+          }
+        ],
+        "player_id": "p4",
+        "seq": 211,
+        "sizes": {
+          "obsidian": 7,
+          "sandpiper": 5
+        },
+        "survivor": "obsidian",
+        "survivor_size": 13,
+        "tile": "7D"
+      },
+      {
+        "complete": true,
+        "defunct": [
+          {
+            "bonuses": [
+              {
+                "majority": 4000,
+                "minority": 0,
+                "player_id": "p4"
+              },
+              {
+                "majority": 0,
+                "minority": 1000,
+                "player_id": "p2"
+              },
+              {
+                "majority": 0,
+                "minority": 1000,
+                "player_id": "p3"
+              }
+            ],
+            "chain": "meridian",
+            "dispositions": [
+              {
+                "hold": 0,
+                "player_id": "p1",
+                "sale_proceeds": 0,
+                "sell": 0,
+                "survivor_shares_received": 1,
+                "trade": 2
+              },
+              {
+                "hold": 0,
+                "player_id": "p2",
+                "sale_proceeds": 1600,
+                "sell": 4,
+                "survivor_shares_received": 0,
+                "trade": 0
+              },
+              {
+                "hold": 3,
+                "player_id": "p3",
+                "sale_proceeds": 400,
+                "sell": 1,
+                "survivor_shares_received": 0,
+                "trade": 0
+              },
+              {
+                "hold": 0,
+                "player_id": "p4",
+                "sale_proceeds": 1200,
+                "sell": 3,
+                "survivor_shares_received": 1,
+                "trade": 2
+              }
+            ],
+            "price": 400,
+            "size": 3,
+            "waiting_on": []
+          }
+        ],
+        "player_id": "p1",
+        "seq": 222,
+        "sizes": {
+          "halcyon": 13,
+          "meridian": 3
+        },
+        "survivor": "halcyon",
+        "survivor_size": 17,
+        "tile": "10H"
+      },
+      {
+        "complete": true,
+        "defunct": [
+          {
+            "bonuses": [
+              {
+                "majority": 6000,
+                "minority": 0,
+                "player_id": "p1"
+              },
+              {
+                "majority": 0,
+                "minority": 3000,
+                "player_id": "p2"
+              }
+            ],
+            "chain": "juniper",
+            "dispositions": [
+              {
+                "hold": 0,
+                "player_id": "p3",
+                "sale_proceeds": 600,
+                "sell": 1,
+                "survivor_shares_received": 0,
+                "trade": 0
+              },
+              {
+                "hold": 0,
+                "player_id": "p4",
+                "sale_proceeds": 0,
+                "sell": 0,
+                "survivor_shares_received": 1,
+                "trade": 2
+              },
+              {
+                "hold": 0,
+                "player_id": "p1",
+                "sale_proceeds": 4200,
+                "sell": 7,
+                "survivor_shares_received": 0,
+                "trade": 0
+              },
+              {
+                "hold": 1,
+                "player_id": "p2",
+                "sale_proceeds": 600,
+                "sell": 1,
+                "survivor_shares_received": 1,
+                "trade": 2
+              }
+            ],
+            "price": 600,
+            "size": 5,
+            "waiting_on": []
+          }
+        ],
+        "player_id": "p3",
+        "seq": 241,
+        "sizes": {
+          "juniper": 5,
+          "obsidian": 14
+        },
+        "survivor": "obsidian",
+        "survivor_size": 20,
+        "tile": "5A"
+      },
+      {
+        "complete": true,
+        "defunct": [
+          {
+            "bonuses": [
+              {
+                "majority": 6000,
+                "minority": 0,
+                "player_id": "p4"
+              },
+              {
+                "majority": 0,
+                "minority": 3000,
+                "player_id": "p3"
+              }
+            ],
+            "chain": "aurelia",
+            "dispositions": [
+              {
+                "hold": 0,
+                "player_id": "p4",
+                "sale_proceeds": 1800,
+                "sell": 3,
+                "survivor_shares_received": 2,
+                "trade": 4
+              },
+              {
+                "hold": 0,
+                "player_id": "p1",
+                "sale_proceeds": 0,
+                "sell": 0,
+                "survivor_shares_received": 1,
+                "trade": 2
+              },
+              {
+                "hold": 0,
+                "player_id": "p2",
+                "sale_proceeds": 1200,
+                "sell": 2,
+                "survivor_shares_received": 0,
+                "trade": 0
+              },
+              {
+                "hold": 0,
+                "player_id": "p3",
+                "sale_proceeds": 2400,
+                "sell": 4,
+                "survivor_shares_received": 1,
+                "trade": 2
+              }
+            ],
+            "price": 600,
+            "size": 4,
+            "waiting_on": []
+          }
+        ],
+        "player_id": "p4",
+        "seq": 294,
+        "sizes": {
+          "aurelia": 4,
+          "obsidian": 24
+        },
+        "survivor": "obsidian",
+        "survivor_size": 29,
+        "tile": "3B"
+      },
+      {
+        "complete": true,
+        "defunct": [
+          {
+            "bonuses": [
+              {
+                "majority": 3000,
+                "minority": 0,
+                "player_id": "p4"
+              },
+              {
+                "majority": 0,
+                "minority": 800,
+                "player_id": "p2"
+              },
+              {
+                "majority": 0,
+                "minority": 800,
+                "player_id": "p3"
+              }
+            ],
+            "chain": "marlowe",
+            "dispositions": [
+              {
+                "hold": 0,
+                "player_id": "p4",
+                "sale_proceeds": 1500,
+                "sell": 5,
+                "survivor_shares_received": 0,
+                "trade": 0
+              },
+              {
+                "hold": 2,
+                "player_id": "p1",
+                "sale_proceeds": 300,
+                "sell": 1,
+                "survivor_shares_received": 0,
+                "trade": 0
+              },
+              {
+                "hold": 3,
+                "player_id": "p2",
+                "sale_proceeds": 300,
+                "sell": 1,
+                "survivor_shares_received": 0,
+                "trade": 0
+              },
+              {
+                "hold": 0,
+                "player_id": "p3",
+                "sale_proceeds": 1200,
+                "sell": 4,
+                "survivor_shares_received": 0,
+                "trade": 0
+              }
+            ],
+            "price": 300,
+            "size": 3,
+            "waiting_on": []
+          }
+        ],
+        "player_id": "p4",
+        "seq": 318,
+        "sizes": {
+          "halcyon": 19,
+          "marlowe": 3
+        },
+        "survivor": "halcyon",
+        "survivor_size": 23,
+        "tile": "4H"
+      },
+      {
+        "complete": true,
+        "defunct": [
+          {
+            "bonuses": [
+              {
+                "majority": 2300,
+                "minority": 0,
+                "player_id": "p1"
+              },
+              {
+                "majority": 2300,
+                "minority": 0,
+                "player_id": "p2"
+              }
+            ],
+            "chain": "juniper",
+            "dispositions": [
+              {
+                "hold": 1,
+                "player_id": "p3",
+                "sale_proceeds": 300,
+                "sell": 1,
+                "survivor_shares_received": 0,
+                "trade": 0
+              },
+              {
+                "hold": 1,
+                "player_id": "p4",
+                "sale_proceeds": 0,
+                "sell": 0,
+                "survivor_shares_received": 0,
+                "trade": 0
+              },
+              {
+                "hold": 0,
+                "player_id": "p1",
+                "sale_proceeds": 1800,
+                "sell": 6,
+                "survivor_shares_received": 0,
+                "trade": 0
+              },
+              {
+                "hold": 1,
+                "player_id": "p2",
+                "sale_proceeds": 1500,
+                "sell": 5,
+                "survivor_shares_received": 0,
+                "trade": 0
+              }
+            ],
+            "price": 300,
+            "size": 2,
+            "waiting_on": []
+          }
+        ],
+        "player_id": "p3",
+        "seq": 341,
+        "sizes": {
+          "juniper": 2,
+          "obsidian": 30
+        },
+        "survivor": "obsidian",
+        "survivor_size": 33,
+        "tile": "8B"
+      },
+      {
+        "complete": true,
+        "defunct": [
+          {
+            "bonuses": [
+              {
+                "majority": 6000,
+                "minority": 0,
+                "player_id": "p3"
+              },
+              {
+                "majority": 0,
+                "minority": 1000,
+                "player_id": "p1"
+              },
+              {
+                "majority": 0,
+                "minority": 1000,
+                "player_id": "p2"
+              },
+              {
+                "majority": 0,
+                "minority": 1000,
+                "player_id": "p4"
+              }
+            ],
+            "chain": "meridian",
+            "dispositions": [
+              {
+                "hold": 2,
+                "player_id": "p3",
+                "sale_proceeds": 4200,
+                "sell": 7,
+                "survivor_shares_received": 0,
+                "trade": 0
+              },
+              {
+                "hold": 4,
+                "player_id": "p4",
+                "sale_proceeds": 0,
+                "sell": 0,
+                "survivor_shares_received": 0,
+                "trade": 0
+              },
+              {
+                "hold": 3,
+                "player_id": "p1",
+                "sale_proceeds": 600,
+                "sell": 1,
+                "survivor_shares_received": 0,
+                "trade": 0
+              },
+              {
+                "hold": 0,
+                "player_id": "p2",
+                "sale_proceeds": 2400,
+                "sell": 4,
+                "survivor_shares_received": 0,
+                "trade": 0
+              }
+            ],
+            "price": 600,
+            "size": 5,
+            "waiting_on": []
+          }
+        ],
+        "player_id": "p3",
+        "seq": 370,
+        "sizes": {
+          "halcyon": 24,
+          "meridian": 5
+        },
+        "survivor": "halcyon",
+        "survivor_size": 30,
+        "tile": "2H"
+      }
+    ],
+    "net_worth": {
+      "p1": {
+        "cash": 14500,
+        "net_worth": 28200,
+        "rank": 2,
+        "stock_value": 13700
+      },
+      "p2": {
+        "cash": 7200,
+        "net_worth": 20600,
+        "rank": 4,
+        "stock_value": 13400
+      },
+      "p3": {
+        "cash": 21300,
+        "net_worth": 32900,
+        "rank": 1,
+        "stock_value": 11600
+      },
+      "p4": {
+        "cash": 10800,
+        "net_worth": 24600,
+        "rank": 3,
+        "stock_value": 13800
+      }
+    },
     "pending_trades": [],
     "phase": "place_tile",
     "players": [

@@ -17,6 +17,25 @@
         "size": 2
       }
     },
+    "chain_holders": {
+      "aurelia": {
+        "holders": [
+          {
+            "bonus": 6000,
+            "majority": 4000,
+            "minority": 2000,
+            "player_id": "p3",
+            "role": "majority",
+            "shares": 1,
+            "tied": false
+          }
+        ],
+        "majority_bonus": 4000,
+        "minority_bonus": 2000,
+        "price": 400,
+        "size": 2
+      }
+    },
     "current_player": "p3",
     "decisions": [
       {
@@ -163,6 +182,33 @@
       "obsidian",
       "sandpiper"
     ],
+    "mergers": [],
+    "net_worth": {
+      "p1": {
+        "cash": 6000,
+        "net_worth": 6000,
+        "rank": 2,
+        "stock_value": 0
+      },
+      "p2": {
+        "cash": 6000,
+        "net_worth": 6000,
+        "rank": 2,
+        "stock_value": 0
+      },
+      "p3": {
+        "cash": 6000,
+        "net_worth": 6400,
+        "rank": 1,
+        "stock_value": 400
+      },
+      "p4": {
+        "cash": 6000,
+        "net_worth": 6000,
+        "rank": 2,
+        "stock_value": 0
+      }
+    },
     "pending_trades": [
       {
         "from_player_id": "p3",

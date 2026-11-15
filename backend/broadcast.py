@@ -12,6 +12,10 @@ Messages (shapes unchanged from the pre-seat server unless noted):
   ``hotel.chains`` entry also carries ``color`` (new);
   to each player also ``your_hand``, ``end_game_available``, and (new)
   ``tile_playability``, ``incoming_trades``, ``outgoing_trades``.
+  Also (2026-11-15): per player ``stock_value``, ``net_worth``, ``rank``;
+  top-level ``chain_holders`` (majority/minority per active chain) and
+  ``mergers`` (every merger so far, with bonuses and dispositions); all from
+  ``game.calculator``.
 * ``lobby_update`` - players carry ``kind`` and ``agent_label`` (new).
 * ``choose_chain`` / ``choose_merger_survivor`` / ``stock_disposition_required``
   - sent to the human whose decision just became pending.
@@ -32,6 +36,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from app_state import session_manager
+from game.calculator import merger_history, public_chain_holders, public_net_worth
 from game.decisions import Decision, pending_decisions
 from game.rules import Rules
 
@@ -140,8 +145,12 @@ def build_public_state(room: GameRoom, game: Game) -> dict:
             name for name, data in game_state["chains"].items() if data["active"]
         ],
     }
+    # Wealth, majorities and mergers: computed by the engine's calculator (the
+    # same code the LLM prompt uses), never by the clients.
+    worth = public_net_worth(game)
     players = {}
     for p in game_state["players"]:
+        w = worth[p["player_id"]]
         players[p["player_id"]] = {
             "name": p["name"],
             "money": p["money"],
@@ -149,6 +158,9 @@ def build_public_state(room: GameRoom, game: Game) -> dict:
             "hand_size": p["tile_count"],
             **seat_info(room, p["player_id"]),
             "fallbacks": seat_fallbacks(room, p["player_id"]),
+            "stock_value": w["stock_value"],
+            "net_worth": w["net_worth"],
+            "rank": w["rank"],
         }
     # Note: game_state["pending_action"] may hold Tile objects; it is not sent.
     return {
@@ -164,6 +176,8 @@ def build_public_state(room: GameRoom, game: Game) -> dict:
         "awaiting": compute_awaiting(room, game),
         "game_id": getattr(room, "game_id", None),
         "ruleset": game_state["ruleset"],
+        "chain_holders": public_chain_holders(game),
+        "mergers": merger_history(game),
     }
 
 
