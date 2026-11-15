@@ -1,8 +1,9 @@
-import type { CSSProperties } from 'react'
+import { useMemo, type CSSProperties } from 'react'
 import { Tile } from './Tile'
 import styles from './Board.module.css'
 import type { Coordinate, TileState } from '../../types/game'
 import { useRules } from '../../ruleset/useRules'
+import { chainShapes, joinAttr, type SquareContent } from '../../lib/boardShapes'
 
 interface BoardProps {
   /** rows x columns tile state matrix, or a sparse object mapping coordinates to states */
@@ -31,6 +32,10 @@ function getTileState(
   return tiles[coord] ?? { state: 'empty' }
 }
 
+function contentOf(t: TileState): SquareContent {
+  return t.state === 'chain' ? (t.chain ?? null) : t.state === 'orphan' ? 'orphan' : null
+}
+
 /**
  * The game board: `columns x rows` from the ruleset. Squares are sized to fit the container's
  * width (and `--board-max-height` when a page sets it), between a per-size minimum and maximum,
@@ -46,6 +51,16 @@ export function Board({
 }: BoardProps) {
   const { rows, cols } = useRules()
   const gridStyle = { '--cols': cols.length, '--rows': rows.length } as CSSProperties
+  // Chains draw as shapes: each square knows which sides touch the same chain (lib/boardShapes).
+  const shapes = useMemo(
+    () =>
+      chainShapes(
+        rows.map((row, r) =>
+          cols.map((col, c) => contentOf(getTileState(tiles, `${col}${row}` as Coordinate, r, c)))
+        )
+      ),
+    [tiles, rows, cols]
+  )
   return (
     <div className={`${styles.frame} ${styles[size]}`}>
       <div
@@ -72,6 +87,7 @@ export function Board({
             const isPlayable = playableTiles?.has(coord)
             const isEmpty = tileState.state === 'empty'
             const canClick = interactive && isEmpty && (isPlayable ?? true)
+            const shape = shapes[rowIdx]?.[colIdx]
 
             return (
               <Tile
@@ -88,6 +104,9 @@ export function Board({
                 highlighted={isHighlighted || isPlayable}
                 onClick={canClick && onTileClick ? () => onTileClick(coord) : undefined}
                 size="fluid"
+                join={tileState.state === 'chain' && shape ? joinAttr(shape) : undefined}
+                anchor={shape?.anchor ?? true}
+                labelShift={shape?.anchor ? { dx: shape.dx, dy: shape.dy } : undefined}
               />
             )
           }),

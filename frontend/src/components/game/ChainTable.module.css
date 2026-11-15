@@ -1,3 +1,8 @@
+/*
+ * One compact row per chain: the marker line (swatch, name, size, price, bank stock, SAFE),
+ * then chips for 1st and 2nd (name, shares -> bonus, a thin bar for their share of the stock)
+ * and, when the viewer holds some, a "you" chip; the viewer's rows carry an accent edge.
+ */
 .table {
   display: flex;
   flex-direction: column;
@@ -8,58 +13,114 @@
 .chain {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: var(--space-1) 0;
+  gap: 3px;
+  padding: 5px var(--space-1) 5px var(--space-2);
   min-width: 0;
+  border-left: 2px solid transparent;
 }
 
 .chain + .chain {
   border-top: 1px solid var(--border);
 }
 
-/* The marker line (name, size, price, [left], SAFE) wraps instead of overflowing. */
-.chain > :first-child {
-  flex-wrap: wrap;
+/* The viewer holds shares of this chain. */
+.held {
+  border-left-color: var(--turn-accent);
+  background-color: var(--held-bg);
+}
+
+/* The marker line, flat (no card of its own here), wrapping instead of overflowing. */
+.head > * {
+  padding: 0;
+  background: none;
   row-gap: 2px;
+  gap: var(--space-1) var(--space-2);
 }
 
 .roles {
   display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding-left: calc(1.6em + var(--space-2));
-}
-
-.role,
-.mine {
-  display: flex;
-  gap: var(--space-2);
-  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 3px var(--space-1);
+  padding-left: calc(18px + var(--space-2));
   min-width: 0;
 }
 
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 1px 6px 3px;
+  border-radius: var(--radius-sm);
+  background-color: var(--chip-bg);
+  font-size: 11px;
+  line-height: 1.5;
+  overflow: hidden;
+}
+
+.chipMe {
+  box-shadow: inset 0 0 0 1px var(--turn-accent);
+}
+
 .roleLabel {
-  flex: 0 0 2.6em;
-  font-size: var(--text-xs);
+  font-size: 9px;
   font-weight: var(--font-bold);
+  letter-spacing: 0.04em;
   color: var(--text-secondary);
   text-transform: uppercase;
 }
 
-.roleBody {
+.who {
+  color: var(--text-primary);
+  font-weight: var(--font-medium);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.figures {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
+/* Share of the chain's stock this holder owns. */
+.bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: calc(var(--share, 0) * 100%);
+  background-color: var(--text-secondary);
+  opacity: 0.7;
+}
+
 .mine {
-  padding-left: calc(1.6em + var(--space-2));
-  color: var(--text-accent);
-  flex-wrap: wrap;
+  background-color: var(--turn-card);
+}
+
+.mine .figures {
+  color: var(--text-primary);
 }
 
 .position {
   color: var(--text-positive);
   font-weight: var(--font-bold);
+  white-space: nowrap;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .offBoard {
@@ -71,7 +132,10 @@
 }
 
 .offBoard .mine {
-  padding-left: 0;
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  background: none;
 }
 
 .offTitle {

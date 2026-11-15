@@ -4,9 +4,22 @@
   justify-content: center;
   position: relative;
   border-radius: var(--radius-sm);
-  font-family: var(--font-primary);
-  transition: all var(--duration-fast) var(--ease-default);
+  font-family: var(--font-mono);
+  transition:
+    background-color var(--duration-fast) var(--ease-default),
+    box-shadow var(--duration-fast) var(--ease-default),
+    filter var(--duration-fast) var(--ease-default);
   box-sizing: border-box;
+}
+
+/* Kept for screen readers and tests, not drawn (a chain's label shows once per shape). */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .label {
@@ -46,24 +59,77 @@
   font-size: 14px;
 }
 
-/* Fills a board grid cell; the board sets --cell. */
+/* Fills a board grid cell (stretched, so a join's negative margin can grow it over the gap);
+   the board sets --cell. */
 .fluid {
-  width: 100%;
-  height: 100%;
+  width: auto;
+  height: auto;
+  align-self: stretch;
+  justify-self: stretch;
   min-width: 0;
+  min-height: 0;
   font-size: clamp(7px, calc(var(--cell, 28px) * 0.34), 15px);
-  border-radius: max(2px, calc(var(--cell, 28px) * 0.12));
+  --r: max(2px, calc(var(--cell, 28px) * 0.12));
+  border-radius: var(--r);
+}
+
+/*
+ * Chains read as shapes (data-join from lib/boardShapes): a square joined to the same chain on
+ * its right or below grows over the grid gap, and the corners that touch a neighbour lose their
+ * rounding, so a chain is one block with rounded outer corners. --gap comes from the board.
+ */
+.fluid[data-join~='e'] {
+  margin-right: calc(-1 * var(--gap, 0px));
+}
+.fluid[data-join~='s'] {
+  margin-bottom: calc(-1 * var(--gap, 0px));
+}
+.fluid[data-join~='n'],
+.fluid[data-join~='w'] {
+  border-top-left-radius: 0;
+}
+.fluid[data-join~='n'],
+.fluid[data-join~='e'] {
+  border-top-right-radius: 0;
+}
+.fluid[data-join~='s'],
+.fluid[data-join~='e'] {
+  border-bottom-right-radius: 0;
+}
+.fluid[data-join~='s'],
+.fluid[data-join~='w'] {
+  border-bottom-left-radius: 0;
+}
+
+/* The one label per chain sits above the joined neighbours that overlap the gaps. */
+.fluid[data-anchor='true'] {
+  z-index: 1;
+}
+.fluid[data-anchor='true'] .label {
+  font-size: 1.08em;
+  letter-spacing: 0.02em;
+  /* Centred on the shape (a 2-square chain is labelled between its squares). */
+  transform: translate(
+    calc(var(--label-dx, 0) * (var(--cell, 28px) + var(--gap, 0px))),
+    calc(var(--label-dy, 0) * (var(--cell, 28px) + var(--gap, 0px)))
+  );
 }
 
 /* Chain colors */
+/* An empty square is quiet: a faint coordinate on a dim square. Placed tiles and the viewer's
+   playable squares (.highlighted / .interactive) carry the contrast. */
 .empty {
-  background-color: var(--bg-secondary);
-  color: var(--text-secondary);
+  background-color: var(--board-square);
+  color: var(--board-coord);
+}
+
+.empty .label {
+  font-weight: var(--font-normal);
 }
 
 .orphan {
   background-color: var(--chain-orphan);
-  color: var(--text-primary);
+  color: var(--chain-orphan-fg);
 }
 
 /* Chain squares: colours are data (ruleset), set inline as --chain-bg / --chain-fg. */
@@ -89,7 +155,7 @@
 }
 
 .merger {
-  border: 2px solid #ffaa00;
+  border: 2px solid var(--warning);
 }
 
 .dead {
@@ -101,22 +167,73 @@
 }
 
 .highlighted {
-  box-shadow: 0 0 8px currentColor;
+  box-shadow: 0 0 8px var(--playable-glow);
+}
+
+.empty.highlighted {
+  color: var(--text-primary);
+  border-color: var(--playable-border);
+}
+
+.empty.highlighted .label {
+  font-weight: var(--font-medium);
 }
 
 /* Interactive states */
 .interactive {
   cursor: pointer;
-  border: 2px solid rgba(100, 200, 255, 0.6);
-  box-shadow: 0 0 6px rgba(100, 200, 255, 0.3);
+  border: 2px solid var(--playable-border);
+  box-shadow: 0 0 6px var(--playable-glow);
 }
 
 .interactive:hover:not(.disabled) {
   filter: brightness(1.2);
-  box-shadow: 0 0 10px rgba(100, 200, 255, 0.5);
+  box-shadow: 0 0 10px var(--playable-border);
 }
 
 .interactive:focus-visible {
   outline: 2px solid var(--text-accent);
   outline-offset: 2px;
+}
+
+/*
+ * Motion (Tile.tsx sets data-anim): a placed tile settles in; a square changing chain sweeps
+ * from its old colour (--chain-prev) to the new one, left to right across the board. Under
+ * 300 ms each, and none at all under prefers-reduced-motion.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .tile[data-anim='place'] {
+    animation: settle 220ms var(--ease-out);
+  }
+
+  .tile[data-anim='sweep']::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-color: var(--chain-prev);
+    pointer-events: none;
+    animation: sweep 200ms var(--ease-default) both;
+    animation-delay: calc(var(--sweep-col, 0) * 6ms);
+  }
+}
+
+@keyframes settle {
+  from {
+    transform: scale(0.7);
+    opacity: 0.3;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes sweep {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 100%);
+  }
 }

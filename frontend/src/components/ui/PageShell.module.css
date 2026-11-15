@@ -16,6 +16,30 @@
   letter-spacing: 0.05em;
 }
 
+/* The table waits on me: an accent tint and edge (the text says it as well). */
+.mine {
+  background-color: var(--turn-tint);
+  box-shadow:
+    inset 0 2px 0 var(--turn-accent),
+    inset 0 -1px 0 var(--turn-accent);
+  color: var(--text-accent);
+}
+
+/* Someone else's move (and the host's "whose turn"): calm, with a small turn marker. */
+.other::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 0.5em;
+  color: var(--turn-accent);
+  opacity: 0.8;
+}
+
+.phase {
+  transition:
+    background-color var(--duration-normal) var(--ease-default),
+    box-shadow var(--duration-normal) var(--ease-default);
+}
+
 .main {
   flex: 1;
   padding: var(--space-3) var(--space-4);

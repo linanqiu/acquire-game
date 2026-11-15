@@ -191,6 +191,9 @@ test('phone: my place-tile turn opens the Board when I am on another tab; the ch
   await shots.take(page, 'chains-after-reload', { fullPage: false })
 
   await page.getByTestId('end-turn-button').click()
+  // Wait for the server's answer before reading the banner again (a stale BUY STOCKS would send
+  // a second END TURN at a page that has moved on).
+  await expect(phaseBanner(page)).not.toHaveText('BUY STOCKS')
   await untilMyPlaceTurn(page, room)
   await expect(tab(page, 'board')).toHaveAttribute('aria-selected', 'true')
   await expect(tabBadge(page, 'board')).toHaveCount(0)

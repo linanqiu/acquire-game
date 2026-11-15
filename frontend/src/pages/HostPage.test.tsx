@@ -113,6 +113,8 @@ describe('host view of a running game', () => {
       else expect(turn).not.toBeInTheDocument()
     }
     expect(screen.getByTestId('game-phase')).toHaveTextContent(/TURN - PLACE TILE$/)
+    // Whose turn: the calm "other" tone (never the viewer's accent; the host has no move).
+    expect(screen.getByTestId('game-phase')).toHaveAttribute('data-turn', 'other')
   })
 
   it('the chains panel lists the active chains with size, price and shares left; the rest are not listed', () => {

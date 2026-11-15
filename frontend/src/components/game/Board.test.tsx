@@ -79,4 +79,61 @@ describe('Board', () => {
     fireEvent.click(screen.getByTestId(`tile-${state.your_hand[0]}`))
     expect(onTileClick).not.toHaveBeenCalled()
   })
+
+  it('draws each chain as one shape: joined sides between same-chain neighbours, one visible label per chain', () => {
+    const state = playerState('six-player-midgame')
+    drawBoard(state)
+    const cells = state.board.cells
+    const chainOf = (coord) => (cells[coord]?.state === 'in_chain' ? cells[coord].chain : null)
+    const anchorsByChain = {}
+    for (const [coord, cell] of Object.entries(cells)) {
+      const tile = screen.getByTestId(`tile-${coord}`)
+      if (cell.state !== 'in_chain') {
+        // Unincorporated tiles stay separate squares.
+        expect(tile, coord).not.toHaveAttribute('data-join')
+        expect(tile).not.toHaveAttribute('data-anchor')
+        continue
+      }
+      const m = /^(\d+)([A-Z])$/.exec(coord)
+      const col = Number(m[1])
+      const row = m[2]
+      const right = `${col + 1}${row}`
+      const below = `${col}${String.fromCharCode(row.charCodeAt(0) + 1)}`
+      const joins = (tile.getAttribute('data-join') ?? '').split(' ')
+      expect(joins.includes('e'), `${coord} joins right`).toBe(chainOf(right) === cell.chain)
+      expect(joins.includes('s'), `${coord} joins below`).toBe(chainOf(below) === cell.chain)
+      // Every chain square keeps its abbreviation in the DOM (screen readers, tests).
+      expect(tile.textContent).not.toBe('')
+      if (tile.getAttribute('data-anchor') === 'true') {
+        anchorsByChain[cell.chain] = (anchorsByChain[cell.chain] ?? 0) + 1
+      }
+    }
+    const chains = new Set(
+      Object.values(cells)
+        .filter((c) => c.state === 'in_chain')
+        .map((c) => c.chain)
+    )
+    expect(chains.size).toBeGreaterThan(1)
+    // Chains on a real board are connected, so exactly one label each.
+    for (const c of chains) expect(anchorsByChain[c], c).toBe(1)
+  })
+
+  it('works for every ruleset board size', () => {
+    for (const name of ['default', 'valley', 'mini']) {
+      const state = playedGame(name).states['place_tile/place_tile']
+      const { unmount } = render(
+        <RulesetScope ruleset={state.ruleset}>
+          <Board tiles={transformBoardToTileStates(state.board.cells)} />
+        </RulesetScope>
+      )
+      const anchors = document.querySelectorAll('[data-anchor="true"]')
+      const chains = new Set(
+        Object.values(state.board.cells)
+          .filter((c) => c.state === 'in_chain')
+          .map((c) => c.chain)
+      )
+      expect(anchors.length, name).toBe(chains.size)
+      unmount()
+    }
+  })
 })

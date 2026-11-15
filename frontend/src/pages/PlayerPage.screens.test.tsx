@@ -102,7 +102,14 @@ describe('which screen each real game state shows', () => {
       loadSnapshotAsPlayer(name)
       renderPage()
       expect(visiblePanels()).toEqual([panel])
-      expect(screen.getByTestId('game-phase')).toHaveTextContent(banner)
+      const phaseBar = screen.getByTestId('game-phase')
+      expect(phaseBar).toHaveTextContent(banner)
+      // "Your turn" signal: the phase bar and the action card carry the accent exactly when the
+      // table waits on me; the words say it too.
+      if (panel === 'game-over') return
+      const mine = panel !== 'waiting-message'
+      expect(phaseBar).toHaveAttribute('data-turn', mine ? 'mine' : 'other')
+      expect(screen.getByTestId('action-panel').className.includes('actionMine')).toBe(mine)
     }
   )
 

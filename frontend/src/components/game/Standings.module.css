@@ -47,6 +47,7 @@
 
 .rank {
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
   color: var(--text-secondary);
   font-weight: var(--font-bold);
 }
@@ -84,6 +85,7 @@
 .num {
   text-align: right;
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
   white-space: nowrap;
 }
 
