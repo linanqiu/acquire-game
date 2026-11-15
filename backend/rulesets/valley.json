@@ -152,49 +152,49 @@
       "id": "promptly",
       "name": "Promptly",
       "tier": "seed",
-      "color": "#E69F00",
+      "color": "#B48142",
       "abbreviation": "PR"
     },
     {
       "id": "tokenwise",
       "name": "Tokenwise",
       "tier": "seed",
-      "color": "#CC79A7",
+      "color": "#D06387",
       "abbreviation": "TK"
     },
     {
       "id": "gradient",
       "name": "Gradientfold",
       "tier": "growth",
-      "color": "#56B4E9",
+      "color": "#5198B7",
       "abbreviation": "GF"
     },
     {
       "id": "latent",
       "name": "Latentcraft",
       "tier": "growth",
-      "color": "#009E73",
+      "color": "#73B497",
       "abbreviation": "LT"
     },
     {
       "id": "hallucinate",
       "name": "Hallucinate.ai",
       "tier": "growth",
-      "color": "#D4B300",
+      "color": "#D0A405",
       "abbreviation": "HA"
     },
     {
       "id": "omnimind",
       "name": "OmniMind",
       "tier": "frontier",
-      "color": "#0072B2",
+      "color": "#00BAF8",
       "abbreviation": "OM"
     },
     {
       "id": "singular",
       "name": "Singular",
       "tier": "frontier",
-      "color": "#D55E00",
+      "color": "#ED8971",
       "abbreviation": "SG"
     }
   ],

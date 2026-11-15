@@ -27,13 +27,13 @@ Buyout is played in the browser; the server holds every piece of state.
 
 | Chain | Tier | Colour | Starting Price |
 |-------|------|--------|----------------|
-| **Sandpiper** | Cheap | Sand gold `#E3B448` | $200 |
-| **Marlowe** | Cheap | Wine `#8E2C48` | $200 |
-| **Halcyon** | Medium | Teal `#1F7A8C` | $300 |
-| **Juniper** | Medium | Forest green `#3E7C4A` | $300 |
-| **Meridian** | Medium | Terracotta `#E07A3F` | $300 |
-| **Aurelia** | Expensive | Lavender `#B48CDB` | $400 |
-| **Obsidian** | Expensive | Royal blue `#3F5BD9` | $400 |
+| **Sandpiper** | Cheap | Ochre `#CBBA2F` | $200 |
+| **Marlowe** | Cheap | Rose `#F797AC` | $200 |
+| **Halcyon** | Medium | Sky teal `#41CBE6` | $300 |
+| **Juniper** | Medium | Sage green `#7FAD74` | $300 |
+| **Meridian** | Medium | Amber `#DF8528` | $300 |
+| **Aurelia** | Expensive | Lavender `#B78AC8` | $400 |
+| **Obsidian** | Expensive | Cornflower blue `#64A1FD` | $400 |
 
 **Note**: Names, tiers and colours come from `backend/rulesets/default.json`.
 

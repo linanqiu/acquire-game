@@ -47,7 +47,11 @@ describe('buildReplay with table chat', () => {
     expect(withChat.steps).toHaveLength(without.steps.length)
     expect(withChat.steps[0].chat.map((c) => c.text)).toEqual(['good luck'])
     expect(withChat.steps[1].chat.map((c) => c.text)).toEqual(['after the first move'])
-    expect(withChat.steps.slice(2).every((s) => s.chat.length === 0)).toBe(true)
+    // Later steps keep exactly the chat the recorded game already had (the generated fixture
+    // has some table talk of its own).
+    expect(withChat.steps.slice(2).map((s) => s.chat)).toEqual(
+      without.steps.slice(2).map((s) => s.chat)
+    )
     expect(withChat.steps[1].events).toEqual(without.steps[1].events)
   })
 })

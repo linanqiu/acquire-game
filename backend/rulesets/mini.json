@@ -140,35 +140,35 @@
       "id": "sandpiper",
       "name": "Sandpiper",
       "tier": "budget",
-      "color": "#E3B448",
+      "color": "#C0AF1D",
       "abbreviation": "SP"
     },
     {
       "id": "marlowe",
       "name": "Marlowe",
       "tier": "budget",
-      "color": "#8E2C48",
+      "color": "#F482B6",
       "abbreviation": "MA"
     },
     {
       "id": "halcyon",
       "name": "Halcyon",
       "tier": "standard",
-      "color": "#1F7A8C",
+      "color": "#21BCF3",
       "abbreviation": "HA"
     },
     {
       "id": "meridian",
       "name": "Meridian",
       "tier": "standard",
-      "color": "#E07A3F",
+      "color": "#D36A35",
       "abbreviation": "ME"
     },
     {
       "id": "aurelia",
       "name": "Aurelia",
       "tier": "premium",
-      "color": "#B48CDB",
+      "color": "#8B7AE0",
       "abbreviation": "AU"
     }
   ],
