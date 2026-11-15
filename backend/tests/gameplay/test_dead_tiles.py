@@ -2,7 +2,7 @@
 
 Rules: docs/rules/tiles.md "Unplayable Tiles", docs/rules/mergers.md "Safe
 Chain Involvement".
-- A chain of 11+ tiles (classic; 8 in mini) is safe: it cannot be acquired.
+- A chain of 11+ tiles (default; 8 in mini) is safe: it cannot be acquired.
 - A tile that would merge two safe chains can never be played. At the end of
   the holder's turn it is removed from the game and replaced by a new draw.
 - A safe chain may still acquire an unsafe one.
@@ -32,7 +32,7 @@ def two_chains(rs, upper: int, lower: int, holder_extra: list[str]):
 
 
 def test_a_tile_between_two_safe_chains_is_dead_and_replaced_at_end_of_turn():
-    rs = load_ruleset("classic")
+    rs = load_ruleset("default")
     t, a, b = two_chains(rs, 11, 11, ["5B"])
     assert (t.size(a), t.size(b)) == (11, 11)
     holder = t.current
@@ -63,7 +63,7 @@ def test_a_tile_between_two_safe_chains_is_dead_and_replaced_at_end_of_turn():
 
 
 def test_one_tile_short_of_safe_the_same_tile_merges():
-    rs = load_ruleset("classic")
+    rs = load_ruleset("default")
     t, a, b = two_chains(rs, 11, 10, ["5B"])
     assert "5B" in t.offered_tiles()
     seen = t.game.get_player_state(t.current)["tile_playability"]["5B"]
@@ -90,7 +90,7 @@ def test_a_hand_of_only_unplayable_tiles_is_replaced_at_the_start_of_the_turn():
     the hand, the tiles leave the game and p3 draws a fresh hand."""
     pairs = [("1A", "2A"), ("4A", "5A"), ("7A", "8A"), ("10A", "11A"),
              ("1C", "2C"), ("4C", "5C"), ("7C", "8C")]  # fmt: skip
-    chains = load_ruleset("classic").chain_ids
+    chains = load_ruleset("default").chain_ids
     moves = []
     for (first, second), chain in zip(pairs, chains):
         moves += [first, (second, {"found": chain})]

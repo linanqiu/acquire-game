@@ -1,14 +1,14 @@
-"""Board state and tile logic for Acquire."""
+"""Board state and tile logic for Buyout."""
 
 from enum import Enum
 from typing import Optional
 from dataclasses import InitVar, dataclass
 
-from game.ruleset import BoardSpec, Ruleset, classic, resolve
+from game.ruleset import BoardSpec, Ruleset, default_ruleset, resolve
 
 
 class hybridmethod:
-    """Method callable on the class (classic ruleset) or an instance (its own)."""
+    """Method callable on the class (default ruleset) or an instance (its own)."""
 
     def __init__(self, func):
         self.func = func
@@ -38,11 +38,11 @@ class Tile:
 
     column: int  # 1..board columns
     row: str  # one row letter of the board
-    # Board the tile must fit on (default: the classic ruleset's board).
+    # Board the tile must fit on (default: the default ruleset's board).
     bounds: InitVar[Optional[BoardSpec]] = None
 
     def __post_init__(self, bounds: Optional[BoardSpec] = None):
-        spec = bounds if bounds is not None else classic().board
+        spec = bounds if bounds is not None else default_ruleset().board
         if not (1 <= self.column <= spec.columns):
             raise ValueError(f"Column must be 1-{spec.columns}, got {self.column}")
         letters = spec.row_letters
@@ -69,7 +69,7 @@ class Tile:
 
     @classmethod
     def from_string(cls, s: str, bounds: Optional[BoardSpec] = None) -> "Tile":
-        """Parse tile from string like '1A' (bounds: the board, default classic)."""
+        """Parse tile from string like '1A' (bounds: the board, default: the default ruleset)."""
         s = s.strip().upper()
         row = s[-1]
         column = int(s[:-1])
@@ -87,13 +87,13 @@ class BoardCell:
 class Board:
     """The game board; its size comes from the ruleset.
 
-    ``Board.COLUMNS`` / ``Board.ROWS`` are aliases of the classic ruleset's
+    ``Board.COLUMNS`` / ``Board.ROWS`` are aliases of the default ruleset's
     board kept for older callers; an instance uses ``columns`` / ``row_letters``.
     """
 
-    ruleset: Ruleset = classic()
-    COLUMNS = classic().board.columns
-    ROWS = classic().board.row_letters
+    ruleset: Ruleset = default_ruleset()
+    COLUMNS = default_ruleset().board.columns
+    ROWS = default_ruleset().board.row_letters
 
     def __init__(self, ruleset: Optional[Ruleset] = None):
         self.ruleset = resolve(ruleset)
@@ -227,7 +227,7 @@ class Board:
 
     @hybridmethod
     def all_tiles(target) -> list[Tile]:
-        """Every tile of the board (``Board.all_tiles()``: the classic board)."""
+        """Every tile of the board (``Board.all_tiles()``: the default board)."""
         spec = target.ruleset.board
         return [
             Tile(col, row, spec)

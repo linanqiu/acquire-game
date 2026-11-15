@@ -1,4 +1,4 @@
-"""Test-mode-only routes (registered only when ``ACQUIRE_TEST_MODE=1``).
+"""Test-mode-only routes (registered only when ``GAME_TEST_MODE=1``).
 
 * ``POST /test/room/{code}/load-snapshot`` body
   ``{"snapshot": {...}, "seat_map"?: {snapshot_player_id: room_player_id}}``

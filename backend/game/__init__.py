@@ -1,4 +1,4 @@
-"""Acquire board game core logic."""
+"""Buyout board game core logic."""
 
 from .board import Board, TileState, Tile
 from .hotel import Hotel, HotelChain

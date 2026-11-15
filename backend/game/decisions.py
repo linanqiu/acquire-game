@@ -242,7 +242,7 @@ def legal_actions(game: Game, decision: Decision) -> dict:
             "rule": "sell+trade+hold == stock_count",
         }
         if ratio != 2:
-            # Only present for non-2:1 rulesets, so classic output is unchanged.
+            # Only present for non-2:1 rulesets, so default output is unchanged.
             out["trade_ratio"] = ratio
         return out
 

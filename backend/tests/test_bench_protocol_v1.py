@@ -1,4 +1,4 @@
-"""Acquire Bench: protocol schedule, ratings, leaderboard, HTTP routes, CLI,
+"""Buyout Bench: protocol schedule, ratings, leaderboard, HTTP routes, CLI,
 Python API with an injected agent."""
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ from transcripts import read_transcript
 from transcripts.replay import final_scores, replay
 
 BACKEND = Path(__file__).resolve().parents[1]
-P = get_protocol("acquire-bench-v1")
+P = get_protocol("bench-v1")
 
 
 @pytest.fixture
@@ -156,7 +156,7 @@ def test_bootstrap_is_deterministic_and_brackets_estimate():
 def test_leaderboard_never_mixes_prompt_versions():
     def rec(pv, winner):
         return {
-            "protocol": "acquire-bench-v1",
+            "protocol": "bench-v1",
             "prompt_version": pv,
             "track": "vs-baseline",
             "series_id": f"s-{pv}",
@@ -219,7 +219,7 @@ def test_python_api_with_injected_agent(bench_out, fast_calc):
     records = load_results(out)
     assert len(records) == 4
     assert {r["prompt_version"] for r in records} == {res.prompt_version}
-    assert all(r["protocol"] == "acquire-bench-v1" for r in records)
+    assert all(r["protocol"] == "bench-v1" for r in records)
     # the custom agent sat in each of the 4 positions once
     assert sorted(r["seat_order"].index("my-agent") for r in records) == [0, 1, 2, 3]
     board = res.leaderboard
@@ -253,8 +253,8 @@ def test_run_protocol_config_errors(tmp_path):
 @pytest.fixture
 def api(bench_out, monkeypatch, tmp_path):
     out, res = bench_out
-    monkeypatch.setenv("ACQUIRE_BENCH_DIR", str(out.parent))
-    monkeypatch.setenv("ACQUIRE_TRANSCRIPT_DIR", str(tmp_path / "live"))
+    monkeypatch.setenv("GAME_BENCH_DIR", str(out.parent))
+    monkeypatch.setenv("GAME_TRANSCRIPT_DIR", str(tmp_path / "live"))
     from main import create_app
 
     with TestClient(create_app()) as c:
@@ -304,8 +304,8 @@ def test_http_routes_shapes_pagination_and_404(api, prefix):
         set(t) == {"header", "entries", "footer", "redacted"} and t["redacted"] is False
     )
 
-    board = client.get(f"{prefix}/bench/leaderboard?protocol=acquire-bench-v1").json()
-    assert board["protocol"]["id"] == "acquire-bench-v1"
+    board = client.get(f"{prefix}/bench/leaderboard?protocol=bench-v1").json()
+    assert board["protocol"]["id"] == "bench-v1"
     a = board["agents"][0]
     for k in (
         "agent_id",
@@ -334,7 +334,7 @@ def test_http_routes_shapes_pagination_and_404(api, prefix):
     assert series["games"] == 4 and series["finished"] is True
     assert series["full_protocol"] is False
     s = client.get(f"{prefix}/bench/series/{series['series_id']}").json()
-    assert s["protocol"] == "acquire-bench-v1" and len(s["games"]) == 4
+    assert s["protocol"] == "bench-v1" and len(s["games"]) == 4
     assert set(s["games"][0]) >= {"game_id", "seed", "rotation", "standings"}
 
     for bad in (
@@ -351,12 +351,12 @@ def test_http_routes_shapes_pagination_and_404(api, prefix):
 
 
 def test_empty_bench_dir_gives_empty_leaderboard(tmp_path, monkeypatch):
-    monkeypatch.setenv("ACQUIRE_BENCH_DIR", str(tmp_path / "none"))
+    monkeypatch.setenv("GAME_BENCH_DIR", str(tmp_path / "none"))
     from main import create_app
 
     with TestClient(create_app()) as c:
         b = c.get("/api/bench/leaderboard").json()
-    assert b["protocol"]["id"] == "acquire-bench-v1"
+    assert b["protocol"]["id"] == "bench-v1"
     assert b["agents"] == [] and b["series"] == [] and b["updated_at"] is None
 
 
@@ -380,7 +380,7 @@ def test_cli_unavailable_model_exits_2_fast(tmp_path):
     p = run_cli(
         "run",
         "--protocol",
-        "acquire-bench-v1",
+        "bench-v1",
         "--models",
         "llm:claude-haiku-5-5",
         "--out",
@@ -399,7 +399,7 @@ def test_cli_protocol_run_end_to_end(tmp_path):
     p = run_cli(
         "run",
         "--protocol",
-        "acquire-bench-v1",
+        "bench-v1",
         "--models",
         "llm:fake",
         "--track",
@@ -409,7 +409,7 @@ def test_cli_protocol_run_end_to_end(tmp_path):
         "--out",
         str(out),
         "--json",
-        env_extra={"ACQUIRE_TEST_MODE": "1"},
+        env_extra={"GAME_TEST_MODE": "1"},
     )
     assert p.returncode == 0, p.stderr
     s = json.loads(p.stdout)  # stdout is exactly one JSON document
@@ -427,13 +427,13 @@ def test_cli_protocol_run_end_to_end(tmp_path):
     assert len(list((out / "transcripts").glob("*.jsonl"))) == 2
     lb = run_cli("leaderboard", "--out", str(out), "--json")
     assert lb.returncode == 0 and json.loads(lb.stdout)["games"] == 2
-    lm = run_cli("list-models", "--json", env_extra={"ACQUIRE_TEST_MODE": "1"})
+    lm = run_cli("list-models", "--json", env_extra={"GAME_TEST_MODE": "1"})
     assert any(m["id"] == "llm:fake" and m["available"] for m in json.loads(lm.stdout))
     # a budget stop is a partial run: exit 1
     p2 = run_cli(
         "run",
         "--protocol",
-        "acquire-bench-v1",
+        "bench-v1",
         "--models",
         "llm:fake",
         "--track",
@@ -445,7 +445,7 @@ def test_cli_protocol_run_end_to_end(tmp_path):
         "--max-decisions",
         "5",
         "--json",
-        env_extra={"ACQUIRE_TEST_MODE": "1"},
+        env_extra={"GAME_TEST_MODE": "1"},
     )
     assert p2.returncode == 1 and json.loads(p2.stdout)["status"] == "stopped"
 

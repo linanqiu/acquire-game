@@ -1,7 +1,7 @@
 """Hotel chain logic: chain definitions, prices and the bank's stock.
 
 Everything numeric comes from the game's ``Ruleset``. ``Hotel.CHAINS`` and
-``HotelTier`` are aliases of the classic ruleset kept for older callers; the
+``HotelTier`` are aliases of the default ruleset kept for older callers; the
 engine itself uses ``hotel.ruleset`` / instance methods.
 """
 
@@ -10,11 +10,11 @@ from enum import Enum
 from typing import ClassVar, Optional, Union
 
 from game.board import hybridmethod
-from game.ruleset import Ruleset, classic, resolve
+from game.ruleset import Ruleset, default_ruleset, resolve
 
 
 class HotelTier(Enum):
-    """The classic ruleset's pricing tiers (alias; other rulesets use tier ids)."""
+    """The default ruleset's pricing tiers (alias; other rulesets use tier ids)."""
 
     CHEAP = "cheap"
     MEDIUM = "medium"
@@ -59,18 +59,18 @@ def _chains_for(ruleset: Ruleset) -> dict[str, HotelChain]:
     return {c.id: HotelChain(c.id, c.tier, c.color, ruleset) for c in ruleset.chains}
 
 
-def _classic_chains() -> dict[str, HotelChain]:
-    rs = classic()
+def _default_chains() -> dict[str, HotelChain]:
+    rs = default_ruleset()
     return {c.id: HotelChain(c.id, HotelTier(c.tier), c.color, rs) for c in rs.chains}
 
 
 class Hotel:
     """Manages all hotel chains in the game (the bank's stock, active chains)."""
 
-    # Classic aliases (class-level); instances use their ruleset.
-    ruleset: ClassVar[Ruleset] = classic()
-    CHAINS: ClassVar[dict[str, HotelChain]] = _classic_chains()
-    TOTAL_STOCKS_PER_CHAIN: ClassVar[int] = classic().stocks_per_chain
+    # Default aliases (class-level); instances use their ruleset.
+    ruleset: ClassVar[Ruleset] = default_ruleset()
+    CHAINS: ClassVar[dict[str, HotelChain]] = _default_chains()
+    TOTAL_STOCKS_PER_CHAIN: ClassVar[int] = default_ruleset().stocks_per_chain
 
     def __init__(self, ruleset: Optional[Ruleset] = None):
         self.ruleset = resolve(ruleset)
@@ -84,14 +84,14 @@ class Hotel:
 
     @hybridmethod
     def get_chain(target, name: str) -> HotelChain:
-        """Get a hotel chain by id (on the class: classic chains)."""
+        """Get a hotel chain by id (on the class: default chains)."""
         if isinstance(target, Hotel):
             return target._chains[name]
         return target.CHAINS[name]
 
     @hybridmethod
     def get_all_chain_names(target) -> list[str]:
-        """All chain ids in ruleset order (on the class: classic chains)."""
+        """All chain ids in ruleset order (on the class: default chains)."""
         return list(target.ruleset.chain_ids)
 
     def activate_chain(self, name: str):

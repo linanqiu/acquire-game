@@ -1,4 +1,4 @@
-"""``LLMAgent``: an Acquire seat backed by a language model.
+"""``LLMAgent``: a Buyout seat backed by a language model.
 
 An illegal or unparseable answer is sent back to the model (its answer, the
 exact reason, every earlier rejected answer, the legal options restated) up to

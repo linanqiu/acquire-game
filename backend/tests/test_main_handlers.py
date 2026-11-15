@@ -57,12 +57,12 @@ class TestMessageValidation:
 
     def test_validate_found_chain_valid(self):
         """Valid found_chain message should pass validation."""
-        data = {"action": "found_chain", "chain": "Luxor"}
+        data = {"action": "found_chain", "chain": "sandpiper"}
         msg, error = validate_websocket_message(data)
 
         assert error is None
         assert isinstance(msg, FoundChainMessage)
-        assert msg.chain == "Luxor"
+        assert msg.chain == "sandpiper"
 
     def test_validate_found_chain_invalid_chain(self):
         """Invalid chain name should be rejected."""
@@ -74,17 +74,17 @@ class TestMessageValidation:
 
     def test_validate_buy_stocks_valid(self):
         """Valid buy_stocks message should pass validation."""
-        data = {"action": "buy_stocks", "purchases": {"Luxor": 2, "Tower": 1}}
+        data = {"action": "buy_stocks", "purchases": {"sandpiper": 2, "marlowe": 1}}
         msg, error = validate_websocket_message(data)
 
         assert error is None
         assert isinstance(msg, BuyStocksMessage)
-        assert msg.purchases["Luxor"] == 2
-        assert msg.purchases["Tower"] == 1
+        assert msg.purchases["sandpiper"] == 2
+        assert msg.purchases["marlowe"] == 1
 
     def test_validate_buy_stocks_exceeds_limit(self):
         """Buying more than 3 stocks should be rejected."""
-        data = {"action": "buy_stocks", "purchases": {"Luxor": 4}}
+        data = {"action": "buy_stocks", "purchases": {"sandpiper": 4}}
         msg, error = validate_websocket_message(data)
 
         assert error is not None
@@ -204,11 +204,11 @@ class TestHandleFoundChain:
                     await handle_player_action(
                         game_room,
                         current_player_id,
-                        {"action": "found_chain", "chain": "Luxor"},
+                        {"action": "found_chain", "chain": "sandpiper"},
                     )
 
         # Chain should not be activated
-        assert not hotel.is_chain_active("Luxor")
+        assert not hotel.is_chain_active("sandpiper")
 
     @pytest.mark.asyncio
     async def test_found_chain_rejects_unavailable_chain(
@@ -219,8 +219,8 @@ class TestHandleFoundChain:
         game = room.game
         hotel = game.hotel
 
-        # Activate Luxor
-        hotel.activate_chain("Luxor")
+        # Activate sandpiper
+        hotel.activate_chain("sandpiper")
 
         game.turn_phase = "found_chain"
         game.pending_action = {
@@ -237,7 +237,7 @@ class TestHandleFoundChain:
             await handle_player_action(
                 game_room,
                 current_player_id,
-                {"action": "found_chain", "chain": "Luxor"},
+                {"action": "found_chain", "chain": "sandpiper"},
             )
 
             # Should send error
@@ -259,8 +259,8 @@ class TestHandleMergerChoice:
 
         game.pending_action = {
             "type": "choose_survivor",
-            "chains": ["Luxor", "Tower"],
-            "tied_chains": ["Luxor", "Tower"],
+            "chains": ["sandpiper", "marlowe"],
+            "tied_chains": ["sandpiper", "marlowe"],
             "tile": Tile(4, "A"),
         }
 
@@ -271,11 +271,11 @@ class TestHandleMergerChoice:
                 with patch.object(
                     session_manager, "broadcast_to_room", new_callable=AsyncMock
                 ):
-                    # Choose American which is not in the tie
+                    # Choose halcyon which is not in the tie
                     await handle_player_action(
                         game_room,
                         current_player_id,
-                        {"action": "merger_choice", "surviving_chain": "American"},
+                        {"action": "merger_choice", "surviving_chain": "halcyon"},
                     )
 
         # Should not have set up process_merger
@@ -395,24 +395,25 @@ def test_validation_uses_the_ruleset_passed_for_the_game_not_the_server_default(
     from game.ruleset import load_ruleset
 
     mini = load_ruleset("mini")
-    # server default is classic: a mini chain and a 4-share buy are refused...
-    _, err = validate_websocket_message({"action": "found_chain", "chain": "harbor"})
-    assert "Invalid chain" in err
+    # server default is default: a 4-share buy is refused and juniper (not in
+    # mini) is a chain...
+    ok, err = validate_websocket_message({"action": "found_chain", "chain": "juniper"})
+    assert err is None and ok.chain == "juniper"
     _, err = validate_websocket_message(
-        {"action": "buy_stocks", "purchases": {"Luxor": 4}}
+        {"action": "buy_stocks", "purchases": {"sandpiper": 4}}
     )
     assert "more than 3" in err
-    # ...but legal for a game created under mini (and classic's are not)
+    # ...but under mini a 4-share buy is legal and juniper is no chain
     ok, err = validate_websocket_message(
-        {"action": "found_chain", "chain": "harbor"}, mini
+        {"action": "found_chain", "chain": "sandpiper"}, mini
     )
-    assert err is None and ok.chain == "harbor"
+    assert err is None and ok.chain == "sandpiper"
     _, err = validate_websocket_message(
-        {"action": "buy_stocks", "purchases": {"harbor": 4}}, mini
+        {"action": "buy_stocks", "purchases": {"sandpiper": 4}}, mini
     )
     assert err is None
     _, err = validate_websocket_message(
-        {"action": "found_chain", "chain": "Luxor"}, mini
+        {"action": "found_chain", "chain": "juniper"}, mini
     )
     assert "Invalid chain" in err
     _, err = validate_websocket_message({"action": "place_tile", "tile": "10A"}, mini)

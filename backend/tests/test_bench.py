@@ -24,7 +24,7 @@ from bench.series import BenchError, Budget, plan, rotate, run_series
 
 @pytest.fixture(autouse=True)
 def _no_transcripts(monkeypatch):
-    """Transcripts are tested in test_transcripts.py / test_acquire_bench.py;
+    """Transcripts are tested in test_transcripts.py / test_bench_protocol_v1.py;
     here they would only cost time."""
     monkeypatch.setattr(
         "transcripts.writer.TranscriptWriter.open", lambda *a, **k: None
@@ -244,7 +244,7 @@ def test_budget_guard_stops_cleanly_with_partial_results(fast_calc, tmp_path):
 
 
 def test_max_usd_requires_known_prices(tmp_path, monkeypatch):
-    monkeypatch.setenv("ACQUIRE_TEST_MODE", "1")
+    monkeypatch.setenv("GAME_TEST_MODE", "1")
     with pytest.raises(BenchError, match="known prices"):
         run(
             run_series(
@@ -408,7 +408,7 @@ def test_prices_file_ships_with_unknowns():
 
 @pytest.mark.slow
 def test_fake_llm_series_has_zero_fallbacks(tmp_path, monkeypatch):
-    monkeypatch.setenv("ACQUIRE_TEST_MODE", "1")
+    monkeypatch.setenv("GAME_TEST_MODE", "1")
     res = run(
         run_series(
             [["llm:fake", "bot", "bot", "bot"]],

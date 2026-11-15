@@ -76,10 +76,10 @@ class TestBoard:
         board = Board()
         tile = Tile(1, "A")
         board.place_tile(tile)
-        board.set_chain(tile, "Luxor")
+        board.set_chain(tile, "sandpiper")
         cell = board.get_cell(1, "A")
         assert cell.state == TileState.IN_CHAIN
-        assert cell.chain == "Luxor"
+        assert cell.chain == "sandpiper"
 
     def test_get_adjacent_tiles_center(self):
         board = Board()
@@ -121,13 +121,13 @@ class TestBoard:
         tile2 = Tile(2, "A")
         board.place_tile(tile1)
         board.place_tile(tile2)
-        board.set_chain(tile1, "Luxor")
-        board.set_chain(tile2, "Luxor")
+        board.set_chain(tile1, "sandpiper")
+        board.set_chain(tile2, "sandpiper")
 
         # Tile adjacent to the chain
         tile3 = Tile(3, "A")
         chains = board.get_adjacent_chains(tile3)
-        assert chains == ["Luxor"]
+        assert chains == ["sandpiper"]
 
     def test_get_adjacent_chains_multiple(self):
         board = Board()
@@ -136,21 +136,21 @@ class TestBoard:
         tile2 = Tile(3, "A")
         board.place_tile(tile1)
         board.place_tile(tile2)
-        board.set_chain(tile1, "Luxor")
-        board.set_chain(tile2, "Tower")
+        board.set_chain(tile1, "sandpiper")
+        board.set_chain(tile2, "marlowe")
 
         # Tile between them
         chains = board.get_adjacent_chains(Tile(2, "A"))
-        assert chains == ["Luxor", "Tower"]  # sorted alphabetically
+        assert chains == ["marlowe", "sandpiper"]  # sorted alphabetically
 
     def test_get_chain_size(self):
         board = Board()
         for i in range(1, 6):
             tile = Tile(i, "A")
             board.place_tile(tile)
-            board.set_chain(tile, "Tower")
+            board.set_chain(tile, "marlowe")
 
-        assert board.get_chain_size("Tower") == 5
+        assert board.get_chain_size("marlowe") == 5
 
     def test_get_connected_tiles(self):
         board = Board()
@@ -179,15 +179,15 @@ class TestBoard:
 
         for t in [t1, t2]:
             board.place_tile(t)
-            board.set_chain(t, "Luxor")
+            board.set_chain(t, "sandpiper")
         for t in [t3, t4]:
             board.place_tile(t)
-            board.set_chain(t, "Tower")
+            board.set_chain(t, "marlowe")
 
-        board.merge_chains("Luxor", "Tower")
+        board.merge_chains("sandpiper", "marlowe")
 
-        assert board.get_chain_size("Luxor") == 4
-        assert board.get_chain_size("Tower") == 0
+        assert board.get_chain_size("sandpiper") == 4
+        assert board.get_chain_size("marlowe") == 0
 
     def test_is_tile_played(self):
         board = Board()
@@ -200,11 +200,11 @@ class TestBoard:
         board = Board()
         tile = Tile(1, "A")
         board.place_tile(tile)
-        board.set_chain(tile, "Luxor")
+        board.set_chain(tile, "sandpiper")
 
         state = board.get_state()
         assert "1A" in state["cells"]
-        assert state["cells"]["1A"]["chain"] == "Luxor"
+        assert state["cells"]["1A"]["chain"] == "sandpiper"
 
     def test_all_tiles(self):
         tiles = Board.all_tiles()

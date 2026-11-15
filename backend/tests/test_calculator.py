@@ -48,13 +48,13 @@ def hand(game, pid, *tiles):
 
 
 def merger_position():
-    """American (5, A1-A5) next to Tower (3, C1-C3); B2 merges them."""
+    """halcyon (5, A1-A5) next to marlowe (3, C1-C3); B2 merges them."""
     game = make_game()
-    add_chain(game, "American", ["1A", "2A", "3A", "4A", "5A"])
-    add_chain(game, "Tower", ["1C", "2C", "3C"])
-    give(game, "p1", American=5, Tower=4)
-    give(game, "p2", American=3, Tower=2)
-    give(game, "p3", American=2)
+    add_chain(game, "halcyon", ["1A", "2A", "3A", "4A", "5A"])
+    add_chain(game, "marlowe", ["1C", "2C", "3C"])
+    give(game, "p1", halcyon=5, marlowe=4)
+    give(game, "p2", halcyon=3, marlowe=2)
+    give(game, "p3", halcyon=2)
     hand(game, "p2", "2B", "9I")
     return game
 
@@ -67,7 +67,7 @@ def merger_position():
 class TestChainFigures:
     def test_chain_numbers(self):
         pack = build_calculator_pack(merger_position(), "p3")
-        am = pack["chains"]["American"]
+        am = pack["chains"]["halcyon"]
         assert am["active"] and am["size"] == 5 and not am["safe"]
         assert am["price"] == 600
         assert am["available_stock"] == 25 - 10
@@ -86,16 +86,16 @@ class TestChainFigures:
         assert am["majority_receivers"] == ["p1"]
         assert am["minority_receivers"] == ["p2"]
 
-        tower = pack["chains"]["Tower"]
-        assert tower["price"] == 300 and tower["majority_bonus"] == 3000
+        marlowe = pack["chains"]["marlowe"]
+        assert marlowe["price"] == 300 and marlowe["majority_bonus"] == 3000
 
-        lux = pack["chains"]["Luxor"]
+        lux = pack["chains"]["sandpiper"]
         assert lux["active"] is False and lux["size"] == 0 and lux["price"] == 0
         assert lux["price_if_founded"] == 200
 
     def test_viewer_standing_and_shares_needed(self):
         pack = build_calculator_pack(merger_position(), "p3")
-        v = pack["chains"]["American"]["viewer"]
+        v = pack["chains"]["halcyon"]["viewer"]
         assert v["shares"] == 2 and v["sell_value"] == 1200
         assert v["standing"] == "none"
         assert v["shares_to_tie_majority"] == 3  # 2 -> 5
@@ -105,12 +105,12 @@ class TestChainFigures:
 
     def test_tied_minority_split_rounds_up(self):
         game = make_game(4)
-        add_chain(game, "Luxor", ["1A", "2A", "3A", "4A", "5A"])  # $500/share
-        give(game, "p1", Luxor=5)
-        give(game, "p2", Luxor=3)
-        give(game, "p3", Luxor=3)
-        give(game, "p4", Luxor=1)
-        lux = build_calculator_pack(game, "p4")["chains"]["Luxor"]
+        add_chain(game, "sandpiper", ["1A", "2A", "3A", "4A", "5A"])  # $500/share
+        give(game, "p1", sandpiper=5)
+        give(game, "p2", sandpiper=3)
+        give(game, "p3", sandpiper=3)
+        give(game, "p4", sandpiper=1)
+        lux = build_calculator_pack(game, "p4")["chains"]["sandpiper"]
         assert lux["majority_bonus"] == 5000 and lux["minority_bonus"] == 2500
         assert lux["payouts"]["p1"]["total"] == 5000
         # 2500 / 2 = 1250 -> rounded up to 1300 by the engine
@@ -122,11 +122,11 @@ class TestChainFigures:
 
     def test_tied_majority_split_rounds_up(self):
         game = make_game(3)
-        add_chain(game, "Luxor", ["1A", "2A", "3A", "4A", "5A"])
-        give(game, "p1", Luxor=4)
-        give(game, "p2", Luxor=4)
-        give(game, "p3", Luxor=1)
-        lux = build_calculator_pack(game, "p3")["chains"]["Luxor"]
+        add_chain(game, "sandpiper", ["1A", "2A", "3A", "4A", "5A"])
+        give(game, "p1", sandpiper=4)
+        give(game, "p2", sandpiper=4)
+        give(game, "p3", sandpiper=1)
+        lux = build_calculator_pack(game, "p3")["chains"]["sandpiper"]
         # (5000 + 2500) / 2 = 3750 -> 3800; minority is swallowed by the tie
         assert lux["payouts"] == {
             "p1": {"majority": 3800, "minority": 0, "total": 3800},
@@ -136,11 +136,11 @@ class TestChainFigures:
 
     def test_sole_stockholder_gets_both(self):
         game = make_game()
-        add_chain(game, "Imperial", ["1A", "2A"])  # $400
-        give(game, "p1", Imperial=1)
+        add_chain(game, "obsidian", ["1A", "2A"])  # $400
+        give(game, "p1", obsidian=1)
         pack = build_calculator_pack(game, "p1")
-        assert pack["chains"]["Imperial"]["payouts"]["p1"]["total"] == 4000 + 2000
-        assert pack["chains"]["Imperial"]["viewer"]["standing"] == "majority_sole"
+        assert pack["chains"]["obsidian"]["payouts"]["p1"]["total"] == 4000 + 2000
+        assert pack["chains"]["obsidian"]["viewer"]["standing"] == "majority_sole"
 
 
 class TestPlayers:
@@ -149,14 +149,14 @@ class TestPlayers:
         pack = build_calculator_pack(game, "p1")
         by = {p["player_id"]: p for p in pack["players"]}
         p1 = by["p1"]
-        # American 600 * 5 + Tower 300 * 4
+        # halcyon 600 * 5 + marlowe 300 * 4
         assert p1["stock_value"] == 3000 + 1200
         assert p1["net_worth"] == 6000 + 4200
-        # p1: American majority 6000, Tower majority 3000 (size 3: 300*10)
-        assert p1["projected_bonuses"] == {"American": 6000, "Tower": 3000}
+        # p1: halcyon majority 6000, marlowe majority 3000 (size 3: 300*10)
+        assert p1["projected_bonuses"] == {"halcyon": 6000, "marlowe": 3000}
         assert p1["projected_final_score"] == 6000 + 9000 + 4200
         p2 = by["p2"]
-        # American minority 3000 ; Tower minority 1500
+        # halcyon minority 3000 ; marlowe minority 1500
         assert p2["projected_bonus_income"] == 4500
         assert p2["projected_final_score"] == 6000 + 4500 + (3 * 600 + 2 * 300)
         assert p1["projected_rank"] == 1
@@ -177,13 +177,13 @@ class TestTileEffects:
         by_tile = {t["tile"]: t for t in pack["viewer"]["tiles"]}
         merge = by_tile["2B"]
         assert merge["effect"] == "merge" and merge["playable"]
-        assert merge["survivor_candidates"] == ["American"]
+        assert merge["survivor_candidates"] == ["halcyon"]
         (sc,) = merge["scenarios"]
-        assert sc["survivor"] == "American"
+        assert sc["survivor"] == "halcyon"
         assert sc["survivor_size_after"] == 9  # 5 + 3 + placed tile
         assert sc["survivor_price_after"] == 700
         (d,) = sc["defunct"]
-        assert d["chain"] == "Tower" and d["size"] == 3 and d["price"] == 300
+        assert d["chain"] == "marlowe" and d["size"] == 3 and d["price"] == 300
         assert d["bonus_payouts"]["p1"]["total"] == 3000
         assert d["bonus_payouts"]["p2"]["total"] == 1500
         assert d["viewer_bonus"] == 1500
@@ -199,28 +199,28 @@ class TestTileEffects:
 
     def test_merge_tie_lists_both_survivors(self):
         game = make_game()
-        add_chain(game, "American", ["1A", "2A", "3A"])
-        add_chain(game, "Tower", ["1C", "2C", "3C"])
-        give(game, "p1", Tower=3, American=1)
+        add_chain(game, "halcyon", ["1A", "2A", "3A"])
+        add_chain(game, "marlowe", ["1C", "2C", "3C"])
+        give(game, "p1", marlowe=3, halcyon=1)
         hand(game, "p1", "2B")
         pack = build_calculator_pack(game, "p1")
         (t,) = pack["viewer"]["tiles"]
         assert t["survivor_chosen_by_player"] is True
-        assert sorted(t["survivor_candidates"]) == ["American", "Tower"]
-        assert {s["survivor"] for s in t["scenarios"]} == {"American", "Tower"}
+        assert sorted(t["survivor_candidates"]) == ["halcyon", "marlowe"]
+        assert {s["survivor"] for s in t["scenarios"]} == {"halcyon", "marlowe"}
         by = {s["survivor"]: s for s in t["scenarios"]}
-        assert by["American"]["defunct"][0]["chain"] == "Tower"
-        assert by["Tower"]["defunct"][0]["chain"] == "American"
-        # Surviving Tower (cheap, size 7 -> $600) vs American (medium, 7 -> $700)
-        assert by["Tower"]["survivor_price_after"] == 600
-        assert by["American"]["survivor_price_after"] == 700
+        assert by["halcyon"]["defunct"][0]["chain"] == "marlowe"
+        assert by["marlowe"]["defunct"][0]["chain"] == "halcyon"
+        # Surviving marlowe (cheap, size 7 -> $600) vs halcyon (medium, 7 -> $700)
+        assert by["marlowe"]["survivor_price_after"] == 600
+        assert by["halcyon"]["survivor_price_after"] == 700
 
     def test_trade_limited_by_bank_stock(self):
         game = merger_position()
-        # drain the bank of American stock held by p3
-        give(game, "p3", American=2)
-        game.hotel._available_stocks["American"] = 0
-        give(game, "p2", Tower=5)  # odd count
+        # drain the bank of halcyon stock held by p3
+        give(game, "p3", halcyon=2)
+        game.hotel._available_stocks["halcyon"] = 0
+        give(game, "p2", marlowe=5)  # odd count
         pack = build_calculator_pack(game, "p2")
         d = {t["tile"]: t for t in pack["viewer"]["tiles"]}["2B"]["scenarios"][0][
             "defunct"
@@ -231,7 +231,7 @@ class TestTileEffects:
 
     def test_expand_found_and_unplayable(self):
         game = make_game()
-        add_chain(game, "American", ["1A", "2A", "3A"])
+        add_chain(game, "halcyon", ["1A", "2A", "3A"])
         game.board.place_tile(Tile.from_string("5E"))  # lone tile
         hand(game, "p1", "4A", "5F", "9I", "1B")
         by = {
@@ -241,14 +241,14 @@ class TestTileEffects:
         assert by["4A"]["new_price"] == 500
         assert by["5F"]["effect"] == "found"
         assert by["5F"]["new_size"] == 2
-        assert "American" not in by["5F"]["chains_available_to_found"]
+        assert "halcyon" not in by["5F"]["chains_available_to_found"]
         assert len(by["5F"]["chains_available_to_found"]) == 6
         assert by["9I"]["effect"] == "nothing"
         assert by["1B"]["new_size"] == 4
 
     def test_expand_absorbs_lone_tiles(self):
         game = make_game()
-        add_chain(game, "American", ["1A", "2A"])
+        add_chain(game, "halcyon", ["1A", "2A"])
         game.board.place_tile(Tile.from_string("4A"))
         hand(game, "p1", "3A")
         (t,) = build_calculator_pack(game, "p1")["viewer"]["tiles"]
@@ -256,8 +256,8 @@ class TestTileEffects:
 
     def test_unplayable_reasons(self):
         game = make_game()
-        add_chain(game, "American", [f"{c}A" for c in range(1, 12)])  # 11 safe
-        add_chain(game, "Tower", [f"{c}C" for c in range(1, 12)])  # 11 safe
+        add_chain(game, "halcyon", [f"{c}A" for c in range(1, 12)])  # 11 safe
+        add_chain(game, "marlowe", [f"{c}C" for c in range(1, 12)])  # 11 safe
         hand(game, "p1", "1B", "9I")
         by = {
             t["tile"]: t for t in build_calculator_pack(game, "p1")["viewer"]["tiles"]
@@ -283,21 +283,23 @@ class TestBankAndBuying:
         bank = build_calculator_pack(game, "p1")["bank"]
         assert bank["can_end_game"] is False
         assert "not met" in bank["can_end_game_reason"]
-        assert bank["chains_active"] == ["American", "Tower"]
-        assert "Luxor" in bank["chains_available_to_found"]
+        assert bank["chains_active"] == ["halcyon", "marlowe"]
+        assert "sandpiper" in bank["chains_available_to_found"]
         assert bank["tiles_remaining"] == len(game.tile_bag)
 
         game2 = make_game()
-        add_chain(game2, "Luxor", [f"{c}{r}" for c in range(1, 12) for r in "AB"][:12])
+        add_chain(
+            game2, "sandpiper", [f"{c}{r}" for c in range(1, 12) for r in "AB"][:12]
+        )
         pack = build_calculator_pack(game2, "p1")["bank"]
         assert pack["can_end_game"] is True
         assert "safe" in pack["can_end_game_reason"]
 
         game3 = make_game()
         add_chain(
-            game3, "Luxor", [f"{c}{r}" for c in range(1, 13) for r in "ABCD"][:41]
+            game3, "sandpiper", [f"{c}{r}" for c in range(1, 13) for r in "ABCD"][:41]
         )
-        add_chain(game3, "Tower", ["1I", "2I"])
+        add_chain(game3, "marlowe", ["1I", "2I"])
         reason = build_calculator_pack(game3, "p1")["bank"]["can_end_game_reason"]
         assert "41" in reason
 
@@ -306,7 +308,7 @@ class TestBankAndBuying:
         game.phase = GamePhase.BUYING_STOCKS
         game.current_player_index = 2  # p3
         pack = build_calculator_pack(game, "p3")
-        opt = pack["buy_options"]["American"]
+        opt = pack["buy_options"]["halcyon"]
         assert opt["price"] == 600 and opt["max_affordable"] == 3
         assert opt["can_buy_now"] is True
         assert opt["standing_now"] == "none" and opt["payout_now"] == 0
@@ -327,16 +329,16 @@ class TestBankAndBuying:
         game = merger_position()
         game.get_player("p3")._money = 700
         pack = build_calculator_pack(game, "p3")
-        assert pack["buy_options"]["American"]["max_affordable"] == 1
-        game.hotel._available_stocks["Tower"] = 0
-        assert "Tower" not in build_calculator_pack(game, "p3")["buy_options"]
+        assert pack["buy_options"]["halcyon"]["max_affordable"] == 1
+        game.hotel._available_stocks["marlowe"] = 0
+        assert "marlowe" not in build_calculator_pack(game, "p3")["buy_options"]
 
 
 class TestFollowsPlay:
     """The pack on positions reached by real moves (tests/support/table.py)."""
 
     def test_end_game_reason_changes_exactly_at_the_thresholds(self):
-        rs = load_ruleset("classic")
+        rs = load_ruleset("default")
         t, next_big, _ = grow_two_chains(rs, 40, 2)
         me = t.current
         bank = build_calculator_pack(t.game, me)["bank"]
@@ -345,7 +347,7 @@ class TestFollowsPlay:
         assert bank["viewer_can_declare_now"] is False
         t.place(next_big)  # 41 tiles
         bank = build_calculator_pack(t.game, me)["bank"]
-        assert bank["can_end_game_reason"] == "chain with 41+ tiles: Luxor"
+        assert bank["can_end_game_reason"] == "chain with 41+ tiles: sandpiper"
         assert bank["viewer_can_declare_now"] is True
         other = next(p.player_id for p in t.game.players if p.player_id != me)
         pack = build_calculator_pack(t.game, other)
@@ -355,22 +357,22 @@ class TestFollowsPlay:
 
         t, _, next_small = grow_two_chains(rs, 11, 10)
         reason = build_calculator_pack(t.game, t.current)["bank"]["can_end_game_reason"]
-        assert reason.endswith("not safe: Tower")
+        assert reason.endswith("not safe: marlowe")
         t.pass_turn()
-        t.place(next_small)  # Tower 11: every chain safe
+        t.place(next_small)  # marlowe 11: every chain safe
         reason = build_calculator_pack(t.game, t.current)["bank"]["can_end_game_reason"]
         assert reason == "all active chains are safe"
 
     def test_buy_options_in_the_buy_phase(self):
-        # Luxor 1A-3A: p2 founder + 2 bought = 3, p3 2; p1 places 12I and buys
+        # sandpiper 1A-3A: p2 founder + 2 bought = 3, p3 2; p1 places 12I and buys
         t = Table([["1A", "12I"], ["2A", "3A"], ["5A"]])
         t.turn("1A")
-        t.turn("2A", found="Luxor", buy={"Luxor": 2})
-        t.turn("5A", buy={"Luxor": 2})
+        t.turn("2A", found="sandpiper", buy={"sandpiper": 2})
+        t.turn("5A", buy={"sandpiper": 2})
         t.place("12I")
         assert t.current == "p1"
         pack = build_calculator_pack(t.game, "p1")
-        opt = pack["buy_options"]["Luxor"]
+        opt = pack["buy_options"]["sandpiper"]
         assert (opt["price"], opt["max_affordable"], opt["can_buy_now"]) == (
             200,
             3,
@@ -384,23 +386,23 @@ class TestFollowsPlay:
         assert opt["purchases"]["3"]["standing_after"] == "majority_tied"
         assert opt["purchases"]["3"]["payout_after"] == 1500
         # someone who already earns a bonus sees the change, not the total
-        p3 = build_calculator_pack(t.game, "p3")["buy_options"]["Luxor"]
+        p3 = build_calculator_pack(t.game, "p3")["buy_options"]["sandpiper"]
         assert p3["can_buy_now"] is False
         assert p3["payout_now"] == 1000
         assert p3["purchases"]["1"]["payout_change"] == 1500 - 1000
 
     def test_last_bank_share_is_still_offered_and_bot_seats_are_flagged(self):
-        """Mini: one harbor share left in the bank (bought up by real play)."""
+        """Mini: one sandpiper share left in the bank (bought up by real play)."""
         t = Table([["1A"], ["2A"]], ruleset=load_ruleset("mini"))
         t.turn("1A")
-        t.turn("2A", found="harbor", buy={"harbor": 4})
+        t.turn("2A", found="sandpiper", buy={"sandpiper": 4})
         for n in (4, 4, 3):
             t.place_filler()
-            t.buy({"harbor": n})
+            t.buy({"sandpiper": n})
             t.end()
         t.place_filler()
         pack = build_calculator_pack(t.game, t.current)
-        opt = pack["buy_options"]["harbor"]
+        opt = pack["buy_options"]["sandpiper"]
         assert (opt["available"], opt["max_affordable"]) == (1, 1)
         assert sorted(opt["purchases"]) == ["1"]
         assert [p["is_bot"] for p in pack["players"]] == [False, False]
@@ -417,8 +419,8 @@ class TestFollowsPlay:
         assert flags == {"h": False, "b": True, "c": True}
 
     def test_merge_scenario_resolves_defuncts_largest_first(self):
-        """American (4) absorbs Tower (3) and Luxor (2) through 4B; p3 holds
-        2 Tower and 1 Luxor (see tests/gameplay/test_mergers.py)."""
+        """halcyon (4) absorbs marlowe (3) and sandpiper (2) through 4B; p3 holds
+        2 marlowe and 1 sandpiper (see tests/gameplay/test_mergers.py)."""
         t = Table(
             [
                 ["4C", "1B", "5B", "4F"],
@@ -429,14 +431,14 @@ class TestFollowsPlay:
         t.play(
             [
                 "4C",
-                ("4D", {"found": "American"}),
+                ("4D", {"found": "halcyon"}),
                 "4E",
                 "1B",
-                ("2B", {"found": "Tower"}),
-                ("3B", {"buy": {"Tower": 2}}),
+                ("2B", {"found": "marlowe"}),
+                ("3B", {"buy": {"marlowe": 2}}),
                 "5B",
-                ("6B", {"found": "Luxor"}),
-                ("12I", {"buy": {"Luxor": 1}}),
+                ("6B", {"found": "sandpiper"}),
+                ("12I", {"buy": {"sandpiper": 1}}),
                 "4F",
                 "10I",
             ]
@@ -444,19 +446,19 @@ class TestFollowsPlay:
         pack = build_calculator_pack(t.game, "p3")
         info = {x["tile"]: x for x in pack["viewer"]["tiles"]}["4B"]
         assert info["effect"] == "merge"
-        assert sorted(info["chains"]) == ["American", "Luxor", "Tower"]
+        assert sorted(info["chains"]) == ["halcyon", "marlowe", "sandpiper"]
         (sc,) = info["scenarios"]
-        assert [d["chain"] for d in sc["defunct"]] == ["Tower", "Luxor"]
-        tower, luxor = sc["defunct"]
-        assert tower["trade"]["shares_traded"] == 2
-        assert tower["trade"]["survivor_shares_received"] == 1
-        assert luxor["trade"]["shares_traded"] == 0
-        assert luxor["trade"]["leftover_sale_value"] == 200  # 1 share at $200
+        assert [d["chain"] for d in sc["defunct"]] == ["marlowe", "sandpiper"]
+        marlowe, sandpiper = sc["defunct"]
+        assert marlowe["trade"]["shares_traded"] == 2
+        assert marlowe["trade"]["survivor_shares_received"] == 1
+        assert sandpiper["trade"]["shares_traded"] == 0
+        assert sandpiper["trade"]["leftover_sale_value"] == 200  # 1 share at $200
         assert sc["survivor_size_after"] == 10
         # and the engine agrees once the tile is played
         t.place("4B")
         paid = [e for e in t.game.events if e["type"] == "bonuses_paid"]
-        assert paid[0]["bonuses"]["p3"]["majority"] == tower["viewer_bonus"]
+        assert paid[0]["bonuses"]["p3"]["majority"] == marlowe["viewer_bonus"]
 
 
 # ---------------------------------------------------------------------------

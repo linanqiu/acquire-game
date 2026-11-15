@@ -2,7 +2,7 @@
 
 Subcommands::
 
-    python -m bench run --protocol acquire-bench-v1 --models llm:a,llm:b \\
+    python -m bench run --protocol bench-v1 --models llm:a,llm:b \\
         --track both --out bench_results/run1 [--games N] [--json]
     python -m bench run --matchup llm:fake,bot,bot,bot --games 8 --out DIR
     python -m bench leaderboard --out DIR [--protocol ID] [--json]
@@ -35,9 +35,9 @@ SUBCOMMANDS = ("run", "leaderboard", "list-models")
 
 HINTS = {
     "llm:claude": "set ANTHROPIC_API_KEY",
-    "llm:openai": "set ACQUIRE_LLM_OPENAI_BASE_URL / _MODEL / _API_KEY",
-    "llm:fake": "set ACQUIRE_TEST_MODE=1",
-    "scripted": "set ACQUIRE_TEST_MODE=1",
+    "llm:openai": "set GAME_LLM_OPENAI_BASE_URL / _MODEL / _API_KEY",
+    "llm:fake": "set GAME_TEST_MODE=1",
+    "scripted": "set GAME_TEST_MODE=1",
 }
 
 
@@ -94,8 +94,8 @@ def _progress(quiet: bool):
 def _ruleset_flag(p: argparse.ArgumentParser) -> None:
     p.add_argument(
         "--ruleset",
-        help="game variant: a name in backend/rulesets (classic, valley, mini) "
-        "or a path to a ruleset JSON (default: env GAME_RULESET, else classic)",
+        help="game variant: a name in backend/rulesets (default, valley, mini) "
+        "or a path to a ruleset JSON (default: env GAME_RULESET, else default)",
     )
 
 
@@ -210,7 +210,7 @@ def build_cli() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     run = sub.add_parser("run", help="run a protocol (or ad-hoc matchups)")
-    run.add_argument("--protocol", help="e.g. acquire-bench-v1")
+    run.add_argument("--protocol", help="e.g. bench-v1")
     run.add_argument("--models", help="comma-separated catalog ids (protocol runs)")
     run.add_argument(
         "--track", default="both", choices=["vs-baseline", "head-to-head", "both"]

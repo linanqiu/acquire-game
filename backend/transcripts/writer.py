@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Any
 
 from game.ranking import competition_ranks
+from game.ruleset import default_ruleset
 from transcripts.paths import new_game_id, transcript_dir, utc_now, valid_game_id
 
 logger = logging.getLogger(__name__)
@@ -88,11 +89,12 @@ def standings_from_game(game) -> list[dict]:
 
 def ruleset_summary(header: dict) -> dict:
     """``ruleset_id`` / ``ruleset_title`` / ``ruleset_fingerprint`` of a
-    header (transcripts written before rulesets existed were classic)."""
+    header (transcripts written before rulesets existed were default)."""
     rs = header.get("ruleset") or {}
     return {
-        "ruleset_id": header.get("ruleset_id") or rs.get("id") or "classic",
-        "ruleset_title": rs.get("title") or ("Acquire" if not rs else None),
+        "ruleset_id": header.get("ruleset_id") or rs.get("id") or "default",
+        "ruleset_title": rs.get("title")
+        or (default_ruleset().title if not rs else None),
         "ruleset_fingerprint": header.get("ruleset_fingerprint"),
     }
 
@@ -182,7 +184,7 @@ class TranscriptWriter:
         prices: Any = None,
     ) -> TranscriptWriter | None:
         """Start a transcript for ``game`` (already started). Returns None when
-        transcripts are disabled (``ACQUIRE_TRANSCRIPT_DIR`` empty/``off`` and
+        transcripts are disabled (``GAME_TRANSCRIPT_DIR`` empty/``off`` and
         no ``directory``) or the file cannot be created.
 
         ``seats``: ``[{player_id, name, kind, agent_id, agent_label, model,

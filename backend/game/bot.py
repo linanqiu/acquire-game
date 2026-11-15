@@ -1,4 +1,4 @@
-"""AI player for Acquire board game."""
+"""AI player for Buyout board game."""
 
 import random
 from typing import Optional
@@ -9,7 +9,7 @@ from game.player import Player
 
 
 class Bot:
-    """AI player for Acquire."""
+    """AI player for Buyout."""
 
     def __init__(
         self,
@@ -163,7 +163,7 @@ class Bot:
             chains_by_tier[rs.chain(chain_name).tier].append(chain_name)
 
         # Decide based on cash situation (a quarter of the starting cash:
-        # $1,500 in classic)
+        # $1,500 in default)
         cheapest_first = [t.id for t in rs.tiers]
         if self.player.money < rs.starting_cash // 4:
             # Low on cash - prefer cheap chains (lower stock prices)

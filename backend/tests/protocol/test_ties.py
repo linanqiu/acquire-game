@@ -37,8 +37,8 @@ def tie_snapshot() -> dict:
             p.add_tile(g.tile_bag.pop())
     for t in cells:
         g.board.place_tile(t)
-        g.board.set_chain(t, "harbor")
-    g.hotel.activate_chain("harbor")
+        g.board.set_chain(t, "sandpiper")
+    g.hotel.activate_chain("sandpiper")
     for p, money in zip(g.players, (7000, 7000, 5000), strict=True):
         p._money = money
     g.resolve_unplayable_turn()
@@ -48,8 +48,8 @@ def tie_snapshot() -> dict:
 
 @pytest.fixture
 def tdir(tmp_path, monkeypatch):
-    monkeypatch.setenv("ACQUIRE_TRANSCRIPT_DIR", str(tmp_path / "t"))
-    monkeypatch.setenv("ACQUIRE_BENCH_DIR", str(tmp_path / "b"))
+    monkeypatch.setenv("GAME_TRANSCRIPT_DIR", str(tmp_path / "t"))
+    monkeypatch.setenv("GAME_BENCH_DIR", str(tmp_path / "b"))
 
 
 def test_tie_for_first_is_reported_consistently_everywhere(app_client, tdir):

@@ -27,7 +27,7 @@ def new_game(
     tile_order: list[str] | None = None,
     ruleset: Ruleset | None = None,
 ) -> Game:
-    """A freshly started game (hands dealt, turn 1). Fixtures use classic."""
+    """A freshly started game (hands dealt, turn 1). Fixtures use default."""
     game = Game(seed=seed, tile_order=tile_order, ruleset=ruleset)
     for p in players:
         game.add_player(p["player_id"], p["name"])

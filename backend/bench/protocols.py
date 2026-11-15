@@ -1,6 +1,6 @@
-"""Acquire Bench: named, versioned benchmark protocols and ``run_protocol``.
+"""Buyout Bench: named, versioned benchmark protocols and ``run_protocol``.
 
-``acquire-bench-v1``
+``bench-v1``
     4 seats. Every series is 72 games: every distinct seating of its lineup
     is played on the same deal (seed), seed after seed, until 72 games.
 
@@ -65,8 +65,8 @@ class Protocol:
         }
 
 
-ACQUIRE_BENCH_V1 = Protocol(
-    id="acquire-bench-v1",
+BENCH_V1 = Protocol(
+    id="bench-v1",
     description=(
         "4 seats, fixed seeds, every seating of each lineup on the same deal, "
         "72 games per series, pinned prompt version. Tracks: vs-baseline (one "
@@ -97,7 +97,7 @@ ACQUIRE_BENCH_V1 = Protocol(
     games_per_series=72,
 )
 
-PROTOCOLS: dict[str, Protocol] = {ACQUIRE_BENCH_V1.id: ACQUIRE_BENCH_V1}
+PROTOCOLS: dict[str, Protocol] = {BENCH_V1.id: BENCH_V1}
 
 
 def get_protocol(protocol_id: str) -> Protocol:
@@ -293,7 +293,7 @@ async def run_protocol(
     models: Sequence[SeatSpec],
     *,
     out: str | Path,
-    protocol: str | Protocol = ACQUIRE_BENCH_V1.id,
+    protocol: str | Protocol = BENCH_V1.id,
     track: str = "both",
     games: int | None = None,
     max_concurrency: int = 4,
@@ -322,7 +322,7 @@ async def run_protocol(
     with ``max_usd``) before any game starts.
 
     ``ruleset``: name in ``backend/rulesets``, path or ``Ruleset`` (default:
-    the server's configured ruleset, ``GAME_RULESET``, else classic). Results
+    the server's configured ruleset, ``GAME_RULESET``, else default). Results
     of different rulesets are never mixed: the ruleset is part of every game
     key, series id, prompt version and leaderboard.
     """

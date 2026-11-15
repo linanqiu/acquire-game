@@ -132,7 +132,7 @@ def test_always_illegal_falls_back_after_the_budget_and_tells_everyone(
     code, alice, llm_pid, made = fallback_table(
         app_client, monkeypatch, prov, max_illegal_retries=3
     )
-    with caplog.at_level("WARNING", logger="acquire.llm"):
+    with caplog.at_level("WARNING", logger="llm"):
         human, state, host_msg = run_to_first_fallback(app_client, code, alice, llm_pid)
     n = debug(app_client, code)["fallback_count"]
     assert 4 * n <= len(prov.calls) <= 4 * n + 4  # 1 answer + 3 retries, then the bot
@@ -153,7 +153,7 @@ def test_always_illegal_falls_back_after_the_budget_and_tells_everyone(
     assert info["fallback_kinds"]["illegal"] >= 1
     assert made["agent"].totals["failures"] >= 1
     assert any(
-        r.name == "acquire.llm" and r.levelname == "WARNING" and "illegal" in r.message
+        r.name == "llm" and r.levelname == "WARNING" and "illegal" in r.message
         for r in caplog.records
     )
 

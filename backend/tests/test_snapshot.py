@@ -319,23 +319,23 @@ def _build_tie_merger_game():
     for i in range(3):
         game.add_player(f"p{i}", f"P{i}", is_bot=True)
     game.start_game()
-    # Luxor on 1A,2A ; Tower on 4A,5A ; joining tile 3A.
+    # sandpiper on 1A,2A ; marlowe on 4A,5A ; joining tile 3A.
     for t, chain in (
-        ("1A", "Luxor"),
-        ("2A", "Luxor"),
-        ("4A", "Tower"),
-        ("5A", "Tower"),
+        ("1A", "sandpiper"),
+        ("2A", "sandpiper"),
+        ("4A", "marlowe"),
+        ("5A", "marlowe"),
     ):
         tile = Tile.from_string(t)
         game.board.place_tile(tile)
         game.board.set_chain(tile, chain)
-    game.hotel.activate_chain("Luxor")
-    game.hotel.activate_chain("Tower")
+    game.hotel.activate_chain("sandpiper")
+    game.hotel.activate_chain("marlowe")
     for _ in range(2):
-        game.hotel.buy_stock("Luxor")
-        game.hotel.buy_stock("Tower")
-    game.players[1].add_stocks("Luxor", 2)
-    game.players[2].add_stocks("Tower", 2)
+        game.hotel.buy_stock("sandpiper")
+        game.hotel.buy_stock("marlowe")
+    game.players[1].add_stocks("sandpiper", 2)
+    game.players[2].add_stocks("marlowe", 2)
     p0 = game.players[0]
     for t in list(p0.hand):
         p0.remove_tile(t)
@@ -374,10 +374,10 @@ def test_merger_state_midway_roundtrip():
     """Snapshot after survivor choice, with merger tile + queue populated."""
     game, tile = _build_tie_merger_game()
     game.play_tile("p0", tile)
-    game.choose_merger_survivor("p0", "Luxor")
+    game.choose_merger_survivor("p0", "sandpiper")
     assert game.phase == GamePhase.MERGING
     assert game._merger.tile == tile
-    assert game._merger.survivor == "Luxor"
+    assert game._merger.survivor == "sandpiper"
     restored = restore(game)
     assert restored._merger == game._merger
     assert_same(game, restored, "mid merger")
@@ -554,7 +554,7 @@ def _mutations():
             {"1A": {"state": "in_chain", "chain": "Nope"}}
         ),
         "bad-active-chain": lambda s: s["hotel"].update(active_chains=["Nope"]),
-        "missing-stock-chain": lambda s: s["players"][0]["stocks"].pop("Luxor"),
+        "missing-stock-chain": lambda s: s["players"][0]["stocks"].pop("sandpiper"),
         "bad-index": lambda s: s.update(current_player_index=99),
         "bad-rng": lambda s: s.update(rng_state=[3, [1, 2], None]),
         "rng-garbage": lambda s: s.update(rng_state="x"),

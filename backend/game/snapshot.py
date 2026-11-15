@@ -7,10 +7,10 @@ behaves identically to the original under any subsequent action sequence.
 
 The snapshot is plain JSON data: ``json.loads(json.dumps(snap)) == snap``.
 
-Ruleset: a game on any ruleset other than the built-in classic one stores the
-full ruleset dict under ``"ruleset"`` and is restored with it. Classic games
+Ruleset: a game on any ruleset other than the built-in default one stores the
+full ruleset dict under ``"ruleset"`` and is restored with it. Default games
 omit the key (so snapshots written before rulesets existed stay valid and
-byte-identical); a snapshot without it is a classic game.
+byte-identical); a snapshot without it is a default game.
 
 Drift protection: ``HANDLED_GAME_ATTRS`` lists every instance attribute of
 ``Game`` this module knows about. ``tests/test_snapshot.py`` fails if
@@ -26,7 +26,7 @@ from game.board import BoardCell, Tile, TileState
 from game.bot import Bot
 from game.game import Game, GamePhase, MergerState
 from game.player import Player
-from game.ruleset import Ruleset, RulesetError, classic
+from game.ruleset import Ruleset, RulesetError, default_ruleset
 
 SNAPSHOT_VERSION = 1
 
@@ -219,8 +219,8 @@ def to_snapshot(game: Game) -> dict:
 
 
 def _ruleset_entry(rs: Ruleset) -> dict:
-    """``{"ruleset": {...}}`` unless ``rs`` is the built-in classic ruleset."""
-    if rs.fingerprint == classic().fingerprint:
+    """``{"ruleset": {...}}`` unless ``rs`` is the built-in default ruleset."""
+    if rs.fingerprint == default_ruleset().fingerprint:
         return {}
     return {"ruleset": rs.to_dict()}
 
@@ -262,7 +262,7 @@ def from_snapshot(data: dict) -> Game:
 
 def _build(data: dict) -> Game:
     if data.get("ruleset") is None:
-        rs = classic()
+        rs = default_ruleset()
     else:
         try:
             rs = Ruleset.from_dict(data["ruleset"])

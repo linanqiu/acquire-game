@@ -20,7 +20,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any
 
-from game.ruleset import MIN_CHAIN_SIZE, Ruleset, classic, ruleset_from_state
+from game.ruleset import MIN_CHAIN_SIZE, Ruleset, default_ruleset, ruleset_from_state
 
 _STANDING = {
     "none": "no bonus position",
@@ -198,9 +198,9 @@ _TIMES = {1: "equal to", 2: "twice", 3: "three times", 4: "four times"}
 
 
 def build_system_prompt(ruleset: Ruleset | None = None) -> str:
-    """The system prompt for ``ruleset`` (default classic). Deterministic, so
+    """The system prompt for ``ruleset`` (default: the default ruleset). Deterministic, so
     it is identical for every decision of a game (prompt-cacheable)."""
-    rs = ruleset if ruleset is not None else classic()
+    rs = ruleset if ruleset is not None else default_ruleset()
     th = rs.theme
     letters = rs.board.row_letters
     ratio = rs.merger_trade_ratio
@@ -279,8 +279,8 @@ def system_prompt_id(text: str, ruleset: Ruleset | None = None) -> str:
 def prompt_version(ruleset: Ruleset | None = None) -> str:
     """``v<builder version>-<10 hex>``: hash over the ruleset fingerprint, the
     system prompt text and ``PROMPT_BUILDER_VERSION``. Stable across processes
-    and machines; different for every ruleset (default: classic)."""
-    rs = ruleset if ruleset is not None else classic()
+    and machines; different for every ruleset (default: the default ruleset)."""
+    rs = ruleset if ruleset is not None else default_ruleset()
     digest = _sha(
         f"{PROMPT_BUILDER_VERSION}\n{rs.fingerprint}\n{build_system_prompt(rs)}"
     )[:10]

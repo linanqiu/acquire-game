@@ -503,7 +503,7 @@ FIXTURES: list[Fixture] = [
         [
             req("human_to_place_tile", lambda c: c.flow_is(PLACE_TILE)),
             req(
-                "seven_chains",  # name kept: fixtures are classic (7 chains)
+                "seven_chains",  # name kept: fixtures are default (7 chains)
                 lambda c: len(c.active()) == len(c.game.ruleset.chains),
             ),
             req(

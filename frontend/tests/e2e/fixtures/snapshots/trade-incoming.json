@@ -11,13 +11,13 @@
   "description": "It is the human's turn and another player has proposed a trade to them (stock for cash).",
   "expect": {
     "active_chains": {
-      "Continental": {
+      "aurelia": {
         "available": 19,
         "price": 400,
         "safe": false,
         "size": 2
       },
-      "Luxor": {
+      "sandpiper": {
         "available": 23,
         "price": 200,
         "safe": false,
@@ -42,13 +42,13 @@
           "options": [
             {
               "available": 19,
-              "chain": "Continental",
+              "chain": "aurelia",
               "max_affordable": 3,
               "price": 400
             },
             {
               "available": 23,
-              "chain": "Luxor",
+              "chain": "sandpiper",
               "max_affordable": 3,
               "price": 200
             }
@@ -62,7 +62,7 @@
             "from_player_id": "p3",
             "offering_money": 0,
             "offering_stocks": {
-              "Continental": 2
+              "aurelia": 2
             },
             "requesting_money": 800,
             "requesting_stocks": {},
@@ -81,7 +81,7 @@
             "from_player_id": "p3",
             "offering_money": 0,
             "offering_stocks": {
-              "Continental": 2
+              "aurelia": 2
             },
             "requesting_money": 800,
             "requesting_stocks": {},
@@ -108,13 +108,13 @@
         "options": [
           {
             "available": 19,
-            "chain": "Continental",
+            "chain": "aurelia",
             "max_affordable": 3,
             "price": 400
           },
           {
             "available": 23,
-            "chain": "Luxor",
+            "chain": "sandpiper",
             "max_affordable": 3,
             "price": 200
           }
@@ -153,13 +153,13 @@
           "options": [
             {
               "available": 19,
-              "chain": "Continental",
+              "chain": "aurelia",
               "max_affordable": 3,
               "price": 400
             },
             {
               "available": 23,
-              "chain": "Luxor",
+              "chain": "sandpiper",
               "max_affordable": 3,
               "price": 200
             }
@@ -173,7 +173,7 @@
             "from_player_id": "p3",
             "offering_money": 0,
             "offering_stocks": {
-              "Continental": 2
+              "aurelia": 2
             },
             "requesting_money": 800,
             "requesting_stocks": {},
@@ -192,7 +192,7 @@
             "from_player_id": "p3",
             "offering_money": 0,
             "offering_stocks": {
-              "Continental": 2
+              "aurelia": 2
             },
             "requesting_money": 800,
             "requesting_stocks": {},
@@ -204,18 +204,18 @@
       }
     ],
     "inactive_chains": [
-      "American",
-      "Festival",
-      "Imperial",
-      "Tower",
-      "Worldwide"
+      "halcyon",
+      "juniper",
+      "marlowe",
+      "meridian",
+      "obsidian"
     ],
     "pending_trades": [
       {
         "from_player_id": "p3",
         "offering_money": 0,
         "offering_stocks": {
-          "Continental": 2
+          "aurelia": 2
         },
         "requesting_money": 800,
         "requesting_stocks": {},
@@ -242,7 +242,7 @@
       {
         "cash": 4800,
         "holdings": {
-          "Continental": 4
+          "aurelia": 4
         },
         "name": "Cara",
         "player_id": "p3",
@@ -251,8 +251,8 @@
       {
         "cash": 5000,
         "holdings": {
-          "Continental": 2,
-          "Luxor": 2
+          "aurelia": 2,
+          "sandpiper": 2
         },
         "name": "Dev",
         "player_id": "p4",
@@ -398,7 +398,7 @@
       {
         "action": {
           "action": "found_chain",
-          "chain": "Continental"
+          "chain": "aurelia"
         },
         "player_id": "p3"
       },
@@ -406,7 +406,7 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Continental": 3
+            "aurelia": 3
           }
         },
         "player_id": "p3"
@@ -427,7 +427,7 @@
       {
         "action": {
           "action": "found_chain",
-          "chain": "Luxor"
+          "chain": "sandpiper"
         },
         "player_id": "p4"
       },
@@ -435,8 +435,8 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Continental": 2,
-            "Luxor": 1
+            "aurelia": 2,
+            "sandpiper": 1
           }
         },
         "player_id": "p4"
@@ -459,7 +459,7 @@
           "action": "propose_trade",
           "offering_money": 0,
           "offering_stocks": {
-            "Continental": 2
+            "aurelia": 2
           },
           "requesting_money": 800,
           "requesting_stocks": {},
@@ -506,19 +506,19 @@
           "state": "played"
         },
         "5C": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "5D": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "5G": {
-          "chain": "Continental",
+          "chain": "aurelia",
           "state": "in_chain"
         },
         "6G": {
-          "chain": "Continental",
+          "chain": "aurelia",
           "state": "in_chain"
         },
         "8C": {
@@ -814,13 +814,13 @@
       },
       {
         "available_chains": [
-          "Luxor",
-          "Tower",
-          "American",
-          "Worldwide",
-          "Festival",
-          "Imperial",
-          "Continental"
+          "sandpiper",
+          "marlowe",
+          "halcyon",
+          "meridian",
+          "juniper",
+          "obsidian",
+          "aurelia"
         ],
         "outcome": "found",
         "player_id": "p3",
@@ -830,7 +830,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Continental",
+        "chain": "aurelia",
         "founder_bonus_type": "stock",
         "founder_bonus_value": 1,
         "player_id": "p3",
@@ -843,11 +843,11 @@
       {
         "player_id": "p3",
         "prices": {
-          "Continental": 400
+          "aurelia": 400
         },
         "private_to": null,
         "purchases": {
-          "Continental": 3
+          "aurelia": 3
         },
         "seq": 31,
         "total_cost": 1200,
@@ -870,12 +870,12 @@
       },
       {
         "available_chains": [
-          "Luxor",
-          "Tower",
-          "American",
-          "Worldwide",
-          "Festival",
-          "Imperial"
+          "sandpiper",
+          "marlowe",
+          "halcyon",
+          "meridian",
+          "juniper",
+          "obsidian"
         ],
         "outcome": "found",
         "player_id": "p4",
@@ -885,7 +885,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "founder_bonus_type": "stock",
         "founder_bonus_value": 1,
         "player_id": "p4",
@@ -898,13 +898,13 @@
       {
         "player_id": "p4",
         "prices": {
-          "Continental": 400,
-          "Luxor": 200
+          "aurelia": 400,
+          "sandpiper": 200
         },
         "private_to": null,
         "purchases": {
-          "Continental": 2,
-          "Luxor": 1
+          "aurelia": 2,
+          "sandpiper": 1
         },
         "seq": 36,
         "total_cost": 1000,
@@ -941,7 +941,7 @@
           "from_player_id": "p3",
           "offering_money": 0,
           "offering_stocks": {
-            "Continental": 2
+            "aurelia": 2
           },
           "requesting_money": 800,
           "requesting_stocks": {},
@@ -953,17 +953,17 @@
     ],
     "hotel": {
       "active_chains": [
-        "Continental",
-        "Luxor"
+        "aurelia",
+        "sandpiper"
       ],
       "available_stocks": {
-        "American": 25,
-        "Continental": 19,
-        "Festival": 25,
-        "Imperial": 25,
-        "Luxor": 23,
-        "Tower": 25,
-        "Worldwide": 25
+        "aurelia": 19,
+        "halcyon": 25,
+        "juniper": 25,
+        "marlowe": 25,
+        "meridian": 25,
+        "obsidian": 25,
+        "sandpiper": 23
       }
     },
     "merger": {
@@ -983,7 +983,7 @@
           "from_player_id": "p3",
           "offering_money": 0,
           "offering_stocks": {
-            "Continental": 2
+            "aurelia": 2
           },
           "requesting_money": 800,
           "requesting_stocks": {},
@@ -1006,13 +1006,13 @@
         "name": "Alice",
         "player_id": "p1",
         "stocks": {
-          "American": 0,
-          "Continental": 0,
-          "Festival": 0,
-          "Imperial": 0,
-          "Luxor": 0,
-          "Tower": 0,
-          "Worldwide": 0
+          "aurelia": 0,
+          "halcyon": 0,
+          "juniper": 0,
+          "marlowe": 0,
+          "meridian": 0,
+          "obsidian": 0,
+          "sandpiper": 0
         }
       },
       {
@@ -1028,13 +1028,13 @@
         "name": "Bob",
         "player_id": "p2",
         "stocks": {
-          "American": 0,
-          "Continental": 0,
-          "Festival": 0,
-          "Imperial": 0,
-          "Luxor": 0,
-          "Tower": 0,
-          "Worldwide": 0
+          "aurelia": 0,
+          "halcyon": 0,
+          "juniper": 0,
+          "marlowe": 0,
+          "meridian": 0,
+          "obsidian": 0,
+          "sandpiper": 0
         }
       },
       {
@@ -1050,13 +1050,13 @@
         "name": "Cara",
         "player_id": "p3",
         "stocks": {
-          "American": 0,
-          "Continental": 4,
-          "Festival": 0,
-          "Imperial": 0,
-          "Luxor": 0,
-          "Tower": 0,
-          "Worldwide": 0
+          "aurelia": 4,
+          "halcyon": 0,
+          "juniper": 0,
+          "marlowe": 0,
+          "meridian": 0,
+          "obsidian": 0,
+          "sandpiper": 0
         }
       },
       {
@@ -1072,13 +1072,13 @@
         "name": "Dev",
         "player_id": "p4",
         "stocks": {
-          "American": 0,
-          "Continental": 2,
-          "Festival": 0,
-          "Imperial": 0,
-          "Luxor": 2,
-          "Tower": 0,
-          "Worldwide": 0
+          "aurelia": 2,
+          "halcyon": 0,
+          "juniper": 0,
+          "marlowe": 0,
+          "meridian": 0,
+          "obsidian": 0,
+          "sandpiper": 2
         }
       }
     ],

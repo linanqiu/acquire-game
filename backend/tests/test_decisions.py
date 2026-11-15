@@ -211,18 +211,18 @@ def illegal_candidates(game: Game, decision: Decision) -> list[tuple[str, object
         (pid, {"action": "place_tile"}),
         (pid, {"action": "place_tile", "tile": not_in_hand}),
         (pid, {"action": "found_chain", "chain": "Hilton"}),
-        (pid, {"action": "found_chain", "chain": ["Tower"]}),
-        (pid, {"action": "buy_stocks", "purchases": {"Tower": -1}}),
-        (pid, {"action": "buy_stocks", "purchases": {"Tower": True}}),
-        (pid, {"action": "buy_stocks", "purchases": {"Tower": 1.5}}),
-        (pid, {"action": "buy_stocks", "purchases": "Tower"}),
+        (pid, {"action": "found_chain", "chain": ["marlowe"]}),
+        (pid, {"action": "buy_stocks", "purchases": {"marlowe": -1}}),
+        (pid, {"action": "buy_stocks", "purchases": {"marlowe": True}}),
+        (pid, {"action": "buy_stocks", "purchases": {"marlowe": 1.5}}),
+        (pid, {"action": "buy_stocks", "purchases": "marlowe"}),
         (pid, {"action": "buy_stocks", "purchases": {"Hilton": 1}}),
-        (pid, {"action": "merger_disposition", "defunct_chain": "Luxor"}),
+        (pid, {"action": "merger_disposition", "defunct_chain": "sandpiper"}),
         (
             pid,
             {
                 "action": "merger_disposition",
-                "defunct_chain": "Luxor",
+                "defunct_chain": "sandpiper",
                 "disposition": {"sell": -1, "trade": 0, "hold": 0},
             },
         ),
@@ -261,7 +261,7 @@ def illegal_candidates(game: Game, decision: Decision) -> list[tuple[str, object
         cands += [
             (pid, {"action": "end_turn"}),
             (pid, {"action": "buy_stocks", "purchases": {}}),
-            (pid, {"action": "found_chain", "chain": "Tower"}),
+            (pid, {"action": "found_chain", "chain": "marlowe"}),
         ]
         tiles = [t["tile"] for t in legal_actions(game, decision)["tiles"]]
         if tiles:
@@ -452,7 +452,7 @@ def run_random_game(
 ):
     """Random legal play to game over with all invariants checked.
 
-    ``ruleset``: any ``game.ruleset.Ruleset`` (default classic); every
+    ``ruleset``: any ``game.ruleset.Ruleset`` (default: the default ruleset); every
     invariant uses the game's own ruleset. ``calc_every``: every N-th action
     the calculator pack is built for every player and checked for purity (the
     game is unchanged) and leaks (no other hand or bag tile appears in it);
@@ -468,7 +468,7 @@ def run_random_game(
     except FuzzFailure:
         raise
     except Exception as exc:
-        rs = "classic" if ruleset is None else ruleset.id
+        rs = "default" if ruleset is None else ruleset.id
         text = json.dumps(log)
         raise FuzzFailure(
             f"{type(exc).__name__}: {exc}\n"
@@ -709,13 +709,17 @@ class TestPendingDecisions:
     def test_place_tile_legal_lists_playable_hand_tiles(self):
         game = make_game()
         p1 = game.get_player("p1")
-        build_chain(game, "Tower", ["1A", "2A"])
+        build_chain(game, "marlowe", ["1A", "2A"])
         game.board.place_tile(Tile.from_string("5E"))
         set_hand(p1, ["3A", "6E", "9I", "1B", "12A", "4D"])
         legal = legal_actions(game, pending_decisions(game)[0])
         assert legal["action_types"] == ["place_tile"]
         by_tile = {t["tile"]: t for t in legal["tiles"]}
-        assert by_tile["3A"] == {"tile": "3A", "outcome": "expand", "chains": ["Tower"]}
+        assert by_tile["3A"] == {
+            "tile": "3A",
+            "outcome": "expand",
+            "chains": ["marlowe"],
+        }
         assert by_tile["1B"]["outcome"] == "expand"
         assert by_tile["6E"] == {"tile": "6E", "outcome": "found", "chains": []}
         assert by_tile["9I"]["outcome"] == "nothing"
@@ -723,12 +727,12 @@ class TestPendingDecisions:
 
     def test_place_tile_merge_outcome(self):
         game = make_game()
-        build_chain(game, "Tower", ["1A", "2A"])
-        build_chain(game, "Luxor", ["4A", "5A", "6A"])
+        build_chain(game, "marlowe", ["1A", "2A"])
+        build_chain(game, "sandpiper", ["4A", "5A", "6A"])
         set_hand(game.get_player("p1"), ["3A"])
         legal = legal_actions(game, pending_decisions(game)[0])
         assert legal["tiles"][0]["outcome"] == "merge"
-        assert sorted(legal["tiles"][0]["chains"]) == ["Luxor", "Tower"]
+        assert sorted(legal["tiles"][0]["chains"]) == ["marlowe", "sandpiper"]
 
     def test_found_chain_decision(self):
         game = make_game()
@@ -747,21 +751,21 @@ class TestPendingDecisions:
     def test_choose_survivor_and_disposition_decisions(self):
         game = make_game()
         p1, p2, p3 = game.players
-        build_chain(game, "Tower", ["1A", "2A"])
-        build_chain(game, "Luxor", ["4A", "5A"])
-        give_stock(game, p2, "Tower", 3)
-        give_stock(game, p3, "Tower", 1)
+        build_chain(game, "marlowe", ["1A", "2A"])
+        build_chain(game, "sandpiper", ["4A", "5A"])
+        give_stock(game, p2, "marlowe", 3)
+        give_stock(game, p3, "marlowe", 1)
         set_hand(p1, ["3A"])
         apply_action(game, "p1", {"action": "place_tile", "tile": "3A"})
         d = pending_decisions(game)[0]
         assert d.kind == CHOOSE_SURVIVOR
-        assert sorted(d.context["tied_chains"]) == ["Luxor", "Tower"]
+        assert sorted(d.context["tied_chains"]) == ["marlowe", "sandpiper"]
         assert legal_actions(game, d) == {
             "action_types": ["merger_choice"],
             "chains": d.context["tied_chains"],
         }
         assert apply_action(
-            game, "p1", {"action": "merger_choice", "surviving_chain": "Luxor"}
+            game, "p1", {"action": "merger_choice", "surviving_chain": "sandpiper"}
         )["success"]
         d = pending_decisions(game)[0]
         assert d.kind == STOCK_DISPOSITION
@@ -769,8 +773,8 @@ class TestPendingDecisions:
         legal = legal_actions(game, d)
         assert legal == {
             "action_types": ["merger_disposition"],
-            "defunct_chain": "Tower",
-            "surviving_chain": "Luxor",
+            "defunct_chain": "marlowe",
+            "surviving_chain": "sandpiper",
             "stock_count": 3,
             "max_trade": 2,
             "rule": "sell+trade+hold == stock_count",
@@ -779,10 +783,10 @@ class TestPendingDecisions:
     def test_max_trade_limited_by_survivor_stock(self):
         game = make_game()
         p1, p2, _ = game.players
-        build_chain(game, "Tower", ["1A", "2A"])
-        build_chain(game, "Luxor", ["4A", "5A", "6A"])
-        give_stock(game, p2, "Tower", 10)
-        give_stock(game, p1, "Luxor", 24)  # only 1 Luxor left in bank
+        build_chain(game, "marlowe", ["1A", "2A"])
+        build_chain(game, "sandpiper", ["4A", "5A", "6A"])
+        give_stock(game, p2, "marlowe", 10)
+        give_stock(game, p1, "sandpiper", 24)  # only 1 sandpiper left in bank
         set_hand(p1, ["3A"])
         apply_action(game, "p1", {"action": "place_tile", "tile": "3A"})
         d = pending_decisions(game)[0]
@@ -791,7 +795,7 @@ class TestPendingDecisions:
 
     def test_buy_stocks_legal_before_and_after_buying(self):
         game = make_game()
-        build_chain(game, "Tower", ["1A", "2A"])
+        build_chain(game, "marlowe", ["1A", "2A"])
         p1 = game.get_player("p1")
         set_hand(p1, ["9I"])
         apply_action(game, "p1", {"action": "place_tile", "tile": "9I"})
@@ -802,10 +806,10 @@ class TestPendingDecisions:
         assert legal["max_total"] == 3
         assert legal["money"] == 6000
         assert legal["options"] == [
-            {"chain": "Tower", "price": 200, "available": 25, "max_affordable": 3}
+            {"chain": "marlowe", "price": 200, "available": 25, "max_affordable": 3}
         ]
         assert apply_action(
-            game, "p1", {"action": "buy_stocks", "purchases": {"Tower": 2}}
+            game, "p1", {"action": "buy_stocks", "purchases": {"marlowe": 2}}
         )["success"]
         d = pending_decisions(game)[0]
         assert d.kind == BUY_STOCKS and d.context["stocks_bought_this_turn"]
@@ -816,7 +820,7 @@ class TestPendingDecisions:
 
     def test_max_affordable_limited_by_money(self):
         game = make_game()
-        build_chain(game, "Tower", ["1A", "2A"])
+        build_chain(game, "marlowe", ["1A", "2A"])
         p1 = game.get_player("p1")
         p1.remove_money(p1.money - 450)
         game.phase = GamePhase.BUYING_STOCKS
@@ -825,7 +829,7 @@ class TestPendingDecisions:
 
     def test_declare_end_game_offered_when_possible(self):
         game = make_game()
-        build_chain(game, "Tower", [f"{c}A" for c in range(1, 12)])
+        build_chain(game, "marlowe", [f"{c}A" for c in range(1, 12)])
         set_hand(game.get_player("p1"), ["9I"])
         legal = legal_actions(game, pending_decisions(game)[0])
         assert "declare_end_game" in legal["action_types"]
@@ -880,21 +884,23 @@ class TestApplyAction:
 
     def test_purchases_dict_is_expanded(self):
         game = make_game()
-        build_chain(game, "Tower", ["1A", "2A"])
-        build_chain(game, "Luxor", ["4A", "5A"])
+        build_chain(game, "marlowe", ["1A", "2A"])
+        build_chain(game, "sandpiper", ["4A", "5A"])
         game.phase = GamePhase.BUYING_STOCKS
         r = apply_action(
             game,
             "p1",
             {
                 "action": "buy_stocks",
-                "purchases": {"Tower": 2, "Luxor": 1, "American": 0},
+                "purchases": {"marlowe": 2, "sandpiper": 1, "halcyon": 0},
             },
         )
         assert r["success"], r
         assert r["total_cost"] == 600
         p1 = game.get_player("p1")
-        assert p1.get_stock_count("Tower") == 2 and p1.get_stock_count("Luxor") == 1
+        assert (
+            p1.get_stock_count("marlowe") == 2 and p1.get_stock_count("sandpiper") == 1
+        )
         # Turn not over until end_turn
         assert game.phase == GamePhase.BUYING_STOCKS
         assert apply_action(game, "p1", {"action": "end_turn"})["success"]
@@ -913,9 +919,9 @@ class TestApplyAction:
     def test_disposition_hold_maps_to_keep(self, hold_key):
         game = make_game()
         p1, p2, _ = game.players
-        build_chain(game, "Tower", ["1A", "2A"])
-        build_chain(game, "Luxor", ["4A", "5A", "6A"])
-        give_stock(game, p2, "Tower", 5)
+        build_chain(game, "marlowe", ["1A", "2A"])
+        build_chain(game, "sandpiper", ["4A", "5A", "6A"])
+        give_stock(game, p2, "marlowe", 5)
         set_hand(p1, ["3A"])
         apply_action(game, "p1", {"action": "place_tile", "tile": "3A"})
         r = apply_action(
@@ -923,22 +929,22 @@ class TestApplyAction:
             "p2",
             {
                 "action": "merger_disposition",
-                "defunct_chain": "Tower",
+                "defunct_chain": "marlowe",
                 "disposition": {"sell": 1, "trade": 2, hold_key: 2},
             },
         )
         assert r["success"], r
         assert (r["sold"], r["traded"], r["kept"]) == (1, 2, 2)
-        assert p2.get_stock_count("Tower") == 2
-        assert p2.get_stock_count("Luxor") == 1
+        assert p2.get_stock_count("marlowe") == 2
+        assert p2.get_stock_count("sandpiper") == 1
         assert game.phase == GamePhase.BUYING_STOCKS
 
     def test_disposition_for_wrong_defunct_chain_rejected(self):
         game = make_game()
         p1, p2, _ = game.players
-        build_chain(game, "Tower", ["1A", "2A"])
-        build_chain(game, "Luxor", ["4A", "5A", "6A"])
-        give_stock(game, p2, "Tower", 2)
+        build_chain(game, "marlowe", ["1A", "2A"])
+        build_chain(game, "sandpiper", ["4A", "5A", "6A"])
+        give_stock(game, p2, "marlowe", 2)
         set_hand(p1, ["3A"])
         apply_action(game, "p1", {"action": "place_tile", "tile": "3A"})
         r = apply_action(
@@ -946,7 +952,7 @@ class TestApplyAction:
             "p2",
             {
                 "action": "merger_disposition",
-                "defunct_chain": "Luxor",
+                "defunct_chain": "sandpiper",
                 "disposition": {"sell": 2},
             },
         )
@@ -954,27 +960,27 @@ class TestApplyAction:
 
     def test_propose_trade_builds_offer(self):
         game = make_game()
-        give_stock(game, game.get_player("p1"), "Tower", 2)
-        game.hotel.activate_chain("Tower")
+        give_stock(game, game.get_player("p1"), "marlowe", 2)
+        game.hotel.activate_chain("marlowe")
         r = apply_action(
             game,
             "p1",
             {
                 "action": "propose_trade",
                 "to_player_id": "p2",
-                "offering_stocks": {"Tower": 2},
+                "offering_stocks": {"marlowe": 2},
                 "requesting_money": 500,
             },
         )
         assert r["success"], r
         trade = game.pending_trades[r["trade_id"]]
         assert trade.from_player_id == "p1" and trade.to_player_id == "p2"
-        assert trade.offering_stocks == {"Tower": 2}
+        assert trade.offering_stocks == {"marlowe": 2}
         assert trade.requesting_money == 500
         assert apply_action(
             game, "p2", {"action": "accept_trade", "trade_id": r["trade_id"]}
         )["success"]
-        assert game.get_player("p2").get_stock_count("Tower") == 2
+        assert game.get_player("p2").get_stock_count("marlowe") == 2
         assert game.get_player("p1").money == 6500
 
     def test_cancel_trade_only_by_proposer(self):

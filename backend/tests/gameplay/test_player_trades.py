@@ -22,14 +22,14 @@ from tests.support.table import Table
 
 
 def holdings() -> Table:
-    """p2 founded Luxor and bought 3 (4 shares); p3 founded Tower (1)."""
+    """p2 founded sandpiper and bought 3 (4 shares); p3 founded marlowe (1)."""
     t = Table([["1A", "1C"], ["2A", "10G"], ["12I", "2C"]])
     t.turn("1A")
-    t.turn("2A", found="Luxor", buy={"Luxor": 3})
+    t.turn("2A", found="sandpiper", buy={"sandpiper": 3})
     t.turn("12I")
     t.turn("1C")
     t.turn("10G")
-    t.turn("2C", found="Tower")
+    t.turn("2C", found="marlowe")
     return t  # p1 on turn
 
 
@@ -44,9 +44,9 @@ def test_accepted_trade_moves_shares_and_cash_both_ways():
         t,
         "p2",
         "p3",
-        offering_stocks={"Luxor": 2},
+        offering_stocks={"sandpiper": 2},
         offering_money=150,
-        requesting_stocks={"Tower": 1},
+        requesting_stocks={"marlowe": 1},
         requesting_money=50,
     )
     # the offer waits for p3 without blocking p1's turn
@@ -54,8 +54,8 @@ def test_accepted_trade_moves_shares_and_cash_both_ways():
     assert kinds == [("place_tile", "p1"), ("trade_response", "p3")]
 
     t.act("p3", action="accept_trade", trade_id="t1")
-    assert (t.shares("p2", "Luxor"), t.shares("p3", "Luxor")) == (2, 2)
-    assert (t.shares("p2", "Tower"), t.shares("p3", "Tower")) == (1, 0)
+    assert (t.shares("p2", "sandpiper"), t.shares("p3", "sandpiper")) == (2, 2)
+    assert (t.shares("p2", "marlowe"), t.shares("p3", "marlowe")) == (1, 0)
     assert t.money("p2") == cash["p2"] - 150 + 50
     assert t.money("p3") == cash["p3"] + 150 - 50
     assert t.game.pending_trades == {}
@@ -84,14 +84,14 @@ def test_only_the_recipient_answers_and_only_the_proposer_cancels():
 
 def test_an_offer_that_can_no_longer_be_honoured_cannot_be_accepted():
     t = holdings()
-    propose(t, "p2", "p3", trade_id="a", offering_stocks={"Luxor": 4})
-    propose(t, "p2", "p1", trade_id="b", offering_stocks={"Luxor": 4})
-    t.act("p1", action="accept_trade", trade_id="b")  # p2's Luxor is gone
+    propose(t, "p2", "p3", trade_id="a", offering_stocks={"sandpiper": 4})
+    propose(t, "p2", "p1", trade_id="b", offering_stocks={"sandpiper": 4})
+    t.act("p1", action="accept_trade", trade_id="b")  # p2's sandpiper is gone
     (response,) = [d for d in pending_decisions(t.game) if d.kind == "trade_response"]
     assert legal_actions(t.game, response)["can_accept"] is False
     r = t.try_act("p3", action="accept_trade", trade_id="a")
     assert not r["success"] and "no longer valid" in r["error"]
-    assert t.shares("p3", "Luxor") == 0 and t.shares("p1", "Luxor") == 4
+    assert t.shares("p3", "sandpiper") == 0 and t.shares("p1", "sandpiper") == 4
     # the stale offer stays until its recipient declines it
     t.act("p3", action="reject_trade", trade_id="a")
     assert t.game.pending_trades == {}
@@ -100,13 +100,13 @@ def test_an_offer_that_can_no_longer_be_honoured_cannot_be_accepted():
 def test_you_cannot_offer_what_you_do_not_have_nor_ask_for_what_they_lack():
     t = holdings()
     cases = [
-        ("p2", {"offering_stocks": {"Luxor": 5}}, "Offering player"),
+        ("p2", {"offering_stocks": {"sandpiper": 5}}, "Offering player"),
         ("p2", {"offering_money": 999999}, "Offering player"),
-        ("p2", {"requesting_stocks": {"Tower": 2}}, "Receiving player"),
+        ("p2", {"requesting_stocks": {"marlowe": 2}}, "Receiving player"),
         ("p2", {"requesting_money": 999999}, "Receiving player"),
         ("p2", {}, "at least one item"),
-        ("p2", {"offering_stocks": {"Luxor": 0}}, "at least one item"),
-        ("p2", {"requesting_stocks": {"Tower": 0}}, "at least one item"),
+        ("p2", {"offering_stocks": {"sandpiper": 0}}, "at least one item"),
+        ("p2", {"requesting_stocks": {"marlowe": 0}}, "at least one item"),
     ]
     for frm, kw, error in cases:
         r = t.try_act(frm, action="propose_trade", to_player_id="p3", **kw)
@@ -125,9 +125,9 @@ def test_you_cannot_offer_what_you_do_not_have_nor_ask_for_what_they_lack():
 @pytest.mark.parametrize(
     "terms",
     [
-        {"offering_stocks": {"Luxor": 1}},  # a one-share gift
+        {"offering_stocks": {"sandpiper": 1}},  # a one-share gift
         {"offering_money": 1},  # a one-dollar gift
-        {"requesting_stocks": {"Tower": 1}},  # asking for one share
+        {"requesting_stocks": {"marlowe": 1}},  # asking for one share
         {"requesting_money": 1},  # asking for one dollar
     ],
 )

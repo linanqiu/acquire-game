@@ -3,8 +3,8 @@
 Every decision appends one record to
 
 * an in-memory ring buffer owned by the agent (``recent(n)``),
-* the ``acquire.llm`` Python logger (one compact line, no prompts),
-* optionally JSONL under ``ACQUIRE_LLM_LOG_DIR`` including the full prompts and
+* the ``llm`` Python logger (one compact line, no prompts),
+* optionally JSONL under ``GAME_LLM_LOG_DIR`` including the full prompts and
   raw responses (``decisions.jsonl``).
 
 Running totals (calls, tokens, failures, latency) are kept for the benchmark
@@ -21,7 +21,7 @@ import time
 from collections import deque
 from typing import Any
 
-logger = logging.getLogger("acquire.llm")
+logger = logging.getLogger("llm")
 
 _file_lock = threading.Lock()
 
@@ -38,7 +38,7 @@ class DecisionLog:
         self.agent_id = agent_id
         self.model = model
         self._records: deque[dict] = deque(maxlen=capacity)
-        self._log_dir = log_dir  # None -> read ACQUIRE_LLM_LOG_DIR at write time
+        self._log_dir = log_dir  # None -> read GAME_LLM_LOG_DIR at write time
         self.totals: dict[str, Any] = {
             "decisions": 0,
             "calls": 0,
@@ -106,7 +106,7 @@ class DecisionLog:
         return list(self._records)[-n:] if n > 0 else []
 
     def _write_jsonl(self, rec: dict) -> None:
-        log_dir = self._log_dir or os.environ.get("ACQUIRE_LLM_LOG_DIR")
+        log_dir = self._log_dir or os.environ.get("GAME_LLM_LOG_DIR")
         if not log_dir:
             return
         try:

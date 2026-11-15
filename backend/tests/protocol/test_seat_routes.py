@@ -16,7 +16,7 @@ REPO = Path(__file__).resolve().parents[3]
 @pytest.fixture
 def prod_client(monkeypatch):
     """App built with test mode OFF."""
-    monkeypatch.delenv("ACQUIRE_TEST_MODE", raising=False)
+    monkeypatch.delenv("GAME_TEST_MODE", raising=False)
     from main import create_app
 
     session_manager._rooms.clear()
@@ -27,7 +27,7 @@ def prod_client(monkeypatch):
 
 class TestTestModeOff:
     def test_default_is_off(self, monkeypatch):
-        monkeypatch.delenv("ACQUIRE_TEST_MODE", raising=False)
+        monkeypatch.delenv("GAME_TEST_MODE", raising=False)
         from main import test_mode_enabled
 
         assert test_mode_enabled() is False
@@ -35,7 +35,7 @@ class TestTestModeOff:
     def test_deploy_config_never_enables_test_mode(self):
         for path in [REPO / "railway.toml", *(REPO / "deploy").rglob("*")]:
             if path.is_file():
-                assert "ACQUIRE_TEST_MODE" not in path.read_text(errors="ignore"), path
+                assert "GAME_TEST_MODE" not in path.read_text(errors="ignore"), path
 
     def test_test_routes_absent(self, prod_client):
         code, _ = create_room(prod_client)

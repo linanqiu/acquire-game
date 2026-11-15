@@ -1,4 +1,4 @@
-"""FastAPI application for Acquire board game (uvicorn entry point: ``main:app``).
+"""FastAPI application for Buyout board game (uvicorn entry point: ``main:app``).
 
 Layout:
     protocol.py        client message validation (pydantic)
@@ -7,10 +7,10 @@ Layout:
     lifecycle.py       game start / forced end / human action entry
     agents/            heuristic, scripted and LLM seats + catalog registry
     api/rooms.py       HTTP routes
-    api/games.py       transcripts + Acquire Bench (/games, /bench)
+    api/games.py       transcripts + Buyout Bench (/games, /bench)
     transcripts/       per-game JSONL transcripts (writer, store, replay)
     api/ws.py          WebSocket routes
-    api/testmode.py    /test/* routes (only with ACQUIRE_TEST_MODE=1)
+    api/testmode.py    /test/* routes (only with GAME_TEST_MODE=1)
 
 See docs/architecture/seat-contract.md.
 """
@@ -63,8 +63,8 @@ settings = get_settings()
 
 
 def test_mode_enabled() -> bool:
-    """Test-only routes exist only when ACQUIRE_TEST_MODE=1 (never in deploys)."""
-    return os.environ.get("ACQUIRE_TEST_MODE") == "1"
+    """Test-only routes exist only when GAME_TEST_MODE=1 (never in deploys)."""
+    return os.environ.get("GAME_TEST_MODE") == "1"
 
 
 def create_app(frontend_dist: str | Path | None = None) -> FastAPI:
@@ -75,7 +75,9 @@ def create_app(frontend_dist: str | Path | None = None) -> FastAPI:
     is served too, with an SPA fallback.
     """
     get_ruleset()  # fail fast on a bad GAME_RULESET
-    application = FastAPI(title="Acquire Board Game", debug=not settings.is_production)
+    application = FastAPI(
+        title=settings.game_brand_name, debug=not settings.is_production
+    )
     application.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,

@@ -12,7 +12,7 @@ from seats import human_action, open_transcript, run_locked
 async def initialize_game(room_code: str) -> None:
     """Create and start the Game for a room, broadcast it, start the driver.
 
-    Seed: per-room config first, ``ACQUIRE_GAME_SEED`` as fallback.
+    Seed: per-room config first, ``GAME_SEED`` as fallback.
     """
     room = session_manager.get_room(room_code)
     if room is None:
@@ -22,7 +22,7 @@ async def initialize_game(room_code: str) -> None:
         seed = room.seed
         tile_order = room.tile_order
         if seed is None and tile_order is None:
-            seed_str = os.environ.get("ACQUIRE_GAME_SEED")
+            seed_str = os.environ.get("GAME_SEED")
             seed = int(seed_str) if seed_str else None
         game = Game(seed=seed, tile_order=tile_order, ruleset=room.ruleset)
         for player_id, seat in room.players.items():

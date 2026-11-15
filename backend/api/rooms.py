@@ -138,7 +138,7 @@ def _add_seat(
         kind=kind,
         name=name,
         agent_id=agent_id,
-        # The classic bot keeps its plain "BOT" badge (no label).
+        # The default bot keeps its plain "BOT" badge (no label).
         agent_label=None if kind == "bot" else entry.get("label"),
         agent=agent,
     )

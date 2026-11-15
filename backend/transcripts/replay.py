@@ -15,11 +15,11 @@ class ReplayError(ValueError):
 
 def _ruleset_of(header: dict):
     """The ruleset the game was played under: the header's full ``ruleset``
-    (classic for transcripts written before rulesets existed). Verified
+    (default for transcripts written before rulesets existed). Verified
     against ``ruleset_fingerprint`` when both are present."""
     data = header.get("ruleset")
     if data is None:
-        return None  # classic
+        return None  # default
     try:
         rs = Ruleset.from_dict(data)
     except RulesetError as e:

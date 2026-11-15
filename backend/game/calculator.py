@@ -353,7 +353,7 @@ def _merge_scenario(game, tile: Tile, chains: list[str], survivor: str, viewer_i
         total_bonus += vb
         shares = me.get_stock_count(d)
         # Mirrors handle_stock_disposition: a multiple of the ratio (2:1 in
-        # classic), limited by bank.
+        # default), limited by bank.
         tradable = min(shares - shares % ratio, bank_survivor * ratio)
         received = tradable // ratio
         leftover = shares - tradable

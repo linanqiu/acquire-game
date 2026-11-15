@@ -4,14 +4,14 @@ A ``Ruleset`` is an immutable, validated description of one game variant,
 loaded from JSON (``backend/rulesets/<name>.json``). The engine never reads
 global configuration: ``Game(ruleset=...)`` receives one explicitly, and the
 engine objects it creates (``Board``, ``Hotel``, ``Player``) carry the same
-instance. Omitting it means the built-in ``classic`` ruleset.
+instance. Omitting it means the built-in ``default`` ruleset.
 
 File format (all keys required, unknown keys rejected)::
 
     {
-      "id": "classic",                 # wire-safe identifier
+      "id": "default",                 # wire-safe identifier
       "version": 1,                    # bump when the numbers change
-      "title": "Acquire",              # product / game name
+      "title": "Grand Hotels",        # theme name (product name: GAME_BRAND_NAME)
       "theme": {                       # words the UI and LLM prompt use
         "chain_noun": "hotel chain", "chain_noun_plural": "hotel chains",
         "share_noun": "share", "share_noun_plural": "shares",
@@ -25,8 +25,8 @@ File format (all keys required, unknown keys rejected)::
          "prices": [{"from": 2, "price": 200}, ..., {"from": 41, "price": 1000}]}
       ],
       "chains": [                            # order = display / state order
-        {"id": "Luxor", "name": "Luxor", "tier": "cheap",
-         "color": "#FFD700", "abbreviation": "L"}
+        {"id": "sandpiper", "name": "Sandpiper", "tier": "cheap",
+         "color": "#E3B448", "abbreviation": "SP"}
       ],
       "bonuses": {"majority_multiplier": 10, "minority_multiplier": 5,
                   "tie_round_up_to": 100},
@@ -54,7 +54,7 @@ from pathlib import Path
 from typing import Any
 
 RULESETS_DIR = Path(__file__).resolve().parents[1] / "rulesets"
-DEFAULT_RULESET = "classic"
+DEFAULT_RULESET = "default"
 
 MAX_COLUMNS = 50
 MAX_ROWS = 26
@@ -578,7 +578,7 @@ def _parse(data: Any) -> Ruleset:
 
 
 def ruleset_path(name_or_path: str) -> Path:
-    """``classic`` -> backend/rulesets/classic.json; anything path-like as is."""
+    """``default`` -> backend/rulesets/default.json; anything path-like as is."""
     s = str(name_or_path).strip()
     if "/" in s or "\\" in s or s.endswith(".json"):
         return Path(s)
@@ -597,26 +597,26 @@ def available_rulesets() -> list[str]:
     return sorted(p.stem for p in RULESETS_DIR.glob("*.json"))
 
 
-def classic() -> Ruleset:
+def default_ruleset() -> Ruleset:
     """The built-in default ruleset (today's game)."""
     return load_ruleset(DEFAULT_RULESET)
 
 
 def resolve(ruleset: Ruleset | None) -> Ruleset:
     """``ruleset`` or the built-in default when None."""
-    return ruleset if ruleset is not None else classic()
+    return ruleset if ruleset is not None else default_ruleset()
 
 
 def ruleset_from_state(state: dict | None) -> Ruleset:
     """The ruleset carried by a public / player game state (``state["ruleset"]``,
-    see ``Game.get_public_state``); classic when absent or unreadable."""
+    see ``Game.get_public_state``); default when absent or unreadable."""
     data = (state or {}).get("ruleset")
     if isinstance(data, dict):
         try:
             return Ruleset.from_public(data)
         except RulesetError:
             pass
-    return classic()
+    return default_ruleset()
 
 
 __all__ = [
@@ -628,7 +628,7 @@ __all__ = [
     "ThemeSpec",
     "TierSpec",
     "available_rulesets",
-    "classic",
+    "default_ruleset",
     "load_ruleset",
     "resolve",
     "ruleset_from_state",

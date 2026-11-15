@@ -20,7 +20,7 @@ BOT_ENTRY = {
     "id": "bot",
     "kind": "bot",
     "label": "Bot",
-    "description": "Classic rule-based opponent. Plays instantly.",
+    "description": "Rule-based opponent. Plays instantly.",
     "available": True,
 }
 SCRIPTED_ENTRY = {
@@ -41,7 +41,7 @@ class UnavailableAgentError(RuntimeError):
 
 
 def test_mode() -> bool:
-    return os.environ.get("ACQUIRE_TEST_MODE") == "1"
+    return os.environ.get("GAME_TEST_MODE") == "1"
 
 
 def _llm_entries() -> list[dict]:

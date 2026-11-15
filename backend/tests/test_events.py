@@ -85,12 +85,12 @@ class TestPublicEvents:
 class TestTurnEvents:
     def test_place_nothing_buy_end_turn(self):
         game = make_game()
-        build_chain(game, "Tower", ["1A", "2A"])
+        build_chain(game, "marlowe", ["1A", "2A"])
         p1 = game.get_player("p1")
         set_hand(p1, ["9I"])
         start = len(game.events)
         game.play_tile("p1", Tile.from_string("9I"))
-        game.buy_stocks("p1", ["Tower", "Tower"])
+        game.buy_stocks("p1", ["marlowe", "marlowe"])
         game.end_turn("p1")
         ev = new_events(game, start)
         assert types(ev) == [
@@ -100,23 +100,23 @@ class TestTurnEvents:
             "turn_ended",
         ]
         assert ev[0]["tile"] == "9I" and ev[0]["outcome"] == "nothing"
-        assert ev[1]["purchases"] == {"Tower": 2}
+        assert ev[1]["purchases"] == {"marlowe": 2}
         assert ev[1]["total_cost"] == 400
-        assert ev[1]["prices"] == {"Tower": 200}
+        assert ev[1]["prices"] == {"marlowe": 200}
         assert ev[2]["private_to"] == "p1"
         assert ev[2]["tile"] in [str(t) for t in p1.hand]
         assert ev[3]["player_id"] == "p1" and ev[3]["next_player_id"] == "p2"
 
     def test_expand(self):
         game = make_game()
-        build_chain(game, "Tower", ["1A", "2A"])
+        build_chain(game, "marlowe", ["1A", "2A"])
         set_hand(game.get_player("p1"), ["3A"])
         start = len(game.events)
         game.play_tile("p1", Tile.from_string("3A"))
         ev = new_events(game, start)
         assert types(ev) == ["tile_placed", "chain_expanded"]
-        assert ev[0]["outcome"] == "expand" and ev[0]["chains"] == ["Tower"]
-        assert ev[1]["chain"] == "Tower" and ev[1]["size"] == 3
+        assert ev[0]["outcome"] == "expand" and ev[0]["chains"] == ["marlowe"]
+        assert ev[1]["chain"] == "marlowe" and ev[1]["size"] == 3
 
     def test_found_chain(self):
         game = make_game()
@@ -124,30 +124,30 @@ class TestTurnEvents:
         set_hand(game.get_player("p1"), ["2A"])
         start = len(game.events)
         game.play_tile("p1", Tile.from_string("2A"))
-        game.found_chain("p1", "Luxor")
+        game.found_chain("p1", "sandpiper")
         ev = new_events(game, start)
         assert types(ev) == ["tile_placed", "chain_founded"]
         assert ev[0]["outcome"] == "found"
-        assert ev[1]["chain"] == "Luxor" and ev[1]["size"] == 2
+        assert ev[1]["chain"] == "sandpiper" and ev[1]["size"] == 2
         assert ev[1]["founder_bonus_type"] == "stock"
 
     def test_stocks_bought_flag(self):
         game = make_game()
-        build_chain(game, "Tower", ["1A", "2A"])
+        build_chain(game, "marlowe", ["1A", "2A"])
         game.phase = GamePhase.BUYING_STOCKS
         assert game.stocks_bought_this_turn is False
-        assert game.buy_stocks("p1", ["Tower"]).success
+        assert game.buy_stocks("p1", ["marlowe"]).success
         assert game.stocks_bought_this_turn is True
-        second = game.buy_stocks("p1", ["Tower"])
+        second = game.buy_stocks("p1", ["marlowe"])
         assert not second.success and "already" in second.error
-        assert game.get_player("p1").get_stock_count("Tower") == 1
+        assert game.get_player("p1").get_stock_count("marlowe") == 1
         game.end_turn("p1")
         assert game.stocks_bought_this_turn is False
 
     def test_permanently_unplayable_replacement_is_public(self):
         game = make_game()
-        build_chain(game, "Tower", [f"{c}A" for c in range(1, 12)])
-        build_chain(game, "Luxor", [f"{c}C" for c in range(1, 12)])
+        build_chain(game, "marlowe", [f"{c}A" for c in range(1, 12)])
+        build_chain(game, "sandpiper", [f"{c}C" for c in range(1, 12)])
         p1 = game.get_player("p1")
         set_hand(p1, ["5B"])  # would merge two safe chains
         game.phase = GamePhase.BUYING_STOCKS
@@ -168,10 +168,10 @@ class TestMergerEvents:
     def test_clear_survivor_merger(self):
         game = make_game()
         p1, p2, p3 = game.players
-        build_chain(game, "Tower", ["1A", "2A"])
-        build_chain(game, "Luxor", ["4A", "5A", "6A"])
-        give_stock(game, p2, "Tower", 3)
-        give_stock(game, p3, "Tower", 1)
+        build_chain(game, "marlowe", ["1A", "2A"])
+        build_chain(game, "sandpiper", ["4A", "5A", "6A"])
+        give_stock(game, p2, "marlowe", 3)
+        give_stock(game, p3, "marlowe", 1)
         set_hand(p1, ["3A"])
         start = len(game.events)
         game.play_tile("p1", Tile.from_string("3A"))
@@ -187,9 +187,9 @@ class TestMergerEvents:
             "merger_completed",
         ]
         assert ev[0]["outcome"] == "merge"
-        assert ev[1]["survivor"] == "Luxor" and ev[1]["defunct"] == ["Tower"]
-        assert ev[1]["sizes"] == {"Luxor": 3, "Tower": 2}
-        assert ev[2]["chain"] == "Tower" and ev[2]["final"] is False
+        assert ev[1]["survivor"] == "sandpiper" and ev[1]["defunct"] == ["marlowe"]
+        assert ev[1]["sizes"] == {"sandpiper": 3, "marlowe": 2}
+        assert ev[2]["chain"] == "marlowe" and ev[2]["final"] is False
         assert ev[2]["bonuses"] == {
             "p2": {"majority": 2000, "minority": 0},
             "p3": {"majority": 0, "minority": 1000},
@@ -198,16 +198,16 @@ class TestMergerEvents:
         assert (ev[3]["sell"], ev[3]["trade"], ev[3]["hold"]) == (1, 2, 0)
         assert ev[3]["sale_proceeds"] == 200
         assert ev[3]["survivor_shares_received"] == 1
-        assert ev[5]["survivor"] == "Luxor" and ev[5]["survivor_size"] == 6
+        assert ev[5]["survivor"] == "sandpiper" and ev[5]["survivor_size"] == 6
 
     def test_tied_merger_emits_survivor_chosen(self):
         game = make_game()
-        build_chain(game, "Tower", ["1A", "2A"])
-        build_chain(game, "Luxor", ["4A", "5A"])
+        build_chain(game, "marlowe", ["1A", "2A"])
+        build_chain(game, "sandpiper", ["4A", "5A"])
         set_hand(game.get_player("p1"), ["3A"])
         start = len(game.events)
         game.play_tile("p1", Tile.from_string("3A"))
-        game.choose_merger_survivor("p1", "Tower")
+        game.choose_merger_survivor("p1", "marlowe")
         ev = new_events(game, start)
         assert types(ev) == [
             "tile_placed",
@@ -217,23 +217,23 @@ class TestMergerEvents:
             "merger_completed",
         ]
         assert ev[0]["outcome"] == "merge_tie"
-        assert sorted(ev[0]["tied_chains"]) == ["Luxor", "Tower"]
-        assert ev[1]["survivor"] == "Tower"
+        assert sorted(ev[0]["tied_chains"]) == ["marlowe", "sandpiper"]
+        assert ev[1]["survivor"] == "marlowe"
         assert ev[3]["bonuses"] == {}
 
     def test_negative_disposition_rejected_without_mutation(self):
         game = make_game()
         p1, p2, _ = game.players
-        build_chain(game, "Tower", ["1A", "2A"])
-        build_chain(game, "Luxor", ["4A", "5A", "6A"])
-        give_stock(game, p2, "Tower", 2)
+        build_chain(game, "marlowe", ["1A", "2A"])
+        build_chain(game, "sandpiper", ["4A", "5A", "6A"])
+        give_stock(game, p2, "marlowe", 2)
         set_hand(p1, ["3A"])
         game.play_tile("p1", Tile.from_string("3A"))
-        available = game.hotel.get_available_stocks("Tower")
+        available = game.hotel.get_available_stocks("marlowe")
         n = len(game.events)
         result = game.handle_stock_disposition("p2", 4, -2, 0)
         assert not result.success
-        assert game.hotel.get_available_stocks("Tower") == available
+        assert game.hotel.get_available_stocks("marlowe") == available
         assert len(game.events) == n
 
 
@@ -280,13 +280,13 @@ class TestTradeEvents:
     def test_merger_chain_stock_cannot_be_traded_mid_merger(self):
         game = make_game()
         p1, p2, _ = game.players
-        build_chain(game, "Tower", ["1A", "2A"])
-        build_chain(game, "Luxor", ["4A", "5A", "6A"])
-        give_stock(game, p2, "Tower", 2)
+        build_chain(game, "marlowe", ["1A", "2A"])
+        build_chain(game, "sandpiper", ["4A", "5A", "6A"])
+        give_stock(game, p2, "marlowe", 2)
         set_hand(p1, ["3A"])
         game.play_tile("p1", Tile.from_string("3A"))
         result = game.propose_trade(
-            TradeOffer("p2", "p1", offering_stocks={"Tower": 2})
+            TradeOffer("p2", "p1", offering_stocks={"marlowe": 2})
         )
         assert not result.success and "merger" in result.error
 
@@ -295,13 +295,13 @@ class TestEndGameEvents:
     def test_declare_end_game(self):
         game = make_game()
         _p1, p2, _ = game.players
-        build_chain(game, "Tower", [f"{c}A" for c in range(1, 12)])
-        give_stock(game, p2, "Tower", 2)
+        build_chain(game, "marlowe", [f"{c}A" for c in range(1, 12)])
+        give_stock(game, p2, "marlowe", 2)
         start = len(game.events)
         assert game.declare_end_game("p1").success
         ev = new_events(game, start)
         assert types(ev) == ["end_game_declared", "bonuses_paid", "game_ended"]
-        assert ev[1]["final"] is True and ev[1]["chain"] == "Tower"
+        assert ev[1]["final"] is True and ev[1]["chain"] == "marlowe"
         ended = ev[2]
         assert ended["reason"] == "declared"
         assert ended["winner"] == "p2"

@@ -75,7 +75,7 @@ def is_human(room: GameRoom, player_id: str) -> bool:
 
 def min_to_start(room: GameRoom) -> int:
     """Seats needed to start: the room's minimum, but never below the
-    ruleset's ``min_players`` (3 in classic; starting with fewer used to 500
+    ruleset's ``min_players`` (3 in default; starting with fewer used to 500
     and leave the room marked started without a game)."""
     from game.ruleset import resolve
 

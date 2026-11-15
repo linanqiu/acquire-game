@@ -1,12 +1,12 @@
 """Game transcripts: one JSON Lines file per game (live or benchmark).
 
-See docs/architecture/seat-contract.md, "Game transcripts and Acquire Bench".
+See docs/architecture/seat-contract.md, "Game transcripts and Buyout Bench".
 
 * ``TranscriptWriter`` (writer.py) writes a game's transcript.
 * ``TranscriptStore``, ``read_transcript``, ``redact`` (store.py) list and
   read them (HTTP: ``api/games.py``).
-* ``transcript_dir()`` / ``bench_dir()`` (paths.py): ``ACQUIRE_TRANSCRIPT_DIR``
-  / ``ACQUIRE_BENCH_DIR``.
+* ``transcript_dir()`` / ``bench_dir()`` (paths.py): ``GAME_TRANSCRIPT_DIR``
+  / ``GAME_BENCH_DIR``.
 """
 
 from transcripts.paths import (

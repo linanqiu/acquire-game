@@ -1,4 +1,4 @@
-"""HTTP middleware for the Acquire application."""
+"""HTTP middleware for the Buyout application."""
 
 import time
 import uuid

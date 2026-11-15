@@ -1,4 +1,4 @@
-"""Session manager for Acquire board game multiplayer rooms."""
+"""Session manager for Buyout board game multiplayer rooms."""
 
 import random
 import string
@@ -49,7 +49,7 @@ class GameRoom:
     min_players: int = 2
     seed: Optional[int] = None
     tile_order: Optional[list[str]] = None
-    # game.ruleset.Ruleset the room's game is created with (None: classic).
+    # game.ruleset.Ruleset the room's game is created with (None: default).
     # Set from the server configuration by SessionManager.create_room.
     ruleset: Any = None
     # Per-room driver state (lock, driver task, fallback counters); created

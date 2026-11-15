@@ -5,7 +5,7 @@ Rules: docs/rules/tiles.md "Types of Tile Placements", docs/rules/chains.md
 - A tile touching nothing stays alone; play moves on to buying.
 - A tile touching lone tiles founds a chain; every connected lone tile joins
   it; the founder picks any chain not on the board and receives the
-  ruleset's founder shares free (1 in classic, 2 in mini). Shares the bank
+  ruleset's founder shares free (1 in default, 2 in mini). Shares the bank
   cannot supply are paid in cash at the new chain's price.
 - A tile touching one chain expands it, adopting lone tiles it connects.
 - A tile that would found a chain while every chain is on the board cannot
@@ -32,12 +32,12 @@ def test_lone_tile_then_founding_with_every_connected_lone_tile():
     d = t.decision()
     assert (d.kind, d.player_id) == ("found_chain", "p3")
     assert d.context["available_chains"] == t.game.hotel.get_all_chain_names()
-    founded = t.found("Festival")
+    founded = t.found("juniper")
     assert founded["founder_bonus"] is True
 
-    assert t.size("Festival") == 3
-    assert t.shares("p3", "Festival") == 1
-    assert t.game.hotel.get_available_stocks("Festival") == 24
+    assert t.size("juniper") == 3
+    assert t.shares("p3", "juniper") == 1
+    assert t.game.hotel.get_available_stocks("juniper") == 24
     assert t.money("p3") == 6000  # the founder share is free
     founded = t.events("chain_founded")[0]
     assert (founded["size"], founded["founder_bonus_type"]) == (3, "stock")
@@ -49,32 +49,32 @@ def test_founder_cannot_pick_a_chain_already_on_the_board():
     t.turn("1A")
     t.turn("5E")
     t.turn("12I")
-    t.turn("2A", found="Luxor")
+    t.turn("2A", found="sandpiper")
     t.place("6E")
-    assert "Luxor" not in t.decision().context["available_chains"]
-    r = t.try_act("p2", action="found_chain", chain="Luxor")
+    assert "sandpiper" not in t.decision().context["available_chains"]
+    r = t.try_act("p2", action="found_chain", chain="sandpiper")
     assert not r["success"] and "not available" in r["error"]
-    t.found("Tower")
-    assert t.game.hotel.get_active_chains() == ["Luxor", "Tower"]
+    t.found("marlowe")
+    assert t.game.hotel.get_active_chains() == ["marlowe", "sandpiper"]
 
 
 def test_expansion_adopts_lone_tiles_it_connects():
-    # Luxor 1A-2A; lone tile 4A; 3A joins both to Luxor.
+    # sandpiper 1A-2A; lone tile 4A; 3A joins both to sandpiper.
     t = Table([["1A", "3A"], ["2A"], ["4A"]])
     t.turn("1A")
-    t.turn("2A", found="Luxor")
+    t.turn("2A", found="sandpiper")
     t.turn("4A")
     r = t.place("3A")
-    assert (r["result"], r["chain"]) == ("expand", "Luxor")
-    assert t.size("Luxor") == 4
+    assert (r["result"], r["chain"]) == ("expand", "sandpiper")
+    assert t.size("sandpiper") == 4
     expanded = t.events("chain_expanded")[0]
-    assert (expanded["chain"], expanded["size"]) == ("Luxor", 4)
+    assert (expanded["chain"], expanded["size"]) == ("sandpiper", 4)
     # the price follows the new size ($400 for a cheap chain of 4)
-    t.buy({"Luxor": 1})
+    t.buy({"sandpiper": 1})
     assert t.money("p1") == 6000 - 400
 
 
-@pytest.mark.parametrize("ruleset_id", ["classic", "mini"])
+@pytest.mark.parametrize("ruleset_id", ["default", "mini"])
 def test_founder_receives_the_rulesets_founder_shares(ruleset_id):
     rs = load_ruleset(ruleset_id)
     chain = rs.chain_ids[-1]
@@ -92,10 +92,10 @@ def test_founder_receives_the_rulesets_founder_shares(ruleset_id):
 def test_founder_shares_the_bank_cannot_supply_are_paid_in_cash(
     bought_last, shares, cash
 ):
-    """Mini (2 founder shares, 18 per chain): the players buy up harbor,
-    hold it through a merger, and p1 founds harbor again."""
+    """Mini (2 founder shares, 18 per chain): the players buy up sandpiper,
+    hold it through a merger, and p1 founds sandpiper again."""
     rs = load_ruleset("mini")
-    a, b = "harbor", "meadow"
+    a, b = "sandpiper", "marlowe"
     t = Table(
         [["1A", "9G", "3G", "5A", "3A", "2D"], ["2A", "1G", "4A", "6A", "1D"]],
         ruleset=rs,
@@ -107,8 +107,8 @@ def test_founder_shares_the_bank_cannot_supply_are_paid_in_cash(
     t.turn("3G", buy={a: bought_last})
     t.turn("4A")
     t.turn("5A", found=b)
-    t.turn("6A")  # meadow 3 tiles
-    t.place("3A")  # harbor (2) into meadow (3)
+    t.turn("6A")  # marlowe 3 tiles
+    t.place("3A")  # sandpiper (2) into marlowe (3)
     for pid in ("p1", "p2"):
         held = t.shares(pid, a)
         t.dispose(pid, a, hold=held)
@@ -132,12 +132,12 @@ def test_founder_shares_the_bank_cannot_supply_are_paid_in_cash(
 
 
 def test_a_tile_that_would_found_one_chain_too_many_is_not_playable():
-    """All seven classic chains on the board: 12H next to lone 12I would found
+    """All seven default chains on the board: 12H next to lone 12I would found
     an eighth, so it is not offered; a lone tile still is."""
     pairs = ["1A", "2A", "4A", "5A", "7A", "8A", "10A", "11A",
              "1C", "2C", "4C", "5C", "7C", "8C"]  # fmt: skip
-    chains = ["Luxor", "Tower", "American", "Worldwide", "Festival", "Imperial",
-              "Continental"]  # fmt: skip
+    chains = ["sandpiper", "marlowe", "halcyon", "meridian", "juniper", "obsidian",
+              "aurelia"]  # fmt: skip
     # p1 plays the first tile of each pair, p2 the second (founding).
     p1 = pairs[0::2] + ["12I", "12H", "10E"]
     p2 = pairs[1::2] + ["10G"]

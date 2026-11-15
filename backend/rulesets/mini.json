@@ -137,39 +137,39 @@
   ],
   "chains": [
     {
-      "id": "harbor",
-      "name": "Harbor",
+      "id": "sandpiper",
+      "name": "Sandpiper",
       "tier": "budget",
-      "color": "#2E86AB",
-      "abbreviation": "H"
+      "color": "#E3B448",
+      "abbreviation": "SP"
     },
     {
-      "id": "meadow",
-      "name": "Meadow",
+      "id": "marlowe",
+      "name": "Marlowe",
       "tier": "budget",
-      "color": "#7FB800",
-      "abbreviation": "M"
+      "color": "#8E2C48",
+      "abbreviation": "MA"
     },
     {
-      "id": "summit",
-      "name": "Summit",
+      "id": "halcyon",
+      "name": "Halcyon",
       "tier": "standard",
-      "color": "#F18F01",
-      "abbreviation": "S"
+      "color": "#1F7A8C",
+      "abbreviation": "HA"
     },
     {
-      "id": "quarry",
-      "name": "Quarry",
+      "id": "meridian",
+      "name": "Meridian",
       "tier": "standard",
-      "color": "#8E6C8A",
-      "abbreviation": "Q"
+      "color": "#E07A3F",
+      "abbreviation": "ME"
     },
     {
-      "id": "beacon",
-      "name": "Beacon",
+      "id": "aurelia",
+      "name": "Aurelia",
       "tier": "premium",
-      "color": "#C73E1D",
-      "abbreviation": "B"
+      "color": "#B48CDB",
+      "abbreviation": "AU"
     }
   ],
   "bonuses": {

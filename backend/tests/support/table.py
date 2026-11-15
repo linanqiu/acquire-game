@@ -8,8 +8,8 @@ surgery, no private state.
 
     t = Table([["1A", "4A"], ["2A"], ["5A", "3A"]])   # scripts for p1, p2, p3
     t.turn("1A")                                      # p1: lone tile
-    t.turn("2A", found="Luxor")                       # p2 founds Luxor
-    t.turn("5A", buy={"Luxor": 2})                    # p3
+    t.turn("2A", found="sandpiper")                       # p2 founds sandpiper
+    t.turn("5A", buy={"sandpiper": 2})                    # p3
 
 A script lists the tiles a player will place, in order. The first
 ``hand_size`` are dealt; the rest arrive one per turn through the normal
@@ -34,7 +34,7 @@ class Table:
         """
         Args:
             scripts: per player, the tiles they will place in order
-            ruleset: game parameters (default classic)
+            ruleset: game parameters (default: the default ruleset)
             bag_tail: tiles drawn next once the scripted draws (one round
                 beyond the longest script) are used up, in draw order
         """

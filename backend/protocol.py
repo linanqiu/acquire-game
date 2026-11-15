@@ -19,14 +19,14 @@ from typing import Literal, Union
 from pydantic import BaseModel, ValidationError, ValidationInfo, field_validator
 
 from config import get_ruleset
-from game.ruleset import Ruleset, classic
+from game.ruleset import Ruleset, default_ruleset
 
 # =============================================================================
 # Pydantic Models for WebSocket Message Validation
 # =============================================================================
 
-# Classic alias kept for importers; validation uses the configured ruleset.
-VALID_CHAINS = list(classic().chain_ids)
+# Default alias kept for importers; validation uses the configured ruleset.
+VALID_CHAINS = list(default_ruleset().chain_ids)
 
 
 def _ruleset(info: ValidationInfo) -> Ruleset:

@@ -9,15 +9,15 @@ Public API (used by the server):
 Environment (read at call time, so tests and deployments can change it):
 
 ``ANTHROPIC_API_KEY``                 key for the built-in Anthropic entries
-``ACQUIRE_LLM_OPENAI_BASE_URL``       e.g. https://api.deepseek.com/v1  (enables the entry)
-``ACQUIRE_LLM_OPENAI_API_KEY``        bearer key (optional for localhost servers)
-``ACQUIRE_LLM_OPENAI_MODEL``          model name for that endpoint
-``ACQUIRE_LLM_OPENAI_JSON_MODE``      json_object (default) | json_schema | none
-``ACQUIRE_LLM_CATALOG``               JSON list that REPLACES the default entries
-``ACQUIRE_TEST_MODE=1``               adds ``llm:fake`` (no network, first legal action)
-``ACQUIRE_LLM_LOG_DIR``               see decision_log.py
+``GAME_LLM_OPENAI_BASE_URL``       e.g. https://api.deepseek.com/v1  (enables the entry)
+``GAME_LLM_OPENAI_API_KEY``        bearer key (optional for localhost servers)
+``GAME_LLM_OPENAI_MODEL``          model name for that endpoint
+``GAME_LLM_OPENAI_JSON_MODE``      json_object (default) | json_schema | none
+``GAME_LLM_CATALOG``               JSON list that REPLACES the default entries
+``GAME_TEST_MODE=1``               adds ``llm:fake`` (no network, first legal action)
+``GAME_LLM_LOG_DIR``               see decision_log.py
 
-``ACQUIRE_LLM_CATALOG`` entry fields: ``id, label, description, provider``
+``GAME_LLM_CATALOG`` entry fields: ``id, label, description, provider``
 (``anthropic`` | ``openai``), ``model``; optional ``api_key_env`` (env var name
 holding the key), ``api_key`` (inline, discouraged), ``base_url``,
 ``base_url_env``, ``timeout`` (s), ``max_tokens``, ``effort``, ``json_mode``,
@@ -45,7 +45,7 @@ from agents.llm.providers import (
     Provider,
 )
 
-logger = logging.getLogger("acquire.llm")
+logger = logging.getLogger("llm")
 
 FAKE_ID = "llm:fake"
 
@@ -107,7 +107,7 @@ class CatalogEntry:
 
 
 def test_mode() -> bool:
-    return os.environ.get("ACQUIRE_TEST_MODE") == "1"
+    return os.environ.get("GAME_TEST_MODE") == "1"
 
 
 def _default_entries() -> list[CatalogEntry]:
@@ -139,8 +139,8 @@ def _default_entries() -> list[CatalogEntry]:
             timeout=60.0,
         ),
     ]
-    base = os.environ.get("ACQUIRE_LLM_OPENAI_BASE_URL")
-    model = os.environ.get("ACQUIRE_LLM_OPENAI_MODEL")
+    base = os.environ.get("GAME_LLM_OPENAI_BASE_URL")
+    model = os.environ.get("GAME_LLM_OPENAI_MODEL")
     if base and model:
         entries.append(
             CatalogEntry(
@@ -149,9 +149,9 @@ def _default_entries() -> list[CatalogEntry]:
                 description=f"OpenAI-compatible endpoint ({urlparse(base).hostname}).",
                 provider="openai",
                 model=model,
-                api_key_env="ACQUIRE_LLM_OPENAI_API_KEY",
-                base_url_env="ACQUIRE_LLM_OPENAI_BASE_URL",
-                json_mode=os.environ.get("ACQUIRE_LLM_OPENAI_JSON_MODE", "json_object"),
+                api_key_env="GAME_LLM_OPENAI_API_KEY",
+                base_url_env="GAME_LLM_OPENAI_BASE_URL",
+                json_mode=os.environ.get("GAME_LLM_OPENAI_JSON_MODE", "json_object"),
             )
         )
     return entries
@@ -196,14 +196,14 @@ def _fake_entry() -> CatalogEntry:
 
 
 def load_entries() -> list[CatalogEntry]:
-    raw = os.environ.get("ACQUIRE_LLM_CATALOG")
+    raw = os.environ.get("GAME_LLM_CATALOG")
     entries: list[CatalogEntry] | None = None
     if raw:
         try:
             parsed = json.loads(raw)
             entries = [_entry_from_json(d) for d in parsed]
         except (ValueError, KeyError, TypeError) as exc:
-            logger.warning("ignoring invalid ACQUIRE_LLM_CATALOG: %s", exc)
+            logger.warning("ignoring invalid GAME_LLM_CATALOG: %s", exc)
     if entries is None:
         entries = _default_entries()
     if test_mode():

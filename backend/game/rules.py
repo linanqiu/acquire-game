@@ -1,4 +1,4 @@
-"""Game rules and validation logic for Acquire."""
+"""Game rules and validation logic for Buyout."""
 
 from enum import Enum
 from typing import Union, Tuple, TYPE_CHECKING
@@ -47,7 +47,7 @@ class PlacementResult:
 
 
 class Rules:
-    """Game rules and validation for Acquire.
+    """Game rules and validation for Buyout.
 
     Every threshold (safe size, end-game size, number of chains, bonus
     rounding, trade ratio) is read from ``board.ruleset`` / ``hotel.ruleset``.
@@ -220,7 +220,7 @@ class Rules:
         - Majority holder gets majority bonus (multiplier x stock price)
         - Minority holder gets minority bonus (multiplier x stock price)
         - If tied for majority, split majority + minority, rounded up to the
-          ruleset's step ($100 in classic)
+          ruleset's step ($100 in default)
         - If tied for minority, split minority bonus, rounded up likewise
         - If only one stockholder, they get both bonuses
 
@@ -386,7 +386,7 @@ class Rules:
     ) -> bool:
         """Check if all tiles in a hand are unplayable.
 
-        According to Acquire rules, if a player has no playable tiles at the
+        According to Buyout rules, if a player has no playable tiles at the
         start of their turn, they must reveal their hand, remove all unplayable
         tiles from the game, and draw new tiles.
 

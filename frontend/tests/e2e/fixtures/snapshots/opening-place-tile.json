@@ -157,13 +157,13 @@
       }
     ],
     "inactive_chains": [
-      "American",
-      "Continental",
-      "Festival",
-      "Imperial",
-      "Luxor",
-      "Tower",
-      "Worldwide"
+      "aurelia",
+      "halcyon",
+      "juniper",
+      "marlowe",
+      "meridian",
+      "obsidian",
+      "sandpiper"
     ],
     "pending_trades": [],
     "phase": "place_tile",
@@ -324,13 +324,13 @@
     "hotel": {
       "active_chains": [],
       "available_stocks": {
-        "American": 25,
-        "Continental": 25,
-        "Festival": 25,
-        "Imperial": 25,
-        "Luxor": 25,
-        "Tower": 25,
-        "Worldwide": 25
+        "aurelia": 25,
+        "halcyon": 25,
+        "juniper": 25,
+        "marlowe": 25,
+        "meridian": 25,
+        "obsidian": 25,
+        "sandpiper": 25
       }
     },
     "merger": {
@@ -359,13 +359,13 @@
         "name": "Alice",
         "player_id": "p1",
         "stocks": {
-          "American": 0,
-          "Continental": 0,
-          "Festival": 0,
-          "Imperial": 0,
-          "Luxor": 0,
-          "Tower": 0,
-          "Worldwide": 0
+          "aurelia": 0,
+          "halcyon": 0,
+          "juniper": 0,
+          "marlowe": 0,
+          "meridian": 0,
+          "obsidian": 0,
+          "sandpiper": 0
         }
       },
       {
@@ -381,13 +381,13 @@
         "name": "Bob",
         "player_id": "p2",
         "stocks": {
-          "American": 0,
-          "Continental": 0,
-          "Festival": 0,
-          "Imperial": 0,
-          "Luxor": 0,
-          "Tower": 0,
-          "Worldwide": 0
+          "aurelia": 0,
+          "halcyon": 0,
+          "juniper": 0,
+          "marlowe": 0,
+          "meridian": 0,
+          "obsidian": 0,
+          "sandpiper": 0
         }
       },
       {
@@ -403,13 +403,13 @@
         "name": "Cara",
         "player_id": "p3",
         "stocks": {
-          "American": 0,
-          "Continental": 0,
-          "Festival": 0,
-          "Imperial": 0,
-          "Luxor": 0,
-          "Tower": 0,
-          "Worldwide": 0
+          "aurelia": 0,
+          "halcyon": 0,
+          "juniper": 0,
+          "marlowe": 0,
+          "meridian": 0,
+          "obsidian": 0,
+          "sandpiper": 0
         }
       },
       {
@@ -425,13 +425,13 @@
         "name": "Dev",
         "player_id": "p4",
         "stocks": {
-          "American": 0,
-          "Continental": 0,
-          "Festival": 0,
-          "Imperial": 0,
-          "Luxor": 0,
-          "Tower": 0,
-          "Worldwide": 0
+          "aurelia": 0,
+          "halcyon": 0,
+          "juniper": 0,
+          "marlowe": 0,
+          "meridian": 0,
+          "obsidian": 0,
+          "sandpiper": 0
         }
       }
     ],

@@ -8,7 +8,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from main import create_app
 
-INDEX = "<!doctype html><html><body><div id='root'>ACQUIRE-INDEX</div></body></html>"
+INDEX = "<!doctype html><html><body><div id='root'>BUYOUT-INDEX</div></body></html>"
 
 
 @pytest.fixture
@@ -22,14 +22,14 @@ def dist(tmp_path):
 
 @pytest.fixture
 def client(dist, monkeypatch):
-    monkeypatch.delenv("ACQUIRE_TEST_MODE", raising=False)
+    monkeypatch.delenv("GAME_TEST_MODE", raising=False)
     with TestClient(create_app(frontend_dist=dist)) as c:
         yield c
 
 
 @pytest.fixture
 def nodist_client(tmp_path, monkeypatch):
-    monkeypatch.delenv("ACQUIRE_TEST_MODE", raising=False)
+    monkeypatch.delenv("GAME_TEST_MODE", raising=False)
     with TestClient(create_app(frontend_dist=tmp_path / "missing")) as c:
         yield c
 
@@ -37,7 +37,7 @@ def nodist_client(tmp_path, monkeypatch):
 def test_index_at_root_is_not_cached(client):
     r = client.get("/")
     assert r.status_code == 200
-    assert "ACQUIRE-INDEX" in r.text
+    assert "BUYOUT-INDEX" in r.text
     assert r.headers["cache-control"] == "no-cache"
 
 
@@ -45,7 +45,7 @@ def test_index_at_root_is_not_cached(client):
 def test_spa_fallback(client, path):
     r = client.get(path)
     assert r.status_code == 200
-    assert "ACQUIRE-INDEX" in r.text
+    assert "BUYOUT-INDEX" in r.text
     assert r.headers["cache-control"] == "no-cache"
 
 
@@ -69,7 +69,7 @@ def test_top_level_file_served(client):
 def test_path_traversal_falls_back_to_index(client):
     r = client.get("/..%2f..%2fetc/passwd")
     assert r.status_code == 200
-    assert "ACQUIRE-INDEX" in r.text
+    assert "BUYOUT-INDEX" in r.text
 
 
 def test_api_prefixed_and_bare_routes(client):
@@ -126,14 +126,14 @@ def test_no_dist_mode_unchanged(nodist_client):
 
 
 def test_dist_without_index_is_ignored(tmp_path, monkeypatch):
-    monkeypatch.delenv("ACQUIRE_TEST_MODE", raising=False)
+    monkeypatch.delenv("GAME_TEST_MODE", raising=False)
     (tmp_path / "assets").mkdir()
     with TestClient(create_app(frontend_dist=tmp_path)) as c:
         assert c.get("/").status_code == 404
 
 
 def test_testmode_routes_also_under_api(dist, monkeypatch):
-    monkeypatch.setenv("ACQUIRE_TEST_MODE", "1")
+    monkeypatch.setenv("GAME_TEST_MODE", "1")
     with TestClient(create_app(frontend_dist=dist)) as c:
         code = c.post("/api/create", data={"player_name": "Ann"}).json()["room_code"]
         assert c.get(f"/test/room/{code}/snapshot").status_code != 404

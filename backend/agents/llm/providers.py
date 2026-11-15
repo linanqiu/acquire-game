@@ -241,7 +241,7 @@ class OpenAICompatProvider:
         if self.json_mode == "json_schema":
             body["response_format"] = {
                 "type": "json_schema",
-                "json_schema": {"name": "acquire_decision", "schema": schema},
+                "json_schema": {"name": "game_decision", "schema": schema},
             }
         elif self.json_mode == "json_object":
             body["response_format"] = {"type": "json_object"}

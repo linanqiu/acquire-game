@@ -1,11 +1,11 @@
-"""Acquire Bench: headless benchmark harness for Acquire seats.
+"""Buyout Bench: headless benchmark harness for Buyout seats.
 
 See docs/ai/benchmarking.md. Importing ``bench`` starts nothing and does not
 import the web server.
 
 CLI (from ``backend/``)::
 
-    python -m bench run --protocol acquire-bench-v1 --models llm:claude-haiku-5-5 \\
+    python -m bench run --protocol bench-v1 --models llm:claude-haiku-5-5 \\
         --track vs-baseline --out bench_results/haiku --json
     python -m bench leaderboard --out bench_results/haiku
 

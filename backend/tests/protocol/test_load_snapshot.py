@@ -18,7 +18,7 @@ from tests.protocol.helpers import HumanClient, add_seat, create_room, recv_unti
 
 
 def disposition_snapshot() -> dict:
-    """p1 (current) merges Tower into Luxor; p2 holds Tower stock -> p2 disposes."""
+    """p1 (current) merges marlowe into sandpiper; p2 holds marlowe stock -> p2 disposes."""
     game = Game(seed=1)
     for pid, name in (("p1", "One"), ("p2", "Two"), ("p3", "Three")):
         game.add_player(pid, name)
@@ -34,14 +34,14 @@ def disposition_snapshot() -> dict:
             p.add_tile(game.tile_bag.pop())
     for c in (1, 2, 3):
         game.board.place_tile(Tile(c, "A"))
-        game.board.set_chain(Tile(c, "A"), "Luxor")
+        game.board.set_chain(Tile(c, "A"), "sandpiper")
     for c in (5, 6):
         game.board.place_tile(Tile(c, "A"))
-        game.board.set_chain(Tile(c, "A"), "Tower")
-    game.hotel.activate_chain("Luxor")
-    game.hotel.activate_chain("Tower")
-    game.players[1]._stocks["Tower"] = 3
-    game.hotel._available_stocks["Tower"] -= 3
+        game.board.set_chain(Tile(c, "A"), "marlowe")
+    game.hotel.activate_chain("sandpiper")
+    game.hotel.activate_chain("marlowe")
+    game.players[1]._stocks["marlowe"] = 3
+    game.hotel._available_stocks["marlowe"] -= 3
     p1 = game.players[0]
     p1.remove_tile(p1.hand[0])
     p1.add_tile(Tile(4, "A"))
@@ -78,8 +78,8 @@ def test_load_snapshot_human_completes_disposition(app_client):
         prompt = recv_until(ws, lambda m: m["type"] == "stock_disposition_required")
         assert prompt == {
             "type": "stock_disposition_required",
-            "defunct_chain": "Tower",
-            "surviving_chain": "Luxor",
+            "defunct_chain": "marlowe",
+            "surviving_chain": "sandpiper",
             "stock_count": 3,
             "available_to_trade": 25,
         }
@@ -90,11 +90,11 @@ def test_load_snapshot_human_completes_disposition(app_client):
             "decision": "stock_disposition",
         }
         assert state["players"][me]["name"] == "Human"
-        assert state["players"][me]["stocks"]["Tower"] == 3
+        assert state["players"][me]["stocks"]["marlowe"] == 3
         ws.send_json(
             {
                 "action": "merger_disposition",
-                "defunct_chain": "Tower",
+                "defunct_chain": "marlowe",
                 "disposition": {"sell": 1, "trade": 2, "hold": 0},
             }
         )
@@ -107,8 +107,8 @@ def test_load_snapshot_human_completes_disposition(app_client):
             ),
         )
         assert state["awaiting"]["decision"] == "place_tile"
-        assert state["players"][me]["stocks"]["Tower"] == 0
-        assert state["players"][me]["stocks"]["Luxor"] == 1
+        assert state["players"][me]["stocks"]["marlowe"] == 0
+        assert state["players"][me]["stocks"]["sandpiper"] == 1
         # and the game keeps going under the human's control
         human.play(stop=lambda m: m["current_player"] != me, state=state)
     game = session_manager.get_room(code).game
@@ -209,7 +209,7 @@ def test_every_frontend_fixture_loads(app_client, name):
 
 def mini_snapshot() -> dict:
     """A game created under the ``mini`` ruleset: p1 holds 2A next to a lone 1A,
-    so placing it founds a chain (ids ``harbor``, ``meadow``, ...)."""
+    so placing it founds a chain (ids ``sandpiper``, ``marlowe``, ...)."""
     mini = load_ruleset("mini")
     game = Game(seed=1, ruleset=mini)
     for pid, name in (("p1", "One"), ("p2", "Two"), ("p3", "Three")):
@@ -234,12 +234,12 @@ def mini_snapshot() -> dict:
 
 
 def test_snapshot_of_another_ruleset_is_validated_against_its_own_game(app_client):
-    """Server default is classic; the loaded game is ``mini``. A human's legal
+    """Server default is default; the loaded game is ``mini``. A human's legal
     mini moves (its own chain ids, 4 shares per buy) must not be refused by the
-    classic chain list / purchase limit."""
+    default chain list / purchase limit."""
     from config import get_ruleset
 
-    assert get_ruleset().id == "classic"
+    assert get_ruleset().id == "default"
     client = app_client
     code, me = create_room(client, "Human")
     bot = add_seat(client, code, "bot")
@@ -266,7 +266,7 @@ def test_snapshot_of_another_ruleset_is_validated_against_its_own_game(app_clien
             if not h.actions:
                 return {"action": "place_tile", "tile": "2A"}  # founds a chain
             if state["awaiting"]["decision"] == "buy_stocks":
-                # 4 shares in one turn is legal on mini only (classic: 3)
+                # 4 shares in one turn is legal on mini only (default: 3)
                 founded = h.actions[1]["chain"]
                 return {"action": "buy_stocks", "purchases": {founded: 4}}
             return None

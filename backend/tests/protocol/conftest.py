@@ -17,7 +17,7 @@ from config import get_settings
 
 @pytest.fixture
 def test_mode(monkeypatch):
-    monkeypatch.setenv("ACQUIRE_TEST_MODE", "1")
+    monkeypatch.setenv("GAME_TEST_MODE", "1")
 
 
 @pytest.fixture

@@ -1,4 +1,4 @@
-"""Structured logging configuration for the Acquire application."""
+"""Structured logging configuration for the Buyout application."""
 
 import logging
 import sys

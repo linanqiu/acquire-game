@@ -1,4 +1,4 @@
-"""Heuristic agent: the classic rule-based bot, one decision at a time.
+"""Heuristic agent: the rule-based bot, one decision at a time.
 
 Wraps the scoring logic in ``game/bot.py`` but only ever answers with an
 action drawn from ``ctx.legal`` (``Bot._get_playable_tiles`` alone can pick a
@@ -22,7 +22,7 @@ from game.board import Board, TileState
 from game.bot import Bot
 from game.hotel import Hotel
 from game.player import Player
-from game.ruleset import classic, ruleset_from_state
+from game.ruleset import default_ruleset, ruleset_from_state
 
 
 def _rebuild(ctx: DecisionContext) -> tuple[Board, Hotel, Player]:
@@ -174,7 +174,9 @@ class HeuristicAgent:
             return {"action": "end_turn"}
         options = {o["chain"]: o for o in legal.get("options", [])}
         money = int(legal.get("money", 0))
-        max_total = int(legal.get("max_total", classic().max_stock_purchases_per_turn))
+        max_total = int(
+            legal.get("max_total", default_ruleset().max_stock_purchases_per_turn)
+        )
         wanted = bot.choose_stocks_to_buy(board, hotel, max_total)
         counts: dict[str, int] = {}
         spent = 0

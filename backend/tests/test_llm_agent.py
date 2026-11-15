@@ -42,7 +42,7 @@ async def test_valid_first_answer_is_one_call(game):
     assert action == {"action": "place_tile", "tile": tile}
     assert len(prov.calls) == 1
     call = prov.calls[0]
-    assert tile in call["user"] and "ACQUIRE" in call["system"]
+    assert tile in call["user"] and "GRAND HOTELS" in call["system"]
     assert call["timeout"] == 45.0
     # schema handed to the provider is narrowed to the legal tiles
     enum = call["schema"]["properties"]["action"]["properties"]["tile"]["enum"]
@@ -420,13 +420,13 @@ async def test_decision_log_ring_buffer_and_totals(game):
 async def test_decision_log_writes_logger_and_jsonl(
     game, tmp_path, monkeypatch, caplog
 ):
-    monkeypatch.setenv("ACQUIRE_LLM_LOG_DIR", str(tmp_path))
+    monkeypatch.setenv("GAME_LLM_LOG_DIR", str(tmp_path))
     ctx = place_ctx(game)
     tile = first_tile(ctx)
     agent = LLMAgent(
         FakeProvider([answer({"action": "place_tile", "tile": tile}, why="reason")])
     )
-    with caplog.at_level("INFO", logger="acquire.llm"):
+    with caplog.at_level("INFO", logger="llm"):
         await agent.decide(ctx)
     assert any(
         "kind=place_tile" in r.message and "reason" in r.message for r in caplog.records
@@ -434,11 +434,11 @@ async def test_decision_log_writes_logger_and_jsonl(
     lines = (tmp_path / "decisions.jsonl").read_text().strip().splitlines()
     rec = json.loads(lines[0])
     assert rec["action"]["tile"] == tile
-    assert "ACQUIRE" in rec["system"] and tile in rec["user"] and rec["responses"]
+    assert "GRAND HOTELS" in rec["system"] and tile in rec["user"] and rec["responses"]
 
 
 async def test_failure_is_also_logged_to_jsonl(game, tmp_path, monkeypatch):
-    monkeypatch.setenv("ACQUIRE_LLM_LOG_DIR", str(tmp_path))
+    monkeypatch.setenv("GAME_LLM_LOG_DIR", str(tmp_path))
     agent = LLMAgent(FakeProvider([ProviderError("nope")]))
     with pytest.raises(AgentDecisionError):
         await agent.decide(place_ctx(game))

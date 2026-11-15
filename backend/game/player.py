@@ -1,20 +1,20 @@
-"""Player state and actions for Acquire."""
+"""Player state and actions for Buyout."""
 
 from typing import Optional
 
 from game.board import Tile
-from game.ruleset import Ruleset, classic, resolve
+from game.ruleset import Ruleset, default_ruleset, resolve
 
 
 class Player:
-    """Represents a player in the Acquire game.
+    """Represents a player in the Buyout game.
 
-    Limits come from the ruleset; the class constants are classic aliases.
+    Limits come from the ruleset; the class constants are default aliases.
     """
 
-    STARTING_MONEY = classic().starting_cash
-    MAX_HAND_SIZE = classic().hand_size
-    MAX_STOCKS_PER_CHAIN = classic().stocks_per_chain
+    STARTING_MONEY = default_ruleset().starting_cash
+    MAX_HAND_SIZE = default_ruleset().hand_size
+    MAX_STOCKS_PER_CHAIN = default_ruleset().stocks_per_chain
 
     def __init__(self, player_id: str, name: str, ruleset: Optional[Ruleset] = None):
         """Initialize a new player.
@@ -22,7 +22,7 @@ class Player:
         Args:
             player_id: Unique identifier for the player
             name: Display name for the player
-            ruleset: Game parameters (default: classic)
+            ruleset: Game parameters (default: the default ruleset)
         """
         self.ruleset = resolve(ruleset)
         self.player_id = player_id
@@ -374,7 +374,7 @@ class Player:
 
         Args:
             state: Dict containing player state
-            ruleset: Game parameters (default: classic)
+            ruleset: Game parameters (default: the default ruleset)
 
         Returns:
             Player instance

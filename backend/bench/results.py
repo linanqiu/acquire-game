@@ -7,7 +7,7 @@ Layout of one results directory (stable; see docs/ai/benchmarking.md)::
     <out>/leaderboard.json             {"generated_at", "boards": [board...]}
     <out>/report.md                    leaderboards + per-matchup statistics
 
-A "bench dir" (``ACQUIRE_BENCH_DIR``) is one results directory or a parent of
+A "bench dir" (``GAME_BENCH_DIR``) is one results directory or a parent of
 several (one level deep).
 """
 
@@ -24,6 +24,7 @@ from bench.leaderboard import (
 )
 from bench.report import build_report, render_markdown
 from bench.series import load_results as _load_keyed
+from config import get_settings
 
 RESULTS_FILE = "results.jsonl"
 
@@ -95,7 +96,12 @@ def write_outputs(out: str | Path, prices=None) -> list[dict]:
             by_matchup.setdefault(
                 f"{r.get('track') or 'ad hoc'}: {r['matchup']}", []
             ).append(r)
-    md = ["# Acquire Bench results", "", f"Generated {now}.", ""]
+    md = [
+        f"# {get_settings().game_brand_name} Bench results",
+        "",
+        f"Generated {now}.",
+        "",
+    ]
     for b in boards:
         md.append(render_leaderboard_md(b))
     md.append(render_markdown(build_report(by_matchup)))

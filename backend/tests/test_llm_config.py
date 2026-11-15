@@ -11,12 +11,12 @@ from tests.llm_support import bot_game, buy_ctx, place_ctx
 
 ENV_VARS = (
     "ANTHROPIC_API_KEY",
-    "ACQUIRE_LLM_OPENAI_BASE_URL",
-    "ACQUIRE_LLM_OPENAI_API_KEY",
-    "ACQUIRE_LLM_OPENAI_MODEL",
-    "ACQUIRE_LLM_OPENAI_JSON_MODE",
-    "ACQUIRE_LLM_CATALOG",
-    "ACQUIRE_TEST_MODE",
+    "GAME_LLM_OPENAI_BASE_URL",
+    "GAME_LLM_OPENAI_API_KEY",
+    "GAME_LLM_OPENAI_MODEL",
+    "GAME_LLM_OPENAI_JSON_MODE",
+    "GAME_LLM_CATALOG",
+    "GAME_TEST_MODE",
 )
 
 
@@ -56,18 +56,18 @@ def test_anthropic_entries_available_with_key(monkeypatch):
 
 
 def test_openai_compat_entry_from_env(monkeypatch):
-    monkeypatch.setenv("ACQUIRE_LLM_OPENAI_BASE_URL", "https://api.deepseek.com/v1")
+    monkeypatch.setenv("GAME_LLM_OPENAI_BASE_URL", "https://api.deepseek.com/v1")
     assert len(catalog_entries()) == 3  # needs a model too
-    monkeypatch.setenv("ACQUIRE_LLM_OPENAI_MODEL", "deepseek-chat")
+    monkeypatch.setenv("GAME_LLM_OPENAI_MODEL", "deepseek-chat")
     e = by_id(catalog_entries())["llm:openai:deepseek-chat"]
     assert e["available"] is False  # remote endpoint needs a key
-    monkeypatch.setenv("ACQUIRE_LLM_OPENAI_API_KEY", "k")
+    monkeypatch.setenv("GAME_LLM_OPENAI_API_KEY", "k")
     assert by_id(catalog_entries())["llm:openai:deepseek-chat"]["available"] is True
 
 
 def test_openai_compat_local_server_needs_no_key(monkeypatch):
-    monkeypatch.setenv("ACQUIRE_LLM_OPENAI_BASE_URL", "http://localhost:11434/v1")
-    monkeypatch.setenv("ACQUIRE_LLM_OPENAI_MODEL", "llama3")
+    monkeypatch.setenv("GAME_LLM_OPENAI_BASE_URL", "http://localhost:11434/v1")
+    monkeypatch.setenv("GAME_LLM_OPENAI_MODEL", "llama3")
     assert by_id(catalog_entries())["llm:openai:llama3"]["available"] is True
 
 
@@ -75,7 +75,7 @@ def test_catalog_json_overrides_defaults(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
     monkeypatch.setenv("MY_KEY", "k2")
     monkeypatch.setenv(
-        "ACQUIRE_LLM_CATALOG",
+        "GAME_LLM_CATALOG",
         json.dumps(
             [
                 {
@@ -117,7 +117,7 @@ def test_invalid_catalog_json_falls_back_to_defaults(monkeypatch):
         '[{"id": "x"}]',
         '[{"provider":"carrier-pigeon","model":"m"}]',
     ):
-        monkeypatch.setenv("ACQUIRE_LLM_CATALOG", bad)
+        monkeypatch.setenv("GAME_LLM_CATALOG", bad)
         assert len(catalog_entries()) == 3
 
 
@@ -125,16 +125,16 @@ def test_fake_only_in_test_mode(monkeypatch):
     assert "llm:fake" not in by_id(catalog_entries())
     with pytest.raises(KeyError):
         create_agent("llm:fake", name="x")
-    monkeypatch.setenv("ACQUIRE_TEST_MODE", "1")
+    monkeypatch.setenv("GAME_TEST_MODE", "1")
     fake = by_id(catalog_entries())["llm:fake"]
     assert fake["label"] == "Fake LLM (test)" and fake["available"] is True
-    monkeypatch.setenv("ACQUIRE_TEST_MODE", "0")
+    monkeypatch.setenv("GAME_TEST_MODE", "0")
     assert "llm:fake" not in by_id(catalog_entries())
 
 
 def test_fake_added_even_when_catalog_overridden(monkeypatch):
-    monkeypatch.setenv("ACQUIRE_TEST_MODE", "1")
-    monkeypatch.setenv("ACQUIRE_LLM_CATALOG", "[]")
+    monkeypatch.setenv("GAME_TEST_MODE", "1")
+    monkeypatch.setenv("GAME_LLM_CATALOG", "[]")
     assert list(by_id(catalog_entries())) == ["llm:fake"]
 
 
@@ -156,7 +156,7 @@ def test_create_agent_errors_and_types(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_fake_agent_plays_first_legal_action(monkeypatch):
-    monkeypatch.setenv("ACQUIRE_TEST_MODE", "1")
+    monkeypatch.setenv("GAME_TEST_MODE", "1")
     agent = create_agent("llm:fake", name="Fakey")
     assert isinstance(agent.provider, FakeProvider)
     game = bot_game(seed=1, min_turns=40)
@@ -179,6 +179,6 @@ def test_catalog_overrides_max_illegal_retries(monkeypatch):
             "max_illegal_retries": 7,
         },
     ]
-    monkeypatch.setenv("ACQUIRE_LLM_CATALOG", json.dumps(entries))
+    monkeypatch.setenv("GAME_LLM_CATALOG", json.dumps(entries))
     assert create_agent("llm:a", name="A").max_illegal_retries == 4
     assert create_agent("llm:b", name="B").max_illegal_retries == 7

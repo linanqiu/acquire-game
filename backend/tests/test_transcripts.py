@@ -130,9 +130,9 @@ def test_writer_errors_never_raise_and_disable(tmp_path, monkeypatch):
     )
     w.close("abandoned")
     assert w.broken
-    monkeypatch.setenv("ACQUIRE_TRANSCRIPT_DIR", "off")
+    monkeypatch.setenv("GAME_TRANSCRIPT_DIR", "off")
     assert TranscriptWriter.open(game, seats=[]) is None
-    monkeypatch.setenv("ACQUIRE_TRANSCRIPT_DIR", "")
+    monkeypatch.setenv("GAME_TRANSCRIPT_DIR", "")
     assert TranscriptWriter.open(game, seats=[]) is None
 
 

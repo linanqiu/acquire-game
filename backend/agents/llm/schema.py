@@ -15,7 +15,7 @@ here, with a precise error message, before the driver ever sees them.
 
 Chain enums come from the game's ruleset: pass ``chains=`` (and
 ``max_shares=``) built from ``ruleset_from_state(ctx.state)``; without them the
-classic ruleset's chains are used (``CHAINS`` below). The trade step of a
+default ruleset's chains are used (``CHAINS`` below). The trade step of a
 disposition comes from the legal options (``trade_ratio``, 2 when absent).
 """
 
@@ -24,11 +24,11 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from game.ruleset import classic
+from game.ruleset import default_ruleset
 
-# Classic aliases (defaults when the caller does not pass the game's ruleset).
-CHAINS: tuple[str, ...] = tuple(classic().chain_ids)
-MAX_SHARES: int = classic().stocks_per_chain
+# Default aliases (defaults when the caller does not pass the game's ruleset).
+CHAINS: tuple[str, ...] = tuple(default_ruleset().chain_ids)
+MAX_SHARES: int = default_ruleset().stocks_per_chain
 
 NOTE_MAX_CHARS = 300
 
@@ -121,7 +121,9 @@ def _action_variant(
             }
         )
     if action_type == "buy_stocks":
-        max_total = int(legal.get("max_total", classic().max_stock_purchases_per_turn))
+        max_total = int(
+            legal.get("max_total", default_ruleset().max_stock_purchases_per_turn)
+        )
         props = {}
         for opt in legal.get("options", []) or []:
             cap = min(max_total, int(opt.get("max_affordable", 0)))
@@ -169,7 +171,7 @@ def build_schema(
     """JSON schema of the answer, narrowed to ``legal``.
 
     ``chains`` / ``max_shares``: the game's chain ids and shares per chain
-    (default: classic).
+    (default: the default ruleset).
     """
     chain_ids = tuple(chains) if chains is not None else CHAINS
     cap = max_shares if max_shares is not None else MAX_SHARES
@@ -324,7 +326,7 @@ def check_against_legal(
          "players": {"p1": {"cash": 4200, "shares": {"<chain id>": 3, ...}}, ...}}
 
     ``chains``: the game's chain ids (default: taken from ``view``'s share
-    maps, else the classic chains).
+    maps, else the default chains).
     """
     if not isinstance(action, dict):
         return "action must be a JSON object"
@@ -417,7 +419,9 @@ def check_against_legal(
                 )
             total += qty
             cost += qty * o.get("price", 0)
-        max_total = legal.get("max_total", classic().max_stock_purchases_per_turn)
+        max_total = legal.get(
+            "max_total", default_ruleset().max_stock_purchases_per_turn
+        )
         if total > max_total:
             return f"at most {max_total} shares per turn in total, asked {total}"
         money = legal.get("money")

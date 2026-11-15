@@ -55,11 +55,11 @@ def test_system_prompt_states_the_implemented_rules():
 
 def test_user_prompt_has_legal_options_hand_notes_and_board(game):
     ctx = place_ctx(game, events=sample_events(10))
-    p = build_user_prompt(ctx, ["Aim for Tower majority."])
+    p = build_user_prompt(ctx, ["Aim for marlowe majority."])
     assert json.dumps(ctx.legal, separators=(",", ":")) in p
     for tile in ctx.state["hand"]:
         assert tile in p
-    assert "Aim for Tower majority." in p
+    assert "Aim for marlowe majority." in p
     assert "Decision: place_tile" in p
     grid = [
         ln for ln in render_board(ctx.state).splitlines() if re.match(r"^  [A-I] ", ln)
@@ -179,13 +179,13 @@ def test_slices_per_decision_kind(game):
 def test_disposition_prompt_has_derived_numbers(game):
     legal = {
         "action_types": ["merger_disposition"],
-        "defunct_chain": "Luxor",
-        "surviving_chain": "Tower",
+        "defunct_chain": "sandpiper",
+        "surviving_chain": "marlowe",
         "stock_count": 4,
         "max_trade": 2,
     }
     p = build_user_prompt(make_ctx(game, "p1", "stock_disposition", legal), [])
-    assert "Bonuses for Luxor have ALREADY been paid" in p
+    assert "Bonuses for sandpiper have ALREADY been paid" in p
     assert "selling all 4 gives $1,200" in p
     assert "more than $600" in p
     assert "Decision: stock_disposition" in p
@@ -196,9 +196,9 @@ def test_trade_response_prompt_values_the_offer(game):
         "trade_id": "t-77",
         "from_player_id": "p2",
         "to_player_id": "p1",
-        "offering_stocks": {"Festival": 2},
+        "offering_stocks": {"juniper": 2},
         "offering_money": 100,
-        "requesting_stocks": {"Tower": 1},
+        "requesting_stocks": {"marlowe": 1},
         "requesting_money": 0,
     }
     legal = {
@@ -207,8 +207,8 @@ def test_trade_response_prompt_values_the_offer(game):
         "can_accept": True,
     }
     p = build_user_prompt(make_ctx(game, "p1", "trade_response", legal), [])
-    assert "Bob [id p2] offers you: 2 Festival + $100 (worth $900" in p
-    assert "in exchange for: 1 Tower (worth $200" in p
+    assert "Bob [id p2] offers you: 2 juniper + $100 (worth $900" in p
+    assert "in exchange for: 1 marlowe (worth $200" in p
     assert "trade_id = t-77" in p
 
 
@@ -217,7 +217,7 @@ def test_engine_context_is_included_verbatim(game):
         game,
         "p1",
         "found_chain",
-        {"action_types": ["found_chain"], "chains": ["Tower"]},
+        {"action_types": ["found_chain"], "chains": ["marlowe"]},
         context={"tile": "5C"},
     )
     p = build_user_prompt(ctx, [])

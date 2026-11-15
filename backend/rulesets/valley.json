@@ -164,14 +164,14 @@
     },
     {
       "id": "gradient",
-      "name": "Gradient Labs",
+      "name": "Gradientfold",
       "tier": "growth",
       "color": "#56B4E9",
-      "abbreviation": "GL"
+      "abbreviation": "GF"
     },
     {
       "id": "latent",
-      "name": "Latent",
+      "name": "Latentcraft",
       "tier": "growth",
       "color": "#009E73",
       "abbreviation": "LT"

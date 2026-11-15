@@ -14,6 +14,7 @@ import statistics
 from datetime import datetime, timezone
 
 from bench.runner import percentile
+from config import get_settings
 
 Z95 = 1.96
 MIN_GAMES = 30  # below this, say so loudly
@@ -286,7 +287,7 @@ def _tok(x):
 
 
 def render_markdown(report: dict) -> str:
-    lines = ["# Acquire benchmark report", ""]
+    lines = [f"# {get_settings().game_brand_name} benchmark report", ""]
     meta = report.get("meta") or {}
     lines.append(f"Generated {report['generated_at']}.")
     for k, v in meta.items():

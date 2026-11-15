@@ -69,7 +69,7 @@ from protocol import to_action, validate_websocket_message
 from transcripts.writer import TranscriptWriter
 
 logger = logging.getLogger(__name__)
-llm_logger = logging.getLogger("acquire.llm")
+llm_logger = logging.getLogger("llm")
 
 
 @dataclass
@@ -123,7 +123,7 @@ def get_runtime(room) -> RoomRuntime:
 
 
 def test_mode() -> bool:
-    return os.environ.get("ACQUIRE_TEST_MODE") == "1"
+    return os.environ.get("GAME_TEST_MODE") == "1"
 
 
 # The pure driver rules live in agents/driving.py (shared with bench/).

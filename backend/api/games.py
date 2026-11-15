@@ -1,4 +1,4 @@
-"""Transcripts and Acquire Bench over HTTP (mounted bare and under ``/api``).
+"""Transcripts and Buyout Bench over HTTP (mounted bare and under ``/api``).
 
 | Route | Returns |
 |---|---|
@@ -9,8 +9,8 @@
 | ``GET /bench/series/{series_id}`` | the series' games |
 
 Unknown ids are JSON 404s; ids are validated before touching the disk (no path
-traversal). Live transcripts come from ``ACQUIRE_TRANSCRIPT_DIR``, benchmark
-results and transcripts from ``ACQUIRE_BENCH_DIR``. Unfinished games are
+traversal). Live transcripts come from ``GAME_TRANSCRIPT_DIR``, benchmark
+results and transcripts from ``GAME_BENCH_DIR``. Unfinished games are
 redacted (see transcripts/store.py). A browser navigation (``Accept:
 text/html``) to a bare path gets the SPA's ``index.html`` when the frontend is
 served, so client-side routes like ``/games/<id>`` survive a reload.
@@ -160,7 +160,7 @@ async def bench_leaderboard(
         records = []
     return compute_leaderboard(
         records,
-        protocol=protocol or (None if records else "acquire-bench-v1"),
+        protocol=protocol or (None if records else "bench-v1"),
         prompt_version=prompt_version,
         ruleset=ruleset,
         track=track,
@@ -207,7 +207,7 @@ async def bench_series(request: Request, series_id: str):
             "protocol": first.get("protocol"),
             "track": first.get("track"),
             "prompt_version": first.get("prompt_version"),
-            "ruleset_id": first.get("ruleset_id") or "classic",
+            "ruleset_id": first.get("ruleset_id") or "default",
             "ruleset_fingerprint": first.get("ruleset_fingerprint"),
             "planned": first.get("series_games"),
             "games": games,

@@ -26,8 +26,8 @@ PROMPT_MARKERS = ("# Your seat", "Rejected because", "Legal action types")
 @pytest.fixture
 def tdir(tmp_path, monkeypatch):
     d = tmp_path / "transcripts"
-    monkeypatch.setenv("ACQUIRE_TRANSCRIPT_DIR", str(d))
-    monkeypatch.setenv("ACQUIRE_BENCH_DIR", str(tmp_path / "bench"))
+    monkeypatch.setenv("GAME_TRANSCRIPT_DIR", str(d))
+    monkeypatch.setenv("GAME_BENCH_DIR", str(tmp_path / "bench"))
     return d
 
 

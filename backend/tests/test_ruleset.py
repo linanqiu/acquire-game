@@ -1,7 +1,7 @@
-"""Rulesets: loading, validation, classic == previous behaviour, and full play
+"""Rulesets: loading, validation, default == previous behaviour, and full play
 on other variants (``mini``, ``valley`` and generated rulesets).
 
-The classic numbers are compared against ``tests/data/classic_frozen_pricing.json``,
+The default numbers are compared against ``tests/data/default_frozen_pricing.json``,
 captured from the engine BEFORE it was parameterised (prices, bonuses and
 safety for every chain x every size 0..108, plus tie-split bonus cases).
 """
@@ -38,7 +38,7 @@ from game.ruleset import (
     Ruleset,
     RulesetError,
     available_rulesets,
-    classic,
+    default_ruleset,
     load_ruleset,
     ruleset_from_state,
 )
@@ -55,7 +55,7 @@ BACKEND = Path(__file__).resolve().parents[1]
 
 
 def _base_dict() -> dict:
-    return copy.deepcopy(classic().to_dict())
+    return copy.deepcopy(default_ruleset().to_dict())
 
 
 def tiny2_dict() -> dict:
@@ -165,14 +165,14 @@ TINY2 = Ruleset.from_dict(tiny2_dict())
 BIG9 = Ruleset.from_dict(big9_dict())
 MINI = load_ruleset("mini")
 VALLEY = load_ruleset("valley")
-CLASSIC_NAMES = [
-    "Luxor",
-    "Tower",
-    "American",
-    "Worldwide",
-    "Festival",
-    "Imperial",
-    "Continental",
+DEFAULT_NAMES = [
+    "sandpiper",
+    "marlowe",
+    "halcyon",
+    "meridian",
+    "juniper",
+    "obsidian",
+    "aurelia",
 ]
 
 
@@ -182,7 +182,7 @@ CLASSIC_NAMES = [
 
 
 def test_shipped_rulesets_load_and_round_trip():
-    assert {"classic", "mini", "valley"} <= set(available_rulesets())
+    assert {"default", "mini", "valley"} <= set(available_rulesets())
     for name in available_rulesets():
         rs = load_ruleset(name)
         assert rs.id == name
@@ -197,24 +197,24 @@ def test_shipped_rulesets_load_and_round_trip():
         assert Ruleset.from_public(rs.public_dict()) == rs
 
 
-def test_classic_matches_previous_constants():
-    rs = classic()
-    assert rs.title == "Acquire"
+def test_default_matches_previous_constants():
+    rs = default_ruleset()
+    assert rs.title == "Grand Hotels"
     assert (rs.board.columns, rs.board.rows, rs.board.row_letters) == (
         12,
         9,
         "ABCDEFGHI",
     )
-    assert [c.id for c in rs.chains] == CLASSIC_NAMES
-    assert [c.name for c in rs.chains] == CLASSIC_NAMES
+    assert [c.id for c in rs.chains] == DEFAULT_NAMES
+    assert [c.name for c in rs.chains] == [n.capitalize() for n in DEFAULT_NAMES]
     assert {c.id: c.color for c in rs.chains} == {
-        "Luxor": "#FFD700",
-        "Tower": "#8B4513",
-        "American": "#0000FF",
-        "Worldwide": "#800080",
-        "Festival": "#008000",
-        "Imperial": "#FF0000",
-        "Continental": "#00FFFF",
+        "sandpiper": "#E3B448",
+        "marlowe": "#8E2C48",
+        "halcyon": "#1F7A8C",
+        "meridian": "#E07A3F",
+        "juniper": "#3E7C4A",
+        "obsidian": "#2E3A59",
+        "aurelia": "#B48CDB",
     }
     assert (
         rs.stocks_per_chain,
@@ -235,17 +235,17 @@ def test_classic_matches_previous_constants():
     assert Player.MAX_STOCKS_PER_CHAIN == 25
     assert (Game.MIN_PLAYERS, Game.MAX_PLAYERS, Game.MAX_STOCKS_PER_TURN) == (3, 6, 3)
     assert Hotel.TOTAL_STOCKS_PER_CHAIN == 25
-    assert Game().ruleset is classic()
+    assert Game().ruleset is default_ruleset()
 
 
-def test_classic_prices_and_bonuses_equal_frozen_table():
+def test_default_prices_and_bonuses_equal_frozen_table():
     """Every chain x every size: price, majority, minority, safe == pre-refactor."""
-    frozen = json.loads((DATA / "classic_frozen_pricing.json").read_text())
+    frozen = json.loads((DATA / "default_frozen_pricing.json").read_text())
     hotel = Hotel()
-    assert frozen["safe_size"] == classic().safe_chain_size
-    assert frozen["end_game_size"] == classic().end_game_chain_size
-    assert frozen["max_chains"] == len(classic().chains)
-    assert frozen["stocks_per_chain"] == classic().stocks_per_chain
+    assert frozen["safe_size"] == default_ruleset().safe_chain_size
+    assert frozen["end_game_size"] == default_ruleset().end_game_chain_size
+    assert frozen["max_chains"] == len(default_ruleset().chains)
+    assert frozen["stocks_per_chain"] == default_ruleset().stocks_per_chain
     for name, info in frozen["chains"].items():
         assert Hotel.CHAINS[name].tier.value == info["tier"]
         assert Hotel.CHAINS[name].color == info["color"]
@@ -284,7 +284,7 @@ def test_classic_prices_and_bonuses_equal_frozen_table():
 
 
 def _mut(fn):
-    d = copy.deepcopy(classic().to_dict())
+    d = copy.deepcopy(default_ruleset().to_dict())
     fn(d)
     return d
 
@@ -318,29 +318,29 @@ BAD = [
     ("tier not defined", _set(["chains", 0, "tier"], "luxury"), "not a defined tier"),
     (
         "duplicate chain id",
-        _set(["chains", 1, "id"], "Luxor"),
+        _set(["chains", 1, "id"], "sandpiper"),
         "chain ids must be unique",
     ),
     (
         "duplicate chain name",
-        _set(["chains", 1, "name"], "Luxor"),
+        _set(["chains", 1, "name"], "Sandpiper"),
         "chain names must be unique",
     ),
     (
         "duplicate abbreviation",
-        _set(["chains", 1, "abbreviation"], "L"),
+        _set(["chains", 1, "abbreviation"], "SP"),
         "abbreviations",
     ),
     (
         "duplicate colour",
-        _set(["chains", 1, "color"], "#ffd700"),
+        _set(["chains", 1, "color"], "#e3b448"),
         "colors must be unique",
     ),
     ("bad colour", _set(["chains", 0, "color"], "gold"), "#RRGGBB"),
     ("not wire-safe id", _set(["chains", 0, "id"], "Lux or"), "wire-safe"),
     ("id starting with digit", _set(["chains", 0, "id"], "7up"), "wire-safe"),
     ("bad abbreviation", _set(["chains", 0, "abbreviation"], "LUXR"), "abbreviation"),
-    ("one chain", _set(["chains"], [classic().to_dict()["chains"][0]]), "2 to"),
+    ("one chain", _set(["chains"], [default_ruleset().to_dict()["chains"][0]]), "2 to"),
     ("too many columns", _set(["board", "columns"], 51), "board.columns"),
     ("too many rows", _set(["board", "rows"], 27), "board.rows"),
     ("price table not from 2", _del(["tiers", 0, "prices", 0]), "start at from = 2"),
@@ -398,16 +398,18 @@ def test_load_by_path_and_fingerprint():
     by_path = load_ruleset(str(RULESETS_DIR / "mini.json"))
     assert by_path == MINI and by_path.fingerprint == MINI.fingerprint
     assert len(MINI.fingerprint) == 12
-    assert len({classic().fingerprint, MINI.fingerprint, VALLEY.fingerprint}) == 3
+    assert (
+        len({default_ruleset().fingerprint, MINI.fingerprint, VALLEY.fingerprint}) == 3
+    )
     changed = Ruleset.from_dict(_mut(_set(["starting_cash"], 6100)))
-    assert changed.fingerprint != classic().fingerprint
+    assert changed.fingerprint != default_ruleset().fingerprint
     tampered = dict(MINI.public_dict(), fingerprint="000000000000")
     with pytest.raises(RulesetError, match="fingerprint"):
         Ruleset.from_public(tampered)
 
 
-def test_valley_has_classic_numbers_and_its_own_theme():
-    c, v = classic().to_dict(), VALLEY.to_dict()
+def test_valley_has_default_numbers_and_its_own_theme():
+    c, v = default_ruleset().to_dict(), VALLEY.to_dict()
     for key in ("board", "bonuses", *[k for k in c if isinstance(c[k], int)]):
         if key != "version":
             assert v[key] == c[key], key
@@ -420,7 +422,7 @@ def test_valley_has_classic_numbers_and_its_own_theme():
         "growth-stage",
         "frontier lab",
     ]
-    assert {c.name for c in VALLEY.chains}.isdisjoint(CLASSIC_NAMES)
+    assert {c.name for c in VALLEY.chains}.isdisjoint(DEFAULT_NAMES)
 
 
 # =============================================================================
@@ -432,7 +434,7 @@ def test_board_and_tiles_follow_the_ruleset():
     board = Board(MINI)
     tiles = board.all_tiles()
     assert len(tiles) == 63 and str(tiles[-1]) == "9G"
-    assert len(Board.all_tiles()) == 108  # class-level alias: classic
+    assert len(Board.all_tiles()) == 108  # class-level alias: default
     with pytest.raises(ValueError):
         Tile(10, "A", MINI.board)
     with pytest.raises(ValueError):
@@ -454,7 +456,7 @@ def test_mini_engine_uses_its_numbers():
     assert all(p.money == 4000 for p in game.players)
     assert set(game.players[0].stocks) == set(MINI.chain_ids)
     assert len(game.tile_bag) == 63 - 25
-    assert game.hotel.get_available_stocks("harbor") == 18
+    assert game.hotel.get_available_stocks("sandpiper") == 18
     pid = game.get_current_player_id()
     assert "Invalid tile format" in validate_action(
         game, pid, {"action": "place_tile", "tile": "10A"}
@@ -463,14 +465,16 @@ def test_mini_engine_uses_its_numbers():
         game, pid, {"action": "place_tile", "tile": "1H"}
     )
     assert "Invalid chain" in validate_action(
-        game, pid, {"action": "found_chain", "chain": "Luxor"}
+        game,
+        pid,
+        {"action": "found_chain", "chain": "juniper"},  # default only
     )
     state = game.get_public_state()
     assert state["ruleset"]["id"] == "mini"
     assert state["ruleset"]["fingerprint"] == MINI.fingerprint
-    assert state["chains"]["beacon"]["color"] == MINI.chain("beacon").color
+    assert state["chains"]["aurelia"]["color"] == MINI.chain("aurelia").color
     assert ruleset_from_state(state) == MINI
-    assert ruleset_from_state({}) is classic()
+    assert ruleset_from_state({}) is default_ruleset()
 
 
 def test_founder_bonus_partly_in_cash_on_tiny2():
@@ -564,15 +568,15 @@ def test_snapshot_round_trip_keeps_the_ruleset(rs):
     assert to_snapshot(restored) == to_snapshot(game)
 
 
-def test_classic_snapshot_has_no_ruleset_key_and_bad_ruleset_is_rejected():
+def test_default_snapshot_has_no_ruleset_key_and_bad_ruleset_is_rejected():
     snap = to_snapshot(_new_game(None))
     assert "ruleset" not in snap
-    assert from_snapshot(snap).ruleset is classic()
+    assert from_snapshot(snap).ruleset is default_ruleset()
     mini_snap = to_snapshot(_new_game(MINI))
     mini_snap["ruleset"]["chains"][0]["tier"] = "nope"
     with pytest.raises(ValueError, match="Bad ruleset"):
         from_snapshot(mini_snap)
-    # A mini snapshot cannot be read as classic: its chains are unknown there.
+    # A mini snapshot cannot be read as default: its chains are unknown there.
     mini_snap = to_snapshot(_new_game(MINI))
     del mini_snap["ruleset"]
     with pytest.raises(ValueError):
@@ -639,10 +643,11 @@ def test_system_prompt_is_generated_from_the_ruleset(rs):
     assert s == build_system_prompt(rs)
     for c in rs.chains:
         assert c.id in s and c.name in s
-    for name in CLASSIC_NAMES:
-        assert _no_word(s, name), name
-    assert "ACQUIRE" not in s and _no_word(s, "Acquire")
-    assert "Sid Sackson" not in s
+    for name in DEFAULT_NAMES:  # mini shares five of them
+        if name not in rs.chain_ids:
+            assert _no_word(s, name), name
+    assert "GRAND HOTELS" not in s and _no_word(s, "Buyout")
+    assert default_ruleset().theme.game_description not in s
     assert rs.title.upper() in s
     b = rs.board
     assert f"{b.columns} columns (1-{b.columns}) x {b.rows} rows" in s
@@ -667,15 +672,18 @@ def test_system_prompt_is_generated_from_the_ruleset(rs):
         for word in ("AI startup", "equity share", "acquisition", "too big to acquire"):
             assert word in s, word
         assert "hotel" not in s.lower()
-        assert "Gradient Labs (id gradient)" in s
+        assert "Gradientfold (id gradient)" in s
 
 
-def test_classic_system_prompt_keeps_its_rules_text():
+def test_default_system_prompt_keeps_its_rules_text():
     s = build_system_prompt()
-    assert s == build_system_prompt(classic())
-    assert "ACQUIRE (Sid Sackson's hotel-chain board game), 3-6 players" in s
+    assert s == build_system_prompt(default_ruleset())
+    assert (
+        "GRAND HOTELS (a board game about founding and merging hotel chains), 3-6 players"
+        in s
+    )
     assert "12 columns (1-12) x 9 rows (A-I)" in s and "108 tiles" in s
-    assert '{"action":"found_chain","chain":"Tower"}' in s
+    assert '{"action":"found_chain","chain":"marlowe"}' in s
 
 
 def test_user_prompt_board_and_schema_follow_the_ruleset():
@@ -687,7 +695,7 @@ def test_user_prompt_board_and_schema_follow_the_ruleset():
         ln for ln in render_board(ctx.state).splitlines() if re.match(r"^  [A-Z] ", ln)
     ]
     assert len(grid) == 7 and grid[-1].startswith("  G ")
-    assert "Legend: H=harbor" in render_board(ctx.state)
+    assert "Legend: SP=sandpiper" in render_board(ctx.state)
     assert build_user_prompt(ctx)
     legal = {
         "action_types": ["propose_trade"],
@@ -699,18 +707,18 @@ def test_user_prompt_board_and_schema_follow_the_ruleset():
         "properties"
     ]
     assert set(props) == set(MINI.chain_ids)
-    assert props["harbor"]["enum"][-1] == 18
+    assert props["sandpiper"]["enum"][-1] == 18
     trade = {
         "action": "propose_trade",
         "to_player_id": "p2",
-        "offering_stocks": {"harbor": 1},
+        "offering_stocks": {"sandpiper": 1},
         "offering_money": 0,
         "requesting_stocks": {},
         "requesting_money": 0,
     }
     assert check_against_legal(trade, legal, chains=MINI.chain_ids) is None
     assert "unknown chain" in check_against_legal(
-        {**trade, "offering_stocks": {"Luxor": 1}}, legal, chains=MINI.chain_ids
+        {**trade, "offering_stocks": {"juniper": 1}}, legal, chains=MINI.chain_ids
     )
 
 
@@ -766,8 +774,9 @@ def _assert_llm_saw_only(rs, providers, agents):
     for call in calls:
         assert call["system"] == system  # the text actually sent
         blob = json.dumps(call["schema"]) + call["user"] + call["system"]
-        for c in CLASSIC_NAMES:
-            assert _no_word(blob, c), c
+        for c in DEFAULT_NAMES:
+            if c not in rs.chain_ids:
+                assert _no_word(blob, c), c
         assert all(c.name in call["system"] for c in rs.chains)
     # the structured records (transcripts) carry the same prompts
     from agents.llm.prompt import system_prompt_id
@@ -776,8 +785,9 @@ def _assert_llm_saw_only(rs, providers, agents):
         rec = agent.last_decision_record()
         assert rec["system_prompt"] == system
         assert rec["system_prompt_id"] == system_prompt_id(system, rs)
-        for name in CLASSIC_NAMES:
-            assert _no_word(rec["system_prompt"] + rec["user_prompt"], name)
+        for name in DEFAULT_NAMES:
+            if name not in rs.chain_ids:
+                assert _no_word(rec["system_prompt"] + rec["user_prompt"], name)
 
 
 def _chain_enums(schema) -> set[str]:
@@ -801,7 +811,7 @@ def _chain_enums(schema) -> set[str]:
 
 def test_unpatched_fake_llm_seats_on_mini_use_the_games_ruleset():
     """The shipped agent builds its system prompt and schema from the game's
-    ruleset: mini's chain names, none of classic's, mini's share cap."""
+    ruleset: mini's chain names, none of default's, mini's share cap."""
     game, providers, agents = _play_fake_llm_game(MINI, players=2, seed=6)
     _assert_llm_saw_only(MINI, providers, agents)
     seen = set()
@@ -825,9 +835,9 @@ def test_unpatched_fake_llm_seats_on_valley_use_the_games_ruleset():
 def test_prompt_version_and_ids_incorporate_the_ruleset_fingerprint():
     from agents.llm.prompt import prompt_version, system_prompt_id
 
-    versions = {prompt_version(rs) for rs in (classic(), MINI, VALLEY)}
+    versions = {prompt_version(rs) for rs in (default_ruleset(), MINI, VALLEY)}
     assert len(versions) == 3
-    assert prompt_version() == prompt_version(classic())
+    assert prompt_version() == prompt_version(default_ruleset())
     # same text, different ruleset: never the same id
     assert system_prompt_id("x", MINI) != system_prompt_id("x", VALLEY)
     # same words, different numbers: a different fingerprint changes the version
@@ -874,7 +884,7 @@ def test_legal_disposition_carries_trade_ratio_only_when_not_two():
 
 
 # =============================================================================
-# No hard-coded classic values in the engine
+# No hard-coded default values in the engine
 # =============================================================================
 
 ENGINE_FILES = [
@@ -895,7 +905,7 @@ ENGINE_FILES = [
     "fixtures_gen/replay.py",
 ]
 FORBIDDEN = [
-    *(rf"\b{n}\b" for n in CLASSIC_NAMES),
+    *(rf"\b{n}\b" for n in DEFAULT_NAMES),
     r"ABCDEFGHI",
     r"\[A-I\]",
     r"1\[0-2\]",
@@ -903,7 +913,7 @@ FORBIDDEN = [
     r"12\s*x\s*9",
     r"\b108\b",
     r"\b6,?000\b",
-    r"Sid Sackson",
+    r"Grand Hotels",
 ]
 # Lines allowed to mention a forbidden pattern (documented aliases only).
 ALLOW = {
@@ -911,7 +921,7 @@ ALLOW = {
 }
 
 
-def test_engine_has_no_hard_coded_classic_values():
+def test_engine_has_no_hard_coded_default_values():
     offenders = []
     for rel in ENGINE_FILES:
         text = (BACKEND / rel).read_text()
@@ -923,7 +933,7 @@ def test_engine_has_no_hard_coded_classic_values():
 
 
 def test_numeric_rule_constants_are_not_redefined():
-    """Old constant names may only be classic aliases (``= classic()...``)."""
+    """Old constant names may only be default aliases (``= default_ruleset()...``)."""
     pat = re.compile(
         r"^\s*(MAX_PLAYERS|MIN_PLAYERS|STARTING_TILES|MAX_STOCKS_PER_TURN|"
         r"MAX_PENDING_TRADES_PER_PLAYER|STARTING_MONEY|MAX_HAND_SIZE|"
@@ -934,4 +944,4 @@ def test_numeric_rule_constants_are_not_redefined():
         for i, line in enumerate((BACKEND / rel).read_text().splitlines(), 1):
             m = pat.match(line)
             if m:
-                assert "classic()" in m.group(2), f"{rel}:{i}: {line.strip()}"
+                assert "default_ruleset()" in m.group(2), f"{rel}:{i}: {line.strip()}"

@@ -9,29 +9,29 @@
   "description": "The human is first to dispose of defunct stock: holds an odd number (>= 3) of shares and a 2:1 trade is possible.",
   "expect": {
     "active_chains": {
-      "American": {
+      "halcyon": {
         "available": 2,
         "price": 500,
         "safe": false,
         "size": 4
       },
-      "Festival": {
+      "juniper": {
         "available": 13,
         "price": 500,
         "safe": false,
         "size": 4
       },
-      "Luxor": {
-        "available": 2,
-        "price": 800,
-        "safe": true,
-        "size": 29
-      },
-      "Tower": {
+      "marlowe": {
         "available": 7,
         "price": 700,
         "safe": true,
         "size": 15
+      },
+      "sandpiper": {
+        "available": 2,
+        "price": 800,
+        "safe": true,
+        "size": 29
       }
     },
     "current_player": "p1",
@@ -39,20 +39,20 @@
       {
         "context": {
           "available_to_trade": 7,
-          "defunct_chain": "American",
+          "defunct_chain": "halcyon",
           "stock_count": 13,
-          "surviving_chain": "Tower"
+          "surviving_chain": "marlowe"
         },
         "kind": "stock_disposition",
         "legal": {
           "action_types": [
             "merger_disposition"
           ],
-          "defunct_chain": "American",
+          "defunct_chain": "halcyon",
           "max_trade": 12,
           "rule": "sell+trade+hold == stock_count",
           "stock_count": 13,
-          "surviving_chain": "Tower"
+          "surviving_chain": "marlowe"
         },
         "player_id": "p1"
       }
@@ -60,20 +60,20 @@
     "flow_decision": {
       "context": {
         "available_to_trade": 7,
-        "defunct_chain": "American",
+        "defunct_chain": "halcyon",
         "stock_count": 13,
-        "surviving_chain": "Tower"
+        "surviving_chain": "marlowe"
       },
       "kind": "stock_disposition",
       "legal": {
         "action_types": [
           "merger_disposition"
         ],
-        "defunct_chain": "American",
+        "defunct_chain": "halcyon",
         "max_trade": 12,
         "rule": "sell+trade+hold == stock_count",
         "stock_count": 13,
-        "surviving_chain": "Tower"
+        "surviving_chain": "marlowe"
       },
       "player_id": "p1"
     },
@@ -87,10 +87,10 @@
         "2F"
       ],
       "holdings": {
-        "American": 13,
-        "Festival": 10,
-        "Luxor": 5,
-        "Tower": 4
+        "halcyon": 13,
+        "juniper": 10,
+        "marlowe": 4,
+        "sandpiper": 5
       },
       "name": "Alice",
       "player_id": "p1",
@@ -100,28 +100,28 @@
       {
         "context": {
           "available_to_trade": 7,
-          "defunct_chain": "American",
+          "defunct_chain": "halcyon",
           "stock_count": 13,
-          "surviving_chain": "Tower"
+          "surviving_chain": "marlowe"
         },
         "kind": "stock_disposition",
         "legal": {
           "action_types": [
             "merger_disposition"
           ],
-          "defunct_chain": "American",
+          "defunct_chain": "halcyon",
           "max_trade": 12,
           "rule": "sell+trade+hold == stock_count",
           "stock_count": 13,
-          "surviving_chain": "Tower"
+          "surviving_chain": "marlowe"
         },
         "player_id": "p1"
       }
     ],
     "inactive_chains": [
-      "Continental",
-      "Imperial",
-      "Worldwide"
+      "aurelia",
+      "meridian",
+      "obsidian"
     ],
     "pending_trades": [],
     "phase": "merger",
@@ -129,10 +129,10 @@
       {
         "cash": 8300,
         "holdings": {
-          "American": 13,
-          "Festival": 10,
-          "Luxor": 5,
-          "Tower": 4
+          "halcyon": 13,
+          "juniper": 10,
+          "marlowe": 4,
+          "sandpiper": 5
         },
         "name": "Alice",
         "player_id": "p1",
@@ -141,9 +141,9 @@
       {
         "cash": 2500,
         "holdings": {
-          "American": 4,
-          "Luxor": 6,
-          "Tower": 5
+          "halcyon": 4,
+          "marlowe": 5,
+          "sandpiper": 6
         },
         "name": "Bob",
         "player_id": "p2",
@@ -152,10 +152,10 @@
       {
         "cash": 0,
         "holdings": {
-          "American": 3,
-          "Festival": 1,
-          "Luxor": 6,
-          "Tower": 5
+          "halcyon": 3,
+          "juniper": 1,
+          "marlowe": 5,
+          "sandpiper": 6
         },
         "name": "Cara",
         "player_id": "p3",
@@ -164,10 +164,10 @@
       {
         "cash": 0,
         "holdings": {
-          "American": 3,
-          "Festival": 1,
-          "Luxor": 6,
-          "Tower": 4
+          "halcyon": 3,
+          "juniper": 1,
+          "marlowe": 4,
+          "sandpiper": 6
         },
         "name": "Dev",
         "player_id": "p4",
@@ -273,7 +273,7 @@
       {
         "action": {
           "action": "found_chain",
-          "chain": "Luxor"
+          "chain": "sandpiper"
         },
         "player_id": "p1"
       },
@@ -281,7 +281,7 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Luxor": 3
+            "sandpiper": 3
           }
         },
         "player_id": "p1"
@@ -303,7 +303,7 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Luxor": 3
+            "sandpiper": 3
           }
         },
         "player_id": "p2"
@@ -325,7 +325,7 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Luxor": 3
+            "sandpiper": 3
           }
         },
         "player_id": "p3"
@@ -347,7 +347,7 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Luxor": 3
+            "sandpiper": 3
           }
         },
         "player_id": "p4"
@@ -368,7 +368,7 @@
       {
         "action": {
           "action": "found_chain",
-          "chain": "Tower"
+          "chain": "marlowe"
         },
         "player_id": "p1"
       },
@@ -376,7 +376,7 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Tower": 3
+            "marlowe": 3
           }
         },
         "player_id": "p1"
@@ -398,8 +398,8 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Luxor": 1,
-            "Tower": 2
+            "marlowe": 2,
+            "sandpiper": 1
           }
         },
         "player_id": "p2"
@@ -421,8 +421,8 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Luxor": 1,
-            "Tower": 2
+            "marlowe": 2,
+            "sandpiper": 1
           }
         },
         "player_id": "p3"
@@ -444,8 +444,8 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Luxor": 1,
-            "Tower": 2
+            "marlowe": 2,
+            "sandpiper": 1
           }
         },
         "player_id": "p4"
@@ -466,7 +466,7 @@
       {
         "action": {
           "action": "found_chain",
-          "chain": "American"
+          "chain": "halcyon"
         },
         "player_id": "p1"
       },
@@ -474,7 +474,7 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "American": 3
+            "halcyon": 3
           }
         },
         "player_id": "p1"
@@ -496,9 +496,9 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "American": 1,
-            "Luxor": 1,
-            "Tower": 1
+            "halcyon": 1,
+            "marlowe": 1,
+            "sandpiper": 1
           }
         },
         "player_id": "p2"
@@ -520,9 +520,9 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "American": 1,
-            "Luxor": 1,
-            "Tower": 1
+            "halcyon": 1,
+            "marlowe": 1,
+            "sandpiper": 1
           }
         },
         "player_id": "p3"
@@ -544,9 +544,9 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "American": 1,
-            "Luxor": 1,
-            "Tower": 1
+            "halcyon": 1,
+            "marlowe": 1,
+            "sandpiper": 1
           }
         },
         "player_id": "p4"
@@ -568,7 +568,7 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "American": 3
+            "halcyon": 3
           }
         },
         "player_id": "p1"
@@ -590,9 +590,9 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "American": 1,
-            "Luxor": 1,
-            "Tower": 1
+            "halcyon": 1,
+            "marlowe": 1,
+            "sandpiper": 1
           }
         },
         "player_id": "p2"
@@ -614,9 +614,9 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "American": 1,
-            "Luxor": 1,
-            "Tower": 1
+            "halcyon": 1,
+            "marlowe": 1,
+            "sandpiper": 1
           }
         },
         "player_id": "p3"
@@ -638,9 +638,9 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "American": 1,
-            "Luxor": 1,
-            "Tower": 1
+            "halcyon": 1,
+            "marlowe": 1,
+            "sandpiper": 1
           }
         },
         "player_id": "p4"
@@ -662,7 +662,7 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "American": 3
+            "halcyon": 3
           }
         },
         "player_id": "p1"
@@ -684,8 +684,8 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "American": 2,
-            "Tower": 1
+            "halcyon": 2,
+            "marlowe": 1
           }
         },
         "player_id": "p2"
@@ -707,8 +707,8 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "American": 1,
-            "Tower": 1
+            "halcyon": 1,
+            "marlowe": 1
           }
         },
         "player_id": "p3"
@@ -730,7 +730,7 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "American": 1
+            "halcyon": 1
           }
         },
         "player_id": "p4"
@@ -752,7 +752,7 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "American": 3
+            "halcyon": 3
           }
         },
         "player_id": "p1"
@@ -833,7 +833,7 @@
       {
         "action": {
           "action": "found_chain",
-          "chain": "Worldwide"
+          "chain": "meridian"
         },
         "player_id": "p1"
       },
@@ -841,7 +841,7 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Worldwide": 1
+            "meridian": 1
           }
         },
         "player_id": "p1"
@@ -1082,7 +1082,7 @@
       {
         "action": {
           "action": "found_chain",
-          "chain": "Festival"
+          "chain": "juniper"
         },
         "player_id": "p1"
       },
@@ -1130,7 +1130,7 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Festival": 1
+            "juniper": 1
           }
         },
         "player_id": "p3"
@@ -1152,7 +1152,7 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Festival": 1
+            "juniper": 1
           }
         },
         "player_id": "p4"
@@ -1173,7 +1173,7 @@
       {
         "action": {
           "action": "merger_disposition",
-          "defunct_chain": "Worldwide",
+          "defunct_chain": "meridian",
           "disposition": {
             "hold": 0,
             "sell": 0,
@@ -1186,7 +1186,7 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Festival": 3
+            "juniper": 3
           }
         },
         "player_id": "p1"
@@ -1268,7 +1268,7 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Festival": 3
+            "juniper": 3
           }
         },
         "player_id": "p1"
@@ -1350,7 +1350,7 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Festival": 3
+            "juniper": 3
           }
         },
         "player_id": "p1"
@@ -1454,43 +1454,43 @@
     "board": {
       "cells": {
         "10B": {
-          "chain": "Tower",
+          "chain": "marlowe",
           "state": "in_chain"
         },
         "10C": {
-          "chain": "Tower",
+          "chain": "marlowe",
           "state": "in_chain"
         },
         "10E": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "10F": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "10G": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "10H": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "11C": {
-          "chain": "Tower",
+          "chain": "marlowe",
           "state": "in_chain"
         },
         "11D": {
-          "chain": "Tower",
+          "chain": "marlowe",
           "state": "in_chain"
         },
         "11H": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "11I": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "12B": {
@@ -1502,7 +1502,7 @@
           "state": "played"
         },
         "12H": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "1H": {
@@ -1510,7 +1510,7 @@
           "state": "played"
         },
         "2A": {
-          "chain": "Festival",
+          "chain": "juniper",
           "state": "in_chain"
         },
         "2D": {
@@ -1518,63 +1518,63 @@
           "state": "played"
         },
         "2I": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "3A": {
-          "chain": "Festival",
+          "chain": "juniper",
           "state": "in_chain"
         },
         "3I": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "4A": {
-          "chain": "Festival",
+          "chain": "juniper",
           "state": "in_chain"
         },
         "4B": {
-          "chain": "Festival",
+          "chain": "juniper",
           "state": "in_chain"
         },
         "4F": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "4G": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "4H": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "4I": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "5C": {
-          "chain": "American",
+          "chain": "halcyon",
           "state": "in_chain"
         },
         "5D": {
-          "chain": "American",
+          "chain": "halcyon",
           "state": "in_chain"
         },
         "5E": {
-          "chain": "American",
+          "chain": "halcyon",
           "state": "in_chain"
         },
         "5G": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "6A": {
-          "chain": "Tower",
+          "chain": "marlowe",
           "state": "in_chain"
         },
         "6B": {
-          "chain": "Tower",
+          "chain": "marlowe",
           "state": "in_chain"
         },
         "6C": {
@@ -1582,103 +1582,103 @@
           "state": "played"
         },
         "6E": {
-          "chain": "American",
+          "chain": "halcyon",
           "state": "in_chain"
         },
         "6G": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "6H": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "6I": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "7B": {
-          "chain": "Tower",
+          "chain": "marlowe",
           "state": "in_chain"
         },
         "7C": {
-          "chain": "Tower",
+          "chain": "marlowe",
           "state": "in_chain"
         },
         "7D": {
-          "chain": "Tower",
+          "chain": "marlowe",
           "state": "in_chain"
         },
         "7F": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "7G": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "7H": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "7I": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "8A": {
-          "chain": "Tower",
+          "chain": "marlowe",
           "state": "in_chain"
         },
         "8B": {
-          "chain": "Tower",
+          "chain": "marlowe",
           "state": "in_chain"
         },
         "8C": {
-          "chain": "Tower",
+          "chain": "marlowe",
           "state": "in_chain"
         },
         "8D": {
-          "chain": "Tower",
+          "chain": "marlowe",
           "state": "in_chain"
         },
         "8F": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "8H": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "8I": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "9A": {
-          "chain": "Tower",
+          "chain": "marlowe",
           "state": "in_chain"
         },
         "9C": {
-          "chain": "Tower",
+          "chain": "marlowe",
           "state": "in_chain"
         },
         "9E": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "9F": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "9G": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "9H": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "9I": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         }
       }
@@ -1902,13 +1902,13 @@
       },
       {
         "available_chains": [
-          "Luxor",
-          "Tower",
-          "American",
-          "Worldwide",
-          "Festival",
-          "Imperial",
-          "Continental"
+          "sandpiper",
+          "marlowe",
+          "halcyon",
+          "meridian",
+          "juniper",
+          "obsidian",
+          "aurelia"
         ],
         "outcome": "found",
         "player_id": "p1",
@@ -1918,7 +1918,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "founder_bonus_type": "stock",
         "founder_bonus_value": 1,
         "player_id": "p1",
@@ -1931,11 +1931,11 @@
       {
         "player_id": "p1",
         "prices": {
-          "Luxor": 200
+          "sandpiper": 200
         },
         "private_to": null,
         "purchases": {
-          "Luxor": 3
+          "sandpiper": 3
         },
         "seq": 23,
         "total_cost": 600,
@@ -1958,7 +1958,7 @@
       },
       {
         "chains": [
-          "Luxor"
+          "sandpiper"
         ],
         "outcome": "expand",
         "player_id": "p2",
@@ -1968,7 +1968,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "player_id": "p2",
         "private_to": null,
         "seq": 27,
@@ -1979,11 +1979,11 @@
       {
         "player_id": "p2",
         "prices": {
-          "Luxor": 300
+          "sandpiper": 300
         },
         "private_to": null,
         "purchases": {
-          "Luxor": 3
+          "sandpiper": 3
         },
         "seq": 28,
         "total_cost": 900,
@@ -2015,11 +2015,11 @@
       {
         "player_id": "p3",
         "prices": {
-          "Luxor": 300
+          "sandpiper": 300
         },
         "private_to": null,
         "purchases": {
-          "Luxor": 3
+          "sandpiper": 3
         },
         "seq": 32,
         "total_cost": 900,
@@ -2042,7 +2042,7 @@
       },
       {
         "chains": [
-          "Luxor"
+          "sandpiper"
         ],
         "outcome": "expand",
         "player_id": "p4",
@@ -2052,7 +2052,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "player_id": "p4",
         "private_to": null,
         "seq": 36,
@@ -2063,11 +2063,11 @@
       {
         "player_id": "p4",
         "prices": {
-          "Luxor": 400
+          "sandpiper": 400
         },
         "private_to": null,
         "purchases": {
-          "Luxor": 3
+          "sandpiper": 3
         },
         "seq": 37,
         "total_cost": 1200,
@@ -2090,12 +2090,12 @@
       },
       {
         "available_chains": [
-          "Tower",
-          "American",
-          "Worldwide",
-          "Festival",
-          "Imperial",
-          "Continental"
+          "marlowe",
+          "halcyon",
+          "meridian",
+          "juniper",
+          "obsidian",
+          "aurelia"
         ],
         "outcome": "found",
         "player_id": "p1",
@@ -2105,7 +2105,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Tower",
+        "chain": "marlowe",
         "founder_bonus_type": "stock",
         "founder_bonus_value": 1,
         "player_id": "p1",
@@ -2118,11 +2118,11 @@
       {
         "player_id": "p1",
         "prices": {
-          "Tower": 200
+          "marlowe": 200
         },
         "private_to": null,
         "purchases": {
-          "Tower": 3
+          "marlowe": 3
         },
         "seq": 42,
         "total_cost": 600,
@@ -2145,7 +2145,7 @@
       },
       {
         "chains": [
-          "Luxor"
+          "sandpiper"
         ],
         "outcome": "expand",
         "player_id": "p2",
@@ -2155,7 +2155,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "player_id": "p2",
         "private_to": null,
         "seq": 46,
@@ -2166,13 +2166,13 @@
       {
         "player_id": "p2",
         "prices": {
-          "Luxor": 500,
-          "Tower": 200
+          "marlowe": 200,
+          "sandpiper": 500
         },
         "private_to": null,
         "purchases": {
-          "Luxor": 1,
-          "Tower": 2
+          "marlowe": 2,
+          "sandpiper": 1
         },
         "seq": 47,
         "total_cost": 900,
@@ -2195,7 +2195,7 @@
       },
       {
         "chains": [
-          "Luxor"
+          "sandpiper"
         ],
         "outcome": "expand",
         "player_id": "p3",
@@ -2205,7 +2205,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "player_id": "p3",
         "private_to": null,
         "seq": 51,
@@ -2216,13 +2216,13 @@
       {
         "player_id": "p3",
         "prices": {
-          "Luxor": 600,
-          "Tower": 200
+          "marlowe": 200,
+          "sandpiper": 600
         },
         "private_to": null,
         "purchases": {
-          "Luxor": 1,
-          "Tower": 2
+          "marlowe": 2,
+          "sandpiper": 1
         },
         "seq": 52,
         "total_cost": 1000,
@@ -2245,7 +2245,7 @@
       },
       {
         "chains": [
-          "Tower"
+          "marlowe"
         ],
         "outcome": "expand",
         "player_id": "p4",
@@ -2255,7 +2255,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Tower",
+        "chain": "marlowe",
         "player_id": "p4",
         "private_to": null,
         "seq": 56,
@@ -2266,13 +2266,13 @@
       {
         "player_id": "p4",
         "prices": {
-          "Luxor": 600,
-          "Tower": 300
+          "marlowe": 300,
+          "sandpiper": 600
         },
         "private_to": null,
         "purchases": {
-          "Luxor": 1,
-          "Tower": 2
+          "marlowe": 2,
+          "sandpiper": 1
         },
         "seq": 57,
         "total_cost": 1200,
@@ -2295,11 +2295,11 @@
       },
       {
         "available_chains": [
-          "American",
-          "Worldwide",
-          "Festival",
-          "Imperial",
-          "Continental"
+          "halcyon",
+          "meridian",
+          "juniper",
+          "obsidian",
+          "aurelia"
         ],
         "outcome": "found",
         "player_id": "p1",
@@ -2309,7 +2309,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "American",
+        "chain": "halcyon",
         "founder_bonus_type": "stock",
         "founder_bonus_value": 1,
         "player_id": "p1",
@@ -2322,11 +2322,11 @@
       {
         "player_id": "p1",
         "prices": {
-          "American": 300
+          "halcyon": 300
         },
         "private_to": null,
         "purchases": {
-          "American": 3
+          "halcyon": 3
         },
         "seq": 62,
         "total_cost": 900,
@@ -2349,7 +2349,7 @@
       },
       {
         "chains": [
-          "Tower"
+          "marlowe"
         ],
         "outcome": "expand",
         "player_id": "p2",
@@ -2359,7 +2359,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Tower",
+        "chain": "marlowe",
         "player_id": "p2",
         "private_to": null,
         "seq": 66,
@@ -2370,15 +2370,15 @@
       {
         "player_id": "p2",
         "prices": {
-          "American": 300,
-          "Luxor": 600,
-          "Tower": 400
+          "halcyon": 300,
+          "marlowe": 400,
+          "sandpiper": 600
         },
         "private_to": null,
         "purchases": {
-          "American": 1,
-          "Luxor": 1,
-          "Tower": 1
+          "halcyon": 1,
+          "marlowe": 1,
+          "sandpiper": 1
         },
         "seq": 67,
         "total_cost": 1300,
@@ -2401,7 +2401,7 @@
       },
       {
         "chains": [
-          "Luxor"
+          "sandpiper"
         ],
         "outcome": "expand",
         "player_id": "p3",
@@ -2411,7 +2411,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "player_id": "p3",
         "private_to": null,
         "seq": 71,
@@ -2422,15 +2422,15 @@
       {
         "player_id": "p3",
         "prices": {
-          "American": 300,
-          "Luxor": 600,
-          "Tower": 400
+          "halcyon": 300,
+          "marlowe": 400,
+          "sandpiper": 600
         },
         "private_to": null,
         "purchases": {
-          "American": 1,
-          "Luxor": 1,
-          "Tower": 1
+          "halcyon": 1,
+          "marlowe": 1,
+          "sandpiper": 1
         },
         "seq": 72,
         "total_cost": 1300,
@@ -2453,7 +2453,7 @@
       },
       {
         "chains": [
-          "American"
+          "halcyon"
         ],
         "outcome": "expand",
         "player_id": "p4",
@@ -2463,7 +2463,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "American",
+        "chain": "halcyon",
         "player_id": "p4",
         "private_to": null,
         "seq": 76,
@@ -2474,15 +2474,15 @@
       {
         "player_id": "p4",
         "prices": {
-          "American": 400,
-          "Luxor": 600,
-          "Tower": 400
+          "halcyon": 400,
+          "marlowe": 400,
+          "sandpiper": 600
         },
         "private_to": null,
         "purchases": {
-          "American": 1,
-          "Luxor": 1,
-          "Tower": 1
+          "halcyon": 1,
+          "marlowe": 1,
+          "sandpiper": 1
         },
         "seq": 77,
         "total_cost": 1400,
@@ -2505,7 +2505,7 @@
       },
       {
         "chains": [
-          "Luxor"
+          "sandpiper"
         ],
         "outcome": "expand",
         "player_id": "p1",
@@ -2515,7 +2515,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "player_id": "p1",
         "private_to": null,
         "seq": 81,
@@ -2526,11 +2526,11 @@
       {
         "player_id": "p1",
         "prices": {
-          "American": 400
+          "halcyon": 400
         },
         "private_to": null,
         "purchases": {
-          "American": 3
+          "halcyon": 3
         },
         "seq": 82,
         "total_cost": 1200,
@@ -2553,7 +2553,7 @@
       },
       {
         "chains": [
-          "Tower"
+          "marlowe"
         ],
         "outcome": "expand",
         "player_id": "p2",
@@ -2563,7 +2563,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Tower",
+        "chain": "marlowe",
         "player_id": "p2",
         "private_to": null,
         "seq": 86,
@@ -2574,15 +2574,15 @@
       {
         "player_id": "p2",
         "prices": {
-          "American": 400,
-          "Luxor": 600,
-          "Tower": 500
+          "halcyon": 400,
+          "marlowe": 500,
+          "sandpiper": 600
         },
         "private_to": null,
         "purchases": {
-          "American": 1,
-          "Luxor": 1,
-          "Tower": 1
+          "halcyon": 1,
+          "marlowe": 1,
+          "sandpiper": 1
         },
         "seq": 87,
         "total_cost": 1500,
@@ -2614,15 +2614,15 @@
       {
         "player_id": "p3",
         "prices": {
-          "American": 400,
-          "Luxor": 600,
-          "Tower": 500
+          "halcyon": 400,
+          "marlowe": 500,
+          "sandpiper": 600
         },
         "private_to": null,
         "purchases": {
-          "American": 1,
-          "Luxor": 1,
-          "Tower": 1
+          "halcyon": 1,
+          "marlowe": 1,
+          "sandpiper": 1
         },
         "seq": 91,
         "total_cost": 1500,
@@ -2645,7 +2645,7 @@
       },
       {
         "chains": [
-          "Luxor"
+          "sandpiper"
         ],
         "outcome": "expand",
         "player_id": "p4",
@@ -2655,7 +2655,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "player_id": "p4",
         "private_to": null,
         "seq": 95,
@@ -2666,15 +2666,15 @@
       {
         "player_id": "p4",
         "prices": {
-          "American": 400,
-          "Luxor": 600,
-          "Tower": 500
+          "halcyon": 400,
+          "marlowe": 500,
+          "sandpiper": 600
         },
         "private_to": null,
         "purchases": {
-          "American": 1,
-          "Luxor": 1,
-          "Tower": 1
+          "halcyon": 1,
+          "marlowe": 1,
+          "sandpiper": 1
         },
         "seq": 96,
         "total_cost": 1500,
@@ -2697,7 +2697,7 @@
       },
       {
         "chains": [
-          "Luxor"
+          "sandpiper"
         ],
         "outcome": "expand",
         "player_id": "p1",
@@ -2707,7 +2707,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "player_id": "p1",
         "private_to": null,
         "seq": 100,
@@ -2718,11 +2718,11 @@
       {
         "player_id": "p1",
         "prices": {
-          "American": 400
+          "halcyon": 400
         },
         "private_to": null,
         "purchases": {
-          "American": 3
+          "halcyon": 3
         },
         "seq": 101,
         "total_cost": 1200,
@@ -2745,7 +2745,7 @@
       },
       {
         "chains": [
-          "Tower"
+          "marlowe"
         ],
         "outcome": "expand",
         "player_id": "p2",
@@ -2755,7 +2755,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Tower",
+        "chain": "marlowe",
         "player_id": "p2",
         "private_to": null,
         "seq": 105,
@@ -2766,13 +2766,13 @@
       {
         "player_id": "p2",
         "prices": {
-          "American": 400,
-          "Tower": 600
+          "halcyon": 400,
+          "marlowe": 600
         },
         "private_to": null,
         "purchases": {
-          "American": 2,
-          "Tower": 1
+          "halcyon": 2,
+          "marlowe": 1
         },
         "seq": 106,
         "total_cost": 1400,
@@ -2804,13 +2804,13 @@
       {
         "player_id": "p3",
         "prices": {
-          "American": 400,
-          "Tower": 600
+          "halcyon": 400,
+          "marlowe": 600
         },
         "private_to": null,
         "purchases": {
-          "American": 1,
-          "Tower": 1
+          "halcyon": 1,
+          "marlowe": 1
         },
         "seq": 110,
         "total_cost": 1000,
@@ -2842,11 +2842,11 @@
       {
         "player_id": "p4",
         "prices": {
-          "American": 400
+          "halcyon": 400
         },
         "private_to": null,
         "purchases": {
-          "American": 1
+          "halcyon": 1
         },
         "seq": 114,
         "total_cost": 400,
@@ -2869,7 +2869,7 @@
       },
       {
         "chains": [
-          "Tower"
+          "marlowe"
         ],
         "outcome": "expand",
         "player_id": "p1",
@@ -2879,7 +2879,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Tower",
+        "chain": "marlowe",
         "player_id": "p1",
         "private_to": null,
         "seq": 118,
@@ -2890,11 +2890,11 @@
       {
         "player_id": "p1",
         "prices": {
-          "American": 400
+          "halcyon": 400
         },
         "private_to": null,
         "purchases": {
-          "American": 3
+          "halcyon": 3
         },
         "seq": 119,
         "total_cost": 1200,
@@ -2917,7 +2917,7 @@
       },
       {
         "chains": [
-          "Luxor"
+          "sandpiper"
         ],
         "outcome": "expand",
         "player_id": "p2",
@@ -2927,7 +2927,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "player_id": "p2",
         "private_to": null,
         "seq": 123,
@@ -3025,10 +3025,10 @@
       },
       {
         "available_chains": [
-          "Worldwide",
-          "Festival",
-          "Imperial",
-          "Continental"
+          "meridian",
+          "juniper",
+          "obsidian",
+          "aurelia"
         ],
         "outcome": "found",
         "player_id": "p1",
@@ -3038,7 +3038,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Worldwide",
+        "chain": "meridian",
         "founder_bonus_type": "stock",
         "founder_bonus_value": 1,
         "player_id": "p1",
@@ -3051,11 +3051,11 @@
       {
         "player_id": "p1",
         "prices": {
-          "Worldwide": 300
+          "meridian": 300
         },
         "private_to": null,
         "purchases": {
-          "Worldwide": 1
+          "meridian": 1
         },
         "seq": 137,
         "total_cost": 300,
@@ -3078,7 +3078,7 @@
       },
       {
         "chains": [
-          "Tower"
+          "marlowe"
         ],
         "outcome": "expand",
         "player_id": "p2",
@@ -3088,7 +3088,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Tower",
+        "chain": "marlowe",
         "player_id": "p2",
         "private_to": null,
         "seq": 141,
@@ -3122,7 +3122,7 @@
       },
       {
         "chains": [
-          "Worldwide"
+          "meridian"
         ],
         "outcome": "expand",
         "player_id": "p3",
@@ -3132,7 +3132,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Worldwide",
+        "chain": "meridian",
         "player_id": "p3",
         "private_to": null,
         "seq": 146,
@@ -3198,7 +3198,7 @@
       },
       {
         "chains": [
-          "Tower"
+          "marlowe"
         ],
         "outcome": "expand",
         "player_id": "p1",
@@ -3208,7 +3208,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Tower",
+        "chain": "marlowe",
         "player_id": "p1",
         "private_to": null,
         "seq": 155,
@@ -3242,7 +3242,7 @@
       },
       {
         "chains": [
-          "Tower"
+          "marlowe"
         ],
         "outcome": "expand",
         "player_id": "p2",
@@ -3252,7 +3252,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Tower",
+        "chain": "marlowe",
         "player_id": "p2",
         "private_to": null,
         "seq": 160,
@@ -3286,7 +3286,7 @@
       },
       {
         "chains": [
-          "Luxor"
+          "sandpiper"
         ],
         "outcome": "expand",
         "player_id": "p3",
@@ -3296,7 +3296,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "player_id": "p3",
         "private_to": null,
         "seq": 165,
@@ -3330,7 +3330,7 @@
       },
       {
         "chains": [
-          "Luxor"
+          "sandpiper"
         ],
         "outcome": "expand",
         "player_id": "p4",
@@ -3340,7 +3340,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "player_id": "p4",
         "private_to": null,
         "seq": 170,
@@ -3374,7 +3374,7 @@
       },
       {
         "chains": [
-          "Tower"
+          "marlowe"
         ],
         "outcome": "expand",
         "player_id": "p1",
@@ -3384,7 +3384,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Tower",
+        "chain": "marlowe",
         "player_id": "p1",
         "private_to": null,
         "seq": 175,
@@ -3418,7 +3418,7 @@
       },
       {
         "chains": [
-          "Luxor"
+          "sandpiper"
         ],
         "outcome": "expand",
         "player_id": "p2",
@@ -3428,7 +3428,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "player_id": "p2",
         "private_to": null,
         "seq": 180,
@@ -3462,7 +3462,7 @@
       },
       {
         "chains": [
-          "Luxor"
+          "sandpiper"
         ],
         "outcome": "expand",
         "player_id": "p3",
@@ -3472,7 +3472,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "player_id": "p3",
         "private_to": null,
         "seq": 185,
@@ -3506,7 +3506,7 @@
       },
       {
         "chains": [
-          "Luxor"
+          "sandpiper"
         ],
         "outcome": "expand",
         "player_id": "p4",
@@ -3516,7 +3516,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "player_id": "p4",
         "private_to": null,
         "seq": 190,
@@ -3550,9 +3550,9 @@
       },
       {
         "available_chains": [
-          "Festival",
-          "Imperial",
-          "Continental"
+          "juniper",
+          "obsidian",
+          "aurelia"
         ],
         "outcome": "found",
         "player_id": "p1",
@@ -3562,7 +3562,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Festival",
+        "chain": "juniper",
         "founder_bonus_type": "stock",
         "founder_bonus_value": 1,
         "player_id": "p1",
@@ -3598,7 +3598,7 @@
       },
       {
         "chains": [
-          "American"
+          "halcyon"
         ],
         "outcome": "expand",
         "player_id": "p2",
@@ -3608,7 +3608,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "American",
+        "chain": "halcyon",
         "player_id": "p2",
         "private_to": null,
         "seq": 200,
@@ -3642,7 +3642,7 @@
       },
       {
         "chains": [
-          "Tower"
+          "marlowe"
         ],
         "outcome": "expand",
         "player_id": "p3",
@@ -3652,7 +3652,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Tower",
+        "chain": "marlowe",
         "player_id": "p3",
         "private_to": null,
         "seq": 205,
@@ -3663,11 +3663,11 @@
       {
         "player_id": "p3",
         "prices": {
-          "Festival": 300
+          "juniper": 300
         },
         "private_to": null,
         "purchases": {
-          "Festival": 1
+          "juniper": 1
         },
         "seq": 206,
         "total_cost": 300,
@@ -3690,7 +3690,7 @@
       },
       {
         "chains": [
-          "Luxor"
+          "sandpiper"
         ],
         "outcome": "expand",
         "player_id": "p4",
@@ -3700,7 +3700,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "player_id": "p4",
         "private_to": null,
         "seq": 210,
@@ -3711,11 +3711,11 @@
       {
         "player_id": "p4",
         "prices": {
-          "Festival": 300
+          "juniper": 300
         },
         "private_to": null,
         "purchases": {
-          "Festival": 1
+          "juniper": 1
         },
         "seq": 211,
         "total_cost": 300,
@@ -3738,16 +3738,16 @@
       },
       {
         "chains": [
-          "Luxor",
-          "Worldwide"
+          "meridian",
+          "sandpiper"
         ],
         "outcome": "merge",
         "player_id": "p1",
         "private_to": null,
         "seq": 214,
         "sizes": {
-          "Luxor": 19,
-          "Worldwide": 3
+          "meridian": 3,
+          "sandpiper": 19
         },
         "tied_chains": null,
         "tile": "10H",
@@ -3755,16 +3755,16 @@
       },
       {
         "defunct": [
-          "Worldwide"
+          "meridian"
         ],
         "player_id": "p1",
         "private_to": null,
         "seq": 215,
         "sizes": {
-          "Luxor": 19,
-          "Worldwide": 3
+          "meridian": 3,
+          "sandpiper": 19
         },
-        "survivor": "Luxor",
+        "survivor": "sandpiper",
         "tile": "10H",
         "type": "merger_started"
       },
@@ -3775,7 +3775,7 @@
             "minority": 2000
           }
         },
-        "chain": "Worldwide",
+        "chain": "meridian",
         "chain_size": 3,
         "final": false,
         "player_id": null,
@@ -3784,37 +3784,37 @@
         "type": "bonuses_paid"
       },
       {
-        "defunct_chain": "Worldwide",
+        "defunct_chain": "meridian",
         "hold": 0,
         "player_id": "p1",
         "private_to": null,
         "sale_proceeds": 0,
         "sell": 0,
         "seq": 217,
-        "surviving_chain": "Luxor",
+        "surviving_chain": "sandpiper",
         "survivor_shares_received": 1,
         "trade": 2,
         "type": "stock_disposition"
       },
       {
         "defunct": [
-          "Worldwide"
+          "meridian"
         ],
         "player_id": "p1",
         "private_to": null,
         "seq": 218,
-        "survivor": "Luxor",
+        "survivor": "sandpiper",
         "survivor_size": 23,
         "type": "merger_completed"
       },
       {
         "player_id": "p1",
         "prices": {
-          "Festival": 300
+          "juniper": 300
         },
         "private_to": null,
         "purchases": {
-          "Festival": 3
+          "juniper": 3
         },
         "seq": 219,
         "total_cost": 900,
@@ -3901,7 +3901,7 @@
       },
       {
         "chains": [
-          "Tower"
+          "marlowe"
         ],
         "outcome": "expand",
         "player_id": "p4",
@@ -3911,7 +3911,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Tower",
+        "chain": "marlowe",
         "player_id": "p4",
         "private_to": null,
         "seq": 231,
@@ -3945,7 +3945,7 @@
       },
       {
         "chains": [
-          "Luxor"
+          "sandpiper"
         ],
         "outcome": "expand",
         "player_id": "p1",
@@ -3955,7 +3955,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "player_id": "p1",
         "private_to": null,
         "seq": 236,
@@ -3966,11 +3966,11 @@
       {
         "player_id": "p1",
         "prices": {
-          "Festival": 300
+          "juniper": 300
         },
         "private_to": null,
         "purchases": {
-          "Festival": 3
+          "juniper": 3
         },
         "seq": 237,
         "total_cost": 900,
@@ -3993,7 +3993,7 @@
       },
       {
         "chains": [
-          "Luxor"
+          "sandpiper"
         ],
         "outcome": "expand",
         "player_id": "p2",
@@ -4003,7 +4003,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "player_id": "p2",
         "private_to": null,
         "seq": 241,
@@ -4037,7 +4037,7 @@
       },
       {
         "chains": [
-          "Luxor"
+          "sandpiper"
         ],
         "outcome": "expand",
         "player_id": "p3",
@@ -4047,7 +4047,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "player_id": "p3",
         "private_to": null,
         "seq": 246,
@@ -4081,7 +4081,7 @@
       },
       {
         "chains": [
-          "Tower"
+          "marlowe"
         ],
         "outcome": "expand",
         "player_id": "p4",
@@ -4091,7 +4091,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Tower",
+        "chain": "marlowe",
         "player_id": "p4",
         "private_to": null,
         "seq": 251,
@@ -4125,7 +4125,7 @@
       },
       {
         "chains": [
-          "Luxor"
+          "sandpiper"
         ],
         "outcome": "expand",
         "player_id": "p1",
@@ -4135,7 +4135,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "player_id": "p1",
         "private_to": null,
         "seq": 256,
@@ -4146,11 +4146,11 @@
       {
         "player_id": "p1",
         "prices": {
-          "Festival": 300
+          "juniper": 300
         },
         "private_to": null,
         "purchases": {
-          "Festival": 3
+          "juniper": 3
         },
         "seq": 257,
         "total_cost": 900,
@@ -4173,7 +4173,7 @@
       },
       {
         "chains": [
-          "Luxor"
+          "sandpiper"
         ],
         "outcome": "expand",
         "player_id": "p2",
@@ -4183,7 +4183,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "player_id": "p2",
         "private_to": null,
         "seq": 261,
@@ -4281,7 +4281,7 @@
       },
       {
         "chains": [
-          "Festival"
+          "juniper"
         ],
         "outcome": "expand",
         "player_id": "p4",
@@ -4291,7 +4291,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Festival",
+        "chain": "juniper",
         "player_id": "p4",
         "private_to": null,
         "seq": 273,
@@ -4347,16 +4347,16 @@
       },
       {
         "chains": [
-          "American",
-          "Tower"
+          "halcyon",
+          "marlowe"
         ],
         "outcome": "merge",
         "player_id": "p1",
         "private_to": null,
         "seq": 279,
         "sizes": {
-          "American": 4,
-          "Tower": 15
+          "halcyon": 4,
+          "marlowe": 15
         },
         "tied_chains": null,
         "tile": "6C",
@@ -4364,16 +4364,16 @@
       },
       {
         "defunct": [
-          "American"
+          "halcyon"
         ],
         "player_id": "p1",
         "private_to": null,
         "seq": 280,
         "sizes": {
-          "American": 4,
-          "Tower": 15
+          "halcyon": 4,
+          "marlowe": 15
         },
-        "survivor": "Tower",
+        "survivor": "marlowe",
         "tile": "6C",
         "type": "merger_started"
       },
@@ -4388,7 +4388,7 @@
             "minority": 2500
           }
         },
-        "chain": "American",
+        "chain": "halcyon",
         "chain_size": 4,
         "final": false,
         "player_id": null,
@@ -4399,27 +4399,27 @@
     ],
     "hotel": {
       "active_chains": [
-        "American",
-        "Festival",
-        "Luxor",
-        "Tower"
+        "halcyon",
+        "juniper",
+        "marlowe",
+        "sandpiper"
       ],
       "available_stocks": {
-        "American": 2,
-        "Continental": 25,
-        "Festival": 13,
-        "Imperial": 25,
-        "Luxor": 2,
-        "Tower": 7,
-        "Worldwide": 25
+        "aurelia": 25,
+        "halcyon": 2,
+        "juniper": 13,
+        "marlowe": 7,
+        "meridian": 25,
+        "obsidian": 25,
+        "sandpiper": 2
       }
     },
     "merger": {
       "chains": [
-        "American",
-        "Tower"
+        "halcyon",
+        "marlowe"
       ],
-      "current_defunct": "American",
+      "current_defunct": "halcyon",
       "defunct_queue": [],
       "stock_index": 0,
       "stock_players": [
@@ -4428,15 +4428,15 @@
         "p3",
         "p4"
       ],
-      "survivor": "Tower",
+      "survivor": "marlowe",
       "tile": "6C"
     },
     "pending_action": {
       "available_to_trade": 7,
-      "defunct_chain": "American",
+      "defunct_chain": "halcyon",
       "player_id": "p1",
       "stock_count": 13,
-      "surviving_chain": "Tower",
+      "surviving_chain": "marlowe",
       "type": "stock_disposition"
     },
     "pending_trades": [],
@@ -4454,13 +4454,13 @@
         "name": "Alice",
         "player_id": "p1",
         "stocks": {
-          "American": 13,
-          "Continental": 0,
-          "Festival": 10,
-          "Imperial": 0,
-          "Luxor": 5,
-          "Tower": 4,
-          "Worldwide": 0
+          "aurelia": 0,
+          "halcyon": 13,
+          "juniper": 10,
+          "marlowe": 4,
+          "meridian": 0,
+          "obsidian": 0,
+          "sandpiper": 5
         }
       },
       {
@@ -4476,13 +4476,13 @@
         "name": "Bob",
         "player_id": "p2",
         "stocks": {
-          "American": 4,
-          "Continental": 0,
-          "Festival": 0,
-          "Imperial": 0,
-          "Luxor": 6,
-          "Tower": 5,
-          "Worldwide": 0
+          "aurelia": 0,
+          "halcyon": 4,
+          "juniper": 0,
+          "marlowe": 5,
+          "meridian": 0,
+          "obsidian": 0,
+          "sandpiper": 6
         }
       },
       {
@@ -4498,13 +4498,13 @@
         "name": "Cara",
         "player_id": "p3",
         "stocks": {
-          "American": 3,
-          "Continental": 0,
-          "Festival": 1,
-          "Imperial": 0,
-          "Luxor": 6,
-          "Tower": 5,
-          "Worldwide": 0
+          "aurelia": 0,
+          "halcyon": 3,
+          "juniper": 1,
+          "marlowe": 5,
+          "meridian": 0,
+          "obsidian": 0,
+          "sandpiper": 6
         }
       },
       {
@@ -4520,13 +4520,13 @@
         "name": "Dev",
         "player_id": "p4",
         "stocks": {
-          "American": 3,
-          "Continental": 0,
-          "Festival": 1,
-          "Imperial": 0,
-          "Luxor": 6,
-          "Tower": 4,
-          "Worldwide": 0
+          "aurelia": 0,
+          "halcyon": 3,
+          "juniper": 1,
+          "marlowe": 4,
+          "meridian": 0,
+          "obsidian": 0,
+          "sandpiper": 6
         }
       }
     ],

@@ -11,47 +11,47 @@
   "description": "The human is in the buy phase and cannot afford any stock.",
   "expect": {
     "active_chains": {
-      "American": {
-        "available": 9,
+      "aurelia": {
+        "available": 8,
         "price": 700,
         "safe": false,
-        "size": 10
+        "size": 5
       },
-      "Continental": {
-        "available": 20,
+      "halcyon": {
+        "available": 18,
+        "price": 600,
+        "safe": false,
+        "size": 5
+      },
+      "juniper": {
+        "available": 14,
         "price": 500,
-        "safe": false,
-        "size": 3
-      },
-      "Festival": {
-        "available": 15,
-        "price": 400,
-        "safe": false,
-        "size": 3
-      },
-      "Imperial": {
-        "available": 15,
-        "price": 800,
-        "safe": false,
-        "size": 9
-      },
-      "Luxor": {
-        "available": 11,
-        "price": 400,
         "safe": false,
         "size": 4
       },
-      "Tower": {
-        "available": 18,
+      "marlowe": {
+        "available": 20,
         "price": 200,
         "safe": false,
         "size": 2
       },
-      "Worldwide": {
-        "available": 6,
+      "meridian": {
+        "available": 14,
         "price": 400,
         "safe": false,
         "size": 3
+      },
+      "obsidian": {
+        "available": 18,
+        "price": 800,
+        "safe": false,
+        "size": 7
+      },
+      "sandpiper": {
+        "available": 5,
+        "price": 400,
+        "safe": false,
+        "size": 4
       }
     },
     "current_player": "p1",
@@ -71,44 +71,44 @@
           "money": 0,
           "options": [
             {
-              "available": 9,
-              "chain": "American",
+              "available": 8,
+              "chain": "aurelia",
               "max_affordable": 0,
               "price": 700
             },
             {
-              "available": 20,
-              "chain": "Continental",
+              "available": 18,
+              "chain": "halcyon",
+              "max_affordable": 0,
+              "price": 600
+            },
+            {
+              "available": 14,
+              "chain": "juniper",
               "max_affordable": 0,
               "price": 500
             },
             {
-              "available": 15,
-              "chain": "Festival",
+              "available": 20,
+              "chain": "marlowe",
               "max_affordable": 0,
-              "price": 400
+              "price": 200
             },
             {
-              "available": 15,
-              "chain": "Imperial",
-              "max_affordable": 0,
-              "price": 800
-            },
-            {
-              "available": 11,
-              "chain": "Luxor",
+              "available": 14,
+              "chain": "meridian",
               "max_affordable": 0,
               "price": 400
             },
             {
               "available": 18,
-              "chain": "Tower",
+              "chain": "obsidian",
               "max_affordable": 0,
-              "price": 200
+              "price": 800
             },
             {
-              "available": 6,
-              "chain": "Worldwide",
+              "available": 5,
+              "chain": "sandpiper",
               "max_affordable": 0,
               "price": 400
             }
@@ -132,44 +132,44 @@
         "money": 0,
         "options": [
           {
-            "available": 9,
-            "chain": "American",
+            "available": 8,
+            "chain": "aurelia",
             "max_affordable": 0,
             "price": 700
           },
           {
-            "available": 20,
-            "chain": "Continental",
+            "available": 18,
+            "chain": "halcyon",
+            "max_affordable": 0,
+            "price": 600
+          },
+          {
+            "available": 14,
+            "chain": "juniper",
             "max_affordable": 0,
             "price": 500
           },
           {
-            "available": 15,
-            "chain": "Festival",
+            "available": 20,
+            "chain": "marlowe",
             "max_affordable": 0,
-            "price": 400
+            "price": 200
           },
           {
-            "available": 15,
-            "chain": "Imperial",
-            "max_affordable": 0,
-            "price": 800
-          },
-          {
-            "available": 11,
-            "chain": "Luxor",
+            "available": 14,
+            "chain": "meridian",
             "max_affordable": 0,
             "price": 400
           },
           {
             "available": 18,
-            "chain": "Tower",
+            "chain": "obsidian",
             "max_affordable": 0,
-            "price": 200
+            "price": 800
           },
           {
-            "available": 6,
-            "chain": "Worldwide",
+            "available": 5,
+            "chain": "sandpiper",
             "max_affordable": 0,
             "price": 400
           }
@@ -181,23 +181,22 @@
       "cash": 0,
       "hand": [
         "11A",
-        "8A",
+        "1B",
         "2G",
         "9A",
         "2F"
       ],
       "holdings": {
-        "American": 4,
-        "Continental": 2,
-        "Festival": 7,
-        "Luxor": 2,
-        "Tower": 1,
-        "Worldwide": 4
+        "aurelia": 4,
+        "halcyon": 2,
+        "juniper": 7,
+        "sandpiper": 7
       },
       "name": "Alice",
       "player_id": "p1",
       "unplayable_tiles": {
-        "2F": "would_create_eighth_chain"
+        "2F": "would_create_eighth_chain",
+        "9A": "would_create_eighth_chain"
       }
     },
     "human_decisions": [
@@ -216,44 +215,44 @@
           "money": 0,
           "options": [
             {
-              "available": 9,
-              "chain": "American",
+              "available": 8,
+              "chain": "aurelia",
               "max_affordable": 0,
               "price": 700
             },
             {
-              "available": 20,
-              "chain": "Continental",
+              "available": 18,
+              "chain": "halcyon",
+              "max_affordable": 0,
+              "price": 600
+            },
+            {
+              "available": 14,
+              "chain": "juniper",
               "max_affordable": 0,
               "price": 500
             },
             {
-              "available": 15,
-              "chain": "Festival",
+              "available": 20,
+              "chain": "marlowe",
               "max_affordable": 0,
-              "price": 400
+              "price": 200
             },
             {
-              "available": 15,
-              "chain": "Imperial",
-              "max_affordable": 0,
-              "price": 800
-            },
-            {
-              "available": 11,
-              "chain": "Luxor",
+              "available": 14,
+              "chain": "meridian",
               "max_affordable": 0,
               "price": 400
             },
             {
               "available": 18,
-              "chain": "Tower",
+              "chain": "obsidian",
               "max_affordable": 0,
-              "price": 200
+              "price": 800
             },
             {
-              "available": 6,
-              "chain": "Worldwide",
+              "available": 5,
+              "chain": "sandpiper",
               "max_affordable": 0,
               "price": 400
             }
@@ -269,12 +268,10 @@
       {
         "cash": 0,
         "holdings": {
-          "American": 4,
-          "Continental": 2,
-          "Festival": 7,
-          "Luxor": 2,
-          "Tower": 1,
-          "Worldwide": 4
+          "aurelia": 4,
+          "halcyon": 2,
+          "juniper": 7,
+          "sandpiper": 7
         },
         "name": "Alice",
         "player_id": "p1",
@@ -283,41 +280,42 @@
       {
         "cash": 100,
         "holdings": {
-          "American": 6,
-          "Festival": 1,
-          "Imperial": 3,
-          "Luxor": 5,
-          "Tower": 2,
-          "Worldwide": 4
+          "aurelia": 4,
+          "halcyon": 3,
+          "juniper": 2,
+          "marlowe": 2,
+          "meridian": 3,
+          "obsidian": 2,
+          "sandpiper": 3
         },
         "name": "Bob",
         "player_id": "p2",
         "tile_count": 6
       },
       {
-        "cash": 4300,
+        "cash": 0,
         "holdings": {
-          "American": 3,
-          "Continental": 1,
-          "Imperial": 4,
-          "Luxor": 2,
-          "Tower": 3,
-          "Worldwide": 8
+          "aurelia": 6,
+          "halcyon": 1,
+          "marlowe": 1,
+          "meridian": 3,
+          "obsidian": 3,
+          "sandpiper": 5
         },
         "name": "Cara",
         "player_id": "p3",
         "tile_count": 6
       },
       {
-        "cash": 100,
+        "cash": 0,
         "holdings": {
-          "American": 3,
-          "Continental": 2,
-          "Festival": 2,
-          "Imperial": 3,
-          "Luxor": 5,
-          "Tower": 1,
-          "Worldwide": 3
+          "aurelia": 3,
+          "halcyon": 1,
+          "juniper": 2,
+          "marlowe": 2,
+          "meridian": 5,
+          "obsidian": 2,
+          "sandpiper": 5
         },
         "name": "Dev",
         "player_id": "p4",
@@ -463,7 +461,7 @@
       {
         "action": {
           "action": "found_chain",
-          "chain": "Continental"
+          "chain": "aurelia"
         },
         "player_id": "p3"
       },
@@ -471,7 +469,7 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Continental": 3
+            "aurelia": 3
           }
         },
         "player_id": "p3"
@@ -492,7 +490,7 @@
       {
         "action": {
           "action": "found_chain",
-          "chain": "Luxor"
+          "chain": "sandpiper"
         },
         "player_id": "p4"
       },
@@ -500,8 +498,8 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Continental": 2,
-            "Luxor": 1
+            "aurelia": 2,
+            "sandpiper": 1
           }
         },
         "player_id": "p4"
@@ -523,8 +521,8 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Continental": 1,
-            "Luxor": 2
+            "aurelia": 1,
+            "sandpiper": 2
           }
         },
         "player_id": "p1"
@@ -546,8 +544,8 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Continental": 1,
-            "Luxor": 2
+            "aurelia": 1,
+            "sandpiper": 2
           }
         },
         "player_id": "p2"
@@ -568,7 +566,7 @@
       {
         "action": {
           "action": "found_chain",
-          "chain": "Worldwide"
+          "chain": "meridian"
         },
         "player_id": "p3"
       },
@@ -576,8 +574,8 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Luxor": 1,
-            "Worldwide": 2
+            "meridian": 1,
+            "sandpiper": 2
           }
         },
         "player_id": "p3"
@@ -599,8 +597,8 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Luxor": 1,
-            "Worldwide": 2
+            "meridian": 1,
+            "sandpiper": 2
           }
         },
         "player_id": "p4"
@@ -621,7 +619,7 @@
       {
         "action": {
           "action": "found_chain",
-          "chain": "American"
+          "chain": "halcyon"
         },
         "player_id": "p1"
       },
@@ -629,8 +627,8 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "American": 1,
-            "Worldwide": 2
+            "aurelia": 1,
+            "sandpiper": 2
           }
         },
         "player_id": "p1"
@@ -651,7 +649,7 @@
       {
         "action": {
           "action": "found_chain",
-          "chain": "Imperial"
+          "chain": "obsidian"
         },
         "player_id": "p2"
       },
@@ -659,8 +657,8 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Continental": 2,
-            "Worldwide": 1
+            "halcyon": 2,
+            "sandpiper": 1
           }
         },
         "player_id": "p2"
@@ -682,9 +680,9 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "American": 1,
-            "Imperial": 1,
-            "Luxor": 1
+            "aurelia": 1,
+            "meridian": 1,
+            "obsidian": 1
           }
         },
         "player_id": "p3"
@@ -705,7 +703,7 @@
       {
         "action": {
           "action": "found_chain",
-          "chain": "Festival"
+          "chain": "juniper"
         },
         "player_id": "p4"
       },
@@ -713,8 +711,8 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Imperial": 2,
-            "Luxor": 1
+            "meridian": 2,
+            "obsidian": 1
           }
         },
         "player_id": "p4"
@@ -736,9 +734,9 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "American": 1,
-            "Continental": 1,
-            "Festival": 1
+            "aurelia": 1,
+            "halcyon": 1,
+            "juniper": 1
           }
         },
         "player_id": "p1"
@@ -759,7 +757,7 @@
       {
         "action": {
           "action": "found_chain",
-          "chain": "Tower"
+          "chain": "marlowe"
         },
         "player_id": "p2"
       },
@@ -767,8 +765,8 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "American": 2,
-            "Luxor": 1
+            "aurelia": 2,
+            "meridian": 1
           }
         },
         "player_id": "p2"
@@ -790,9 +788,9 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Imperial": 1,
-            "Tower": 1,
-            "Worldwide": 1
+            "marlowe": 1,
+            "obsidian": 1,
+            "sandpiper": 1
           }
         },
         "player_id": "p3"
@@ -814,9 +812,9 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Continental": 1,
-            "Luxor": 1,
-            "Worldwide": 1
+            "halcyon": 1,
+            "meridian": 1,
+            "sandpiper": 1
           }
         },
         "player_id": "p4"
@@ -838,8 +836,8 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Festival": 2,
-            "Worldwide": 1
+            "juniper": 2,
+            "sandpiper": 1
           }
         },
         "player_id": "p1"
@@ -861,9 +859,9 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Continental": 1,
-            "Imperial": 1,
-            "Tower": 1
+            "halcyon": 1,
+            "marlowe": 1,
+            "obsidian": 1
           }
         },
         "player_id": "p2"
@@ -885,9 +883,9 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "American": 1,
-            "Continental": 1,
-            "Worldwide": 1
+            "aurelia": 1,
+            "halcyon": 1,
+            "sandpiper": 1
           }
         },
         "player_id": "p3"
@@ -909,9 +907,9 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Festival": 1,
-            "Imperial": 1,
-            "Tower": 1
+            "juniper": 1,
+            "marlowe": 1,
+            "obsidian": 1
           }
         },
         "player_id": "p4"
@@ -933,8 +931,8 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "American": 1,
-            "Festival": 2
+            "aurelia": 1,
+            "juniper": 2
           }
         },
         "player_id": "p1"
@@ -956,9 +954,9 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "American": 1,
-            "Festival": 1,
-            "Luxor": 1
+            "aurelia": 1,
+            "juniper": 1,
+            "meridian": 1
           }
         },
         "player_id": "p2"
@@ -980,8 +978,8 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Tower": 1,
-            "Worldwide": 2
+            "obsidian": 1,
+            "sandpiper": 1
           }
         },
         "player_id": "p3"
@@ -1003,7 +1001,9 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "American": 2
+            "aurelia": 1,
+            "marlowe": 1,
+            "meridian": 1
           }
         },
         "player_id": "p4"
@@ -1025,8 +1025,8 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Festival": 2,
-            "Tower": 1
+            "juniper": 2,
+            "sandpiper": 1
           }
         },
         "player_id": "p1"
@@ -1040,65 +1040,16 @@
       {
         "action": {
           "action": "place_tile",
-          "tile": "6H"
+          "tile": "6B"
         },
         "player_id": "p2"
-      },
-      {
-        "action": {
-          "action": "merger_disposition",
-          "defunct_chain": "Continental",
-          "disposition": {
-            "hold": 0,
-            "sell": 0,
-            "trade": 4
-          }
-        },
-        "player_id": "p2"
-      },
-      {
-        "action": {
-          "action": "merger_disposition",
-          "defunct_chain": "Continental",
-          "disposition": {
-            "hold": 0,
-            "sell": 5,
-            "trade": 0
-          }
-        },
-        "player_id": "p3"
-      },
-      {
-        "action": {
-          "action": "merger_disposition",
-          "defunct_chain": "Continental",
-          "disposition": {
-            "hold": 1,
-            "sell": 0,
-            "trade": 2
-          }
-        },
-        "player_id": "p4"
-      },
-      {
-        "action": {
-          "action": "merger_disposition",
-          "defunct_chain": "Continental",
-          "disposition": {
-            "hold": 2,
-            "sell": 0,
-            "trade": 0
-          }
-        },
-        "player_id": "p1"
       },
       {
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "American": 1,
-            "Imperial": 1,
-            "Worldwide": 1
+            "juniper": 1,
+            "meridian": 1
           }
         },
         "player_id": "p2"
@@ -1112,18 +1063,14 @@
       {
         "action": {
           "action": "place_tile",
-          "tile": "8B"
+          "tile": "3C"
         },
         "player_id": "p3"
       },
       {
         "action": {
           "action": "buy_stocks",
-          "purchases": {
-            "American": 1,
-            "Imperial": 1,
-            "Worldwide": 1
-          }
+          "purchases": {}
         },
         "player_id": "p3"
       },
@@ -1136,14 +1083,7 @@
       {
         "action": {
           "action": "place_tile",
-          "tile": "10F"
-        },
-        "player_id": "p4"
-      },
-      {
-        "action": {
-          "action": "found_chain",
-          "chain": "Continental"
+          "tile": "1A"
         },
         "player_id": "p4"
       },
@@ -1163,7 +1103,7 @@
       {
         "action": {
           "action": "place_tile",
-          "tile": "1B"
+          "tile": "8A"
         },
         "player_id": "p1"
       },
@@ -1171,7 +1111,7 @@
         "action": {
           "action": "buy_stocks",
           "purchases": {
-            "Worldwide": 1
+            "sandpiper": 1
           }
         },
         "player_id": "p1"
@@ -1192,10 +1132,7 @@
       {
         "action": {
           "action": "buy_stocks",
-          "purchases": {
-            "Luxor": 1,
-            "Worldwide": 2
-          }
+          "purchases": {}
         },
         "player_id": "p2"
       },
@@ -1208,18 +1145,14 @@
       {
         "action": {
           "action": "place_tile",
-          "tile": "9G"
+          "tile": "12B"
         },
         "player_id": "p3"
       },
       {
         "action": {
           "action": "buy_stocks",
-          "purchases": {
-            "Continental": 1,
-            "Imperial": 1,
-            "Tower": 1
-          }
+          "purchases": {}
         },
         "player_id": "p3"
       },
@@ -1232,7 +1165,7 @@
       {
         "action": {
           "action": "place_tile",
-          "tile": "11C"
+          "tile": "9H"
         },
         "player_id": "p4"
       },
@@ -1282,43 +1215,39 @@
     "board": {
       "cells": {
         "10C": {
-          "chain": "Imperial",
-          "state": "in_chain"
-        },
-        "10F": {
-          "chain": "Continental",
-          "state": "in_chain"
-        },
-        "11C": {
-          "chain": "Imperial",
+          "chain": "obsidian",
           "state": "in_chain"
         },
         "11D": {
-          "chain": "Imperial",
-          "state": "in_chain"
+          "chain": null,
+          "state": "played"
         },
         "11H": {
-          "chain": "Worldwide",
+          "chain": "meridian",
           "state": "in_chain"
         },
         "11I": {
-          "chain": "Worldwide",
+          "chain": "meridian",
           "state": "in_chain"
         },
-        "12H": {
-          "chain": "Worldwide",
-          "state": "in_chain"
-        },
-        "1B": {
+        "12B": {
           "chain": null,
           "state": "played"
+        },
+        "12H": {
+          "chain": "meridian",
+          "state": "in_chain"
+        },
+        "1A": {
+          "chain": "juniper",
+          "state": "in_chain"
         },
         "1F": {
           "chain": null,
           "state": "played"
         },
         "2A": {
-          "chain": "Festival",
+          "chain": "juniper",
           "state": "in_chain"
         },
         "2D": {
@@ -1326,107 +1255,111 @@
           "state": "played"
         },
         "2I": {
-          "chain": "Tower",
+          "chain": "marlowe",
           "state": "in_chain"
         },
         "3A": {
-          "chain": "Festival",
+          "chain": "juniper",
           "state": "in_chain"
         },
+        "3C": {
+          "chain": null,
+          "state": "played"
+        },
         "3I": {
-          "chain": "Tower",
+          "chain": "marlowe",
           "state": "in_chain"
         },
         "4A": {
-          "chain": "Festival",
+          "chain": "juniper",
           "state": "in_chain"
         },
         "4F": {
-          "chain": "American",
+          "chain": "aurelia",
           "state": "in_chain"
         },
         "4G": {
-          "chain": "American",
+          "chain": "aurelia",
           "state": "in_chain"
         },
         "5C": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "5D": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "5E": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "5G": {
-          "chain": "American",
+          "chain": "aurelia",
+          "state": "in_chain"
+        },
+        "6B": {
+          "chain": "obsidian",
           "state": "in_chain"
         },
         "6E": {
-          "chain": "Luxor",
+          "chain": "sandpiper",
           "state": "in_chain"
         },
         "6G": {
-          "chain": "American",
-          "state": "in_chain"
-        },
-        "6H": {
-          "chain": "American",
+          "chain": "aurelia",
           "state": "in_chain"
         },
         "6I": {
-          "chain": "American",
+          "chain": "halcyon",
           "state": "in_chain"
         },
         "7B": {
-          "chain": "Imperial",
+          "chain": "obsidian",
           "state": "in_chain"
         },
         "7C": {
-          "chain": "Imperial",
+          "chain": "obsidian",
           "state": "in_chain"
         },
         "7G": {
-          "chain": "American",
+          "chain": "aurelia",
           "state": "in_chain"
         },
         "7I": {
-          "chain": "American",
+          "chain": "halcyon",
           "state": "in_chain"
         },
-        "8B": {
-          "chain": "Imperial",
-          "state": "in_chain"
+        "8A": {
+          "chain": null,
+          "state": "played"
         },
         "8C": {
-          "chain": "Imperial",
+          "chain": "obsidian",
           "state": "in_chain"
         },
         "8D": {
-          "chain": "Imperial",
+          "chain": "obsidian",
           "state": "in_chain"
         },
         "8H": {
-          "chain": "American",
+          "chain": "halcyon",
           "state": "in_chain"
         },
         "8I": {
-          "chain": "American",
+          "chain": "halcyon",
           "state": "in_chain"
         },
         "9C": {
-          "chain": "Imperial",
+          "chain": "obsidian",
           "state": "in_chain"
         },
         "9F": {
-          "chain": "Continental",
-          "state": "in_chain"
+          "chain": null,
+          "state": "played"
         },
-        "9G": {
-          "chain": "Continental",
+        "9H": {
+          "chain": "halcyon",
           "state": "in_chain"
         }
       }
@@ -1714,13 +1647,13 @@
       },
       {
         "available_chains": [
-          "Luxor",
-          "Tower",
-          "American",
-          "Worldwide",
-          "Festival",
-          "Imperial",
-          "Continental"
+          "sandpiper",
+          "marlowe",
+          "halcyon",
+          "meridian",
+          "juniper",
+          "obsidian",
+          "aurelia"
         ],
         "outcome": "found",
         "player_id": "p3",
@@ -1730,7 +1663,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Continental",
+        "chain": "aurelia",
         "founder_bonus_type": "stock",
         "founder_bonus_value": 1,
         "player_id": "p3",
@@ -1743,11 +1676,11 @@
       {
         "player_id": "p3",
         "prices": {
-          "Continental": 400
+          "aurelia": 400
         },
         "private_to": null,
         "purchases": {
-          "Continental": 3
+          "aurelia": 3
         },
         "seq": 31,
         "total_cost": 1200,
@@ -1770,12 +1703,12 @@
       },
       {
         "available_chains": [
-          "Luxor",
-          "Tower",
-          "American",
-          "Worldwide",
-          "Festival",
-          "Imperial"
+          "sandpiper",
+          "marlowe",
+          "halcyon",
+          "meridian",
+          "juniper",
+          "obsidian"
         ],
         "outcome": "found",
         "player_id": "p4",
@@ -1785,7 +1718,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "founder_bonus_type": "stock",
         "founder_bonus_value": 1,
         "player_id": "p4",
@@ -1798,13 +1731,13 @@
       {
         "player_id": "p4",
         "prices": {
-          "Continental": 400,
-          "Luxor": 200
+          "aurelia": 400,
+          "sandpiper": 200
         },
         "private_to": null,
         "purchases": {
-          "Continental": 2,
-          "Luxor": 1
+          "aurelia": 2,
+          "sandpiper": 1
         },
         "seq": 36,
         "total_cost": 1000,
@@ -1836,13 +1769,13 @@
       {
         "player_id": "p1",
         "prices": {
-          "Continental": 400,
-          "Luxor": 200
+          "aurelia": 400,
+          "sandpiper": 200
         },
         "private_to": null,
         "purchases": {
-          "Continental": 1,
-          "Luxor": 2
+          "aurelia": 1,
+          "sandpiper": 2
         },
         "seq": 40,
         "total_cost": 800,
@@ -1874,13 +1807,13 @@
       {
         "player_id": "p2",
         "prices": {
-          "Continental": 400,
-          "Luxor": 200
+          "aurelia": 400,
+          "sandpiper": 200
         },
         "private_to": null,
         "purchases": {
-          "Continental": 1,
-          "Luxor": 2
+          "aurelia": 1,
+          "sandpiper": 2
         },
         "seq": 44,
         "total_cost": 800,
@@ -1903,11 +1836,11 @@
       },
       {
         "available_chains": [
-          "Tower",
-          "American",
-          "Worldwide",
-          "Festival",
-          "Imperial"
+          "marlowe",
+          "halcyon",
+          "meridian",
+          "juniper",
+          "obsidian"
         ],
         "outcome": "found",
         "player_id": "p3",
@@ -1917,7 +1850,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Worldwide",
+        "chain": "meridian",
         "founder_bonus_type": "stock",
         "founder_bonus_value": 1,
         "player_id": "p3",
@@ -1930,16 +1863,16 @@
       {
         "player_id": "p3",
         "prices": {
-          "Luxor": 200,
-          "Worldwide": 300
+          "meridian": 300,
+          "sandpiper": 200
         },
         "private_to": null,
         "purchases": {
-          "Luxor": 1,
-          "Worldwide": 2
+          "meridian": 1,
+          "sandpiper": 2
         },
         "seq": 49,
-        "total_cost": 800,
+        "total_cost": 700,
         "type": "stocks_purchased"
       },
       {
@@ -1968,16 +1901,16 @@
       {
         "player_id": "p4",
         "prices": {
-          "Luxor": 200,
-          "Worldwide": 300
+          "meridian": 300,
+          "sandpiper": 200
         },
         "private_to": null,
         "purchases": {
-          "Luxor": 1,
-          "Worldwide": 2
+          "meridian": 1,
+          "sandpiper": 2
         },
         "seq": 53,
-        "total_cost": 800,
+        "total_cost": 700,
         "type": "stocks_purchased"
       },
       {
@@ -1997,10 +1930,10 @@
       },
       {
         "available_chains": [
-          "Tower",
-          "American",
-          "Festival",
-          "Imperial"
+          "marlowe",
+          "halcyon",
+          "juniper",
+          "obsidian"
         ],
         "outcome": "found",
         "player_id": "p1",
@@ -2010,7 +1943,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "American",
+        "chain": "halcyon",
         "founder_bonus_type": "stock",
         "founder_bonus_value": 1,
         "player_id": "p1",
@@ -2023,16 +1956,16 @@
       {
         "player_id": "p1",
         "prices": {
-          "American": 300,
-          "Worldwide": 300
+          "aurelia": 400,
+          "sandpiper": 200
         },
         "private_to": null,
         "purchases": {
-          "American": 1,
-          "Worldwide": 2
+          "aurelia": 1,
+          "sandpiper": 2
         },
         "seq": 58,
-        "total_cost": 900,
+        "total_cost": 800,
         "type": "stocks_purchased"
       },
       {
@@ -2052,9 +1985,9 @@
       },
       {
         "available_chains": [
-          "Tower",
-          "Festival",
-          "Imperial"
+          "marlowe",
+          "juniper",
+          "obsidian"
         ],
         "outcome": "found",
         "player_id": "p2",
@@ -2064,7 +1997,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Imperial",
+        "chain": "obsidian",
         "founder_bonus_type": "stock",
         "founder_bonus_value": 1,
         "player_id": "p2",
@@ -2077,16 +2010,16 @@
       {
         "player_id": "p2",
         "prices": {
-          "Continental": 400,
-          "Worldwide": 300
+          "halcyon": 300,
+          "sandpiper": 200
         },
         "private_to": null,
         "purchases": {
-          "Continental": 2,
-          "Worldwide": 1
+          "halcyon": 2,
+          "sandpiper": 1
         },
         "seq": 63,
-        "total_cost": 1100,
+        "total_cost": 800,
         "type": "stocks_purchased"
       },
       {
@@ -2115,18 +2048,18 @@
       {
         "player_id": "p3",
         "prices": {
-          "American": 300,
-          "Imperial": 400,
-          "Luxor": 200
+          "aurelia": 400,
+          "meridian": 300,
+          "obsidian": 400
         },
         "private_to": null,
         "purchases": {
-          "American": 1,
-          "Imperial": 1,
-          "Luxor": 1
+          "aurelia": 1,
+          "meridian": 1,
+          "obsidian": 1
         },
         "seq": 67,
-        "total_cost": 900,
+        "total_cost": 1100,
         "type": "stocks_purchased"
       },
       {
@@ -2146,8 +2079,8 @@
       },
       {
         "available_chains": [
-          "Tower",
-          "Festival"
+          "marlowe",
+          "juniper"
         ],
         "outcome": "found",
         "player_id": "p4",
@@ -2157,7 +2090,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Festival",
+        "chain": "juniper",
         "founder_bonus_type": "stock",
         "founder_bonus_value": 1,
         "player_id": "p4",
@@ -2170,13 +2103,13 @@
       {
         "player_id": "p4",
         "prices": {
-          "Imperial": 400,
-          "Luxor": 200
+          "meridian": 300,
+          "obsidian": 400
         },
         "private_to": null,
         "purchases": {
-          "Imperial": 2,
-          "Luxor": 1
+          "meridian": 2,
+          "obsidian": 1
         },
         "seq": 72,
         "total_cost": 1000,
@@ -2199,7 +2132,7 @@
       },
       {
         "chains": [
-          "American"
+          "halcyon"
         ],
         "outcome": "expand",
         "player_id": "p1",
@@ -2209,7 +2142,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "American",
+        "chain": "halcyon",
         "player_id": "p1",
         "private_to": null,
         "seq": 76,
@@ -2220,15 +2153,15 @@
       {
         "player_id": "p1",
         "prices": {
-          "American": 400,
-          "Continental": 400,
-          "Festival": 300
+          "aurelia": 400,
+          "halcyon": 400,
+          "juniper": 300
         },
         "private_to": null,
         "purchases": {
-          "American": 1,
-          "Continental": 1,
-          "Festival": 1
+          "aurelia": 1,
+          "halcyon": 1,
+          "juniper": 1
         },
         "seq": 77,
         "total_cost": 1100,
@@ -2251,7 +2184,7 @@
       },
       {
         "available_chains": [
-          "Tower"
+          "marlowe"
         ],
         "outcome": "found",
         "player_id": "p2",
@@ -2261,7 +2194,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Tower",
+        "chain": "marlowe",
         "founder_bonus_type": "stock",
         "founder_bonus_value": 1,
         "player_id": "p2",
@@ -2274,16 +2207,16 @@
       {
         "player_id": "p2",
         "prices": {
-          "American": 400,
-          "Luxor": 200
+          "aurelia": 400,
+          "meridian": 300
         },
         "private_to": null,
         "purchases": {
-          "American": 2,
-          "Luxor": 1
+          "aurelia": 2,
+          "meridian": 1
         },
         "seq": 82,
-        "total_cost": 1000,
+        "total_cost": 1100,
         "type": "stocks_purchased"
       },
       {
@@ -2303,7 +2236,7 @@
       },
       {
         "chains": [
-          "American"
+          "halcyon"
         ],
         "outcome": "expand",
         "player_id": "p3",
@@ -2313,7 +2246,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "American",
+        "chain": "halcyon",
         "player_id": "p3",
         "private_to": null,
         "seq": 86,
@@ -2324,18 +2257,18 @@
       {
         "player_id": "p3",
         "prices": {
-          "Imperial": 400,
-          "Tower": 200,
-          "Worldwide": 300
+          "marlowe": 200,
+          "obsidian": 400,
+          "sandpiper": 200
         },
         "private_to": null,
         "purchases": {
-          "Imperial": 1,
-          "Tower": 1,
-          "Worldwide": 1
+          "marlowe": 1,
+          "obsidian": 1,
+          "sandpiper": 1
         },
         "seq": 87,
-        "total_cost": 900,
+        "total_cost": 800,
         "type": "stocks_purchased"
       },
       {
@@ -2364,18 +2297,18 @@
       {
         "player_id": "p4",
         "prices": {
-          "Continental": 400,
-          "Luxor": 200,
-          "Worldwide": 300
+          "halcyon": 500,
+          "meridian": 300,
+          "sandpiper": 200
         },
         "private_to": null,
         "purchases": {
-          "Continental": 1,
-          "Luxor": 1,
-          "Worldwide": 1
+          "halcyon": 1,
+          "meridian": 1,
+          "sandpiper": 1
         },
         "seq": 91,
-        "total_cost": 900,
+        "total_cost": 1000,
         "type": "stocks_purchased"
       },
       {
@@ -2395,7 +2328,7 @@
       },
       {
         "chains": [
-          "Imperial"
+          "obsidian"
         ],
         "outcome": "expand",
         "player_id": "p1",
@@ -2405,7 +2338,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Imperial",
+        "chain": "obsidian",
         "player_id": "p1",
         "private_to": null,
         "seq": 95,
@@ -2416,16 +2349,16 @@
       {
         "player_id": "p1",
         "prices": {
-          "Festival": 300,
-          "Worldwide": 300
+          "juniper": 300,
+          "sandpiper": 200
         },
         "private_to": null,
         "purchases": {
-          "Festival": 2,
-          "Worldwide": 1
+          "juniper": 2,
+          "sandpiper": 1
         },
         "seq": 96,
-        "total_cost": 900,
+        "total_cost": 800,
         "type": "stocks_purchased"
       },
       {
@@ -2445,7 +2378,7 @@
       },
       {
         "chains": [
-          "Imperial"
+          "obsidian"
         ],
         "outcome": "expand",
         "player_id": "p2",
@@ -2455,7 +2388,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Imperial",
+        "chain": "obsidian",
         "player_id": "p2",
         "private_to": null,
         "seq": 100,
@@ -2466,18 +2399,18 @@
       {
         "player_id": "p2",
         "prices": {
-          "Continental": 400,
-          "Imperial": 700,
-          "Tower": 200
+          "halcyon": 500,
+          "marlowe": 200,
+          "obsidian": 700
         },
         "private_to": null,
         "purchases": {
-          "Continental": 1,
-          "Imperial": 1,
-          "Tower": 1
+          "halcyon": 1,
+          "marlowe": 1,
+          "obsidian": 1
         },
         "seq": 101,
-        "total_cost": 1300,
+        "total_cost": 1400,
         "type": "stocks_purchased"
       },
       {
@@ -2506,18 +2439,18 @@
       {
         "player_id": "p3",
         "prices": {
-          "American": 500,
-          "Continental": 400,
-          "Worldwide": 300
+          "aurelia": 400,
+          "halcyon": 500,
+          "sandpiper": 200
         },
         "private_to": null,
         "purchases": {
-          "American": 1,
-          "Continental": 1,
-          "Worldwide": 1
+          "aurelia": 1,
+          "halcyon": 1,
+          "sandpiper": 1
         },
         "seq": 105,
-        "total_cost": 1200,
+        "total_cost": 1100,
         "type": "stocks_purchased"
       },
       {
@@ -2537,7 +2470,7 @@
       },
       {
         "chains": [
-          "Continental"
+          "aurelia"
         ],
         "outcome": "expand",
         "player_id": "p4",
@@ -2547,7 +2480,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Continental",
+        "chain": "aurelia",
         "player_id": "p4",
         "private_to": null,
         "seq": 109,
@@ -2558,15 +2491,15 @@
       {
         "player_id": "p4",
         "prices": {
-          "Festival": 300,
-          "Imperial": 700,
-          "Tower": 200
+          "juniper": 300,
+          "marlowe": 200,
+          "obsidian": 700
         },
         "private_to": null,
         "purchases": {
-          "Festival": 1,
-          "Imperial": 1,
-          "Tower": 1
+          "juniper": 1,
+          "marlowe": 1,
+          "obsidian": 1
         },
         "seq": 110,
         "total_cost": 1200,
@@ -2589,7 +2522,7 @@
       },
       {
         "chains": [
-          "Luxor"
+          "sandpiper"
         ],
         "outcome": "expand",
         "player_id": "p1",
@@ -2599,7 +2532,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "player_id": "p1",
         "private_to": null,
         "seq": 114,
@@ -2610,13 +2543,13 @@
       {
         "player_id": "p1",
         "prices": {
-          "American": 500,
-          "Festival": 300
+          "aurelia": 500,
+          "juniper": 300
         },
         "private_to": null,
         "purchases": {
-          "American": 1,
-          "Festival": 2
+          "aurelia": 1,
+          "juniper": 2
         },
         "seq": 115,
         "total_cost": 1100,
@@ -2639,7 +2572,7 @@
       },
       {
         "chains": [
-          "Imperial"
+          "obsidian"
         ],
         "outcome": "expand",
         "player_id": "p2",
@@ -2649,7 +2582,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Imperial",
+        "chain": "obsidian",
         "player_id": "p2",
         "private_to": null,
         "seq": 119,
@@ -2660,15 +2593,15 @@
       {
         "player_id": "p2",
         "prices": {
-          "American": 500,
-          "Festival": 300,
-          "Luxor": 300
+          "aurelia": 500,
+          "juniper": 300,
+          "meridian": 300
         },
         "private_to": null,
         "purchases": {
-          "American": 1,
-          "Festival": 1,
-          "Luxor": 1
+          "aurelia": 1,
+          "juniper": 1,
+          "meridian": 1
         },
         "seq": 120,
         "total_cost": 1100,
@@ -2700,16 +2633,16 @@
       {
         "player_id": "p3",
         "prices": {
-          "Tower": 200,
-          "Worldwide": 300
+          "obsidian": 800,
+          "sandpiper": 300
         },
         "private_to": null,
         "purchases": {
-          "Tower": 1,
-          "Worldwide": 2
+          "obsidian": 1,
+          "sandpiper": 1
         },
         "seq": 124,
-        "total_cost": 800,
+        "total_cost": 1100,
         "type": "stocks_purchased"
       },
       {
@@ -2729,7 +2662,7 @@
       },
       {
         "chains": [
-          "Worldwide"
+          "meridian"
         ],
         "outcome": "expand",
         "player_id": "p4",
@@ -2739,7 +2672,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Worldwide",
+        "chain": "meridian",
         "player_id": "p4",
         "private_to": null,
         "seq": 128,
@@ -2750,14 +2683,18 @@
       {
         "player_id": "p4",
         "prices": {
-          "American": 500
+          "aurelia": 500,
+          "marlowe": 200,
+          "meridian": 400
         },
         "private_to": null,
         "purchases": {
-          "American": 2
+          "aurelia": 1,
+          "marlowe": 1,
+          "meridian": 1
         },
         "seq": 129,
-        "total_cost": 1000,
+        "total_cost": 1100,
         "type": "stocks_purchased"
       },
       {
@@ -2777,7 +2714,7 @@
       },
       {
         "chains": [
-          "Luxor"
+          "sandpiper"
         ],
         "outcome": "expand",
         "player_id": "p1",
@@ -2787,7 +2724,7 @@
         "type": "tile_placed"
       },
       {
-        "chain": "Luxor",
+        "chain": "sandpiper",
         "player_id": "p1",
         "private_to": null,
         "seq": 133,
@@ -2798,16 +2735,16 @@
       {
         "player_id": "p1",
         "prices": {
-          "Festival": 300,
-          "Tower": 200
+          "juniper": 300,
+          "sandpiper": 400
         },
         "private_to": null,
         "purchases": {
-          "Festival": 2,
-          "Tower": 1
+          "juniper": 2,
+          "sandpiper": 1
         },
         "seq": 134,
-        "total_cost": 800,
+        "total_cost": 1000,
         "type": "stocks_purchased"
       },
       {
@@ -2827,140 +2764,44 @@
       },
       {
         "chains": [
-          "American",
-          "Continental"
+          "obsidian"
         ],
-        "outcome": "merge",
+        "outcome": "expand",
         "player_id": "p2",
         "private_to": null,
         "seq": 137,
-        "sizes": {
-          "American": 4,
-          "Continental": 3
-        },
-        "tied_chains": null,
-        "tile": "6H",
+        "tile": "6B",
         "type": "tile_placed"
       },
       {
-        "defunct": [
-          "Continental"
-        ],
+        "chain": "obsidian",
         "player_id": "p2",
         "private_to": null,
         "seq": 138,
-        "sizes": {
-          "American": 4,
-          "Continental": 3
-        },
-        "survivor": "American",
-        "tile": "6H",
-        "type": "merger_started"
-      },
-      {
-        "bonuses": {
-          "p2": {
-            "majority": 0,
-            "minority": 2500
-          },
-          "p3": {
-            "majority": 5000,
-            "minority": 0
-          }
-        },
-        "chain": "Continental",
-        "chain_size": 3,
-        "final": false,
-        "player_id": null,
-        "private_to": null,
-        "seq": 139,
-        "type": "bonuses_paid"
-      },
-      {
-        "defunct_chain": "Continental",
-        "hold": 0,
-        "player_id": "p2",
-        "private_to": null,
-        "sale_proceeds": 0,
-        "sell": 0,
-        "seq": 140,
-        "surviving_chain": "American",
-        "survivor_shares_received": 2,
-        "trade": 4,
-        "type": "stock_disposition"
-      },
-      {
-        "defunct_chain": "Continental",
-        "hold": 0,
-        "player_id": "p3",
-        "private_to": null,
-        "sale_proceeds": 2500,
-        "sell": 5,
-        "seq": 141,
-        "surviving_chain": "American",
-        "survivor_shares_received": 0,
-        "trade": 0,
-        "type": "stock_disposition"
-      },
-      {
-        "defunct_chain": "Continental",
-        "hold": 1,
-        "player_id": "p4",
-        "private_to": null,
-        "sale_proceeds": 0,
-        "sell": 0,
-        "seq": 142,
-        "surviving_chain": "American",
-        "survivor_shares_received": 1,
-        "trade": 2,
-        "type": "stock_disposition"
-      },
-      {
-        "defunct_chain": "Continental",
-        "hold": 2,
-        "player_id": "p1",
-        "private_to": null,
-        "sale_proceeds": 0,
-        "sell": 0,
-        "seq": 143,
-        "surviving_chain": "American",
-        "survivor_shares_received": 0,
-        "trade": 0,
-        "type": "stock_disposition"
-      },
-      {
-        "defunct": [
-          "Continental"
-        ],
-        "player_id": "p2",
-        "private_to": null,
-        "seq": 144,
-        "survivor": "American",
-        "survivor_size": 8,
-        "type": "merger_completed"
+        "size": 7,
+        "tile": "6B",
+        "type": "chain_expanded"
       },
       {
         "player_id": "p2",
         "prices": {
-          "American": 700,
-          "Imperial": 800,
-          "Worldwide": 400
+          "juniper": 300,
+          "meridian": 400
         },
         "private_to": null,
         "purchases": {
-          "American": 1,
-          "Imperial": 1,
-          "Worldwide": 1
+          "juniper": 1,
+          "meridian": 1
         },
-        "seq": 145,
-        "total_cost": 1900,
+        "seq": 139,
+        "total_cost": 700,
         "type": "stocks_purchased"
       },
       {
         "player_id": "p2",
         "private_to": "p2",
         "reason": "end_turn",
-        "seq": 146,
+        "seq": 140,
         "tile": "1E",
         "type": "tile_drawn"
       },
@@ -2968,51 +2809,31 @@
         "next_player_id": "p3",
         "player_id": "p2",
         "private_to": null,
-        "seq": 147,
+        "seq": 141,
         "type": "turn_ended"
       },
       {
-        "chains": [
-          "Imperial"
-        ],
-        "outcome": "expand",
+        "outcome": "nothing",
         "player_id": "p3",
         "private_to": null,
-        "seq": 148,
-        "tile": "8B",
+        "seq": 142,
+        "tile": "3C",
         "type": "tile_placed"
       },
       {
-        "chain": "Imperial",
         "player_id": "p3",
+        "prices": {},
         "private_to": null,
-        "seq": 149,
-        "size": 7,
-        "tile": "8B",
-        "type": "chain_expanded"
-      },
-      {
-        "player_id": "p3",
-        "prices": {
-          "American": 700,
-          "Imperial": 800,
-          "Worldwide": 400
-        },
-        "private_to": null,
-        "purchases": {
-          "American": 1,
-          "Imperial": 1,
-          "Worldwide": 1
-        },
-        "seq": 150,
-        "total_cost": 1900,
+        "purchases": {},
+        "seq": 143,
+        "total_cost": 0,
         "type": "stocks_purchased"
       },
       {
         "player_id": "p3",
         "private_to": "p3",
         "reason": "end_turn",
-        "seq": 151,
+        "seq": 144,
         "tile": "9G",
         "type": "tile_drawn"
       },
@@ -3020,37 +2841,23 @@
         "next_player_id": "p4",
         "player_id": "p3",
         "private_to": null,
-        "seq": 152,
+        "seq": 145,
         "type": "turn_ended"
       },
       {
-        "available_chains": [
-          "Continental"
-        ],
-        "outcome": "found",
+        "outcome": "nothing",
         "player_id": "p4",
         "private_to": null,
-        "seq": 153,
-        "tile": "10F",
+        "seq": 146,
+        "tile": "1A",
         "type": "tile_placed"
-      },
-      {
-        "chain": "Continental",
-        "founder_bonus_type": "stock",
-        "founder_bonus_value": 1,
-        "player_id": "p4",
-        "private_to": null,
-        "seq": 154,
-        "size": 2,
-        "tile": "10F",
-        "type": "chain_founded"
       },
       {
         "player_id": "p4",
         "prices": {},
         "private_to": null,
         "purchases": {},
-        "seq": 155,
+        "seq": 147,
         "total_cost": 0,
         "type": "stocks_purchased"
       },
@@ -3058,7 +2865,7 @@
         "player_id": "p4",
         "private_to": "p4",
         "reason": "end_turn",
-        "seq": 156,
+        "seq": 148,
         "tile": "11C",
         "type": "tile_drawn"
       },
@@ -3066,27 +2873,27 @@
         "next_player_id": "p1",
         "player_id": "p4",
         "private_to": null,
-        "seq": 157,
+        "seq": 149,
         "type": "turn_ended"
       },
       {
         "outcome": "nothing",
         "player_id": "p1",
         "private_to": null,
-        "seq": 158,
-        "tile": "1B",
+        "seq": 150,
+        "tile": "8A",
         "type": "tile_placed"
       },
       {
         "player_id": "p1",
         "prices": {
-          "Worldwide": 400
+          "sandpiper": 400
         },
         "private_to": null,
         "purchases": {
-          "Worldwide": 1
+          "sandpiper": 1
         },
-        "seq": 159,
+        "seq": 151,
         "total_cost": 400,
         "type": "stocks_purchased"
       },
@@ -3094,7 +2901,7 @@
         "player_id": "p1",
         "private_to": "p1",
         "reason": "end_turn",
-        "seq": 160,
+        "seq": 152,
         "tile": "2F",
         "type": "tile_drawn"
       },
@@ -3102,49 +2909,43 @@
         "next_player_id": "p2",
         "player_id": "p1",
         "private_to": null,
-        "seq": 161,
+        "seq": 153,
         "type": "turn_ended"
       },
       {
         "chains": [
-          "Festival"
+          "juniper"
         ],
         "outcome": "expand",
         "player_id": "p2",
         "private_to": null,
-        "seq": 162,
+        "seq": 154,
         "tile": "2A",
         "type": "tile_placed"
       },
       {
-        "chain": "Festival",
+        "chain": "juniper",
         "player_id": "p2",
         "private_to": null,
-        "seq": 163,
-        "size": 3,
+        "seq": 155,
+        "size": 4,
         "tile": "2A",
         "type": "chain_expanded"
       },
       {
         "player_id": "p2",
-        "prices": {
-          "Luxor": 400,
-          "Worldwide": 400
-        },
+        "prices": {},
         "private_to": null,
-        "purchases": {
-          "Luxor": 1,
-          "Worldwide": 2
-        },
-        "seq": 164,
-        "total_cost": 1200,
+        "purchases": {},
+        "seq": 156,
+        "total_cost": 0,
         "type": "stocks_purchased"
       },
       {
         "player_id": "p2",
         "private_to": "p2",
         "reason": "end_turn",
-        "seq": 165,
+        "seq": 157,
         "tile": "7F",
         "type": "tile_drawn"
       },
@@ -3152,51 +2953,31 @@
         "next_player_id": "p3",
         "player_id": "p2",
         "private_to": null,
-        "seq": 166,
+        "seq": 158,
         "type": "turn_ended"
       },
       {
-        "chains": [
-          "Continental"
-        ],
-        "outcome": "expand",
+        "outcome": "nothing",
         "player_id": "p3",
         "private_to": null,
-        "seq": 167,
-        "tile": "9G",
+        "seq": 159,
+        "tile": "12B",
         "type": "tile_placed"
       },
       {
-        "chain": "Continental",
         "player_id": "p3",
+        "prices": {},
         "private_to": null,
-        "seq": 168,
-        "size": 3,
-        "tile": "9G",
-        "type": "chain_expanded"
-      },
-      {
-        "player_id": "p3",
-        "prices": {
-          "Continental": 500,
-          "Imperial": 800,
-          "Tower": 200
-        },
-        "private_to": null,
-        "purchases": {
-          "Continental": 1,
-          "Imperial": 1,
-          "Tower": 1
-        },
-        "seq": 169,
-        "total_cost": 1500,
+        "purchases": {},
+        "seq": 160,
+        "total_cost": 0,
         "type": "stocks_purchased"
       },
       {
         "player_id": "p3",
         "private_to": "p3",
         "reason": "end_turn",
-        "seq": 170,
+        "seq": 161,
         "tile": "10B",
         "type": "tile_drawn"
       },
@@ -3204,27 +2985,27 @@
         "next_player_id": "p4",
         "player_id": "p3",
         "private_to": null,
-        "seq": 171,
+        "seq": 162,
         "type": "turn_ended"
       },
       {
         "chains": [
-          "Imperial"
+          "halcyon"
         ],
         "outcome": "expand",
         "player_id": "p4",
         "private_to": null,
-        "seq": 172,
-        "tile": "11C",
+        "seq": 163,
+        "tile": "9H",
         "type": "tile_placed"
       },
       {
-        "chain": "Imperial",
+        "chain": "halcyon",
         "player_id": "p4",
         "private_to": null,
-        "seq": 173,
-        "size": 9,
-        "tile": "11C",
+        "seq": 164,
+        "size": 5,
+        "tile": "9H",
         "type": "chain_expanded"
       },
       {
@@ -3232,7 +3013,7 @@
         "prices": {},
         "private_to": null,
         "purchases": {},
-        "seq": 174,
+        "seq": 165,
         "total_cost": 0,
         "type": "stocks_purchased"
       },
@@ -3240,7 +3021,7 @@
         "player_id": "p4",
         "private_to": "p4",
         "reason": "end_turn",
-        "seq": 175,
+        "seq": 166,
         "tile": "4H",
         "type": "tile_drawn"
       },
@@ -3248,48 +3029,48 @@
         "next_player_id": "p1",
         "player_id": "p4",
         "private_to": null,
-        "seq": 176,
+        "seq": 167,
         "type": "turn_ended"
       },
       {
         "chains": [
-          "American"
+          "aurelia"
         ],
         "outcome": "expand",
         "player_id": "p1",
         "private_to": null,
-        "seq": 177,
+        "seq": 168,
         "tile": "4G",
         "type": "tile_placed"
       },
       {
-        "chain": "American",
+        "chain": "aurelia",
         "player_id": "p1",
         "private_to": null,
-        "seq": 178,
-        "size": 10,
+        "seq": 169,
+        "size": 5,
         "tile": "4G",
         "type": "chain_expanded"
       }
     ],
     "hotel": {
       "active_chains": [
-        "American",
-        "Continental",
-        "Festival",
-        "Imperial",
-        "Luxor",
-        "Tower",
-        "Worldwide"
+        "aurelia",
+        "halcyon",
+        "juniper",
+        "marlowe",
+        "meridian",
+        "obsidian",
+        "sandpiper"
       ],
       "available_stocks": {
-        "American": 9,
-        "Continental": 20,
-        "Festival": 15,
-        "Imperial": 15,
-        "Luxor": 11,
-        "Tower": 18,
-        "Worldwide": 6
+        "aurelia": 8,
+        "halcyon": 18,
+        "juniper": 14,
+        "marlowe": 20,
+        "meridian": 14,
+        "obsidian": 18,
+        "sandpiper": 5
       }
     },
     "merger": {
@@ -3308,7 +3089,7 @@
       {
         "hand": [
           "11A",
-          "8A",
+          "1B",
           "2G",
           "9A",
           "2F"
@@ -3317,13 +3098,13 @@
         "name": "Alice",
         "player_id": "p1",
         "stocks": {
-          "American": 4,
-          "Continental": 2,
-          "Festival": 7,
-          "Imperial": 0,
-          "Luxor": 2,
-          "Tower": 1,
-          "Worldwide": 4
+          "aurelia": 4,
+          "halcyon": 2,
+          "juniper": 7,
+          "marlowe": 0,
+          "meridian": 0,
+          "obsidian": 0,
+          "sandpiper": 7
         }
       },
       {
@@ -3331,7 +3112,7 @@
           "7H",
           "6A",
           "2C",
-          "6B",
+          "6H",
           "1E",
           "7F"
         ],
@@ -3339,57 +3120,57 @@
         "name": "Bob",
         "player_id": "p2",
         "stocks": {
-          "American": 6,
-          "Continental": 0,
-          "Festival": 1,
-          "Imperial": 3,
-          "Luxor": 5,
-          "Tower": 2,
-          "Worldwide": 4
+          "aurelia": 4,
+          "halcyon": 3,
+          "juniper": 2,
+          "marlowe": 2,
+          "meridian": 3,
+          "obsidian": 2,
+          "sandpiper": 3
         }
       },
       {
         "hand": [
+          "8B",
           "5A",
           "12E",
-          "12B",
           "9E",
-          "3C",
+          "9G",
           "10B"
         ],
-        "money": 4300,
+        "money": 0,
         "name": "Cara",
         "player_id": "p3",
         "stocks": {
-          "American": 3,
-          "Continental": 1,
-          "Festival": 0,
-          "Imperial": 4,
-          "Luxor": 2,
-          "Tower": 3,
-          "Worldwide": 8
+          "aurelia": 6,
+          "halcyon": 1,
+          "juniper": 0,
+          "marlowe": 1,
+          "meridian": 3,
+          "obsidian": 3,
+          "sandpiper": 5
         }
       },
       {
         "hand": [
-          "9H",
           "8F",
           "1H",
-          "1A",
           "3D",
+          "10F",
+          "11C",
           "4H"
         ],
-        "money": 100,
+        "money": 0,
         "name": "Dev",
         "player_id": "p4",
         "stocks": {
-          "American": 3,
-          "Continental": 2,
-          "Festival": 2,
-          "Imperial": 3,
-          "Luxor": 5,
-          "Tower": 1,
-          "Worldwide": 3
+          "aurelia": 3,
+          "halcyon": 1,
+          "juniper": 2,
+          "marlowe": 2,
+          "meridian": 5,
+          "obsidian": 2,
+          "sandpiper": 5
         }
       }
     ],

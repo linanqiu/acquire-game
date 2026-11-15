@@ -92,7 +92,7 @@ def buy_legal(calc: dict, *, extra=("declare_end_game", "propose_trade")) -> dic
 
 
 def sample_events(n: int, pids=("p1", "p2", "p3", "p4")) -> list[dict]:
-    chains = ["Luxor", "Tower", "American"]
+    chains = ["sandpiper", "marlowe", "halcyon"]
     evs: list[dict] = []
     for i in range(n):
         pid = pids[i % len(pids)]

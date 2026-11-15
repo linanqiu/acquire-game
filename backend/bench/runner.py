@@ -66,7 +66,7 @@ _TOKEN_FIELDS = (
 def resolve_ruleset(ruleset: Ruleset | str | Path | None = None) -> Ruleset:
     """The ruleset a benchmark game uses: ``ruleset`` (an object, a name in
     ``backend/rulesets`` or a path), else the server's configured default
-    (env ``GAME_RULESET``, falling back to classic)."""
+    (env ``GAME_RULESET``, falling back to default)."""
     if ruleset is None:
         return get_ruleset()
     if isinstance(ruleset, Ruleset):

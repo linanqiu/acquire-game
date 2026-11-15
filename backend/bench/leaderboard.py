@@ -18,7 +18,7 @@ returns the contract's shape::
 Only records of the chosen protocol, ruleset AND prompt version are used
 (default: those of the most recent record, in that order). Results of
 different ruleset fingerprints are never mixed. ``ruleset`` selects by id or
-fingerprint; records written before rulesets existed count as classic. Unit for win rate / rank: a seat-game (the
+fingerprint; records written before rulesets existed count as default. Unit for win rate / rank: a seat-game (the
 three bot seats of a vs-baseline game are three seat-games; they are not
 independent, so the bot's interval is optimistic). Rates are 0..1.
 """
@@ -32,7 +32,7 @@ from bench.protocols import BASELINE, PROTOCOLS
 from bench.rating import ANCHOR_RATING, bootstrap, bradley_terry
 from bench.report import MIN_GAMES, wilson
 from bench.runner import percentile
-from game.ruleset import classic
+from game.ruleset import default_ruleset
 
 BOT_LABEL = "Rules-based bot"
 
@@ -42,11 +42,11 @@ def _key(r: dict) -> str:
 
 
 def record_ruleset(r: dict) -> tuple[str, str | None]:
-    """``(ruleset id, fingerprint)`` of a game record (classic when absent)."""
-    rid = r.get("ruleset_id") or "classic"
+    """``(ruleset id, fingerprint)`` of a game record (default when absent)."""
+    rid = r.get("ruleset_id") or "default"
     fp = r.get("ruleset_fingerprint")
-    if fp is None and rid == "classic":
-        fp = classic().fingerprint
+    if fp is None and rid == "default":
+        fp = default_ruleset().fingerprint
     return rid, fp
 
 

@@ -63,7 +63,7 @@ def test_answers_are_capped_per_turn(settings):
     # proposals have their own, smaller cap (in the buy phase)
     t.turn("1A")
     t.place("2A")
-    t.found("Luxor")
+    t.found("sandpiper")
     decision = pending_decisions(game)[0]
     ctx = build_context(game, decision)
     offer = {"action": "propose_trade", "to_player_id": "p1", "offering_money": 1}
@@ -74,7 +74,7 @@ def test_answers_are_capped_per_turn(settings):
         check_answer(game, decision, ctx, offer, {"actions": 0, "proposals": 1})
         == "per-turn trade proposal cap reached"
     )
-    buy = {"action": "buy_stocks", "purchases": {"Luxor": 1}}
+    buy = {"action": "buy_stocks", "purchases": {"sandpiper": 1}}
     assert (
         check_answer(game, decision, ctx, buy, {"actions": 0, "proposals": 1}) is None
     )

@@ -1,6 +1,6 @@
 """Volume fuzzing of the decision seam (stories ES-001/ES-002/ES-004).
 
-500 seeded random full games on classic (3-6 players) and 100 on ``mini``
+500 seeded random full games on default (3-6 players) and 100 on ``mini``
 (2-5 players), every game checked with all invariants of
 ``test_decisions.run_random_game``: legal actions always accepted, illegal ones
 rejected without mutation, money/stock/tile conservation, every successful
@@ -20,7 +20,7 @@ import pytest
 from game.ruleset import load_ruleset
 from tests.test_decisions import run_random_game
 
-CLASSIC_GAMES = 500
+DEFAULT_GAMES = 500
 MINI_GAMES = 100
 CHUNK = 25
 CALC_EVERY = 120  # calculator purity + leak check every 120th action (costly)
@@ -31,9 +31,9 @@ def _chunks(total: int):
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("start", _chunks(CLASSIC_GAMES), ids=lambda s: f"games{s}")
-def test_fuzz_classic(start):
-    for i in range(start, min(start + CHUNK, CLASSIC_GAMES)):
+@pytest.mark.parametrize("start", _chunks(DEFAULT_GAMES), ids=lambda s: f"games{s}")
+def test_fuzz_default(start):
+    for i in range(start, min(start + CHUNK, DEFAULT_GAMES)):
         players = 3 + i % 4  # 3, 4, 5, 6 in turn
         # every 5th game nobody declares: play runs until the bag is empty
         declare = 0.0 if i % 5 == 4 else 0.15 + (i % 3) * 0.1

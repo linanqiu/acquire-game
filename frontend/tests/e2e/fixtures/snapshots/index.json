@@ -1,7 +1,7 @@
 {
   "fixtures": [
     {
-      "actions": 153,
+      "actions": 200,
       "criteria_missed": [],
       "decision_kind": "buy_stocks",
       "decision_player": "p1",
@@ -14,10 +14,10 @@
       "name": "buy-phase-multi-chain",
       "phase": "buy_stocks",
       "players": 4,
-      "turns_completed": 44
+      "turns_completed": 56
     },
     {
-      "actions": 115,
+      "actions": 97,
       "criteria_missed": [],
       "decision_kind": "place_tile",
       "decision_player": "p1",
@@ -30,7 +30,7 @@
       "name": "dead-tile-in-hand",
       "phase": "place_tile",
       "players": 3,
-      "turns_completed": 36
+      "turns_completed": 30
     },
     {
       "actions": 175,
@@ -49,7 +49,7 @@
       "turns_completed": 56
     },
     {
-      "actions": 174,
+      "actions": 108,
       "criteria_missed": [],
       "decision_kind": "stock_disposition",
       "decision_player": "p1",
@@ -62,13 +62,13 @@
       "name": "disposition-trade-limited",
       "phase": "merger",
       "players": 3,
-      "turns_completed": 52
+      "turns_completed": 33
     },
     {
-      "actions": 159,
+      "actions": 120,
       "criteria_missed": [],
       "decision_kind": "stock_disposition",
-      "decision_player": "p3",
+      "decision_player": "p2",
       "description": "A merger is in progress; another player is deciding on defunct stock and the human (a stockholder) is queued behind them.",
       "file": "disposition-waiting-on-other.json",
       "human_decision_kinds": [],
@@ -76,10 +76,10 @@
       "name": "disposition-waiting-on-other",
       "phase": "merger",
       "players": 4,
-      "turns_completed": 46
+      "turns_completed": 37
     },
     {
-      "actions": 228,
+      "actions": 247,
       "criteria_missed": [],
       "decision_kind": "place_tile",
       "decision_player": "p1",
@@ -92,7 +92,7 @@
       "name": "end-game-available",
       "phase": "place_tile",
       "players": 4,
-      "turns_completed": 64
+      "turns_completed": 68
     },
     {
       "actions": 40,
@@ -111,7 +111,7 @@
       "turns_completed": 12
     },
     {
-      "actions": 196,
+      "actions": 243,
       "criteria_missed": [],
       "decision_kind": null,
       "decision_player": null,
@@ -122,10 +122,10 @@
       "name": "game-over",
       "phase": "game_over",
       "players": 4,
-      "turns_completed": 60
+      "turns_completed": 66
     },
     {
-      "actions": 230,
+      "actions": 195,
       "criteria_missed": [],
       "decision_kind": null,
       "decision_player": null,
@@ -136,10 +136,10 @@
       "name": "game-over-tie",
       "phase": "game_over",
       "players": 5,
-      "turns_completed": 66
+      "turns_completed": 53
     },
     {
-      "actions": 230,
+      "actions": 249,
       "criteria_missed": [],
       "decision_kind": "buy_stocks",
       "decision_player": "p1",
@@ -152,10 +152,10 @@
       "name": "last-turn-before-game-over",
       "phase": "buy_stocks",
       "players": 4,
-      "turns_completed": 64
+      "turns_completed": 68
     },
     {
-      "actions": 121,
+      "actions": 116,
       "criteria_missed": [],
       "decision_kind": "buy_stocks",
       "decision_player": "p1",
@@ -219,7 +219,7 @@
       "turns_completed": 0
     },
     {
-      "actions": 151,
+      "actions": 177,
       "criteria_missed": [],
       "decision_kind": "place_tile",
       "decision_player": "p1",
@@ -232,10 +232,10 @@
       "name": "safe-chain-on-board",
       "phase": "place_tile",
       "players": 3,
-      "turns_completed": 48
+      "turns_completed": 54
     },
     {
-      "actions": 150,
+      "actions": 154,
       "criteria_missed": [],
       "decision_kind": "place_tile",
       "decision_player": "p1",
@@ -251,7 +251,7 @@
       "turns_completed": 42
     },
     {
-      "actions": 133,
+      "actions": 134,
       "criteria_missed": [],
       "decision_kind": "place_tile",
       "decision_player": "p1",

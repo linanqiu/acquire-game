@@ -1,4 +1,4 @@
-"""Pytest fixtures for Acquire board game tests."""
+"""Pytest fixtures for Buyout board game tests."""
 
 import os
 import tempfile
@@ -10,12 +10,12 @@ import pytest
 # own directories, so tests never see each other's files, also under
 # ``pytest -n auto`` (workers inherit the master's environment, hence the
 # unconditional override in a worker).
-if os.environ.get("PYTEST_XDIST_WORKER") or "ACQUIRE_TRANSCRIPT_DIR" not in os.environ:
-    os.environ["ACQUIRE_TRANSCRIPT_DIR"] = tempfile.mkdtemp(
-        prefix="acquire-test-transcripts-"
+if os.environ.get("PYTEST_XDIST_WORKER") or "GAME_TRANSCRIPT_DIR" not in os.environ:
+    os.environ["GAME_TRANSCRIPT_DIR"] = tempfile.mkdtemp(
+        prefix="game-test-transcripts-"
     )
-if os.environ.get("PYTEST_XDIST_WORKER") or "ACQUIRE_BENCH_DIR" not in os.environ:
-    os.environ["ACQUIRE_BENCH_DIR"] = tempfile.mkdtemp(prefix="acquire-test-bench-")
+if os.environ.get("PYTEST_XDIST_WORKER") or "GAME_BENCH_DIR" not in os.environ:
+    os.environ["GAME_BENCH_DIR"] = tempfile.mkdtemp(prefix="game-test-bench-")
 from fastapi.testclient import TestClient
 
 from main import app, session_manager
@@ -26,8 +26,8 @@ from game.game import Game
 def isolated_data_dirs(tmp_path, monkeypatch):
     """Transcript and bench directories private to the running test (a test
     that needs specific ones sets the variables itself, after this)."""
-    monkeypatch.setenv("ACQUIRE_TRANSCRIPT_DIR", str(tmp_path / "transcripts"))
-    monkeypatch.setenv("ACQUIRE_BENCH_DIR", str(tmp_path / "bench"))
+    monkeypatch.setenv("GAME_TRANSCRIPT_DIR", str(tmp_path / "transcripts"))
+    monkeypatch.setenv("GAME_BENCH_DIR", str(tmp_path / "bench"))
 
 
 @pytest.fixture

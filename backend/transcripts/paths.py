@@ -2,10 +2,10 @@
 
 Read from the environment at call time (tests and deployments can change it):
 
-``ACQUIRE_TRANSCRIPT_DIR``  transcripts of live games. Default
+``GAME_TRANSCRIPT_DIR``  transcripts of live games. Default
                             ``backend/data/transcripts/``. Empty or ``off``
                             disables transcripts (nothing is written).
-``ACQUIRE_BENCH_DIR``       benchmark results directory served at ``/bench/*``
+``GAME_BENCH_DIR``       benchmark results directory served at ``/bench/*``
                             and ``/games?source=bench``. Default
                             ``backend/bench_results/``. Either one results
                             directory (``results.jsonl`` + ``transcripts/``) or
@@ -34,7 +34,7 @@ def _resolve(value: str) -> Path:
 
 def transcript_dir() -> Path | None:
     """Directory for live-game transcripts, or None when disabled."""
-    raw = os.environ.get("ACQUIRE_TRANSCRIPT_DIR")
+    raw = os.environ.get("GAME_TRANSCRIPT_DIR")
     if raw is None:
         return DEFAULT_TRANSCRIPT_DIR
     raw = raw.strip()
@@ -44,7 +44,7 @@ def transcript_dir() -> Path | None:
 
 
 def bench_dir() -> Path:
-    raw = (os.environ.get("ACQUIRE_BENCH_DIR") or "").strip()
+    raw = (os.environ.get("GAME_BENCH_DIR") or "").strip()
     return _resolve(raw) if raw else DEFAULT_BENCH_DIR
 
 

@@ -1,4 +1,4 @@
-"""Main game orchestration for Acquire board game."""
+"""Main game orchestration for Buyout board game."""
 
 from dataclasses import dataclass, field
 from enum import Enum
@@ -11,7 +11,7 @@ from game.hotel import Hotel
 from game.player import Player
 from game.rules import Rules, PlacementResult
 from game.ranking import competition_ranks
-from game.ruleset import Ruleset, classic, resolve
+from game.ruleset import Ruleset, default_ruleset, resolve
 from game.bot import Bot
 from game.responses import (
     PlayTileResult,
@@ -92,18 +92,18 @@ def trade_multiple_error(ratio: int) -> str:
 
 
 class Game:
-    """Main game class that orchestrates the full Acquire game.
+    """Main game class that orchestrates the full Buyout game.
 
     All parameters come from ``self.ruleset`` (passed explicitly; default
-    classic). The class constants below are aliases of the classic ruleset
+    default). The class constants below are aliases of the default ruleset
     kept for older callers and tests; the engine never reads them.
     """
 
-    MIN_PLAYERS = classic().min_players
-    MAX_PLAYERS = classic().max_players
-    STARTING_TILES = classic().hand_size
-    MAX_STOCKS_PER_TURN = classic().max_stock_purchases_per_turn
-    MAX_PENDING_TRADES_PER_PLAYER = classic().max_pending_trades_per_player
+    MIN_PLAYERS = default_ruleset().min_players
+    MAX_PLAYERS = default_ruleset().max_players
+    STARTING_TILES = default_ruleset().hand_size
+    MAX_STOCKS_PER_TURN = default_ruleset().max_stock_purchases_per_turn
+    MAX_PENDING_TRADES_PER_PLAYER = default_ruleset().max_pending_trades_per_player
 
     def __init__(
         self,
@@ -116,7 +116,7 @@ class Game:
         Args:
             seed: Optional random seed for reproducible games
             tile_order: Optional explicit tile order (list of tile strings like "1A", "2B")
-            ruleset: Game parameters (board, chains, prices, limits); default classic
+            ruleset: Game parameters (board, chains, prices, limits); default: the default ruleset
         """
         self.ruleset = resolve(ruleset)
         self.seed = seed
@@ -412,7 +412,7 @@ class Game:
     def handle_all_tiles_unplayable(self, player: Player) -> Optional[dict]:
         """Handle the case where a player has no playable tiles at turn start.
 
-        According to Acquire rules, if all tiles in a player's hand are unplayable
+        According to Buyout rules, if all tiles in a player's hand are unplayable
         at the start of their turn, they must:
         1. Reveal their hand to all players
         2. Set aside all unplayable tiles (removed from game, not back to tile bag)
@@ -719,7 +719,7 @@ class Game:
             self.board.set_chain(t, chain_name)
 
         # Give the founder free stock (ruleset founder_bonus_shares, 1 in
-        # classic); any share the bank cannot supply is paid as its price.
+        # default); any share the bank cannot supply is paid as its price.
         chain_size = self.board.get_chain_size(chain_name)
         stock_price = self.hotel.get_stock_price(chain_name, chain_size)
         wanted = self.ruleset.founder_bonus_shares
@@ -1312,7 +1312,7 @@ class Game:
     def can_declare_end_game(self) -> bool:
         """Check if the current player can declare the game over.
 
-        Per Acquire rules, a player MAY declare the game over when:
+        Per Buyout rules, a player MAY declare the game over when:
         1. Any single chain has reached the ruleset's end-game size, OR
         2. All active chains on the board are "safe"
 

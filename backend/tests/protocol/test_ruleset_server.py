@@ -6,7 +6,7 @@ import pytest
 
 from app_state import session_manager
 from config import get_ruleset
-from game.ruleset import classic, load_ruleset
+from game.ruleset import default_ruleset, load_ruleset
 from tests.protocol.helpers import (
     HumanClient,
     add_seat,
@@ -28,7 +28,7 @@ def mini_server(monkeypatch, fast_settings):
 def test_config_game_route_returns_the_configured_ruleset(app_client, monkeypatch):
     for path in ("/config/game", "/api/config/game"):
         body = app_client.get(path).json()
-        assert body == classic().public_dict()
+        assert body == {**default_ruleset().public_dict(), "brand": "Buyout"}
     from config import get_settings
 
     monkeypatch.setattr(get_settings(), "game_ruleset", "mini")
@@ -39,6 +39,19 @@ def test_config_game_route_returns_the_configured_ruleset(app_client, monkeypatc
         assert body["id"] == "mini" and body["fingerprint"] == MINI.fingerprint
         assert body["board"] == {"columns": 9, "rows": 7}
         assert [c["id"] for c in body["chains"]] == MINI.chain_ids
+        assert body["brand"] == "Buyout"
+
+
+def test_config_game_route_brand_is_its_own_setting(app_client, monkeypatch):
+    """The product name (GAME_BRAND_NAME) is separate from the theme title and
+    does not change the ruleset or its fingerprint."""
+    from config import get_settings
+
+    monkeypatch.setattr(get_settings(), "game_brand_name", "Testbrand")
+    body = app_client.get("/api/config/game").json()
+    assert body["brand"] == "Testbrand"
+    assert body["title"] == default_ruleset().title == "Grand Hotels"
+    assert body["fingerprint"] == default_ruleset().fingerprint
 
 
 def test_protocol_validation_uses_the_configured_ruleset(mini_server):
@@ -49,16 +62,18 @@ def test_protocol_validation_uses_the_configured_ruleset(mini_server):
     for bad in ("10A", "1H", "12I"):
         _, err = validate_websocket_message({"action": "place_tile", "tile": bad})
         assert err and "1A, 5E, 9G" in err
-    _, err = validate_websocket_message({"action": "found_chain", "chain": "Luxor"})
+    _, err = validate_websocket_message({"action": "found_chain", "chain": "juniper"})
     assert "Invalid chain" in err
-    ok, err = validate_websocket_message({"action": "found_chain", "chain": "harbor"})
+    ok, err = validate_websocket_message(
+        {"action": "found_chain", "chain": "sandpiper"}
+    )
     assert err is None
     _, err = validate_websocket_message(
-        {"action": "buy_stocks", "purchases": {"harbor": 5}}
+        {"action": "buy_stocks", "purchases": {"sandpiper": 5}}
     )
     assert "more than 4" in err
     ok, err = validate_websocket_message(
-        {"action": "buy_stocks", "purchases": {"harbor": 4}}
+        {"action": "buy_stocks", "purchases": {"sandpiper": 4}}
     )
     assert err is None
 
@@ -122,12 +137,12 @@ def test_live_llm_seat_on_mini_transcript_carries_the_text_it_used(
     app_client, mini_server, tmp_path, monkeypatch
 ):
     """An unpatched ``llm:fake`` seat in a room on ``mini``: the transcript's
-    header ``system_prompts`` is the mini prompt (no classic chain names), the
+    header ``system_prompts`` is the mini prompt (no default chain names), the
     decisions' prompt ids point at it, and the header names the ruleset."""
     from agents.llm.prompt import build_system_prompt, prompt_version, system_prompt_id
     from tests.protocol.helpers import watch_until_game_over
 
-    monkeypatch.setenv("ACQUIRE_TRANSCRIPT_DIR", str(tmp_path / "t"))
+    monkeypatch.setenv("GAME_TRANSCRIPT_DIR", str(tmp_path / "t"))
     client = app_client
     code = client.post("/create-spectator").json()["room_code"]
     add_seat(client, code, "llm:fake")
@@ -143,11 +158,12 @@ def test_live_llm_seat_on_mini_transcript_carries_the_text_it_used(
     sp = system_prompt_id(text, MINI)
     assert h["system_prompts"] == {sp: text}
     assert h["prompt_version"] == prompt_version(MINI)
-    assert h["prompt_version"] != prompt_version(classic())
+    assert h["prompt_version"] != prompt_version(default_ruleset())
     assert h["ruleset_id"] == "mini" and h["ruleset"] == MINI.to_dict()
     llm = [e["llm"] for e in t["entries"] if e["type"] == "decision" and e["llm"]]
     assert llm and {d["system_prompt_id"] for d in llm} == {sp}
-    for name in classic().chain_ids:
+    # mini uses five of the default chains; the other two must not appear
+    for name in set(default_ruleset().chain_ids) - set(MINI.chain_ids):
         assert name not in text
         assert all(name not in d["user_prompt"] for d in llm)
     detail = client.get(f"/api/games/{game_id}").json()
