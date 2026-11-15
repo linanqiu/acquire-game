@@ -10,6 +10,7 @@
 import { test, expect } from './support/journey'
 import { openHome, roomFromUrl } from './support/lobby'
 import { installObservers, observed } from './support/play'
+import { openTab } from '../support/tabs'
 
 test('spectator host view: watch an all-AI game to game over', async ({ page, journey: j }) => {
   test.setTimeout(240_000)
@@ -80,7 +81,10 @@ test('spectator host view: watch an all-AI game to game over', async ({ page, jo
       midShot = true
       await j.shot(page, 'host-mid-game')
       await expect(page.getByTestId('turn-marker')).toHaveCount(1)
+      await openTab(page, 'log')
       await expect(page.getByRole('log', { name: 'Game activity' })).toContainText('Bot 1 joined')
+      await j.shot(page, 'host-log-tab')
+      await openTab(page, 'players')
       // Refresh the host screen mid-game: the board and scoreboard come back.
       merge(await observed(page))
       j.log(`reload host page at ${last} tiles`)

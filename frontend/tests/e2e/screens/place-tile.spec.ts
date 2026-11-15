@@ -13,6 +13,7 @@ import {
 } from './support/ui'
 import type { Page } from '@playwright/test'
 import type { Shots } from './support/test'
+import { openTab } from '../support/tabs'
 
 /** Copy shown under the rack for each engine reason code. */
 const REASON_TEXT: Record<string, RegExp> = {
@@ -85,6 +86,7 @@ test('opening: empty board, six playable tiles, place one', async ({ page, shots
   for (const p of players) {
     await expect(playerRows(page).filter({ hasText: p.name })).toContainText(dollars(p.cash))
   }
+  await openTab(page, 'chains')
   await expect(page.getByTestId('portfolio-empty')).toBeVisible()
   await expect(page.getByTestId('header-tile-pool')).toHaveText(
     `[${room.fixture.expect.tiles_remaining}]`

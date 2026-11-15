@@ -210,6 +210,7 @@ describe('proposing a trade', () => {
   const open = () => {
     const view = loadSnapshotAsPlayer('buy-phase-multi-chain')
     mount()
+    fireEvent.click(screen.getByRole('tab', { name: /Trades/ }))
     fireEvent.click(screen.getByRole('button', { name: 'PROPOSE TRADE' }))
     const state = stateOf(view)
     const partner = Object.entries(state.players).find(([id]) => id !== view.human)!
@@ -256,6 +257,7 @@ describe('proposing a trade', () => {
   it('during a merger the builder warns that the shares involved cannot be traded', () => {
     loadSnapshotAsPlayer('disposition-human-first')
     mount()
+    fireEvent.click(screen.getByRole('tab', { name: /Trades/ }))
     fireEvent.click(screen.getByRole('button', { name: 'PROPOSE TRADE' }))
     expect(screen.getByTestId('trade-builder')).toHaveTextContent(/merger is in progress/)
   })

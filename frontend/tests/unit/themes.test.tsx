@@ -223,9 +223,9 @@ describe.each(THEMED)('%s ruleset', (_name, rs) => {
       String(rs.max_stock_purchases_per_turn)
     )
     expect(plus).toBeDisabled()
-    // The board stays on the page during the buy phase (folded only on phones, by CSS).
+    // The board stays on the page during the buy phase (a tab on phones).
     expect(screen.getByTestId('board')).toBeInTheDocument()
-    expect(screen.getByTestId('board-toggle')).toHaveTextContent('SHOW BOARD')
+    expect(screen.getByTestId('tab-board')).toHaveTextContent('Board')
     expectNoDefaultLeaks()
   })
 
@@ -314,7 +314,9 @@ describe.each(THEMED)('%s ruleset', (_name, rs) => {
     useGameStore.setState({ gameState: gameStateFor(rs, 'buy_stocks') })
     renderHost()
     expect(screen.getByTestId('header-title')).toHaveTextContent(BRAND.toUpperCase())
-    expect(screen.getByText(rs.theme.chain_noun_plural.toUpperCase())).toBeInTheDocument()
+    // The chains tab is named after the ruleset's chains ("AI startups" -> "Startups").
+    const last = rs.theme.chain_noun_plural.split(' ').pop()!
+    expect(screen.getByTestId('tab-chains')).toHaveTextContent(new RegExp(`^${last}$`, 'i'))
     const list = screen.getByTestId('chain-list')
     const safeChain = rs.chains[2]
     expect(

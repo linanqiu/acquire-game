@@ -55,3 +55,32 @@
   color: var(--text-primary);
   text-align: center;
 }
+
+/* The confirm button stays in view when the card scrolls inside a phone's "now" area. */
+.confirm {
+  position: sticky;
+  bottom: 0;
+  background-color: var(--bg-secondary);
+}
+
+/* Phones: the card sits above the rack and the tab bar; keep it short. */
+@media (max-width: 767px) {
+  .container,
+  .sliders {
+    gap: var(--space-2);
+  }
+
+  .info,
+  .hold,
+  .summary {
+    padding: var(--space-2);
+  }
+
+  .info {
+    gap: 0;
+  }
+
+  .confirm {
+    padding-bottom: var(--space-1);
+  }
+}

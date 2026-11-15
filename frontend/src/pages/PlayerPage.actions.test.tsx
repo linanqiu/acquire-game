@@ -132,22 +132,28 @@ describe('placing a tile', () => {
   })
 })
 
-describe('the board', () => {
-  it('folds away while a decision panel needs the room, and comes back on request', () => {
+describe('tabs on a phone', () => {
+  const tab = (name: RegExp) => screen.getByRole('tab', { name })
+
+  it('the board is a tab, open by default; the action card and rack stay outside the tabs', () => {
     loadSnapshotAsPlayer('found-chain-choice')
     renderPage()
-    const pane = screen.getByTestId('board-pane')
-    expect(pane).toHaveAttribute('data-folded', 'true')
-    expect(screen.getByTestId('board-toggle')).toHaveTextContent('SHOW BOARD')
-    fireEvent.click(screen.getByTestId('board-toggle'))
-    expect(pane).not.toHaveAttribute('data-folded')
-    expect(screen.getByTestId('board-toggle')).toHaveTextContent('HIDE BOARD')
+    expect(tab(/Board/)).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByTestId('tabpanel-board')).toContainElement(screen.getByTestId('board'))
+    fireEvent.click(tab(/Players/))
+    expect(screen.getByTestId('tabpanel-board')).not.toBeVisible()
+    expect(screen.getByTestId('tabpanel-players')).toBeVisible()
+    const now = screen.getByTestId('now-area')
+    expect(now).toContainElement(screen.getByTestId('chain-selector'))
+    expect(now).toContainElement(screen.getByTestId('tile-rack'))
   })
 
-  it('is open when the player is only placing a tile', () => {
+  it('marks the Board when my tile is to be placed and another tab is open', () => {
     loadSnapshotAsPlayer('opening-place-tile')
     renderPage()
-    expect(screen.getByTestId('board-pane')).not.toHaveAttribute('data-folded')
+    expect(screen.queryByTestId('tab-badge-board')).not.toBeInTheDocument()
+    fireEvent.click(tab(/Chat/))
+    expect(screen.getByTestId('tab-badge-board')).toBeInTheDocument()
   })
 })
 

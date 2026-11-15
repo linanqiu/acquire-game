@@ -10,6 +10,7 @@ import { test, expect } from './support/journey'
 import { addBot, createGame, startGame } from './support/lobby'
 import { Seat, installObservers, parseMoney } from './support/play'
 import { outgoingTo, proposeTrade, tradePanel } from './support/trade'
+import { openTab } from '../support/tabs'
 
 test('trade with AI: the bot accepts a generous offer and rejects a bad one', async ({
   page,
@@ -43,6 +44,7 @@ test('trade with AI: the bot accepts a generous offer and rejects a bad one', as
 
   // --- The builder refuses incomplete offers ------------------------------------------
   {
+    await openTab(page, 'trades')
     await page.getByTestId('trade-offers').getByRole('button', { name: 'PROPOSE TRADE' }).click()
     const builder = page.getByTestId('trade-builder')
     await builder.getByTestId('propose-trade').click()
@@ -62,7 +64,7 @@ test('trade with AI: the bot accepts a generous offer and rejects a bad one', as
     await seat.shot('builder-validation')
     await builder.getByTestId('cancel-trade').click()
     await expect(builder).toBeHidden()
-    await expect(tradePanel(page)).toContainText('No pending offers')
+    await expect(tradePanel(page)).toContainText('No offers of yours pending')
   }
 
   // --- Generous: 2 shares for $100 -> accepted --------------------------------------
@@ -95,7 +97,7 @@ test('trade with AI: the bot accepts a generous offer and rejects a bad one', as
     await proposeTrade(seat, { partner: 'Bot 1', offerCash: 50, wantCash: 1000 }, 'bad')
     await expect(page.getByText('Bot 1 rejected your offer')).toBeVisible({ timeout: 20_000 })
     await expect(outgoingTo(page, 'Bot 1')).toHaveCount(0)
-    await expect(tradePanel(page)).toContainText('No pending offers')
+    await expect(tradePanel(page)).toContainText('No offers of yours pending')
     expect(await seat.cash()).toBe(myCash)
     expect(await botCash()).toBe(theirCash)
     await seat.shot('bad-rejected')

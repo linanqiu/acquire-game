@@ -10,6 +10,8 @@ import { test, expect, type Shots } from './support/test'
 import { startFromSnapshot, type RoomContext } from './support/room'
 import { dollars, loadFixture } from './support/fixtures'
 import { phaseBanner, playHumanTurns } from './support/ui'
+import { layoutProblems } from './support/layout'
+import { openTab, tab, tabBadge, type TabName } from '../support/tabs'
 
 const DESKTOP = { width: 1366, height: 768 }
 const PHONE = { width: 390, height: 844 }
@@ -25,39 +27,23 @@ async function openHost(browser: Browser, room: RoomContext, viewport = DESKTOP)
   return host
 }
 
-/** Boxes of the given test ids: none leaves the screen sideways, no two overlap. */
-async function layoutProblems(page: Page, ids: string[]): Promise<string[]> {
-  return page.evaluate((ids) => {
-    const width = document.documentElement.clientWidth
-    const out: string[] = []
-    if (document.documentElement.scrollWidth > width) out.push('page scrolls sideways')
-    const boxes = ids
-      .map((id) => {
-        const el = document.querySelector(`[data-testid="${id}"]`)
-        if (!el) return null
-        const r = el.getBoundingClientRect()
-        return {
-          id,
-          left: r.left,
-          right: r.right,
-          top: r.top + window.scrollY,
-          bottom: r.bottom + window.scrollY,
-        }
-      })
-      .filter((b): b is NonNullable<typeof b> => b !== null && b.right > b.left)
-    for (const b of boxes) {
-      if (b.left < -0.5 || b.right > width + 0.5) out.push(`${b.id} leaves the screen`)
-    }
-    for (let i = 0; i < boxes.length; i++) {
-      for (let j = i + 1; j < boxes.length; j++) {
-        const [a, b] = [boxes[i], boxes[j]]
-        const x = Math.min(a.right, b.right) - Math.max(a.left, b.left)
-        const y = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)
-        if (x > 1 && y > 1) out.push(`${a.id} overlaps ${b.id}`)
-      }
-    }
-    return out
-  }, ids)
+/** Open each tab in turn: it, the merger result and the "now" area fit without overlapping. */
+async function expectTabsFit(page: Page, shots: Shots, label: string, tabs: TabName[]) {
+  const phone = (await tab(page, 'board').count()) > 0
+  for (const name of tabs) {
+    await openTab(page, name)
+    await expect(page.getByTestId('merger-result')).toBeVisible()
+    expect(
+      await layoutProblems(page, [
+        'game-phase',
+        'merger-banner',
+        `tabpanel-${name}`,
+        'now-area',
+        ...(phone ? ['tab-bar'] : ['board-pane', 'tab-list']),
+      ])
+    ).toEqual([])
+    await shots.take(page, `${label}-${name}`, { fullPage: false })
+  }
 }
 
 /** Net worth, rank and the majority/minority lines match the fixture's engine figures. */
@@ -115,23 +101,12 @@ async function tableView(
   })
   await expectTableView(page, room)
   await expect(page.getByTestId('tile-rack')).toBeInViewport()
-  expect(
-    await layoutProblems(page, [
-      'board-pane',
-      'action-panel',
-      'merger-result',
-      'players-panel',
-      'chain-list',
-    ])
-  ).toEqual([])
-  await shots.take(page, `${label}-player`)
+  // Each reference tab next to the merger result (open, on top) and the "now" area.
+  await expectTabsFit(page, shots, `${label}-player`, ['players', 'chains'])
 
   const host = await openHost(browser, room, vp)
   await expectTableView(host, room, true)
-  expect(
-    await layoutProblems(host, ['board', 'scoreboard', 'chain-list', 'merger-result'])
-  ).toEqual([])
-  await shots.take(host, `${label}-host`)
+  await expectTabsFit(host, shots, `${label}-host`, ['players', 'chains'])
 }
 
 test('table view on desktop: net worth, ranks and majority/minority holders, player and host', async ({
@@ -204,10 +179,11 @@ test('merger result: bonuses at once, then each stockholder decision as it comes
   await shots.take(page, 'player-merger-done')
   await shots.take(host, 'host-merger-done')
 
-  // Close it; it stays available from the log.
+  // Close it; it stays available from the log (the Trades tab on the player page, Log on the host).
   for (const p of [page, host]) {
     await p.getByTestId('merger-result-dismiss').click()
     await expect(p.getByTestId('merger-result')).toHaveCount(0)
+    await openTab(p, p === page ? 'trades' : 'log')
     await p.getByTestId(`merger-log-${merger.seq}`).click()
     await expect(p.getByTestId('merger-result')).toBeVisible()
     await p.getByTestId('merger-result-dismiss').click()
@@ -226,10 +202,13 @@ test("merger result after the human's own merger (survivor chosen on screen)", a
   // Who gets the defunct chain's bonuses is fixed by the holdings in the fixture.
   const holders = room.fixture.expect.chain_holders[defunct].holders.filter((h) => h.bonus > 0)
   await expect(page.getByTestId('merger-result')).toHaveCount(0)
+  await expect(tabBadge(page, 'trades')).toHaveCount(0)
   await page.getByTestId(`chain-button-${survivor}`).click()
 
   const card = page.getByTestId('merger-result')
   await expect(card).toBeVisible()
+  // The new merger also marks the tab with the log until it is opened.
+  await expect(tabBadge(page, 'trades')).toBeVisible()
   await expect(page.getByTestId('merger-result-title')).toContainText(
     new RegExp(`${survivor} takes over ${defunct}`, 'i')
   )
@@ -245,6 +224,9 @@ test("merger result after the human's own merger (survivor chosen on screen)", a
     /grows from \d+ to \d+ tiles/
   )
   await shots.take(page, 'own-merger-done')
+  await openTab(page, 'trades')
+  await expect(tabBadge(page, 'trades')).toHaveCount(0)
+  await expect(page.getByTestId('merger-log')).toContainText(new RegExp(`${survivor}`, 'i'))
 })
 
 async function rackOnScreen(page: Page, shots: Shots, label: string, fixture: string) {
@@ -253,9 +235,12 @@ async function rackOnScreen(page: Page, shots: Shots, label: string, fixture: st
   await expect(page.getByTestId('tile-rack')).toBeInViewport({ ratio: 1 })
   await expect(page.getByTestId('board').getByTestId('tile-12I')).toBeInViewport({ ratio: 1 })
   await expect(page.getByTestId('action-panel')).toBeInViewport()
-  expect(
-    await layoutProblems(page, ['board-pane', 'action-panel', 'players-panel', 'chain-list'])
-  ).toEqual([])
+  for (const name of ['players', 'chains', 'chat', 'trades'] as const) {
+    await openTab(page, name)
+    expect(
+      await layoutProblems(page, ['board-pane', 'now-area', 'tab-list', `tabpanel-${name}`])
+    ).toEqual([])
+  }
   await shots.take(page, label, { fullPage: false })
 }
 

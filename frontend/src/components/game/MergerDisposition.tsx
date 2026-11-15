@@ -121,9 +121,11 @@ export function MergerDisposition({
           {tradeCount} (+{sharesFromTrade} {survivorName.toUpperCase()}) | HOLD {holdCount}
         </div>
 
-        <Button fullWidth onClick={handleConfirm} data-testid="confirm-disposition">
-          CONFIRM DISPOSITION
-        </Button>
+        <div className={styles.confirm}>
+          <Button fullWidth onClick={handleConfirm} data-testid="confirm-disposition">
+            CONFIRM DISPOSITION
+          </Button>
+        </div>
       </div>
     </Card>
   )

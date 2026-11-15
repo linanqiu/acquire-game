@@ -76,58 +76,6 @@
   font-style: italic;
 }
 
-/* In-game layout: board pane + side pane (decision panel, trades, players, portfolio).
-   Phones: one column, the board first (foldable while a decision panel needs the room).
-   Laptops and up: the board keeps its own column and is never hidden. */
-.gameLayout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-3);
-  align-items: start;
-}
-
-.boardPane {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  min-width: 0;
-}
-
-.boardBody {
-  min-width: 0;
-}
-
-.boardFolded .boardBody {
-  display: none;
-}
-
-.boardToggle {
-  align-self: stretch;
-  padding: var(--space-1) var(--space-3);
-  background-color: var(--bg-tertiary);
-  color: var(--text-primary);
-  border: var(--border-default);
-  border-radius: var(--radius-md);
-  font: inherit;
-  font-size: var(--text-sm);
-  font-weight: var(--font-bold);
-  letter-spacing: 0.05em;
-  cursor: pointer;
-  min-height: 34px;
-}
-
-.boardToggle:focus-visible {
-  outline: 2px solid var(--text-accent);
-  outline-offset: 2px;
-}
-
-.sidePane {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  min-width: 0;
-}
-
 .hintText {
   margin: 0;
   color: var(--text-secondary);
@@ -135,46 +83,26 @@
   text-align: center;
 }
 
-@media (min-width: 900px) {
-  .gameLayout {
-    grid-template-columns: minmax(0, 3fr) minmax(360px, 2fr);
-  }
-
-  /* The board and the rack under it stay in view while the side pane scrolls. The board is
-     sized to leave room for the header, the phase bar and the rack (about 190px together). */
-  .boardPane {
-    position: sticky;
-    top: var(--space-2);
-    --board-max-height: calc(100vh - 205px);
-  }
-
-  .boardToggle {
-    display: none;
-  }
-
-  .boardFolded .boardBody {
-    display: block;
-  }
-}
-
-/* Desktop: the rack right under the board, in the same sticky column. */
-.rackUnderBoard {
-  background-color: var(--bg-secondary);
-  border: var(--border-default);
-  border-radius: var(--radius-md);
-}
-
-/* "What I must do now": first in the side pane, highlighted when it is on me. */
+/* "What I must do now": in the "now" area (sidebar top / phone dock), highlighted when it is
+   on me. */
 .actionCard {
-  padding: var(--space-3);
+  padding: var(--space-2) var(--space-3);
   background-color: var(--bg-secondary);
   border: var(--border-default);
   border-radius: var(--radius-md);
+}
+
+.actionMine {
+  border-color: var(--text-accent);
 }
 
 /* Panels that bring their own card (buy, disposition) fill the action card: one frame, not two. */
 .actionBare {
   padding: 0;
+}
+
+.actionBare .buyingActions {
+  padding: 0 var(--space-3) var(--space-3);
 }
 
 .actionBare > *,
@@ -184,13 +112,11 @@
   background: transparent;
 }
 
-/* Reference cards: players, chains, history. Small type, little chrome. */
-.refCard {
-  padding: var(--space-2) var(--space-3);
-  background-color: var(--bg-secondary);
-  border: var(--border-default);
-  border-radius: var(--radius-md);
-  min-width: 0;
+/* The Trades tab: my offers, then the log of mergers. */
+.tradesTab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
 .refTitle {
@@ -248,8 +174,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-6);
+  gap: var(--space-2);
+  padding: var(--space-2);
   color: var(--text-secondary);
 }
 
@@ -345,7 +271,7 @@
 }
 
 /* Mobile Responsive */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .content {
     gap: var(--space-3);
   }
@@ -363,8 +289,21 @@
     flex-direction: column;
   }
 
+  .stockPurchaseForm {
+    gap: var(--space-2);
+  }
+
   .purchaseRow {
     flex-wrap: wrap;
+    row-gap: 0;
+  }
+
+  /* END TURN stays in view while the chain list scrolls inside the "now" area. */
+  .actionBare .buyingActions {
+    position: sticky;
+    bottom: 0;
+    padding: var(--space-2) var(--space-3);
+    background-color: var(--bg-secondary);
   }
 
   .placementActions {
@@ -397,8 +336,4 @@
     left: var(--space-4);
     bottom: 96px;
   }
-}
-
-.actionBare .buyingActions {
-  padding: 0 var(--space-3) var(--space-3);
 }

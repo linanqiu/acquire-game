@@ -42,3 +42,14 @@
 .cardBody {
   padding: var(--space-4);
 }
+
+/* Phones: decision cards share the screen with the rack and the tab bar. */
+@media (max-width: 767px) {
+  .cardHeader {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .cardBody {
+    padding: var(--space-2) var(--space-3);
+  }
+}

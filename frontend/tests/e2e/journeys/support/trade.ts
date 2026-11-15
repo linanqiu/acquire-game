@@ -1,8 +1,10 @@
 /**
- * Trading through the TRADES panel and the Propose Trade modal, UI only.
+ * Trading through the Trades tab, the offers shown in the "now" area and the Propose Trade
+ * modal, UI only.
  */
 import { expect, type Locator, type Page } from '@playwright/test'
 import type { Seat } from './play'
+import { openTab } from '../../support/tabs'
 
 export interface TradeSpec {
   /** Partner's display name (as shown in the builder's TRADE WITH list). */
@@ -20,6 +22,7 @@ export function tradePanel(page: Page): Locator {
 /** Open the builder from the TRADES panel, fill it in, PROPOSE. Returns the outgoing offer row. */
 export async function proposeTrade(seat: Seat, spec: TradeSpec, label: string): Promise<Locator> {
   const page = seat.page
+  await openTab(page, 'trades', { tap: seat.policy.touch })
   const panel = tradePanel(page)
   await expect(panel).toBeVisible()
   const outgoingBefore = await panel.locator('[data-testid^="trade-outgoing-"]').count()
@@ -52,9 +55,11 @@ export async function proposeTrade(seat: Seat, spec: TradeSpec, label: string): 
   return rows.last()
 }
 
-/** The single incoming offer from `from` in the TRADES panel. */
+/** The single incoming offer from `from`: in the "now" area, whatever tab is open. */
 export function incomingFrom(page: Page, from: string): Locator {
-  return tradePanel(page).locator('[data-testid^="trade-offer-"]', { hasText: from })
+  return page
+    .getByTestId('trade-incoming')
+    .locator('[data-testid^="trade-offer-"]', { hasText: from })
 }
 
 export function outgoingTo(page: Page, to: string): Locator {

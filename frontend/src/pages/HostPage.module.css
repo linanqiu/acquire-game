@@ -173,35 +173,19 @@
   color: var(--text-secondary);
 }
 
-/* Game Layout */
-/* Board left, one scrolling side column right (result, players, chains, trades, activity, chat). */
-.gameLayout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 420px;
-  grid-template-rows: minmax(0, 1fr);
-  gap: var(--space-3);
-  height: calc(100vh - 100px);
-  box-sizing: border-box;
-}
-
-/* The board fills its cell: squares sized from the cell's width and height (any ruleset grid). */
-.boardSection {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  grid-row: 1;
-  min-width: 0;
-  min-height: 0;
-  --board-max-height: calc(100vh - 110px);
-}
-
-.sidebar {
+/* The Log tab: pending trades, then the activity (mergers and lobby events). */
+.logTab {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  grid-row: 1;
-  overflow-y: auto;
-  min-width: 0;
+  gap: var(--space-3);
+}
+
+.logTitle {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  color: var(--text-secondary);
+  letter-spacing: 0.05em;
 }
 
 .activityLog {
@@ -239,47 +223,6 @@
   color: var(--error);
 }
 
-/* Readable from a sofa, without the old 24px panel headings that took a third of the column. */
-.gameLayout {
-  font-size: 15px;
-}
-
-/* Responsive - for smaller host displays */
-@media (max-width: 1200px) {
-  .gameLayout {
-    grid-template-columns: minmax(0, 1fr) 380px;
-  }
-}
-
-@media (max-width: 1024px) {
-  /* One column: board, then the panels, then the activity log. Each needs its own row: the
-     desktop rule puts board and sidebar both in row 1, which stacked them on top of each other
-     on phones and tablets. */
-  .gameLayout {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto;
-    height: auto;
-  }
-
-  .boardSection {
-    grid-row: 1;
-    --board-max-height: 70vh;
-  }
-
-  .sidebar {
-    grid-row: 2;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
-    align-items: start;
-    overflow: visible;
-    min-width: 0;
-  }
-
-  .sidebar > * {
-    min-width: 0;
-  }
-}
-
 @media (max-width: 768px) {
   .lobbyTitle {
     font-size: 48px;
@@ -311,11 +254,6 @@
 
   .lobbyActions {
     flex-direction: column;
-  }
-
-  .gameLayout {
-    gap: var(--space-2);
-    font-size: 14px;
   }
 
   .hostHeader {

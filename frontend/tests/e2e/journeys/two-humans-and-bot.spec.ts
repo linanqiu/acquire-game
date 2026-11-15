@@ -12,6 +12,7 @@ import { test, expect } from './support/journey'
 import { addBot, createGame, expectInLobby, joinGame, startGame } from './support/lobby'
 import { Seat, installObservers, parseMoney, playTogether } from './support/play'
 import { incomingFrom, outgoingTo, proposeTrade, tradePanel } from './support/trade'
+import { openTab } from '../support/tabs'
 
 const TURNS_EACH = 11
 
@@ -166,7 +167,9 @@ test('two humans and a bot: join by code, play, trade accept/reject/cancel', asy
     await expect(b.getByText('Alice withdrew their offer')).toBeVisible()
     await expect(offer).toHaveCount(0)
     await expect(outgoingTo(a, 'Bob')).toHaveCount(0)
-    await expect(tradePanel(b)).toContainText('No pending offers')
+    await expect(b.getByTestId('trade-incoming')).toHaveCount(0)
+    await openTab(b, 'trades')
+    await expect(tradePanel(b)).toContainText('No offers of yours pending')
     expect(await cashBoth()).toEqual(before)
     await alice.shot('trade3-canceled')
   }

@@ -18,6 +18,11 @@ export interface TradeOffersProps {
   onReject: (tradeId: string) => void
   onCancel: (tradeId: string) => void
   onPropose: () => void
+  /**
+   * `incoming`: offers waiting for my answer (shown in the "now" area whatever tab is open;
+   * nothing when there are none). `mine`: my own pending offers and PROPOSE TRADE (Trades tab).
+   */
+  part: 'incoming' | 'mine'
 }
 
 function Side({
@@ -70,6 +75,7 @@ export function TradeOffers({
   onReject,
   onCancel,
   onPropose,
+  part,
 }: TradeOffersProps) {
   // Ids we have already responded to: buttons stay disabled until the offer disappears
   // (or a few seconds pass, in case the server refused the action).
@@ -90,110 +96,120 @@ export function TradeOffers({
   const me = players[myPlayerId]
   const rules = useRules()
 
+  if (part === 'incoming' && incoming.length === 0) return null
+
   return (
     <section
-      className={`${styles.panel} ${incoming.length > 0 ? styles.attention : ''}`}
-      data-testid="trade-offers"
-      aria-label="Trade offers"
+      className={`${styles.panel} ${part === 'incoming' ? styles.attention : ''}`}
+      data-testid={part === 'incoming' ? 'trade-incoming' : 'trade-offers'}
+      aria-label={part === 'incoming' ? 'Trade offers for you' : 'Your trade offers'}
     >
-      <header className={styles.header}>
-        <h4 className={styles.title}>
-          TRADES
-          {incoming.length > 0 && (
+      {part === 'incoming' ? (
+        <header className={styles.header}>
+          <h4 className={styles.title}>
+            TRADE OFFER{incoming.length > 1 ? 'S' : ''} FOR YOU
             <span className={styles.count} data-testid="trade-incoming-count">
               {incoming.length} NEW
             </span>
+          </h4>
+        </header>
+      ) : (
+        <header className={styles.header}>
+          <h4 className={styles.title}>TRADES</h4>
+          {outgoing.length === 0 && (
+            <span className={styles.empty}>No offers of yours pending</span>
           )}
-        </h4>
-        {offers.length === 0 && <span className={styles.empty}>No pending offers</span>}
-        <Button variant="secondary" size="sm" onClick={onPropose}>
-          PROPOSE TRADE
-        </Button>
-      </header>
+          <Button variant="secondary" size="sm" onClick={onPropose}>
+            PROPOSE TRADE
+          </Button>
+        </header>
+      )}
 
-      {incoming.map((offer) => {
-        const proposer = players[offer.from_player_id]
-        const reason = incomingBlockReason(offer, me, proposer, rules.rs)
-        const busy = acting.has(offer.trade_id)
-        return (
-          <div
-            key={offer.trade_id}
-            className={styles.offer}
-            data-testid={`trade-offer-${offer.trade_id}`}
-          >
-            <div className={styles.offerHead}>
-              <PlayerName id={offer.from_player_id} party={proposer} />
-              <span className={styles.verb}>offers you a trade</span>
+      {part === 'incoming' &&
+        incoming.map((offer) => {
+          const proposer = players[offer.from_player_id]
+          const reason = incomingBlockReason(offer, me, proposer, rules.rs)
+          const busy = acting.has(offer.trade_id)
+          return (
+            <div
+              key={offer.trade_id}
+              className={styles.offer}
+              data-testid={`trade-offer-${offer.trade_id}`}
+            >
+              <div className={styles.offerHead}>
+                <PlayerName id={offer.from_player_id} party={proposer} />
+                <span className={styles.verb}>offers you a trade</span>
+              </div>
+              <Side label="They give" stocks={offer.offering_stocks} money={offer.offering_money} />
+              <Side
+                label="They want"
+                stocks={offer.requesting_stocks}
+                money={offer.requesting_money}
+              />
+              {reason && (
+                <p className={styles.reason} data-testid={`trade-reason-${offer.trade_id}`}>
+                  {reason}
+                </p>
+              )}
+              <div className={styles.actions}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => act(offer.trade_id, onReject)}
+                  disabled={busy}
+                  data-testid={`trade-reject-${offer.trade_id}`}
+                >
+                  REJECT
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => act(offer.trade_id, onAccept)}
+                  disabled={busy || reason !== null}
+                  title={reason ?? undefined}
+                  data-testid={`trade-accept-${offer.trade_id}`}
+                >
+                  ACCEPT
+                </Button>
+              </div>
             </div>
-            <Side label="They give" stocks={offer.offering_stocks} money={offer.offering_money} />
-            <Side
-              label="They want"
-              stocks={offer.requesting_stocks}
-              money={offer.requesting_money}
-            />
-            {reason && (
-              <p className={styles.reason} data-testid={`trade-reason-${offer.trade_id}`}>
-                {reason}
-              </p>
-            )}
-            <div className={styles.actions}>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => act(offer.trade_id, onReject)}
-                disabled={busy}
-                data-testid={`trade-reject-${offer.trade_id}`}
-              >
-                REJECT
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => act(offer.trade_id, onAccept)}
-                disabled={busy || reason !== null}
-                title={reason ?? undefined}
-                data-testid={`trade-accept-${offer.trade_id}`}
-              >
-                ACCEPT
-              </Button>
-            </div>
-          </div>
-        )
-      })}
+          )
+        })}
 
-      {outgoing.map((offer) => {
-        const target = players[offer.to_player_id]
-        const busy = acting.has(offer.trade_id)
-        return (
-          <div
-            key={offer.trade_id}
-            className={`${styles.offer} ${styles.outgoing}`}
-            data-testid={`trade-outgoing-${offer.trade_id}`}
-          >
-            <div className={styles.offerHead}>
-              <span className={styles.verb}>Your offer to</span>
-              <PlayerName id={offer.to_player_id} party={target} />
-              <span className={styles.pending}>waiting</span>
+      {part === 'mine' &&
+        outgoing.map((offer) => {
+          const target = players[offer.to_player_id]
+          const busy = acting.has(offer.trade_id)
+          return (
+            <div
+              key={offer.trade_id}
+              className={`${styles.offer} ${styles.outgoing}`}
+              data-testid={`trade-outgoing-${offer.trade_id}`}
+            >
+              <div className={styles.offerHead}>
+                <span className={styles.verb}>Your offer to</span>
+                <PlayerName id={offer.to_player_id} party={target} />
+                <span className={styles.pending}>waiting</span>
+              </div>
+              <Side label="You give" stocks={offer.offering_stocks} money={offer.offering_money} />
+              <Side
+                label="You want"
+                stocks={offer.requesting_stocks}
+                money={offer.requesting_money}
+              />
+              <div className={styles.actions}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => act(offer.trade_id, onCancel)}
+                  disabled={busy}
+                  data-testid={`trade-cancel-${offer.trade_id}`}
+                >
+                  CANCEL OFFER
+                </Button>
+              </div>
             </div>
-            <Side label="You give" stocks={offer.offering_stocks} money={offer.offering_money} />
-            <Side
-              label="You want"
-              stocks={offer.requesting_stocks}
-              money={offer.requesting_money}
-            />
-            <div className={styles.actions}>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => act(offer.trade_id, onCancel)}
-                disabled={busy}
-                data-testid={`trade-cancel-${offer.trade_id}`}
-              >
-                CANCEL OFFER
-              </Button>
-            </div>
-          </div>
-        )
-      })}
+          )
+        })}
     </section>
   )
 }
