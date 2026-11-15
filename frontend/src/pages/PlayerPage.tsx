@@ -17,6 +17,7 @@ import { TradeOffers } from '../components/game/TradeOffers'
 import { ReconnectionOverlay } from '../components/game/ReconnectionOverlay'
 import { ReconnectedToast } from '../components/game/ReconnectedToast'
 import { GameOver } from '../components/game/GameOver'
+import { ChatPanel } from '../components/game/ChatPanel'
 import { buildFinalScores } from '../lib/finalScores'
 import { roomUnavailable } from '../lib/roomAvailability'
 import { waitingMessage } from '../lib/waiting'
@@ -474,6 +475,7 @@ export function PlayerPage() {
             </div>
           </div>
         )}
+        {!unavailable && <ChatPanel room={room} />}
 
         {trades.builderOpen && (
           <Modal

@@ -3,12 +3,14 @@ import { VirtualList } from './VirtualList'
 import { describeAction } from '../../lib/eventText'
 import { useRules } from '../../ruleset/useRules'
 import type { Replay, ReplayStep } from '../../lib/replay'
+import type { ChatEntry } from '../../types/transcripts'
 import styles from './Timeline.module.css'
 
 type Row =
   | { kind: 'start' }
   | { kind: 'turn'; turn: number; playerId: string | null }
   | { kind: 'step'; step: ReplayStep }
+  | { kind: 'chat'; step: number; entry: ChatEntry }
 
 const SOURCE_MARK: Record<string, string> = {
   human: 'H',
@@ -33,11 +35,16 @@ export function Timeline({ replay, names, current, onSelect }: TimelineProps) {
   const { rows, activeIndex } = useMemo(() => {
     const rows: Row[] = [{ kind: 'start' }]
     let activeIndex = 0
+    const chatRows = (s: ReplayStep) => {
+      for (const entry of s.chat ?? []) rows.push({ kind: 'chat', step: s.step, entry })
+    }
+    if (replay.steps[0]) chatRows(replay.steps[0])
     for (const g of replay.groups) {
       rows.push({ kind: 'turn', turn: g.turn, playerId: g.playerId })
       for (const s of g.steps) {
         if (s.step === current) activeIndex = rows.length
         rows.push({ kind: 'step', step: s })
+        chatRows(s)
       }
     }
     return { rows, activeIndex }
@@ -71,6 +78,26 @@ export function Timeline({ replay, names, current, onSelect }: TimelineProps) {
               TURN {row.turn}
               {row.playerId ? ` · ${names[row.playerId] ?? row.playerId}` : ''}
             </div>
+          )
+        }
+        if (row.kind === 'chat') {
+          const c = row.entry
+          // Table talk: plain text (never HTML); selecting it shows the step it followed.
+          return (
+            <button
+              className={`${styles.row} ${styles.chat}`}
+              onClick={() => onSelect(row.step)}
+              title={`${c.name}: ${c.text}`}
+              data-testid="timeline-chat"
+              data-source={c.source}
+            >
+              <span className={styles.num} aria-hidden="true">
+                “
+              </span>
+              <span className={styles.who}>{c.name}</span>
+              <span className={styles.text}>{c.text}</span>
+              <span className={styles.mark}>CHAT</span>
+            </button>
           )
         }
         const s = row.step

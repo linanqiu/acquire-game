@@ -12,6 +12,7 @@ import { Board } from '../components/game/Board'
 import { ChainMarker } from '../components/game/ChainMarker'
 import { PlayerCard, type StockHolding } from '../components/game/PlayerCard'
 import { GameOver } from '../components/game/GameOver'
+import { ChatPanel } from '../components/game/ChatPanel'
 import { AddAiControl } from '../components/game/AddAiControl'
 import { ReconnectionOverlay } from '../components/game/ReconnectionOverlay'
 import { SeatKindBadge } from '../components/game/SeatKindBadge'
@@ -371,6 +372,7 @@ export function HostPage() {
   return (
     <RulesetScope ruleset={gameState?.ruleset}>
       {renderPage()}
+      {!unavailable && <ChatPanel room={room} mode="spectator" />}
       {hasConnected && connectionStatus !== 'connected' && !unavailable && (
         <ReconnectionOverlay
           connectionStatus={connectionStatus === 'disconnected' ? 'disconnected' : 'reconnecting'}

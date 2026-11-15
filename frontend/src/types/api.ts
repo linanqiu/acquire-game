@@ -229,6 +229,38 @@ export interface PingMessage {
   type: 'ping'
 }
 
+// =============================================================================
+// Table chat (docs/architecture/seat-contract.md, "Table chat")
+// =============================================================================
+
+/** One public table-chat message. `text` is plain text: render it as text, never as HTML. */
+export interface ChatMessage {
+  id: number
+  player_id: string
+  name: string
+  kind: SeatKind
+  /** `human`: typed by a player; `say`: posted by an AI with its move; `reply`: AI table talk. */
+  source: 'human' | 'say' | 'reply'
+  text: string
+  /** ISO-8601 UTC. */
+  at: string
+  /** Seq of the last game event before the message (-1 in the lobby). */
+  after_seq: number
+  /** The message an AI reply answers, when it answers one. */
+  reply_to: number | null
+}
+
+export interface ChatMessageMessage {
+  type: 'chat_message'
+  message: ChatMessage
+}
+
+/** Recent messages, sent on (re)connect when anything was said. */
+export interface ChatHistoryMessage {
+  type: 'chat_history'
+  messages: ChatMessage[]
+}
+
 export type WebSocketMessage =
   | GameStateMessage
   | LobbyUpdateMessage
@@ -245,6 +277,8 @@ export type WebSocketMessage =
   | TradeRejectedMessage
   | TradeCanceledMessage
   | AgentFallbackMessage
+  | ChatMessageMessage
+  | ChatHistoryMessage
   | PingMessage
 
 // =============================================================================

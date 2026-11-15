@@ -214,8 +214,37 @@ export interface EventEntry {
   event: EngineEvent
 }
 
+/** A table-chat message, in order with the events (`after_seq`: -1 in the lobby). */
+export interface ChatEntry {
+  type: 'chat'
+  id: number
+  player_id: string
+  name: string
+  kind: string
+  source: 'human' | 'say' | 'reply'
+  text: string
+  at: string
+  after_seq: number
+  reply_to: number | null
+  /** The decision a `say` was posted with. */
+  decision_index: number | null
+}
+
+/** One off-turn table-talk call of an LLM seat (its tokens count in the totals). */
+export interface ChatReplyEntry {
+  type: 'chat_reply'
+  after_seq: number
+  player_id: string
+  trigger: { source: string; message_id: number | null; events: string[] } | null
+  reply_to: number | null
+  outcome: 'replied' | 'silent' | 'failed' | 'dropped'
+  message_id: number | null
+  latency_s: number | null
+  llm: Record<string, unknown> | null
+}
+
 /** An entry of `transcript.entries`, in file order: `decision -> its events -> state`. */
-export type TranscriptEntry = DecisionEntry | StateEntry | EventEntry
+export type TranscriptEntry = DecisionEntry | StateEntry | EventEntry | ChatEntry | ChatReplyEntry
 
 export interface Transcript {
   header: TranscriptHeader
