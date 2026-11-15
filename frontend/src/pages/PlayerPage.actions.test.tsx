@@ -113,7 +113,6 @@ describe('the buy form', () => {
 })
 
 describe('placing a tile', () => {
-
   it('on my turn the page says to pick a tile; when I am only waiting it does not', () => {
     loadSnapshotAsPlayer('opening-place-tile')
     const mine = renderPage()

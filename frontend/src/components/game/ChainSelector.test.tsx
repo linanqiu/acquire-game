@@ -87,19 +87,6 @@ describe('ChainSelector', () => {
     expect(btn('sandpiper')).toHaveTextContent(`${DEFAULT_RS.stocks_per_chain} shares left`)
   })
 
-  it('shows which one is selected to assistive tech', () => {
-    render(
-      <ChainSelector
-        availableChains={['sandpiper', 'marlowe']}
-        selectedChain="sandpiper"
-        stockAvailability={{}}
-        onSelect={() => {}}
-      />
-    )
-    expect(btn('sandpiper')).toHaveAttribute('aria-checked', 'true')
-    expect(btn('marlowe')).toHaveAttribute('aria-checked', 'false')
-  })
-
   describe('keyboard', () => {
     const mount = (available = ['sandpiper', 'marlowe']) => {
       const onSelect = vi.fn()

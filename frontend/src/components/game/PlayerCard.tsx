@@ -1,5 +1,4 @@
 import { ChainMarker } from './ChainMarker'
-import { Badge } from '../ui/Badge'
 import { SeatKindBadge } from './SeatKindBadge'
 import { AiThinking } from './AiThinking'
 import styles from './PlayerCard.module.css'
@@ -16,7 +15,6 @@ export interface PlayerCardProps {
   cash: number
   stocks: StockHolding[]
   isCurrentTurn?: boolean
-  isHost?: boolean
   isBot?: boolean
   playerId?: string
   kind?: SeatKind
@@ -33,7 +31,6 @@ export function PlayerCard({
   cash,
   stocks,
   isCurrentTurn = false,
-  isHost = false,
   isBot = false,
   playerId = 'unknown',
   kind,
@@ -78,7 +75,6 @@ export function PlayerCard({
         <span className={styles.name}>{name}</span>
         {thinking && <AiThinking />}
         <div className={styles.badges}>
-          {isHost && <Badge label="HOST" variant="info" />}
           <SeatKindBadge
             playerId={playerId}
             kind={kind}

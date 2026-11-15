@@ -29,12 +29,11 @@ function KindBadge({ kind }: { kind: string }) {
 interface SeatChipProps {
   seat: Pick<SummarySeat, 'player_id' | 'name' | 'kind' | 'agent_label' | 'model'>
   winner?: boolean
-  showModel?: boolean
 }
 
 /** A seat: name, kind badge and (for AI seats) the model label. */
-export function SeatChip({ seat, winner = false, showModel = true }: SeatChipProps) {
-  const model = showModel ? seatModelLabel(seat) : ''
+export function SeatChip({ seat, winner = false }: SeatChipProps) {
+  const model = seatModelLabel(seat)
   return (
     <span
       className={`${styles.chip} ${winner ? styles.winner : ''}`}

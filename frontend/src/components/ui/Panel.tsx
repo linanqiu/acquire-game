@@ -4,12 +4,11 @@ import styles from './Panel.module.css'
 interface PanelProps {
   title: string
   children: ReactNode
-  className?: string
 }
 
-export function Panel({ title, children, className }: PanelProps) {
+export function Panel({ title, children }: PanelProps) {
   return (
-    <aside className={`${styles.panel} ${className || ''}`}>
+    <aside className={styles.panel}>
       <h4 className={styles.panelTitle}>{title}</h4>
       <div className={styles.panelContent}>{children}</div>
     </aside>

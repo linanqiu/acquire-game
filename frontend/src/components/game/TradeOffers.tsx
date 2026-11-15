@@ -18,7 +18,6 @@ export interface TradeOffersProps {
   onReject: (tradeId: string) => void
   onCancel: (tradeId: string) => void
   onPropose: () => void
-  proposeDisabled?: boolean
 }
 
 function Side({
@@ -71,7 +70,6 @@ export function TradeOffers({
   onReject,
   onCancel,
   onPropose,
-  proposeDisabled,
 }: TradeOffersProps) {
   // Ids we have already responded to: buttons stay disabled until the offer disappears
   // (or a few seconds pass, in case the server refused the action).
@@ -107,7 +105,7 @@ export function TradeOffers({
             </span>
           )}
         </h4>
-        <Button variant="secondary" size="sm" onClick={onPropose} disabled={proposeDisabled}>
+        <Button variant="secondary" size="sm" onClick={onPropose}>
           PROPOSE TRADE
         </Button>
       </header>
