@@ -542,7 +542,9 @@ def test_json_serialisable_and_stable_keys():
         "viewer",
         "bank",
         "buy_options",
+        "disposition",
     }
+    assert pack["disposition"] is None
     assert set(pack["chains"]) == set(Hotel().get_all_chain_names())
 
 
@@ -729,3 +731,179 @@ def test_mergers_were_exercised_somewhere():
             _check_tile_predictions(game, total)
             table.play_turn()
     assert total.merges > 0
+
+
+# ---------------------------------------------------------------------------
+# Strategy figures for LLM seats (LO-009): share race, every player's merger
+# bonuses, the merger disposition. Checked against the engine in played games.
+# ---------------------------------------------------------------------------
+
+
+def _played(seed, players=4, ruleset=None):
+    """Yield (game, decision) at every blocking decision of a heuristic game."""
+    from game.decisions import pending_decisions
+
+    game = Game(seed=seed, ruleset=ruleset)
+    for i in range(players):
+        game.add_player(f"p{i}", f"P{i}", is_bot=True)
+    game.start_game()
+    table = HeuristicTable(game, seed=seed)
+    for _ in range(2500):
+        if game.phase == GamePhase.GAME_OVER:
+            return
+        yield game, pending_decisions(game)[0]
+        table.step()
+
+
+def _majority(game, chain, pid):
+    size = game.board.get_chain_size(chain)
+    b = Rules.calculate_bonuses(game.players, chain, size, game.hotel)
+    return b.get(pid, {}).get("majority", 0)
+
+
+def _rival_buys(game, chain, rival, k):
+    g = copy.deepcopy(game)
+    assert g.hotel.buy_stock(chain, k)
+    g.get_player(rival).add_stocks(chain, k)
+    return g
+
+
+@pytest.mark.parametrize("seed", [3, 17])
+def test_share_race_matches_engine_bonuses(seed):
+    """``rival_shares_to_pass``: the best rival buying exactly that many from
+    the bank takes the viewer's majority, one fewer does not; ``None`` means
+    the bank cannot supply it (``majority_locked`` when the viewer leads)."""
+    checked = 0
+    for n, (game, d) in enumerate(_played(seed)):
+        if n % 5 or d.kind != "place_tile":
+            continue
+        for viewer in game.players:
+            me = viewer.player_id
+            pack = build_calculator_pack(game, me)
+            for chain in game.hotel.get_active_chains():
+                v = pack["chains"][chain]["viewer"]
+                hold = {p.player_id: p.get_stock_count(chain) for p in game.players}
+                mine = hold[me]
+                rivals = {p: s for p, s in hold.items() if p != me}
+                best = max(rivals.values())
+                assert v["best_rival_shares"] == best
+                assert v["lead"] == mine - best
+                bank = game.hotel.get_available_stocks(chain)
+                k = v["rival_shares_to_pass"]
+                if mine == 0 or mine < best:
+                    assert k is None and not v["majority_locked"]
+                    continue
+                if k is None:
+                    assert bank < mine - best + 1
+                    assert v["majority_locked"] == (mine > best)
+                    continue
+                checked += 1
+                rival = next(p for p, s in rivals.items() if s == best)
+                g = _rival_buys(game, chain, rival, k)
+                assert _majority(g, chain, rival) > 0
+                assert _majority(g, chain, me) == 0
+                if k > 1:
+                    g = _rival_buys(game, chain, rival, k - 1)
+                    assert _majority(g, chain, me) > 0
+    assert checked > 20
+
+
+@pytest.mark.parametrize("seed", [5, 21, 40])
+def test_merger_bonus_by_player_and_safe_flag_match_the_engine(seed):
+    """Every player's cash change when the merger resolves (everyone keeps
+    their shares) is the scenario's ``bonus_by_player``."""
+    merges = 0
+    for game, d in _played(seed):
+        if d.kind != "place_tile":
+            continue
+        pid = d.player_id
+        pack = build_calculator_pack(game, pid)
+        for info in pack["viewer"]["tiles"]:
+            if info["effect"] != "merge" or not info["playable"]:
+                continue
+            for sc in info["scenarios"]:
+                merges += 1
+                g = copy.deepcopy(game)
+                cash0 = {p.player_id: p.money for p in g.players}
+                assert g.play_tile(pid, Tile.from_string(info["tile"])).success
+                _finish_merger(g, pid, sc["survivor"])
+                got = {
+                    p.player_id: p.money - cash0[p.player_id]
+                    for p in g.players
+                    if p.money != cash0[p.player_id]
+                }
+                assert got == sc["bonus_by_player"]
+                vals = list(sc["bonus_by_player"].values())
+                assert vals == sorted(vals, reverse=True)
+                assert sc["survivor_safe_after"] == g.hotel.is_chain_safe(
+                    sc["survivor"], g.board.get_chain_size(sc["survivor"])
+                )
+    assert merges > 0
+
+
+def _resolve_holding(game, me, first):
+    """Apply ``first`` (sell, trade, hold) to the pending disposition, then
+    every later disposition of the merger holds."""
+    assert game.handle_stock_disposition(me, *first).success
+    while game.phase == GamePhase.MERGING and game.pending_action:
+        pa = game.pending_action
+        assert pa["type"] == "stock_disposition"
+        n = pa["stock_count"]
+        assert game.handle_stock_disposition(pa["player_id"], 0, 0, n).success
+
+
+@pytest.mark.parametrize(
+    "seed,ruleset", [(5, None), (21, None), (40, None), (8, "mini"), (9, "valley")]
+)
+def test_disposition_figures_match_what_the_engine_then_does(seed, ruleset):
+    rs = load_ruleset(ruleset) if ruleset else None
+    seen = 0
+    for game, d in _played(seed, ruleset=rs):
+        if d.kind != "stock_disposition":
+            continue
+        me = d.player_id
+        x = build_calculator_pack(game, me)["disposition"]
+        for p in game.players:  # only the deciding seat gets the section
+            if p.player_id != me:
+                assert build_calculator_pack(game, p.player_id)["disposition"] is None
+        pa = game.pending_action
+        assert (x["defunct"], x["survivor"], x["shares"]) == (
+            pa["defunct_chain"],
+            pa["surviving_chain"],
+            pa["stock_count"],
+        )
+        surv, n = x["survivor"], x["shares"]
+        # sell all: exactly sell_all_value in cash; the survivor ends as predicted
+        g = copy.deepcopy(game)
+        cash0 = g.get_player(me).money
+        _resolve_holding(g, me, (n, 0, 0))
+        assert g.get_player(me).money - cash0 == x["sell_all_value"]
+        size = g.board.get_chain_size(surv)
+        assert size == x["survivor_size_after"]
+        assert g.hotel.get_stock_price(surv, size) == x["survivor_price_after"]
+        assert g.hotel.is_chain_safe(surv, size) == x["survivor_safe_after"]
+        # trade the maximum the engine allows, sell the rest
+        tm = x["trade_max"]
+        g = copy.deepcopy(game)
+        p = g.get_player(me)
+        cash0, s0 = p.money, p.get_stock_count(surv)
+        assert s0 == x["survivor_shares_now"]
+        _resolve_holding(g, me, (tm["leftover_shares"], tm["shares_traded"], 0))
+        p = g.get_player(me)
+        assert p.get_stock_count(surv) - s0 == tm["survivor_shares_received"]
+        assert p.money - cash0 == tm["leftover_sale_value"]
+        assert tm["value"] == tm["survivor_shares_received"] * x["survivor_price_after"]
+        assert x["trade_minus_sell"] == tm["total_value"] - x["sell_all_value"]
+        eng = Rules.calculate_bonuses(g.players, surv, size, g.hotel).get(me, {})
+        paid = eng.get("majority", 0) + eng.get("minority", 0)
+        assert x["survivor_payout_after_trade"] == paid
+        # one more share than the engine allows is refused
+        if tm["shares_traded"] + game.ruleset.merger_trade_ratio <= n:
+            g = copy.deepcopy(game)
+            ratio = game.ruleset.merger_trade_ratio
+            res = g.handle_stock_disposition(
+                me, n - tm["shares_traded"] - ratio, tm["shares_traded"] + ratio, 0
+            )
+            assert not res.success
+        seen += 1
+    assert seen > 0
