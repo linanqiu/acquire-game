@@ -19,8 +19,8 @@
    ========================================================================== */
 
 html {
-  /* Ensure tokens are applied at the root level */
-  color-scheme: dark;
+  /* color-scheme follows the light / dark tokens (styles/tokens.css) */
+  color-scheme: inherit;
 }
 
 body {

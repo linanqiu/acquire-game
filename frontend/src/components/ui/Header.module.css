@@ -88,3 +88,10 @@
     display: none;
   }
 }
+
+/* On a phone in game the header is full of numbers; the toggle lives on the home page there. */
+@media (max-width: 480px) {
+  .themeToggle {
+    display: none;
+  }
+}

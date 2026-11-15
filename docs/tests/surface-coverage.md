@@ -59,6 +59,8 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | H-12 | "Waking the server" note while the health check is retried | `waking-server` | `screens/waking-and-not-found.spec.ts : home page: waking the server note` | 3 |
 | H-13 | "The server is not answering yet" notice with Try again | `server-down`, `server-retry` | `screens/waking-and-not-found.spec.ts : home page: server not answering` | 3 |
 | H-14 | Names trimmed; room code upper-cased as typed; creator lands on `?is_host=1` | form behaviour | `screens/home-entry.spec.ts : names are trimmed` | 3 |
+| H-15 | Home first impression: board motif in the ruleset's chain colours (`BoardMotif`), entry cards for watch bots, games & transcripts, bench | `home-motif`, `watch-bots-button`, `games-link`, `bench-link` | `screens/appearance.spec.ts : system colour scheme: home and the key game screens render` | 3 |
+| H-16 | Light / dark theme toggle (`ThemeToggle`; home page, game header on wide screens, host header, transcript pages): follows `prefers-color-scheme`, a pick is remembered in localStorage | `theme-toggle`, `html[data-theme]` | `screens/appearance.spec.ts : the toggle switches the scheme`; `screens/appearance.spec.ts : system colour scheme: home and the key game screens render` | 3 |
 
 ## 3. Player page: lobby (`/play/:room`, phase `lobby`)
 
@@ -107,6 +109,9 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | PG-31 | Chat tab (`tabpanel-chat`) with the unread badge (`tab-badge-chat`; history sent on a first visit counts as read) | all game phases | `screens/chat.spec.ts : chat on a phone`; `screens/tabs.spec.ts : phone: unread chat badge` | 3 |
 | PG-32 | Trades tab (`tabpanel-trades`): my offers, PROPOSE TRADE and the mergers log; badge with the number of offers waiting for my answer (`tab-badge-trades`), dot when a merger result arrives | all game phases | `screens/trades.spec.ts : outgoing offer stays pending until cancelled`; `screens/tabs.spec.ts : phone: an incoming trade offer`; `screens/tabs.spec.ts : phone: the merger result stays on top`; `screens/table-view.spec.ts : merger result after the human's own merger` | 3 |
 | PG-33 | Selected tab remembered per room for the session (reload keeps it) | | `screens/tabs.spec.ts : phone: my place-tile turn opens the Board`; `screens/chat.spec.ts : chat on desktop` | 3 |
+| PG-34 | "Your turn" signal: phase bar `data-turn="mine"` (accent tint) and the action card accent while the table waits on me; calm "other" with a turn marker otherwise (host: whose turn) | all game phases | `screens/appearance.spec.ts : your-turn signal` | 3 |
+| PG-35 | Chains drawn as shapes on the board: same-chain neighbours joined (`data-join`), one visible label per chain (`data-anchor`), orphans separate | board | `screens/appearance.spec.ts : a chain is one block with one label` | 3 |
+| PG-36 | Motion (tile settles, merger sweep, cash / net-worth flash) is off under `prefers-reduced-motion` | board, header, players | `screens/appearance.spec.ts : reduced motion` | 3 |
 | PG-21 | AI fallback marker ("BOT ASSIST xN") when an LLM seat had to be replaced by the bot | `seat-fallback-*` | `src/components/game/AgentFallback.test.tsx : fallback`; GAP: browser coverage needs a fake LLM that answers illegally on purpose; the test-mode fake LLM only plays legal first moves (protocol side: `backend/tests/protocol/test_llm_retries.py`) | unit |
 
 ## 5. Player page: modals and trading
@@ -218,7 +223,7 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | `ChatPanel` | card (lobby, game over), in a tab, read-only (spectator), AI badge | CH-01..CH-05 | `screens/chat.spec.ts : chat on a phone`; `screens/chat.spec.ts : chat on desktop` |
 | `GameLayout`, `Tabs` (`TabList`, `TabPanels`) | phone: tab panel + now dock + bottom bar; wide: board + sidebar (now area, tabs); TV: pinned Players and Chains; count and dot badges | PG-26..PG-33, HO-03, HO-12 | `screens/tabs.spec.ts : action card, rack and tabs fit; every tab shows its content`; `screens/host.spec.ts : board, scoreboard and chain list do not overlap or leave the screen`; `src/components/ui/Tabs.test.tsx : arrow keys` |
 | `Modal` | open (trade builder), backdrop | TR-01 | `screens/trades.spec.ts : propose a trade through the builder` |
-| `Header`, `PageShell` | room, name, cash, tile pool; `fill` (in game: the screen, no page scroll) | PG-14, PG-26 | `screens/turn-basics.spec.ts : opening turn` |
+| `Header`, `PageShell`, `FlashValue` | room, name, cash (flashes on change), tile pool; `fill` (in game: the screen, no page scroll); phase bar `data-turn` | PG-14, PG-26, PG-34 | `screens/turn-basics.spec.ts : opening turn`; `screens/appearance.spec.ts : your-turn signal` |
 | `Slider`, `Badge` | disposition sliders; status and kind badges | PG-06, TX-01 | `screens/merger.spec.ts : disposition (human first)` |
 | `DecisionPanel`, `LlmPanel`, `TextBlock`, `Timeline`, `VirtualList`, `ReplayBoard`, `SummaryHeader`, `SeatChip`, `RangeBar`, `PageFrame` | transcript and bench widgets | TX-01..TX-15, BN-01..BN-07 | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` |
 
@@ -247,8 +252,8 @@ Facts learned while filling this map (2026-11-14):
 
 ## Summary (checked by the script; update when rows change)
 
-- Surfaces: 144
-- Covered: 139
+- Surfaces: 149
+- Covered: 144
 - GAP: 7
 - Journeys: 7
 

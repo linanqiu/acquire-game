@@ -155,7 +155,7 @@
 }
 
 .merger {
-  border: 2px solid #ffaa00;
+  border: 2px solid var(--warning);
 }
 
 .dead {

@@ -159,6 +159,19 @@ describe.each(THEMED)('%s ruleset', (_name, rs) => {
     expect(meta).toHaveTextContent(`${rs.board.columns}×${rs.board.rows} board`)
     expect(meta).toHaveTextContent(`${rs.chains.length} ${rs.theme.chain_noun_plural}`)
     expect(screen.getByTestId('bench-link')).toHaveTextContent(`${BRAND} Bench`)
+    // The board motif is drawn in this ruleset's chain colours (and no other).
+    const fills = new Set(
+      [...screen.getByTestId('home-motif').querySelectorAll('g[fill]')].map((g) =>
+        g.getAttribute('fill')
+      )
+    )
+    expect(fills.size).toBeGreaterThan(2)
+    for (const f of fills) expect(rs.chains.map((c) => c.color)).toContain(f)
+    // Every way in: create, join, watch bots, games & transcripts, bench.
+    for (const id of ['create-button', 'join-button', 'watch-bots-button', 'games-link']) {
+      expect(screen.getByTestId(id)).toBeInTheDocument()
+    }
+    expect(screen.getByTestId('theme-toggle')).toBeInTheDocument()
     expectNoDefaultLeaks()
   })
 

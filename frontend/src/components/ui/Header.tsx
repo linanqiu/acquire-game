@@ -1,4 +1,5 @@
 import { FlashValue } from './FlashValue'
+import { ThemeToggle } from './ThemeToggle'
 import styles from './Header.module.css'
 import { useBrand, useRules } from '../../ruleset/useRules'
 
@@ -60,6 +61,7 @@ export function Header({ roomCode, cash, netWorth, rank, playerName, tilePool }:
             )}
           </div>
         )}
+        <ThemeToggle className={styles.themeToggle} />
       </div>
     </header>
   )

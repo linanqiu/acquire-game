@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { useRoom } from '../hooks/useRoom'
 import { useHostWebSocket } from '../hooks/useHostWebSocket'
 import { PageShell } from '../components/ui/PageShell'
+import { ThemeToggle } from '../components/ui/ThemeToggle'
 import { Button } from '../components/ui/Button'
 import { Spinner } from '../components/ui/Spinner'
 import { Board } from '../components/game/Board'
@@ -382,9 +383,12 @@ function HostHeader({ roomCode }: { roomCode: string }) {
       <div className={styles.hostLogo} data-testid="header-title">
         {brand.toUpperCase()}
       </div>
-      <div className={styles.hostRoomCode}>
-        <span className={styles.roomLabel}>ROOM</span>
-        <span className={styles.roomValue}>{roomCode}</span>
+      <div className={styles.hostRight}>
+        <div className={styles.hostRoomCode}>
+          <span className={styles.roomLabel}>ROOM</span>
+          <span className={styles.roomValue}>{roomCode}</span>
+        </div>
+        <ThemeToggle />
       </div>
     </header>
   )

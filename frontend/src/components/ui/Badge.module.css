@@ -20,18 +20,21 @@
 
 .safe {
   background-color: rgba(107, 255, 138, 0.2);
+  background-color: color-mix(in srgb, var(--text-positive) 20%, transparent);
   color: var(--text-positive);
   border: 1px solid var(--text-positive);
 }
 
 .warning {
   background-color: rgba(255, 170, 0, 0.2);
-  color: #ffaa00;
-  border: 1px solid #ffaa00;
+  background-color: color-mix(in srgb, var(--warning) 20%, transparent);
+  color: var(--warning);
+  border: 1px solid var(--warning);
 }
 
 .danger {
   background-color: rgba(255, 107, 107, 0.2);
+  background-color: color-mix(in srgb, var(--text-negative) 20%, transparent);
   color: var(--text-negative);
   border: 1px solid var(--text-negative);
 }

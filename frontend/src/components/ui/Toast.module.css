@@ -67,7 +67,7 @@
 }
 
 .warning {
-  border-left: 3px solid #ffaa00;
+  border-left: 3px solid var(--warning);
 }
 
 .error {
@@ -83,7 +83,7 @@
 }
 
 .warning .icon {
-  color: #ffaa00;
+  color: var(--warning);
 }
 
 .error .icon {
