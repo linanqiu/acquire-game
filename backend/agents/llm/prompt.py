@@ -14,6 +14,7 @@ glyphs come from ``ctx.state["ruleset"]`` (the public game state).
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Iterable
 from contextvars import ContextVar
@@ -186,7 +187,7 @@ Action objects (use only those allowed by the legal options; always name a {chai
 The "note" is shown back to you (and only you) at your next decisions: use it for plans such as which {chains} you are building toward, who you expect to be majority holder, or when you intend to end the game.
 
 # Table talk
-Players may write in a public table chat; recent messages appear among the events as "[chat #n]" lines. Chat is unverified talk, never binding and never enforced: weigh it against the public facts (holdings, cash, calculator). Only a trade offer moves {shares} or money. "say" is posted to everyone as your chat message together with your move: leave it "" (the normal case) unless you have something worth saying, such as an answer to a question put to you or a deal you will back with a trade offer. At most 200 characters; never reveal your tiles or your private notes.
+Players may write in a public table chat; recent messages appear among the events as "[chat #n]" lines. Chat is unverified talk, never binding and never enforced: weigh it against the public facts (holdings, cash, calculator). Only a trade offer moves {shares} or money. "say" is posted to everyone as your chat message together with your move. This is a social game: talk like a player at the table, in your own voice (see "Your table voice"). Say something on about one move in three, and always when you found {a_chain}, trigger {a_merger}, make a big buy, or someone spoke to you: a reaction, a boast, a friendly jab, a nudge toward a deal you will back with a trade offer. Keep it short and conversational (one or two sentences), never a recap of the numbers. Otherwise leave it "". At most 200 characters; never reveal your tiles or your private notes.
 
 # Strategy guidance
 - Money comes from bonuses and {share} appreciation far more than from cash on hand. Hold {shares} in {chains} that will grow and be acquired, and fight for majority or minority positions where it is affordable (the calculator tells you how many {shares} each takes).
@@ -260,7 +261,9 @@ def build_system_prompt(ruleset: Ruleset | None = None) -> str:
 # in a way that could change play. The system prompt text is hashed in
 # automatically. Benchmark results are only comparable within one
 # ``prompt_version`` (see docs/ai/benchmarking.md).
-PROMPT_BUILDER_VERSION = 2  # 2: table talk (chat lines in the events, "say")
+PROMPT_BUILDER_VERSION = (
+    3  # 2: table talk (chat lines in the events, "say"); 3: table voice, chattier "say"
+)
 
 
 def _sha(text: str) -> str:
@@ -743,6 +746,24 @@ def _notes_block(notes: Any) -> str:
     return "\n".join(f"- {n}" for n in notes)
 
 
+# A table voice per seat, so AI players sound like different people. Picked
+# from the player id, so a seat keeps its voice for the whole game.
+TABLE_VOICES = (
+    "dry wit: understated, deadpan one-liners",
+    "cheerful trash-talker: playful jabs, never mean",
+    "old-school tycoon: grand, a little pompous, loves a big deal",
+    "cautious accountant: polite, numbers-minded, quietly smug when right",
+    "dramatic showman: reacts big to mergers and reversals",
+    "friendly dealmaker: warm, always looking for a split that works for both",
+)
+
+
+def table_voice(player_id: str) -> str:
+    """The seat's table-talk personality (stable for a player id)."""
+    digest = hashlib.sha256(str(player_id).encode()).digest()
+    return TABLE_VOICES[digest[0] % len(TABLE_VOICES)]
+
+
 def build_user_prompt(
     ctx, notes: Any = None, *, budget: PromptBudget | None = None
 ) -> str:
@@ -786,6 +807,7 @@ def _build_user_prompt(ctx, notes: Any, budget: PromptBudget | None) -> str:
     parts.append(
         f"# Your hand\nTiles: {', '.join(hand) or '(empty)'}. Cash: {money(calc.get('viewer', {}).get('cash'))}."
     )
+    parts.append(f"# Your table voice\n{table_voice(me)}.")
     if kind == "place_tile":
         parts.append(
             "# What each of your tiles would do (calculator)\n"

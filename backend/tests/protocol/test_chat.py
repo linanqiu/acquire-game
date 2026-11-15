@@ -248,7 +248,7 @@ class TestTalk:
         self, app_client, chat_settings
     ):
         client = app_client
-        assert chat_settings.chat_ai_streak_max == 3
+        streak = chat_settings.chat_ai_streak_max
         code, alice = create_room(client, "Alice")
         two_fakes(client, code)
         # a question: both answer it, their answers negotiate ("deal?"), so the
@@ -261,7 +261,7 @@ class TestTalk:
         answers = [m for m in ai if " answers " in m["text"]]
         assert answers, "the AI seats never answered each other"
         # bounded: the streak limit plus at most one call per seat already asked
-        assert 3 <= len(ai) <= 3 + 2, [m["text"] for m in ai]
+        assert streak <= len(ai) <= streak + 2, [m["text"] for m in ai]
         settled = len(room_chat(code))
         time.sleep(0.4)
         assert len(room_chat(code)) == settled  # it stopped

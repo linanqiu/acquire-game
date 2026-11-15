@@ -479,7 +479,7 @@ test.describe('Transcripts and Buyout Bench on the real servers', () => {
       ).toBeVisible()
       await shot(page, 'leaderboard')
       await expect(page.getByTestId('bench-protocol-id')).toHaveText('bench-v1')
-      await expect(page.getByTestId('bench-prompt-version')).toContainText(/prompt\s+v2-/)
+      await expect(page.getByTestId('bench-prompt-version')).toContainText(/prompt\s+v\d+-/)
       await expect(page.getByTestId('bench-track')).toContainText('all')
       await expect(page.getByTestId('bench-warnings')).toHaveCount(0)
       await expect(page.getByTestId('bench-sample-size')).toContainText(`${BENCH_GAMES} games`)
