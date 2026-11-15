@@ -7,7 +7,9 @@
       "decision_player": "p1",
       "description": "The human is in the buy phase with at least 3 active chains and enough cash for 3 shares of any of them.",
       "file": "buy-phase-multi-chain.json",
-      "human_decision_kinds": ["buy_stocks"],
+      "human_decision_kinds": [
+        "buy_stocks"
+      ],
       "human_seat": "p1",
       "name": "buy-phase-multi-chain",
       "phase": "buy_stocks",
@@ -21,7 +23,9 @@
       "decision_player": "p1",
       "description": "All 7 chains are active and the human holds a tile that would create an 8th chain (unplayable).",
       "file": "dead-tile-in-hand.json",
-      "human_decision_kinds": ["place_tile"],
+      "human_decision_kinds": [
+        "place_tile"
+      ],
       "human_seat": "p1",
       "name": "dead-tile-in-hand",
       "phase": "place_tile",
@@ -35,7 +39,9 @@
       "decision_player": "p1",
       "description": "The human is first to dispose of defunct stock: holds an odd number (>= 3) of shares and a 2:1 trade is possible.",
       "file": "disposition-human-first.json",
-      "human_decision_kinds": ["stock_disposition"],
+      "human_decision_kinds": [
+        "stock_disposition"
+      ],
       "human_seat": "p1",
       "name": "disposition-human-first",
       "phase": "merger",
@@ -49,7 +55,9 @@
       "decision_player": "p1",
       "description": "The human disposes defunct stock but the survivor's remaining bank stock limits the 2:1 trade below the human's even share count.",
       "file": "disposition-trade-limited.json",
-      "human_decision_kinds": ["stock_disposition"],
+      "human_decision_kinds": [
+        "stock_disposition"
+      ],
       "human_seat": "p1",
       "name": "disposition-trade-limited",
       "phase": "merger",
@@ -77,7 +85,9 @@
       "decision_player": "p1",
       "description": "The human's turn (place tile) and declaring the end game is legal.",
       "file": "end-game-available.json",
-      "human_decision_kinds": ["place_tile"],
+      "human_decision_kinds": [
+        "place_tile"
+      ],
       "human_seat": "p1",
       "name": "end-game-available",
       "phase": "place_tile",
@@ -91,7 +101,9 @@
       "decision_player": "p1",
       "description": "The human just placed a tile that founds a chain and must choose among at least 3 available chains (some chains already on the board).",
       "file": "found-chain-choice.json",
-      "human_decision_kinds": ["found_chain"],
+      "human_decision_kinds": [
+        "found_chain"
+      ],
       "human_seat": "p1",
       "name": "found-chain-choice",
       "phase": "found_chain",
@@ -133,7 +145,9 @@
       "decision_player": "p1",
       "description": "The human already bought stock this turn and declaring the end game (one action) ends the game.",
       "file": "last-turn-before-game-over.json",
-      "human_decision_kinds": ["buy_stocks"],
+      "human_decision_kinds": [
+        "buy_stocks"
+      ],
       "human_seat": "p1",
       "name": "last-turn-before-game-over",
       "phase": "buy_stocks",
@@ -147,7 +161,9 @@
       "decision_player": "p1",
       "description": "The human is in the buy phase and cannot afford any stock.",
       "file": "low-cash.json",
-      "human_decision_kinds": ["buy_stocks"],
+      "human_decision_kinds": [
+        "buy_stocks"
+      ],
       "human_seat": "p1",
       "name": "low-cash",
       "phase": "buy_stocks",
@@ -161,7 +177,9 @@
       "decision_player": "p1",
       "description": "The human merged two equal-size chains and must choose the survivor.",
       "file": "merger-survivor-tie.json",
-      "human_decision_kinds": ["choose_survivor"],
+      "human_decision_kinds": [
+        "choose_survivor"
+      ],
       "human_seat": "p1",
       "name": "merger-survivor-tie",
       "phase": "merger",
@@ -175,7 +193,9 @@
       "decision_player": "p1",
       "description": "One tile merged 3 chains; the human is a stockholder deciding on defunct stock.",
       "file": "multi-chain-merger.json",
-      "human_decision_kinds": ["stock_disposition"],
+      "human_decision_kinds": [
+        "stock_disposition"
+      ],
       "human_seat": "p1",
       "name": "multi-chain-merger",
       "phase": "merger",
@@ -189,7 +209,9 @@
       "decision_player": "p1",
       "description": "Turn 1: empty board, the human holds 6 tiles and must place one.",
       "file": "opening-place-tile.json",
-      "human_decision_kinds": ["place_tile"],
+      "human_decision_kinds": [
+        "place_tile"
+      ],
       "human_seat": "p1",
       "name": "opening-place-tile",
       "phase": "place_tile",
@@ -203,7 +225,9 @@
       "decision_player": "p1",
       "description": "A safe chain (11+ tiles) is on the board and the human holds a tile that cannot be played because it would merge two safe chains.",
       "file": "safe-chain-on-board.json",
-      "human_decision_kinds": ["place_tile"],
+      "human_decision_kinds": [
+        "place_tile"
+      ],
       "human_seat": "p1",
       "name": "safe-chain-on-board",
       "phase": "place_tile",
@@ -217,7 +241,9 @@
       "decision_player": "p1",
       "description": "Six players, busy mid-game board, the human to place a tile.",
       "file": "six-player-midgame.json",
-      "human_decision_kinds": ["place_tile"],
+      "human_decision_kinds": [
+        "place_tile"
+      ],
       "human_seat": "p1",
       "name": "six-player-midgame",
       "phase": "place_tile",
@@ -231,7 +257,9 @@
       "decision_player": "p1",
       "description": "Three players, busy mid-game board, the human to place a tile.",
       "file": "three-player-midgame.json",
-      "human_decision_kinds": ["place_tile"],
+      "human_decision_kinds": [
+        "place_tile"
+      ],
       "human_seat": "p1",
       "name": "three-player-midgame",
       "phase": "place_tile",
@@ -245,7 +273,10 @@
       "decision_player": "p1",
       "description": "It is the human's turn and another player has proposed a trade to them (stock for cash).",
       "file": "trade-incoming.json",
-      "human_decision_kinds": ["buy_stocks", "trade_response"],
+      "human_decision_kinds": [
+        "buy_stocks",
+        "trade_response"
+      ],
       "human_seat": "p1",
       "name": "trade-incoming",
       "phase": "buy_stocks",
@@ -259,7 +290,9 @@
       "decision_player": "p3",
       "description": "Another player's turn; a third player has proposed a trade to the human.",
       "file": "trade-incoming-not-my-turn.json",
-      "human_decision_kinds": ["trade_response"],
+      "human_decision_kinds": [
+        "trade_response"
+      ],
       "human_seat": "p1",
       "name": "trade-incoming-not-my-turn",
       "phase": "buy_stocks",
@@ -273,7 +306,9 @@
       "decision_player": "p1",
       "description": "The human proposed a trade (stock for cash) and is awaiting the answer.",
       "file": "trade-outgoing-pending.json",
-      "human_decision_kinds": ["buy_stocks"],
+      "human_decision_kinds": [
+        "buy_stocks"
+      ],
       "human_seat": "p1",
       "name": "trade-outgoing-pending",
       "phase": "buy_stocks",
