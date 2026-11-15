@@ -14,12 +14,7 @@ import { DEFAULT_RS } from '../../tests/unit/fixtures/rulesets'
 
 vi.mock('../hooks/useHostWebSocket', () => ({
   useHostWebSocket: () => ({
-    addBot: vi.fn(),
-    startGame: vi.fn(),
-    endGame: vi.fn(),
-    disconnect: vi.fn(),
     reconnect: vi.fn(() => Promise.resolve(true)),
-    isConnected: true,
   }),
 }))
 

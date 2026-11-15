@@ -7,7 +7,6 @@ import { chainTestId, chainsByTier } from '../../lib/ruleset'
 
 export interface ChainSelectorProps {
   availableChains: ChainId[]
-  selectedChain?: ChainId
   onSelect: (chain: ChainId) => void
   stockAvailability: Partial<Record<ChainId, number>>
   /** Label for chains that cannot be picked. Founding: "ACTIVE" (already on the board).
@@ -18,7 +17,6 @@ export interface ChainSelectorProps {
 /** Every chain of the ruleset, grouped by tier (labels from the ruleset), the pickable ones enabled. */
 export function ChainSelector({
   availableChains,
-  selectedChain,
   onSelect,
   stockAvailability,
   unavailableLabel = 'ACTIVE',
@@ -94,7 +92,6 @@ export function ChainSelector({
           <div className={styles.chains}>
             {tier.chains.map((chain) => {
               const isAvailable = availableChains.includes(chain)
-              const isSelected = selectedChain === chain
               const stockCount = stockAvailability[chain] ?? rules.rs.stocks_per_chain
               const name = rules.name(chain)
 
@@ -102,14 +99,14 @@ export function ChainSelector({
                 <button
                   key={chain}
                   ref={(el) => setButtonRef(chain, el)}
-                  className={`${styles.chainButton} ${isAvailable ? styles.available : styles.unavailable} ${isSelected ? styles.selected : ''}`}
+                  className={`${styles.chainButton} ${isAvailable ? styles.available : styles.unavailable}`}
                   onClick={() => isAvailable && onSelect(chain)}
                   disabled={!isAvailable}
                   aria-label={`${name}${isAvailable ? `, ${sharesLeft(stockCount)}` : `, ${unavailableLabel === 'ACTIVE' ? 'already active' : unavailableLabel.toLowerCase()}`}`}
                   onKeyDown={(e) => handleKeyDown(e, chain)}
                   data-testid={`chain-button-${chainTestId(chain)}`}
                   role="radio"
-                  aria-checked={isSelected}
+                  aria-checked={false}
                 >
                   <ChainMarker chain={chain} variant="compact" />
                   <span className={styles.stock}>

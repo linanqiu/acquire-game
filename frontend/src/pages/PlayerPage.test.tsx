@@ -14,8 +14,6 @@ vi.mock('../hooks/useWebSocket', () => ({
   useWebSocket: () => ({
     sendAction: vi.fn(() => true),
     reconnect: vi.fn(() => Promise.resolve(true)),
-    disconnect: vi.fn(),
-    isConnected: true,
   }),
 }))
 

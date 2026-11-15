@@ -5,7 +5,7 @@
 
 export const NOT_FOUND_CLOSE_CODE = 4004
 export const ROOM_NOT_FOUND = 'Room not found'
-export const PLAYER_NOT_FOUND = 'Player not found'
+const PLAYER_NOT_FOUND = 'Player not found'
 
 export type RoomUnavailable = 'room' | 'player' | null
 

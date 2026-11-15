@@ -4,7 +4,7 @@ import './styles/tokens.css'
 import './styles/typography.css'
 import './styles/colors.css'
 import './index.css'
-import App from './App.tsx'
+import { App } from './App'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

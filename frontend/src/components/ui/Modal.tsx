@@ -7,9 +7,7 @@ interface ModalProps {
   open: boolean
   onClose: () => void
   title: string
-  confirmLabel?: string
   cancelLabel?: string
-  onConfirm?: () => void
   dismissible?: boolean
   children: React.ReactNode
 }
@@ -18,9 +16,7 @@ export function Modal({
   open,
   onClose,
   title,
-  confirmLabel,
   cancelLabel = 'Cancel',
-  onConfirm,
   dismissible = true,
   children,
 }: ModalProps) {
@@ -84,8 +80,6 @@ export function Modal({
 
   if (!open) return null
 
-  const showFooter = onConfirm || cancelLabel
-
   return createPortal(
     <div
       className={styles.backdrop}
@@ -112,16 +106,11 @@ export function Modal({
           )}
         </div>
         <div className={styles.body}>{children}</div>
-        {showFooter && (
+        {cancelLabel && (
           <div className={styles.footer}>
-            {cancelLabel && dismissible && (
+            {dismissible && (
               <Button variant="secondary" onClick={onClose}>
                 {cancelLabel}
-              </Button>
-            )}
-            {onConfirm && confirmLabel && (
-              <Button variant="primary" onClick={onConfirm}>
-                {confirmLabel}
               </Button>
             )}
           </div>

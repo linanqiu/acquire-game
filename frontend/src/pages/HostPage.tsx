@@ -1,4 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useConnectionLifecycle } from '../hooks/useConnectionLifecycle'
+import { startGame, startHint } from '../lib/lobby'
 import { useNavigate } from 'react-router-dom'
 import { useRoom } from '../hooks/useRoom'
 import { useHostWebSocket } from '../hooks/useHostWebSocket'
@@ -57,22 +59,12 @@ export function HostPage() {
   const { handleServerError } = useErrorHandler()
   useFallbackToasts()
 
-  // Stable callback for WebSocket to prevent infinite re-renders
-  const handleWsError = useCallback(
-    (error: string) => handleServerError(error),
-    [handleServerError]
-  )
-
   // The game store is global: leaving this room (PLAY AGAIN, BACK TO LOBBY, another room)
   // must not leak its state into the next room, which would otherwise open on the old
   // game's screen (e.g. a brand-new room showing the previous GAME OVER).
   useEffect(() => () => useGameStore.getState().reset(), [room])
 
-  // Use host WebSocket for receiving state updates
-  const { reconnect } = useHostWebSocket({
-    roomCode: room,
-    onError: handleWsError,
-  })
+  const { reconnect } = useHostWebSocket({ roomCode: room, onError: handleServerError })
 
   // Game store state
   const {
@@ -94,36 +86,24 @@ export function HostPage() {
   const minPlayers = ruleset.min_players
   const maxPlayers = ruleset.max_players
 
-  // Show the reconnection overlay only after we have been connected once
-  const [hasConnected, setHasConnected] = useState(connectionStatus === 'connected')
-  useEffect(() => {
-    if (connectionStatus === 'connected') setHasConnected(true)
-  }, [connectionStatus])
+  // The reconnection overlay only after we have been connected once
+  const { hasConnected } = useConnectionLifecycle(connectionStatus)
 
   // Local UI state
   const [actionLoading, setActionLoading] = useState(false)
   const [activityLog, setActivityLog] = useState<{ id: number; text: string }[]>([
     { id: 0, text: 'Waiting for players...' },
   ])
-  const [nextLogId, setNextLogId] = useState(1)
-
-  // Helper to add activity log entries with unique IDs
-  const addActivityLog = useCallback(
-    (text: string) => {
-      setActivityLog((prev) => [...prev, { id: nextLogId, text }])
-      setNextLogId((id) => id + 1)
-    },
-    [nextLogId]
-  )
+  const addActivityLog = useCallback((text: string) => {
+    setActivityLog((prev) => [...prev, { id: prev.length, text }])
+  }, [])
 
   // Derived state
   const phase = gameState?.phase ?? 'lobby'
   const currentTurnPlayerId = gameState?.current_player
 
-  const currentPlayerName = useMemo(() => {
-    if (!gameState || !currentTurnPlayerId) return ''
-    return gameState.players[currentTurnPlayerId]?.name ?? ''
-  }, [gameState, currentTurnPlayerId])
+  const currentPlayerName =
+    (currentTurnPlayerId && gameState?.players[currentTurnPlayerId]?.name) || ''
 
   const boardTileStates = useMemo(() => {
     if (!gameState) return {}
@@ -162,17 +142,10 @@ export function HostPage() {
     })
   }, [gameState, currentTurnPlayerId, ruleset])
 
-  // Action handlers - use HTTP for reliability
   const handleStartGame = useCallback(async () => {
     setActionLoading(true)
     try {
-      const res = await fetch(`/api/room/${room}/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      })
-      if (!res.ok) {
-        throw new Error('Failed to start game')
-      }
+      await startGame(room)
       addActivityLog('Game started!')
     } catch (err) {
       console.error('Failed to start game:', err)
@@ -182,21 +155,8 @@ export function HostPage() {
     }
   }, [room, toast, addActivityLog])
 
-  const handlePlayAgain = useCallback(() => {
-    navigate('/')
-  }, [navigate])
+  const joinUrl = `${window.location.origin}/play/${room}`
 
-  const handleBackToLobby = useCallback(() => {
-    navigate('/')
-  }, [navigate])
-
-  // Generate join URL for display
-  const joinUrl = useMemo(() => {
-    if (typeof window === 'undefined') return ''
-    return `${window.location.origin}/play/${room}`
-  }, [room])
-
-  // Render lobby view
   const brand = useBrand()
   const renderLobbyView = () => (
     <div className={styles.lobby}>
@@ -261,32 +221,22 @@ export function HostPage() {
         </Button>
       </div>
 
-      <p className={styles.minPlayers}>
-        {lobbyPlayers.length < minPlayers
-          ? `Need ${minPlayers - lobbyPlayers.length} more player${minPlayers - lobbyPlayers.length > 1 ? 's' : ''} to start`
-          : 'Ready to start!'}
-      </p>
+      <p className={styles.minPlayers}>{startHint(lobbyPlayers.length, minPlayers)}</p>
     </div>
   )
 
-  // Render game over view
-  const renderGameOverView = () => {
-    const scores = buildFinalScores(gameState, gameOver)
+  const renderGameOverView = () => (
+    <div className={styles.gameOverContainer}>
+      <GameOver
+        scores={buildFinalScores(gameState, gameOver)}
+        onPlayAgain={() => navigate('/')}
+        onBackToLobby={() => navigate('/')}
+        variant="host"
+        gameId={gameState?.game_id}
+      />
+    </div>
+  )
 
-    return (
-      <div className={styles.gameOverContainer}>
-        <GameOver
-          scores={scores}
-          onPlayAgain={handlePlayAgain}
-          onBackToLobby={handleBackToLobby}
-          variant="host"
-          gameId={gameState?.game_id}
-        />
-      </div>
-    )
-  }
-
-  // Render game view
   const renderGameView = () => (
     <div className={styles.gameLayout}>
       <div className={styles.boardSection}>
@@ -362,7 +312,6 @@ export function HostPage() {
     </div>
   )
 
-  // Main render
   const renderPage = () => {
     if (unavailable) {
       return (
@@ -434,7 +383,7 @@ export function HostPage() {
   )
 }
 
-// Custom header component for host view
+/** The host's header: brand and room code (the lobby shows them large instead). */
 function HostHeader({ roomCode }: { roomCode: string }) {
   const brand = useBrand()
   return (

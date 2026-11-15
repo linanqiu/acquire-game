@@ -1,6 +1,5 @@
 /**
- * Buyout Color System
- * Utility classes built on design tokens
+ * Base page colours, built on design tokens
  */
 
 /* ==========================================================================
@@ -14,67 +13,7 @@ body {
   color: var(--text-primary);
 }
 
-/* ==========================================================================
-   Background utilities
-   ========================================================================== */
-
-.bg-primary {
-  background-color: var(--bg-primary);
-}
-
-.bg-secondary {
-  background-color: var(--bg-secondary);
-}
-
-.bg-tertiary {
-  background-color: var(--bg-tertiary);
-}
-
-/* ==========================================================================
-   Text color utilities
-   ========================================================================== */
-
-.text-primary {
-  color: var(--text-primary);
-}
-
+/* Secondary text (the not-found page). */
 .text-secondary {
   color: var(--text-secondary);
-}
-
-.text-accent {
-  color: var(--text-accent);
-}
-
-.text-positive {
-  color: var(--text-positive);
-}
-
-.text-negative {
-  color: var(--text-negative);
-}
-
-/* ==========================================================================
-   Border utilities
-   ========================================================================== */
-
-.border {
-  border: 1px solid var(--border);
-}
-
-/* ==========================================================================
-   Orphan tile color
-   For tiles not belonging to any chain
-   ========================================================================== */
-
-.bg-orphan {
-  background-color: var(--chain-orphan);
-}
-
-.text-orphan {
-  color: var(--chain-orphan);
-}
-
-.border-orphan {
-  border-color: var(--chain-orphan);
 }

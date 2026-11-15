@@ -11,7 +11,7 @@ import { expect, type Locator, type Page } from '@playwright/test'
 import type { Journey } from './journey'
 
 /** Phase banner texts that need an action from this seat. */
-export const ACTIONABLE =
+const ACTIONABLE =
   /^(PLACE A TILE|CHOOSE A HOTEL CHAIN|CHOOSE THE SURVIVING HOTEL CHAIN|DISPOSE YOUR SHARES|BUY STOCKS|GAME OVER)$/
 
 /**

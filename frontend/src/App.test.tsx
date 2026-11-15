@@ -9,13 +9,11 @@ import { useGameStore } from './store/gameStore'
 vi.mock('./hooks/useWebSocket', () => ({
   useWebSocket: () => ({
     sendAction: vi.fn(),
-    disconnect: vi.fn(),
     reconnect: vi.fn(),
-    isConnected: true,
   }),
 }))
 vi.mock('./hooks/useHostWebSocket', () => ({
-  useHostWebSocket: () => ({ disconnect: vi.fn(), reconnect: vi.fn(), isConnected: true }),
+  useHostWebSocket: () => ({ reconnect: vi.fn() }),
 }))
 
 function serveRuleset(rs: Ruleset) {

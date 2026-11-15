@@ -1,7 +1,6 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
-import path from 'path'
 
 // Backend port for the dev proxy (Playwright sets it when running on non-default ports).
 const backendPort = process.env.VITE_BACKEND_PORT ?? '8000'
@@ -9,11 +8,6 @@ const backendPort = process.env.VITE_BACKEND_PORT ?? '8000'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
-  },
   test: {
     globals: true,
     environment: 'jsdom',
@@ -47,7 +41,6 @@ export default defineConfig({
         target: `ws://127.0.0.1:${backendPort}`,
         ws: true,
         changeOrigin: true,
-        rewrite: (path) => path,
         timeout: 0, // Disable timeout for WebSocket connections
         proxyTimeout: 0, // Disable proxy timeout
         configure: (proxy) => {

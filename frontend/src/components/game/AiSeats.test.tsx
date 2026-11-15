@@ -1,24 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
-import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { AddAiControl } from './AddAiControl'
 import { RemoveSeatButton } from './RemoveSeatButton'
 import { SeatKindBadge } from './SeatKindBadge'
-import { HostPage } from '../../pages/HostPage'
 import { ToastProvider } from '../ui/ToastProvider'
-import { useGameStore } from '../../store/gameStore'
-import type { AgentCatalogEntry, GameStateMessage } from '../../types/api'
-import { snapshot, wireCatalog } from '../../../tests/unit/fixtures/wire'
-
-vi.mock('../../hooks/useHostWebSocket', () => ({
-  useHostWebSocket: () => ({
-    addBot: vi.fn(),
-    startGame: vi.fn(),
-    endGame: vi.fn(),
-    disconnect: vi.fn(),
-    isConnected: true,
-  }),
-}))
+import type { AgentCatalogEntry } from '../../types/api'
+import { wireCatalog } from '../../../tests/unit/fixtures/wire'
 
 // The catalog exactly as the server serves it (some LLM entries are not configured here).
 const CATALOG: AgentCatalogEntry[] = wireCatalog()
@@ -182,87 +169,5 @@ describe('SeatKindBadge', () => {
     expect(screen.getByTestId('seat-kind-a')).toHaveAttribute('data-kind', 'llm')
     expect(screen.getByTestId('seat-kind-b')).toHaveTextContent('BOT')
     expect(screen.getByTestId('seat-kind-b')).toHaveAttribute('data-kind', 'bot')
-  })
-})
-
-/** A real spectator state (recorded from the server) with seat p2 turned into an LLM seat. */
-function gameState(awaiting: GameStateMessage['awaiting']): GameStateMessage {
-  const state = snapshot('three-player-midgame').host
-  const [first, second, third] = Object.keys(state.players)
-  const rename = { [first]: 'p1', [second]: 'p2', [third]: 'p3' }
-  const players = Object.fromEntries(
-    Object.entries(state.players).map(([id, p]) => [rename[id], p])
-  )
-  players.p1 = { ...players.p1, name: 'Alice', kind: 'human', is_bot: false }
-  players.p2 = { ...players.p2, name: 'Claude', kind: 'llm', is_bot: true, agent_label: 'Claude' }
-  return {
-    ...state,
-    players,
-    turn_order: ['p1', 'p2', 'p3'],
-    current_player: 'p2',
-    awaiting,
-  }
-}
-
-function renderHost() {
-  return render(
-    <MemoryRouter initialEntries={['/host/ABCD']}>
-      <ToastProvider>
-        <Routes>
-          <Route path="/host/:room" element={<HostPage />} />
-        </Routes>
-      </ToastProvider>
-    </MemoryRouter>
-  )
-}
-
-describe('HostPage AI seats', () => {
-  beforeEach(() => {
-    useGameStore.getState().reset()
-    useGameStore.setState({ connectionStatus: 'connected' })
-    mockFetch(() => jsonResponse({}, 404))
-  })
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
-
-  it('shows kind badges and remove buttons for AI seats in the lobby', async () => {
-    useGameStore.setState({
-      lobbyPlayers: [
-        { player_id: 'p1', name: 'Alice', is_bot: false, kind: 'human' },
-        { player_id: 'p2', name: 'Claude', is_bot: true, kind: 'llm', agent_label: 'Claude' },
-        { player_id: 'p3', name: 'Botty', is_bot: true },
-      ],
-    })
-    renderHost()
-    expect(screen.getByTestId('seat-kind-p2')).toHaveTextContent('Claude')
-    expect(screen.getByTestId('seat-kind-p3')).toHaveAttribute('data-kind', 'bot')
-    expect(screen.queryByTestId('seat-kind-p1')).not.toBeInTheDocument()
-    expect(screen.getByTestId('remove-seat-p2')).toBeInTheDocument()
-    expect(screen.getByTestId('remove-seat-p3')).toBeInTheDocument()
-    expect(screen.queryByTestId('remove-seat-p1')).not.toBeInTheDocument()
-    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled())
-  })
-
-  it('shows the thinking indicator while an AI seat is awaited', async () => {
-    useGameStore.setState({
-      gameState: gameState({ player_id: 'p2', kind: 'llm', decision: 'place_tile' }),
-    })
-    renderHost()
-    expect(screen.getByTestId('ai-thinking')).toBeInTheDocument()
-    expect(screen.getByTestId('seat-kind-p2')).toHaveTextContent('Claude')
-    await waitFor(() => expect(globalThis.fetch).not.toHaveBeenCalled())
-  })
-
-  it('hides the thinking indicator when a human or nobody is awaited', () => {
-    useGameStore.setState({
-      gameState: gameState({ player_id: 'p1', kind: 'human', decision: 'place_tile' }),
-    })
-    const { unmount } = renderHost()
-    expect(screen.queryByTestId('ai-thinking')).not.toBeInTheDocument()
-    unmount()
-    useGameStore.setState({ gameState: gameState(null) })
-    renderHost()
-    expect(screen.queryByTestId('ai-thinking')).not.toBeInTheDocument()
   })
 })

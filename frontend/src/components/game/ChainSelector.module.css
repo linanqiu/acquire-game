@@ -53,11 +53,6 @@
   cursor: not-allowed;
 }
 
-.selected {
-  border-color: var(--text-accent);
-  background-color: var(--bg-secondary);
-}
-
 .stock {
   font-size: var(--text-xs);
   color: var(--text-secondary);
