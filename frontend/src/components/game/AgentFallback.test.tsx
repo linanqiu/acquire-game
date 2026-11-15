@@ -11,7 +11,7 @@ import type { AgentFallbackMessage, GameStateMessage, SeatFallbacks } from '../.
 import { snapshot } from '../../../tests/unit/fixtures/wire'
 
 vi.mock('../../hooks/useHostWebSocket', () => ({
-  useHostWebSocket: () => ({ reconnect: vi.fn(), disconnect: vi.fn(), isConnected: true }),
+  useHostWebSocket: () => ({ reconnect: vi.fn() }),
 }))
 
 const FALLBACK: AgentFallbackMessage = {

@@ -11,13 +11,7 @@ import type { AgentCatalogEntry, GameStateMessage } from '../../types/api'
 import { snapshot, wireCatalog } from '../../../tests/unit/fixtures/wire'
 
 vi.mock('../../hooks/useHostWebSocket', () => ({
-  useHostWebSocket: () => ({
-    addBot: vi.fn(),
-    startGame: vi.fn(),
-    endGame: vi.fn(),
-    disconnect: vi.fn(),
-    isConnected: true,
-  }),
+  useHostWebSocket: () => ({ reconnect: vi.fn() }),
 }))
 
 // The catalog exactly as the server serves it (some LLM entries are not configured here).
