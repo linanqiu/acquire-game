@@ -30,7 +30,7 @@ class TestBotTurnAutoExecution:
         assert game is not None
         assert len(game.turn_order) == 3  # 3 players
         assert game.phase == GamePhase.PLAYING
-        assert game.turn_phase == "place_tile"
+        assert game.get_public_state()["phase"] == "place_tile"
 
     @pytest.mark.asyncio
     async def test_game_state_includes_all_required_fields(
@@ -67,7 +67,7 @@ class TestTurnAdvancesAfterHumanAction:
         room = clean_session_manager.get_room(game_room)
         game = room.game
 
-        initial_turn_index = game.current_turn_index
+        initial_turn_index = game.current_player_index
         current_player_id = game.get_current_player_id()
         player = game.get_player(current_player_id)
         tile = player.hand[0]
@@ -85,7 +85,7 @@ class TestTurnAdvancesAfterHumanAction:
                     )
 
                     # If in buy_stocks phase, proceed to end turn
-                    if game.turn_phase == "buy_stocks":
+                    if game.get_public_state()["phase"] == "buy_stocks":
                         await handle_player_action(
                             game_room,
                             current_player_id,
@@ -93,7 +93,7 @@ class TestTurnAdvancesAfterHumanAction:
                         )
 
         # Turn should have advanced
-        new_turn_index = game.current_turn_index
+        new_turn_index = game.current_player_index
         assert new_turn_index != initial_turn_index, (
             f"Turn index should have changed from {initial_turn_index}"
         )
@@ -106,7 +106,7 @@ class TestTurnAdvancesAfterHumanAction:
 
         # Set to last player
         num_players = len(game.turn_order)
-        game.current_turn_index = num_players - 1
+        game.current_player_index = num_players - 1
 
         last_player_id = game.turn_order[num_players - 1]
         player = game.get_player(last_player_id)
@@ -123,7 +123,7 @@ class TestTurnAdvancesAfterHumanAction:
                         {"action": "place_tile", "tile": str(tile)},
                     )
 
-                    if game.turn_phase == "buy_stocks":
+                    if game.get_public_state()["phase"] == "buy_stocks":
                         await handle_player_action(
                             game_room,
                             last_player_id,
@@ -131,7 +131,7 @@ class TestTurnAdvancesAfterHumanAction:
                         )
 
         # Should wrap to first player
-        assert game.current_turn_index == 0
+        assert game.current_player_index == 0
 
 
 class TestWebSocketMessageBroadcasting:
@@ -345,7 +345,7 @@ class TestWebSocketExceptionHandling:
         room = clean_session_manager.get_room(game_room)
         game = room.game
 
-        initial_phase = game.turn_phase
+        initial_phase = game.get_public_state()["phase"]
         initial_player = game.get_current_player_id()
 
         # Try an invalid action (will raise exception)
@@ -359,7 +359,7 @@ class TestWebSocketExceptionHandling:
             pass  # Exception is expected
 
         # Game state should be unchanged
-        assert game.turn_phase == initial_phase
+        assert game.get_public_state()["phase"] == initial_phase
         assert game.get_current_player_id() == initial_player
         assert room.game is not None  # Game still exists
 
@@ -385,7 +385,7 @@ class TestWebSocketExceptionHandling:
                 pass  # Expected
 
         # Game should still be in valid state
-        assert game.turn_phase == "place_tile"
+        assert game.get_public_state()["phase"] == "place_tile"
         assert game.get_current_player_id() == current_player_id
 
         # Valid action should still work
@@ -404,4 +404,7 @@ class TestWebSocketExceptionHandling:
                     )
 
         # Action should have been processed
-        assert game.turn_phase != "place_tile" or game.current_turn_index != 0
+        assert (
+            game.get_public_state()["phase"] != "place_tile"
+            or game.current_player_index != 0
+        )

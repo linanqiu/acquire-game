@@ -54,22 +54,14 @@ def test_lobby_rules():
     assert game.get_public_state()["current_player"] == "p1"
     with pytest.raises(ValueError, match="already exists"):
         game.add_player("p1", "Again")
-    game.add_player("b1", "Bot", is_bot=True)
-    assert game.remove_player("nobody") is False
-    assert game.remove_player("p1") is True
-    assert game.remove_player("b1") is True
-    assert [p.player_id for p in game.players] == ["p2"]
-    back = game.add_player("p1", "Back")
-    assert back is game.get_player("p1") and back.name == "Back"
-    game.add_player("b1", "Now human")  # a removed bot's seat id, reused
+    bot = game.add_player("b1", "Bot", is_bot=True)
+    assert bot is game.get_player("b1") and bot.name == "Bot"
     assert game.get_public_state()["can_end_game"] is False  # lobby
     game.start_game()
     flags = {p["player_id"]: p["is_bot"] for p in game.get_public_state()["players"]}
-    assert flags == {"p2": False, "p1": False, "b1": False}
+    assert flags == {"p1": False, "p2": False, "b1": True}
     with pytest.raises(ValueError, match="started"):
         game.add_player("p4", "Late")
-    with pytest.raises(ValueError, match="started"):
-        game.remove_player("p2")
     with pytest.raises(ValueError, match="already started"):
         game.start_game()
 
@@ -332,10 +324,10 @@ def test_only_the_mergemaker_may_act_while_a_tie_is_open():
         False,
         True,
     ]
-    assert t.game.turn_phase == "merger"
+    assert t.game.get_public_state()["phase"] == "merger"
     t.act("p3", action="merger_choice", surviving_chain="sandpiper")
     # p2 founded marlowe and must now decide what to do with that share
-    assert t.game.turn_phase == "stock_disposition"
+    assert t.game.pending_action["type"] == "stock_disposition"
     assert t.game.get_player_state("p2")["can_act"] is True
     assert t.game.get_player_state("p3")["can_act"] is False
 

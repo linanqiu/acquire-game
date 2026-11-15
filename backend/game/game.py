@@ -11,7 +11,7 @@ from game.hotel import Hotel
 from game.player import Player
 from game.rules import Rules, PlacementResult
 from game.ranking import competition_ranks
-from game.ruleset import Ruleset, default_ruleset, resolve
+from game.ruleset import Ruleset, resolve
 from game.bot import Bot
 from game.responses import (
     PlayTileResult,
@@ -65,14 +65,13 @@ class GamePhase(Enum):
 
     LOBBY = "lobby"
     PLAYING = "playing"
-    TILE_PLAYED = "tile_played"
     FOUNDING_CHAIN = "founding_chain"
     MERGING = "merging"
     BUYING_STOCKS = "buying_stocks"
     GAME_OVER = "game_over"
 
 
-# Phase string mapping - single source of truth for bidirectional conversion
+# Phase names as clients see them (public state ``phase``)
 _PHASE_TO_STRING = {
     GamePhase.LOBBY: "lobby",
     GamePhase.PLAYING: "place_tile",
@@ -81,7 +80,6 @@ _PHASE_TO_STRING = {
     GamePhase.BUYING_STOCKS: "buy_stocks",
     GamePhase.GAME_OVER: "game_over",
 }
-_STRING_TO_PHASE = {v: k for k, v in _PHASE_TO_STRING.items()}
 
 
 def trade_multiple_error(ratio: int) -> str:
@@ -94,16 +92,8 @@ def trade_multiple_error(ratio: int) -> str:
 class Game:
     """Main game class that orchestrates the full Buyout game.
 
-    All parameters come from ``self.ruleset`` (passed explicitly; default
-    default). The class constants below are aliases of the default ruleset
-    kept for older callers and tests; the engine never reads them.
+    All parameters come from ``self.ruleset`` (default: the default ruleset).
     """
-
-    MIN_PLAYERS = default_ruleset().min_players
-    MAX_PLAYERS = default_ruleset().max_players
-    STARTING_TILES = default_ruleset().hand_size
-    MAX_STOCKS_PER_TURN = default_ruleset().max_stock_purchases_per_turn
-    MAX_PENDING_TRADES_PER_PLAYER = default_ruleset().max_pending_trades_per_player
 
     def __init__(
         self,
@@ -179,37 +169,10 @@ class Game:
         """Get current board sizes for a list of chains."""
         return {c: self.board.get_chain_size(c) for c in chains}
 
-    # Convenience properties for backward compatibility with WebSocket handlers
-
     @property
     def turn_order(self) -> list[str]:
         """Get list of player IDs in turn order."""
         return [p.player_id for p in self.players]
-
-    @property
-    def current_turn_index(self) -> int:
-        """Get current turn index (alias for current_player_index)."""
-        return self.current_player_index
-
-    @current_turn_index.setter
-    def current_turn_index(self, value: int) -> None:
-        """Set current turn index."""
-        self.current_player_index = value
-
-    @property
-    def turn_phase(self) -> str:
-        """Get the current turn phase as a string for WebSocket compatibility."""
-        # Check pending_action for stock_disposition
-        if self.phase == GamePhase.MERGING and self.pending_action:
-            if self.pending_action.get("type") == "stock_disposition":
-                return "stock_disposition"
-        return _PHASE_TO_STRING.get(self.phase, "unknown")
-
-    @turn_phase.setter
-    def turn_phase(self, value: str) -> None:
-        """Set turn phase from string (for test compatibility)."""
-        if value in _STRING_TO_PHASE:
-            self.phase = _STRING_TO_PHASE[value]
 
     def add_player(
         self,
@@ -247,28 +210,6 @@ class Game:
             self.bots[player_id] = Bot(player, bot_difficulty, rng=self.rng)
 
         return player
-
-    def remove_player(self, player_id: str) -> bool:
-        """Remove a player from the game.
-
-        Args:
-            player_id: ID of player to remove
-
-        Returns:
-            True if player was removed, False if not found
-
-        Raises:
-            ValueError: If game is not in lobby
-        """
-        if self.phase != GamePhase.LOBBY:
-            raise ValueError("Cannot remove players after game has started")
-
-        for i, player in enumerate(self.players):
-            if player.player_id == player_id:
-                self.players.pop(i)
-                self.bots.pop(player_id, None)
-                return True
-        return False
 
     def start_game(self):
         """Start the game by shuffling tiles and dealing to players.
@@ -507,7 +448,6 @@ class Game:
         # In most phases, only current player can act
         if self.phase in (
             GamePhase.PLAYING,
-            GamePhase.TILE_PLAYED,
             GamePhase.FOUNDING_CHAIN,
             GamePhase.BUYING_STOCKS,
         ):

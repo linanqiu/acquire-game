@@ -2,11 +2,11 @@
 
 Prices and bonuses themselves are checked against the frozen default table in
 test_ruleset.py and through play in tests/gameplay; this file covers the bank
-bookkeeping that play relies on and the default aliases older callers use.
+bookkeeping that play relies on.
 """
 
-from game.hotel import Hotel, HotelChain, HotelTier
-from game.ruleset import default_ruleset, load_ruleset
+from game.hotel import Hotel
+from game.ruleset import load_ruleset
 
 
 def test_bank_never_sells_more_than_it_has_and_never_holds_more_than_issued():
@@ -36,24 +36,4 @@ def test_active_and_inactive_chains():
     assert hotel.get_inactive_chains() == [c for c in ids if c not in (ids[0], ids[2])]
     hotel.deactivate_chain(ids[0])
     assert hotel.get_active_chains() == [ids[2]]
-    assert hotel.get_state() == {
-        "available_stocks": {c: 18 for c in ids},
-        "active_chains": [ids[2]],
-    }
-
-
-def test_default_aliases_agree_with_the_ruleset():
-    rs = default_ruleset()
-    sandpiper = Hotel.get_chain("sandpiper")
-    assert sandpiper == HotelChain("sandpiper", HotelTier.CHEAP, sandpiper.color)
-    for size in (2, 6, 11, 41):
-        assert sandpiper.get_stock_price(size) == rs.price("sandpiper", size)
-        assert sandpiper.get_majority_bonus(size) == rs.majority_bonus(
-            "sandpiper", size
-        )
-        assert sandpiper.get_minority_bonus(size) == rs.minority_bonus(
-            "sandpiper", size
-        )
-    assert (sandpiper.is_safe(10), sandpiper.is_safe(11)) == (False, True)
-    assert Hotel().is_chain_safe("sandpiper", 11) is True
-    assert Hotel().get_chain("obsidian").tier_id == "expensive"
+    assert {c: hotel.get_available_stocks(c) for c in ids} == {c: 18 for c in ids}

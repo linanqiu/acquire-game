@@ -207,7 +207,7 @@ class TestBoard:
         assert state["cells"]["1A"]["chain"] == "sandpiper"
 
     def test_all_tiles(self):
-        tiles = Board.all_tiles()
+        tiles = Board().all_tiles()
         assert len(tiles) == 108
 
 

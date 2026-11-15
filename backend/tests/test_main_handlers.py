@@ -20,6 +20,7 @@ from protocol import (
     validate_websocket_message,
 )
 from game.board import Tile
+from game.game import GamePhase
 
 
 class TestMessageValidation:
@@ -193,7 +194,7 @@ class TestHandleFoundChain:
         game = room.game
         hotel = game.hotel
 
-        game.turn_phase = "place_tile"  # Wrong phase
+        game.phase = GamePhase.PLAYING  # Wrong phase
         current_player_id = game.get_current_player_id()
 
         with patch.object(session_manager, "send_to_player", new_callable=AsyncMock):
@@ -222,7 +223,7 @@ class TestHandleFoundChain:
         # Activate sandpiper
         hotel.activate_chain("sandpiper")
 
-        game.turn_phase = "found_chain"
+        game.phase = GamePhase.FOUNDING_CHAIN
         game.pending_action = {
             "type": "found_chain",
             "tile": Tile(1, "A"),

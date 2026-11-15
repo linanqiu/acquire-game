@@ -32,7 +32,7 @@ from game.hotel import Hotel
 from game.player import Player
 from tests.event_ledger import Ledger
 
-ALL_CHAINS = Hotel.get_all_chain_names()
+ALL_CHAINS = Hotel().get_all_chain_names()
 TOTAL_STOCK_PER_CHAIN = 25
 
 
@@ -74,7 +74,13 @@ def fingerprint(game: Game):
     return json.dumps(
         {
             "board": game.board.get_state(),
-            "hotel": game.hotel.get_state(),
+            "hotel": (
+                game.hotel.get_active_chains(),
+                {
+                    c: game.hotel.get_available_stocks(c)
+                    for c in game.hotel.get_all_chain_names()
+                },
+            ),
             "players": [
                 (p.player_id, p.money, p.stocks, sorted(str(t) for t in p.hand))
                 for p in game.players
