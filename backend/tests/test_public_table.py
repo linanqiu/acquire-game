@@ -229,6 +229,129 @@ class TestMergerHistory:
             assert all(m["complete"] for m in history)
         assert seen > 0, "no merger in five heuristic games"
 
+    def test_survivor_after_the_merger(self):
+        """The post-merger survivor (BL-011): size, price and bonuses at the size
+        the merger will give, everyone's survivor shares with the trades made so
+        far, and who may still trade."""
+        game = merger_position()
+        game.current_player_index = 1
+        assert apply_action(game, "p2", {"action": "place_tile", "tile": "2B"})[
+            "success"
+        ]
+        after = merger_history(game)[0]["survivor_after"]
+        # halcyon 5 + marlowe 3 + the merging tile 2B = 9 tiles.
+        assert after["size"] == 9
+        assert after["price"] == game.hotel.get_stock_price("halcyon", 9)
+        assert after["majority_bonus"] == game.hotel.get_majority_bonus("halcyon", 9)
+        assert after["minority_bonus"] == game.hotel.get_minority_bonus("halcyon", 9)
+        assert after["bank"] == game.hotel.get_available_stocks("halcyon")
+        rows = {h["player_id"]: h for h in after["holders"]}
+        assert [(h["player_id"], h["shares"]) for h in after["holders"]] == [
+            ("p1", 5),
+            ("p2", 3),
+            ("p3", 2),
+        ]
+        assert rows["p1"]["undecided"] and rows["p2"]["undecided"]
+        assert not rows["p3"]["undecided"]
+        assert rows["p1"]["role"] == "majority" and rows["p2"]["role"] == "minority"
+        assert all(h["received"] == 0 for h in after["holders"])
+
+        assert apply_action(
+            game,
+            "p2",
+            {
+                "action": "merger_disposition",
+                "defunct_chain": "marlowe",
+                "disposition": {"sell": 2, "trade": 0, "hold": 0},
+            },
+        )["success"]
+        rows = {
+            h["player_id"]: h
+            for h in merger_history(game)[0]["survivor_after"]["holders"]
+        }
+        assert not rows["p2"]["undecided"] and rows["p1"]["undecided"]
+        assert apply_action(
+            game,
+            "p1",
+            {
+                "action": "merger_disposition",
+                "defunct_chain": "marlowe",
+                "disposition": {"sell": 0, "trade": 4, "hold": 0},
+            },
+        )["success"]
+        m = merger_history(game)[0]
+        assert m["complete"] and m["survivor_after"] is None
+        assert m["survivor_size"] == 9
+        assert game.get_player("p1").get_stock_count("halcyon") == 7
+
+    def test_played_games_survivor_after_is_what_the_merger_produces(self):
+        """Random and heuristic games: at every step of every merger, the
+        projected survivor size and price are the ones the finished merger has,
+        players who already decided end with exactly the projected shares, and
+        when nobody still to decide trades, the projected roles and bonuses are
+        the engine's for the finished chain."""
+        from tests.support.drive import RandomTable
+
+        checked = exact = 0
+        tables = [("random", s) for s in range(1, 9)] + [
+            ("heuristic", s) for s in (1, 2)
+        ]
+        for kind, seed in tables:
+            game = Game(seed=seed)
+            for i in range(1, 5):
+                game.add_player(f"p{i}", f"P{i}")
+            game.start_game()
+            table = (
+                RandomTable(game, seed=seed)
+                if kind == "random"
+                else HeuristicTable(game, seed=seed)
+            )
+            projections: list[dict] = []
+            while game.phase != GamePhase.GAME_OVER:
+                history = merger_history(game)
+                live = history[-1] if history and not history[-1]["complete"] else None
+                if live is not None:
+                    projections.append(copy.deepcopy(live["survivor_after"]))
+                n_events = len(game.events)
+                table.step()
+                for e in game.events[n_events:]:
+                    if e["type"] != "merger_completed":
+                        continue
+                    survivor = e["survivor"]
+                    final_size = e["survivor_size"]
+                    final_price = game.hotel.get_stock_price(survivor, final_size)
+                    actual = public_chain_holders(game)[survivor]
+                    shares = {
+                        p.player_id: p.get_stock_count(survivor) for p in game.players
+                    }
+                    for proj in projections:
+                        checked += 1
+                        assert proj["size"] == final_size
+                        assert proj["price"] == final_price
+                        assert proj["majority_bonus"] == actual["majority_bonus"]
+                        assert proj["minority_bonus"] == actual["minority_bonus"]
+                        nobody_moved = True
+                        for h in proj["holders"]:
+                            got = shares[h["player_id"]]
+                            if h["undecided"]:
+                                assert got >= h["shares"]
+                                nobody_moved &= got == h["shares"]
+                            else:
+                                assert got == h["shares"]
+                        if nobody_moved:
+                            exact += 1
+                            projected = {
+                                h["player_id"]: (h["role"], h["tied"], h["bonus"])
+                                for h in proj["holders"]
+                                if h["shares"] > 0
+                            }
+                            assert projected == {
+                                h["player_id"]: (h["role"], h["tied"], h["bonus"])
+                                for h in actual["holders"]
+                            }
+                    projections = []
+        assert checked > 0 and exact > 0, (checked, exact)
+
     def test_survives_a_snapshot_round_trip(self):
         from game.snapshot import from_snapshot, to_snapshot
 

@@ -564,6 +564,7 @@
           "obsidian": 2
         },
         "survivor": "obsidian",
+        "survivor_after": null,
         "survivor_size": 5,
         "tile": "3A"
       },
@@ -646,6 +647,7 @@
           "sandpiper": 2
         },
         "survivor": "meridian",
+        "survivor_after": null,
         "survivor_size": 8,
         "tile": "7F"
       },
@@ -717,6 +719,7 @@
           "juniper": 3
         },
         "survivor": "juniper",
+        "survivor_after": null,
         "survivor_size": 6,
         "tile": "4E"
       },
@@ -799,6 +802,7 @@
           "meridian": 11
         },
         "survivor": "meridian",
+        "survivor_after": null,
         "survivor_size": 18,
         "tile": "6G"
       }

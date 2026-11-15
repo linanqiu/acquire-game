@@ -327,6 +327,7 @@
           "sandpiper": 19
         },
         "survivor": "sandpiper",
+        "survivor_after": null,
         "survivor_size": 23,
         "tile": "10H"
       },
@@ -365,6 +366,59 @@
           "marlowe": 15
         },
         "survivor": "marlowe",
+        "survivor_after": {
+          "bank": 7,
+          "holders": [
+            {
+              "bonus": 5300,
+              "majority": 5300,
+              "minority": 0,
+              "player_id": "p2",
+              "received": 0,
+              "role": "majority",
+              "shares": 5,
+              "tied": true,
+              "undecided": true
+            },
+            {
+              "bonus": 5300,
+              "majority": 5300,
+              "minority": 0,
+              "player_id": "p3",
+              "received": 0,
+              "role": "majority",
+              "shares": 5,
+              "tied": true,
+              "undecided": true
+            },
+            {
+              "bonus": 0,
+              "majority": 0,
+              "minority": 0,
+              "player_id": "p1",
+              "received": 0,
+              "role": null,
+              "shares": 4,
+              "tied": false,
+              "undecided": true
+            },
+            {
+              "bonus": 0,
+              "majority": 0,
+              "minority": 0,
+              "player_id": "p4",
+              "received": 0,
+              "role": null,
+              "shares": 4,
+              "tied": false,
+              "undecided": true
+            }
+          ],
+          "majority_bonus": 7000,
+          "minority_bonus": 3500,
+          "price": 700,
+          "size": 20
+        },
         "survivor_size": null,
         "tile": "6C"
       }

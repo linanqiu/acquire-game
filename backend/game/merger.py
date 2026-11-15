@@ -306,19 +306,11 @@ class MergerMixin:
 
         defunct_chains = [c for c in self._merger.chains if c != survivor]
 
-        # Merge all defunct chains into survivor on the board
-        for defunct in self._merger.chains:
-            if defunct != survivor:
-                self.board.merge_chains(survivor, defunct)
-                self.hotel.deactivate_chain(defunct)
-
-        # Absorb the triggering tile and any connected lone tiles
-        if tile:
-            connected = self.board.get_connected_tiles(tile)
-            for t in connected:
-                cell = self.board.get_cell(t.column, t.row)
-                if cell.chain is None:
-                    self.board.set_chain(t, survivor)
+        # Merge all defunct chains into survivor on the board, and absorb the
+        # triggering tile and any connected lone tiles
+        self.board.absorb_merger(survivor, defunct_chains, tile)
+        for defunct in defunct_chains:
+            self.hotel.deactivate_chain(defunct)
 
         self._emit(
             "merger_completed",
