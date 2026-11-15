@@ -81,7 +81,7 @@ def game_room(clean_session_manager):
     # Seeded: tests must not depend on a lucky deal.
     game = Game(seed=7)
     for player_id, connection in room.players.items():
-        game.add_player(player_id, connection.name, is_bot=connection.is_bot)
+        game.add_player(player_id, connection.name, is_bot=connection.is_agent)
     game.start_game()
 
     room.game = game
