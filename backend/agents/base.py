@@ -6,7 +6,7 @@ the server simply waits for their message.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
@@ -24,6 +24,9 @@ class DecisionContext:
     state: dict  # game.get_player_state(player_id)
     events: list[dict]  # game.decisions.public_events(game, player_id)
     calc: dict  # game.calculator.build_calculator_pack(game, player_id)
+    # Recent public table chat (chat.prompt_messages; LLM seats only, else
+    # empty). Unverified talk, never binding.
+    chat: list[dict] = field(default_factory=list)
 
 
 @runtime_checkable

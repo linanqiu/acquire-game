@@ -176,6 +176,12 @@ def redact(transcript: dict) -> dict:
                 continue
             out["entries"].append(e)
             continue
+        if e.get("type") == "chat_reply" and isinstance(e.get("llm"), dict):
+            # a talk call's prompt holds the seat's hand and private notes
+            d = dict(e)
+            d["llm"] = {k: v for k, v in e["llm"].items() if k != "user_prompt"}
+            out["entries"].append(d)
+            continue
         if e.get("type") != "decision":
             out["entries"].append(e)
             continue
@@ -219,10 +225,24 @@ def totals_from_entries(transcript: dict) -> dict:
             "cache_write_tokens": 0,
             "cost_usd": None,
             "latency_s": 0.0,
+            "reply_calls": 0,
         }
         for s in seats
     }
     for e in transcript.get("entries", []):
+        if e.get("type") == "chat_reply" and e.get("player_id") in out:
+            t = out[e["player_id"]]
+            t["reply_calls"] += 1
+            for a in (e.get("llm") or {}).get("attempts") or []:
+                t["llm_calls"] += int(a.get("raw") is not None)
+                for k in (
+                    "input_tokens",
+                    "output_tokens",
+                    "cache_read_tokens",
+                    "cache_write_tokens",
+                ):
+                    t[k] += int(a.get(k) or 0)
+            continue
         if e.get("type") != "decision" or e.get("player_id") not in out:
             continue
         t = out[e["player_id"]]

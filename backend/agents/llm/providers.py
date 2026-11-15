@@ -114,13 +114,20 @@ class AnthropicProvider:
         self._client = client
 
     def build_request(
-        self, *, system: str, user: str, schema: dict, max_tokens: int, timeout: float
+        self,
+        *,
+        system: str,
+        user: str,
+        schema: dict,
+        max_tokens: int,
+        timeout: float,
+        effort: str | None = None,
     ) -> dict:
         output_config: dict[str, Any] = {
             "format": {"type": "json_schema", "schema": schema}
         }
-        if self.effort:
-            output_config["effort"] = self.effort
+        if effort or self.effort:
+            output_config["effort"] = effort or self.effort
         return {
             "model": self.model,
             "max_tokens": max_tokens,
@@ -138,14 +145,24 @@ class AnthropicProvider:
         }
 
     async def complete(
-        self, *, system: str, user: str, schema: dict, max_tokens: int, timeout: float
+        self,
+        *,
+        system: str,
+        user: str,
+        schema: dict,
+        max_tokens: int,
+        timeout: float,
+        effort: str | None = None,
     ) -> ProviderResult:
+        """``effort`` overrides the provider's effort for this call (table-talk
+        replies run at low effort)."""
         request = self.build_request(
             system=system,
             user=user,
             schema=schema,
             max_tokens=max_tokens,
             timeout=timeout,
+            effort=effort,
         )
         t0 = time.monotonic()
         try:
@@ -346,7 +363,14 @@ class FakeProvider:
         self.calls: list[dict] = []
 
     async def complete(
-        self, *, system: str, user: str, schema: dict, max_tokens: int, timeout: float
+        self,
+        *,
+        system: str,
+        user: str,
+        schema: dict,
+        max_tokens: int,
+        timeout: float,
+        effort: str | None = None,
     ) -> ProviderResult:
         self.calls.append(
             {
@@ -355,6 +379,7 @@ class FakeProvider:
                 "schema": schema,
                 "max_tokens": max_tokens,
                 "timeout": timeout,
+                "effort": effort,
             }
         )
         if self.delay:

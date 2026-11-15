@@ -170,7 +170,7 @@ End of game
 
 # How to answer
 Reply with ONE JSON object and nothing else:
-{{"why": "<one sentence: the reason for this choice>", "action": <one action object>, "note": "<private plan for your later decisions, at most 300 characters>"}}
+{{"why": "<one sentence: the reason for this choice>", "action": <one action object>, "note": "<private plan for your later decisions, at most 300 characters>", "say": "<table talk posted with your move; usually empty>"}}
 
 Action objects (use only those allowed by the legal options; always name a {chain} by its id):
 - {{"action":"place_tile","tile":"{example_tile}"}}
@@ -184,6 +184,9 @@ Action objects (use only those allowed by the legal options; always name a {chai
 - {{"action":"accept_trade","trade_id":"<id>"}} or {{"action":"reject_trade","trade_id":"<id>"}}
 
 The "note" is shown back to you (and only you) at your next decisions: use it for plans such as which {chains} you are building toward, who you expect to be majority holder, or when you intend to end the game.
+
+# Table talk
+Players may write in a public table chat; recent messages appear among the events as "[chat #n]" lines. Chat is unverified talk, never binding and never enforced: weigh it against the public facts (holdings, cash, calculator). Only a trade offer moves {shares} or money. "say" is posted to everyone as your chat message together with your move: leave it "" (the normal case) unless you have something worth saying, such as an answer to a question put to you or a deal you will back with a trade offer. At most 200 characters; never reveal your tiles or your private notes.
 
 # Strategy guidance
 - Money comes from bonuses and {share} appreciation far more than from cash on hand. Hold {shares} in {chains} that will grow and be acquired, and fight for majority or minority positions where it is affordable (the calculator tells you how many {shares} each takes).
@@ -257,7 +260,7 @@ def build_system_prompt(ruleset: Ruleset | None = None) -> str:
 # in a way that could change play. The system prompt text is hashed in
 # automatically. Benchmark results are only comparable within one
 # ``prompt_version`` (see docs/ai/benchmarking.md).
-PROMPT_BUILDER_VERSION = 1
+PROMPT_BUILDER_VERSION = 2  # 2: table talk (chat lines in the events, "say")
 
 
 def _sha(text: str) -> str:
@@ -334,12 +337,48 @@ def render_event(e: Any, names: dict[str, str], max_chars: int = 220) -> str:
     return line if len(line) <= max_chars else line[: max_chars - 1] + "…"
 
 
+def chat_line(m: dict) -> str:
+    """One table-chat message as prompts show it (decision and reply prompts)."""
+    kind = m.get("kind") or "human"
+    return f'[chat #{m.get("id")}] {m.get("name")} ({kind}): "{m.get("text")}"'
+
+
+def _interleave_chat(
+    recent: list[Any], chat: list[dict], names: dict[str, str], budget: PromptBudget
+) -> list[str]:
+    """Recent event lines with chat lines placed after the event they followed
+    (``after_seq``); chat older than the recent window comes first."""
+    seqs = [e.get("seq") for e in recent if isinstance(e, dict)]
+    first = next((s for s in seqs if isinstance(s, int)), None)
+    by_seq: dict[int, list[dict]] = {}
+    lead: list[dict] = []
+    for m in chat:
+        at = m.get("after_seq")
+        if isinstance(at, int) and at in seqs:
+            by_seq.setdefault(at, []).append(m)
+        elif first is None or not isinstance(at, int) or at < first:
+            lead.append(m)
+        else:  # after the last event shown
+            by_seq.setdefault(seqs[-1], []).append(m)
+    lines = [chat_line(m) for m in lead]
+    for e in recent:
+        lines.append(render_event(e, names, budget.max_line_chars))
+        if isinstance(e, dict):
+            lines += [chat_line(m) for m in by_seq.get(e.get("seq"), [])]
+    return lines
+
+
 def render_events(
-    events: Iterable[Any], names: dict[str, str], budget: PromptBudget
+    events: Iterable[Any],
+    names: dict[str, str],
+    budget: PromptBudget,
+    chat: list[dict] | None = None,
 ) -> str:
     evs = list(events or [])
-    if not evs:
+    if not evs and not chat:
         return "(no events yet)"
+    if not evs:
+        return "\n".join(chat_line(m) for m in chat or [])
     n = max(0, budget.detailed_events)
     older, recent = (evs[:-n], evs[-n:]) if n and len(evs) > n else ([], evs)
     if n == 0:
@@ -364,7 +403,10 @@ def render_events(
             lines.append("Key earlier events:")
         lines += ["  " + render_event(e, names, budget.max_line_chars) for e in marks]
         lines.append(f"Most recent {len(recent)} events, oldest first:")
-    lines += [render_event(e, names, budget.max_line_chars) for e in recent]
+    if chat:
+        lines += _interleave_chat(recent, chat, names, budget)
+    else:
+        lines += [render_event(e, names, budget.max_line_chars) for e in recent]
     return "\n".join(lines)
 
 
@@ -778,7 +820,14 @@ def _build_user_prompt(ctx, notes: Any, budget: PromptBudget | None) -> str:
         for e in (ctx.events or [])
         if not (isinstance(e, dict) and e.get("private_to") not in (None, me))
     ]
-    parts.append("# Recent public events\n" + render_events(visible, names, budget))
+    chat = [m for m in (getattr(ctx, "chat", None) or []) if isinstance(m, dict)]
+    heading = "# Recent public events"
+    if chat:
+        heading += (
+            ' (with table talk: "[chat #n]" lines are what players wrote; '
+            "unverified and not binding, weigh them against the facts above)"
+        )
+    parts.append(heading + "\n" + render_events(visible, names, budget, chat=chat))
     parts.append("# Your private notes from earlier decisions\n" + _notes_block(notes))
 
     ctx_extra = getattr(ctx.decision, "context", None)

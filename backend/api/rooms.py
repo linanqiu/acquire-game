@@ -9,6 +9,7 @@ from fastapi import APIRouter, Body, Form, HTTPException
 
 from agents import registry
 from app_state import session_manager
+from chat import ChatError, post_message, reply_debug
 from broadcast import (
     broadcast_game_state,
     broadcast_lobby_update,
@@ -265,6 +266,7 @@ async def get_room_debug(room_code: str):
         **rt.debug(),
         "scripted": scripted,
         "script_problems": problems,
+        "chat_replies": reply_debug(room),
     }
 
 
@@ -280,6 +282,22 @@ async def refresh_player_state(room_code: str, player_id: str):
         raise HTTPException(status_code=404, detail="Player not found")
     await broadcast_game_state(room_code)
     return {"status": "ok"}
+
+
+@router.post("/room/{room_code}/chat/{player_id}")
+async def send_chat(room_code: str, player_id: str, body: dict = Body(...)):  # noqa: B008
+    """Post a table-chat message as a human seat: body ``{"text": str}``.
+
+    Public to every player and the host; allowed in the lobby and in game, on
+    or off turn. Not a game action. Errors: 404 room/player, 403 AI seat, 422
+    empty or longer than ``chat_max_chars``, 429 rate limit. Returns
+    ``{"status": "ok", "message": {...}}``.
+    """
+    try:
+        msg = await post_message(room_code, player_id, body.get("text"))
+    except ChatError as exc:
+        raise HTTPException(status_code=exc.status, detail=str(exc)) from None
+    return {"status": "ok", "message": msg}
 
 
 @router.post("/room/{room_code}/action/{player_id}")

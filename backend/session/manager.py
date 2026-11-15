@@ -57,6 +57,8 @@ class GameRoom:
     # transcripts.TranscriptWriter (None when transcripts are disabled).
     game_id: Optional[str] = None
     transcript: Any = None
+    # chat.ChatState: table chat (messages, rate limits, reply calls); lazy.
+    chat: Any = None
 
 
 class SessionManager:

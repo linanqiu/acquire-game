@@ -24,6 +24,8 @@ Messages (shapes unchanged from the pre-seat server unless noted):
   ``game_state`` players also carry ``fallbacks: {count, last_reason}``.
 * ``game_over`` - room and host; carries ``game_id`` (also in ``game_state``)
   so clients can link to ``/games/{game_id}``.
+* ``chat_message`` - room and host: one table-chat message (``chat.py``);
+  ``chat_history`` (the last 100) to a (re)connecting player or host.
 * ``error`` - to the acting human only.
 """
 
@@ -474,6 +476,9 @@ async def send_player_state(room_code: str, player_id: str) -> None:
             await session_manager.send_to_player(room_code, player_id, over)
     else:
         await broadcast_lobby_update(room_code)
+    from chat import send_history
+
+    await send_history(room_code, player_id)
 
 
 def _decision_for(game: Game, player_id: str) -> Decision | None:
@@ -492,3 +497,6 @@ async def send_host_state(room_code: str) -> None:
             await session_manager.send_to_host(room_code, over)
     else:
         await broadcast_lobby_update(room_code)
+    from chat import send_history
+
+    await send_history(room_code)

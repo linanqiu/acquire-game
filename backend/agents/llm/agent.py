@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import inspect
 import json
 import time
 from collections import deque
@@ -32,10 +33,14 @@ from agents.llm.prompt import (
 from agents.llm.providers import Provider, ProviderResult
 from agents.llm.schema import (
     NOTE_MAX_CHARS,
+    REPLY_SCHEMA,
     build_schema,
     check_against_legal,
     parse_answer,
+    parse_reply,
+    parse_say,
 )
+from agents.llm.talk import build_talk_prompt
 
 
 @lru_cache(maxsize=16)
@@ -46,6 +51,14 @@ def _cached_system_prompt(fingerprint: str, ruleset: Ruleset) -> str:
 def _system_prompt(rs: Ruleset) -> str:
     """The system prompt for ``rs``, cached per ruleset fingerprint."""
     return _cached_system_prompt(rs.fingerprint, rs)
+
+
+def _takes_effort(provider: Any) -> bool:
+    """True when ``provider.complete`` accepts an ``effort`` override."""
+    try:
+        return "effort" in inspect.signature(provider.complete).parameters
+    except (TypeError, ValueError):
+        return False
 
 
 DEFAULT_TIMEOUT_S = 45.0
@@ -92,8 +105,13 @@ class LLMAgent:
         decision_budget: float | None = None,
         budget: PromptBudget | None = None,
         log: DecisionLog | None = None,
+        table_talk: bool = False,
     ):
         self.provider = provider
+        # Takes part in off-turn table talk (chat.py). Catalog seats do; agents
+        # built directly (bench, tests with scripted providers) do not, so a
+        # talk call never consumes a scripted decision answer.
+        self.table_talk = table_talk
         self.name = name
         self.agent_id = agent_id
         self.timeout = timeout
@@ -304,7 +322,8 @@ class LLMAgent:
             if error is None:
                 break
 
-        rec.update(outcome="answered", why=why, note=note, error=None)
+        say = parse_say(results[-1].data) if results else ""
+        rec.update(outcome="answered", why=why, note=note, error=None, say=say or None)
         if note:
             self.notes.append(note[:NOTE_MAX_CHARS])
         if action["action"] == "propose_trade":
@@ -335,6 +354,78 @@ class LLMAgent:
         )
         return action
 
+    async def reply(
+        self,
+        view: dict,
+        *,
+        max_tokens: int = 2048,
+        effort: str | None = None,
+        timeout: float = 30.0,
+    ) -> tuple[str | None, dict]:
+        """One off-turn table-talk call (``chat.py``): ``(text or None, record)``.
+
+        The seat's own system prompt (as for decisions, so it is prompt-cached)
+        and ``build_talk_prompt`` (the decision context: own hand and holdings,
+        standings, chains, recent events with chat, private notes, plus what
+        triggered the call); answer ``{"reply": str}`` ("" / null = silent).
+        Touches no game state and none of the decision bookkeeping. The seat's
+        normal effort applies unless ``effort`` is given (providers that take
+        it). Raises ``ProviderError`` (record attached as ``.record``) when
+        the call fails.
+        """
+        rs = ruleset_from_state(view.get("state") or {})
+        system = _system_prompt(rs)
+        user = build_talk_prompt(view, list(self.notes))
+        record: dict = {
+            "model": getattr(self.provider, "model", "") or "",
+            "system_prompt_id": system_prompt_id(system, rs),
+            "user_prompt": user,
+            "attempts": [],
+        }
+        kwargs: dict = {
+            "system": system,
+            "user": user,
+            "schema": REPLY_SCHEMA,
+            "max_tokens": max_tokens,
+            "timeout": timeout,
+        }
+        if effort and _takes_effort(self.provider):
+            kwargs["effort"] = effort
+        t0 = time.monotonic()
+        attempt = {
+            "raw": None,
+            "parsed": None,
+            "error": None,
+            "latency_s": None,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
+            "retry_prompt": None,
+        }
+        record["attempts"].append(attempt)
+        try:
+            res = await asyncio.wait_for(
+                self.provider.complete(**kwargs), timeout + self.timeout_grace
+            )
+        except (ProviderError, asyncio.TimeoutError) as exc:
+            attempt["error"] = f"provider error: {exc or 'timed out'}"
+            attempt["latency_s"] = round(time.monotonic() - t0, 4)
+            err = exc if isinstance(exc, ProviderError) else ProviderError("timed out")
+            err.record = record  # type: ignore[attr-defined]
+            raise err from None
+        text = parse_reply(res.data)
+        attempt.update(
+            raw=res.raw,
+            parsed=res.data if isinstance(res.data, dict) else None,
+            latency_s=round(time.monotonic() - t0, 4),
+            input_tokens=int(res.input_tokens or 0),
+            output_tokens=int(res.output_tokens or 0),
+            cache_read_tokens=int(res.cache_read_tokens or 0),
+            cache_write_tokens=int(res.cache_write_tokens or 0),
+        )
+        return text, record
+
     # ------------------------------------------------------------ internals
 
     def _start_record(
@@ -357,6 +448,7 @@ class LLMAgent:
             "attempts": [],
             "why": None,
             "note": None,
+            "say": None,
             "outcome": None,
             "error": None,
         }
