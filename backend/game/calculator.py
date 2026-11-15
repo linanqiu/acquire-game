@@ -157,6 +157,23 @@ def _shares_needed(
     return None
 
 
+def _prices(game) -> dict[str, int]:
+    """Current price of every chain (0 for chains not on the board)."""
+    return {c: _price(game, c) for c in game.hotel.get_all_chain_names()}
+
+
+def _holders(game, chain: str) -> list[dict]:
+    """Players holding ``chain``: ``{player_id, name, shares}``, most shares first
+    (seat order breaks ties)."""
+    seat = {p.player_id: i for i, p in enumerate(game.players)}
+    holders = [
+        {"player_id": p.player_id, "name": p.name, "shares": p.get_stock_count(chain)}
+        for p in game.players
+        if p.get_stock_count(chain) > 0
+    ]
+    return sorted(holders, key=lambda h: (-h["shares"], seat[h["player_id"]]))
+
+
 def _holdings(game, chain: str) -> dict[str, int]:
     return {p.player_id: p.get_stock_count(chain) for p in game.players}
 
@@ -204,8 +221,6 @@ def _simulate(board: Board, tile: Tile, chain: str, defunct: list[str] | None = 
 def _chains_section(game, viewer_id: str) -> dict:
     rs = game.ruleset
     max_held = rs.stocks_per_chain
-    names = {p.player_id: p.name for p in game.players}
-    seat = {p.player_id: i for i, p in enumerate(game.players)}
     out = {}
     for chain in game.hotel.get_all_chain_names():
         active = game.hotel.is_chain_active(chain)
@@ -221,14 +236,7 @@ def _chains_section(game, viewer_id: str) -> dict:
         if active:
             nsize, nprice = rs.next_price(chain, size)
             holdings = _holdings(game, chain)
-            holders = sorted(
-                (
-                    {"player_id": pid, "name": names[pid], "shares": n}
-                    for pid, n in holdings.items()
-                    if n > 0
-                ),
-                key=lambda h: (-h["shares"], seat[h["player_id"]]),
-            )
+            holders = _holders(game, chain)
             payouts = _payouts(game.players, chain, size, game.hotel)
             mine = holdings.get(viewer_id, 0)
             cap = min(game.hotel.get_available_stocks(chain), max_held - mine)
@@ -283,7 +291,7 @@ def _chains_section(game, viewer_id: str) -> dict:
 
 def _players_section(game) -> list[dict]:
     all_chains = game.hotel.get_all_chain_names()
-    prices = {c: _price(game, c) for c in all_chains}
+    prices = _prices(game)
     # Bonuses per active chain, exactly as Game.end_game pays them.
     bonus_by_chain = {}
     for chain in game.hotel.get_active_chains():
@@ -517,6 +525,193 @@ def _buy_options(game, viewer) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Public table view (sent to every client in ``game_state``)
+# ---------------------------------------------------------------------------
+
+
+def public_net_worth(game) -> dict[str, dict]:
+    """Every player's wealth right now, from public information only.
+
+    ``{player_id: {cash, stock_value, net_worth, rank}}``: ``stock_value`` is the
+    shares at current prices (``Player.get_stock_value``; a defunct chain's
+    shares are worth 0 until it is founded again), ``net_worth`` is cash plus
+    that, and ``rank`` is the competition rank by net worth (ties share a
+    rank: 1, 1, 3), the same ranking the final standings use.
+    """
+    prices = _prices(game)
+    rows = [
+        (p.player_id, p.money, p.get_stock_value(prices), p.get_net_worth(prices))
+        for p in game.players
+    ]
+    ranks = competition_ranks([r[3] for r in rows])
+    return {
+        pid: {"cash": cash, "stock_value": value, "net_worth": worth, "rank": rank}
+        for rank, (pid, cash, value, worth) in zip(ranks, rows, strict=True)
+    }
+
+
+def public_chain_holders(game) -> dict[str, dict]:
+    """Majority and minority holders of every active chain, with the bonuses
+    ``Rules.calculate_bonuses`` would pay if the chain were bought out now.
+
+    ``{chain: {size, price, majority_bonus, minority_bonus, holders: [...]}}``;
+    each holder is ``{player_id, shares, role, tied, majority, minority,
+    bonus}``, most shares first (seat order breaks ties). ``role`` is
+    ``majority`` / ``minority`` / ``null`` as the engine pays it: a sole
+    holder takes both bonuses (role ``majority``), a tie for the majority
+    splits both bonuses among the tied holders (no minority is paid), a tie
+    for the minority splits the minority bonus. ``tied`` is true when another
+    holder shares the role. ``majority`` / ``minority`` / ``bonus`` are the
+    amounts paid (``bonus`` = their sum).
+    """
+    out = {}
+    for chain in game.hotel.get_all_chain_names():
+        if not game.hotel.is_chain_active(chain):
+            continue
+        size = game.board.get_chain_size(chain)
+        payouts = _payouts(game.players, chain, size, game.hotel)
+        holders = []
+        for h in _holders(game, chain):
+            pay = payouts.get(
+                h["player_id"], {"majority": 0, "minority": 0, "total": 0}
+            )
+            role = (
+                "majority"
+                if pay["majority"] > 0
+                else "minority"
+                if pay["minority"] > 0
+                else None
+            )
+            holders.append(
+                {
+                    "player_id": h["player_id"],
+                    "shares": h["shares"],
+                    "role": role,
+                    "majority": pay["majority"],
+                    "minority": pay["minority"],
+                    "bonus": pay["total"],
+                }
+            )
+        for h in holders:
+            h["tied"] = h["role"] is not None and (
+                sum(1 for o in holders if o["role"] == h["role"]) > 1
+            )
+        out[chain] = {
+            "size": size,
+            "price": _price(game, chain),
+            "majority_bonus": game.hotel.get_majority_bonus(chain, size),
+            "minority_bonus": game.hotel.get_minority_bonus(chain, size),
+            "holders": holders,
+        }
+    return out
+
+
+def merger_history(game) -> list[dict]:
+    """Every merger of the game so far, oldest first, rebuilt from the event log.
+
+    Each entry::
+
+        {seq, player_id (who placed the tile), tile, survivor,
+         sizes {chain: size before the merger},
+         defunct: [{chain, size, price (share price at the merger),
+                    bonuses: [{player_id, majority, minority}] | null (not paid yet;
+                             largest payment first, then seat order),
+                    dispositions: [{player_id, sell, trade, hold, sale_proceeds,
+                                    survivor_shares_received}],
+                    waiting_on: [player_id]}],
+         survivor_size (after; null while in progress), complete}
+
+    Defunct chains are in the engine's processing order. ``waiting_on`` lists
+    the stockholders of the chain being processed who have not decided yet
+    (in decision order), empty otherwise. Amounts are the ones the engine
+    paid (``bonuses_paid`` / ``stock_disposition`` events), never recomputed.
+    """
+    out: list[dict] = []
+    current: dict | None = None
+    seat = {p.player_id: i for i, p in enumerate(game.players)}
+    for e in game.events:
+        etype = e["type"]
+        if etype == "merger_started":
+            sizes = dict(e.get("sizes") or {})
+            current = {
+                "seq": e["seq"],
+                "player_id": e.get("player_id"),
+                "tile": e.get("tile"),
+                "survivor": e["survivor"],
+                "sizes": sizes,
+                "defunct": [
+                    {
+                        "chain": d,
+                        "size": sizes.get(d, 0),
+                        "price": game.hotel.get_stock_price(d, sizes.get(d, 0)),
+                        "bonuses": None,
+                        "dispositions": [],
+                        "waiting_on": [],
+                    }
+                    for d in e.get("defunct", [])
+                ],
+                "survivor_size": None,
+                "complete": False,
+            }
+            out.append(current)
+        elif current is None:
+            continue
+        elif etype == "bonuses_paid" and not e.get("final"):
+            row = next(
+                (d for d in current["defunct"] if d["chain"] == e["chain"]), None
+            )
+            if row is not None:
+                # Largest payment first, then seat order (the event's dict order
+                # does not survive a snapshot round trip).
+                row["bonuses"] = sorted(
+                    (
+                        {
+                            "player_id": pid,
+                            "majority": b.get("majority", 0),
+                            "minority": b.get("minority", 0),
+                        }
+                        for pid, b in e.get("bonuses", {}).items()
+                    ),
+                    key=lambda b: (
+                        -b["majority"],
+                        -b["minority"],
+                        seat.get(b["player_id"], 99),
+                    ),
+                )
+        elif etype == "stock_disposition":
+            row = next(
+                (d for d in current["defunct"] if d["chain"] == e["defunct_chain"]),
+                None,
+            )
+            if row is not None:
+                row["dispositions"].append(
+                    {
+                        "player_id": e.get("player_id"),
+                        "sell": e.get("sell", 0),
+                        "trade": e.get("trade", 0),
+                        "hold": e.get("hold", 0),
+                        "sale_proceeds": e.get("sale_proceeds", 0),
+                        "survivor_shares_received": e.get(
+                            "survivor_shares_received", 0
+                        ),
+                    }
+                )
+        elif etype == "merger_completed":
+            current["survivor_size"] = e.get("survivor_size")
+            current["complete"] = True
+            current = None
+    merger = getattr(game, "_merger", None)
+    if current is not None and merger is not None and merger.current_defunct:
+        row = next(
+            (d for d in current["defunct"] if d["chain"] == merger.current_defunct),
+            None,
+        )
+        if row is not None:
+            row["waiting_on"] = list(merger.stock_players[merger.stock_index :])
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
 
@@ -540,4 +735,9 @@ def build_calculator_pack(game, viewer_id: str) -> dict:
     }
 
 
-__all__ = ["build_calculator_pack"]
+__all__ = [
+    "build_calculator_pack",
+    "merger_history",
+    "public_chain_holders",
+    "public_net_worth",
+]

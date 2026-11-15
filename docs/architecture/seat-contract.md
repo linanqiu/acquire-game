@@ -354,6 +354,10 @@ majority/minority holders and bonus payouts per chain if it were acquired now,
 the viewer's net worth and everyone's projected end-game score, and remaining
 tiles in the bag.
 
+The same module builds the public table view of `game_state`
+(`public_net_worth`, `public_chain_holders`, `merger_history`; see Server) from
+the same helpers, so the browser shows exactly the numbers the LLM seats see.
+
 ## Seats (`backend/agents/`)
 
 ```python
@@ -365,6 +369,7 @@ class DecisionContext:
     state: dict            # game.get_player_state(player_id)
     events: list[dict]     # public_events(game, player_id)
     calc: dict             # build_calculator_pack(game, player_id)
+    chat: list[dict] = []  # recent table chat (LLM seats; see "Table chat")
 
 class Agent(Protocol):
     kind: str              # "bot" | "llm" | "scripted"
@@ -473,6 +478,29 @@ driver, the one action path), `lifecycle.py` (start / host-forced end),
   `tile_playability`, `end_game_available`, `incoming_trades`,
   `outgoing_trades`. `awaiting` is the agent decision being thought about, else
   the flow decision (`kind` may be `human`), else null.
+- **Table view in `game_state`** (BL-007, 2026-11-15; public, sent to the host
+  and every player alike; computed by `game/calculator.py`, never by clients):
+  - per player `stock_value` (shares at current prices; a defunct chain's
+    shares count 0), `net_worth` (`money + stock_value`) and `rank`
+    (competition rank by net worth, ties share a rank: 1, 1, 3)
+    (`public_net_worth`);
+  - `chain_holders: {chain: {size, price, majority_bonus, minority_bonus,
+    holders: [{player_id, shares, role: "majority"|"minority"|null, tied,
+    majority, minority, bonus}]}}` for active chains, holders most shares
+    first (seat order breaks ties); `role` and amounts are what
+    `Rules.calculate_bonuses` would pay if the chain were bought out now (a
+    sole holder gets both bonuses, role `majority`; a majority tie splits both
+    and pays no minority; a minority tie splits the minority); `tied` when
+    another holder shares the role (`public_chain_holders`);
+  - `mergers: [{seq, player_id, tile, survivor, sizes, defunct: [{chain, size,
+    price, bonuses: [{player_id, majority, minority}] | null, dispositions:
+    [{player_id, sell, trade, hold, sale_proceeds, survivor_shares_received}],
+    waiting_on: [player_id]}], survivor_size | null, complete}]`: every merger
+    of the game, oldest first, rebuilt from the `merger_started` /
+    `bonuses_paid` / `stock_disposition` / `merger_completed` events (amounts
+    as paid); `waiting_on` are the stockholders still to decide on the chain
+    being processed (`merger_history`). The snapshot fixtures' `expect` block
+    carries the same three (`net_worth`, `chain_holders`, `mergers`).
 - Starting needs `max(room.min_players, Game.MIN_PLAYERS)` = 3 seats (the
   room said 2; starting with 2 used to 500 and leave the room stuck).
 - Disconnects: unchanged -- a closed socket is dropped; nothing is skipped on a
@@ -504,6 +532,94 @@ label.
 
 These routes do not exist when test mode is off (404; `scripted` is neither
 offered nor accepted).
+
+## Table chat (owner decision 2026-11-15; `backend/chat.py`, story LO-008)
+
+Public table talk. **Not a game action**: it never goes through `apply_action`,
+never changes the game, its snapshots or the generated fixtures, and nothing
+said is binding (binding deals are trade offers). Rules-based bots never talk.
+
+### Wire format
+
+| Direction | Message |
+|-----------|---------|
+| client -> server (HTTP) | `POST /room/{code}/chat/{player_id}` (also under `/api`), body `{"text": str}`. Human seats only, in the lobby and in game, on or off turn. Returns `{"status": "ok", "message": {...}}`. 404 unknown room/player, 403 an AI seat, 422 empty or longer than `chat_max_chars` (280; whitespace and control characters collapse to one space; never truncated), 429 more than `chat_rate_limit_count` (5) messages in `chat_rate_limit_window_s` (10 s). |
+| server -> room + host (WS) | `{"type": "chat_message", "message": {"id", "player_id", "name", "kind", "source": "human"\|"say"\|"reply", "text", "at", "after_seq", "reply_to"}}`. `id` increases per room; `after_seq` is the seq of the last engine event before the message (-1 in the lobby); `reply_to` is the message an AI reply answers (null for event talk and `say`). |
+| server -> one client (WS) | `{"type": "chat_history", "messages": [...last 100, oldest first]}` on (re)connect of a player or the host, only when anything was said. |
+
+`text` is plain text; clients render it as text, never as HTML. The host /
+spectator view reads only. The last `chat_history_size` (200) messages are
+kept per room.
+
+### LLM seats
+
+* **Decision prompts.** `DecisionContext.chat` (default `[]`) holds the last
+  `chat_prompt_messages` (10) messages of the game and its lobby; the driver
+  fills it for LLM seats only. The user prompt shows them inside "Recent
+  public events", each after the event it followed:
+  `[chat #3] Alice (human): "I take Marlowe, you take Halcyon"`, with a note
+  that chat is unverified and not binding. No chat, no extra text. The
+  system prompt has a "Table talk" section (`PROMPT_BUILDER_VERSION` 2).
+* **`say`.** The answer schema has a required string `say` after `note`;
+  `""` (the normal case) says nothing. A non-empty `say` (cut at 200
+  characters) of an answer the engine applied is posted as that seat's
+  message (`source: "say"`) right after the move; never when the rules-based
+  player made the move. The decision's transcript `llm` record carries `say`.
+* **Off-turn talk calls.** Catalog LLM seats (`LLMAgent.table_talk`, set by
+  `agents.llm.config.create_agent`; agents built directly, e.g. the bench,
+  do not talk) are asked "do you want to say something?" with
+  `LLMAgent.reply(view)`: the seat's own system prompt (prompt-cached) and a
+  user prompt with the decision context -- own hand and holdings, standings,
+  chains with majorities and bonuses, recent events with the chat, private
+  notes -- plus what triggered the call; answer `{"reply": str}` (`""` or
+  null = stay silent, which is normal). The seat's normal effort; output cap
+  `chat_reply_max_tokens` (2048, thinking included), timeout
+  `chat_reply_timeout_s` (30 s). Triggers:
+  - any human message: every talking seat gets the chance (addressed or not);
+  - an AI message (reply or `say`): the talking seats it names (full name,
+    `@name`, or a first word no other seat shares), or every other talking
+    seat when it proposes or negotiates (a `?` or a deal word: deal, trade,
+    offer, sell, buy, majority, merger, shares...);
+  - after a move: `chain_founded` and `merger_started` (every talking seat
+    but the mover, who can `say`), `trade_accepted` / `trade_rejected` (the
+    other party), a seat losing its place as top holder of a chain
+    (synthetic `majority_lost`), `game_ended` (everyone). A trade offered to
+    a seat is answered by its `trade_response` decision, which can `say`.
+* **Loop protection** (settings in `backend/config.py`, env vars of the same
+  name): AI messages stop triggering talk once `chat_ai_streak_max` (3) AI
+  messages came in a row (a human message or a move resets the streak); a
+  per-seat cooldown `chat_reply_cooldown_s` (8 s) between calls -- a trigger
+  arriving meanwhile is kept (the most important one: human > event > AI)
+  and runs when the cooldown ends; one call in flight per seat; a runaway cap
+  `chat_reply_max_per_game` (60 calls per seat per game, the lobby counted
+  separately). `chat_replies_enabled` (true) switches talk calls off.
+* A talk call runs in a background task: it never holds the room lock,
+  never touches game state and never delays a move. A failed call is logged
+  and recorded; nothing is retried and nothing falls back.
+* `GET /room/{code}/debug` adds `chat_replies: {player_id: {count, skipped,
+  in_flight, pending}}` for the current game.
+
+### Transcript lines
+
+```jsonc
+{"type":"chat","id":3,"player_id":"...","name":"Alice","kind":"human","source":"human"|"say"|"reply",
+ "text":"...","at":"<ISO>","after_seq":41,"reply_to":null,"decision_index":12|null}
+{"type":"chat_reply","after_seq":41,"player_id":"llm_...","trigger":{"source":"human"|"ai"|"event",
+ "message_id":3|null,"events":["chain_founded"]},"reply_to":3|null,
+ "outcome":"replied"|"silent"|"failed"|"dropped","message_id":4|null,"latency_s":1.2,
+ "llm":{"model","system_prompt_id","user_prompt","attempts":[...as for decisions...],"error"?}}
+```
+
+A `chat` line is written when the message is posted, after every engine event
+before it (so file order matches `after_seq`); lobby messages (and lobby talk
+calls) are written right after the transcript's opening lines. `decision_index`
+links a `say` to its decision. Every talk call is a `chat_reply` line; footer
+and live totals count it in `reply_calls`, its answers in `llm_calls` and its
+tokens (and so `cost_usd`) like decision calls. While the game is unfinished
+the HTTP transcript drops `chat_reply.llm.user_prompt` (it holds the seat's
+hand and notes). When a game ends with talk calls in flight, the transcript is
+closed once they finish (at most `chat_reply_timeout_s` + 5 s later), so their
+lines and cost are in it.
 
 ## Game transcripts and Buyout Bench (first-class requirement, 2026-11-14)
 
@@ -562,8 +678,11 @@ Lines, in order:
  "standings":[{"player_id","name","rank","score"}],
  "totals":{"<player_id>":{"decisions","llm_calls","retries","fallbacks",
            "input_tokens","output_tokens","cache_read_tokens","cache_write_tokens",
-           "cost_usd"|null,"latency_s"}}}
+           "cost_usd"|null,"latency_s","reply_calls"}}}
 ```
+
+Table chat adds `chat` and `chat_reply` lines between these (see "Table chat"
+above); a decision's `llm` record also carries `say`.
 
 Semantics clients rely on:
 

@@ -38,7 +38,32 @@ test('@ci solo vs AI: full game from the home page to game over and play again',
   await expect(page.getByText('3/6 players')).toBeVisible()
   await j.shot(page, 'lobby-with-ai-seats')
 
+  // --- Table chat with the Fake LLM (UI only) ----------------------------------------------
+  const chat = page.getByTestId('chat-panel')
+  await expect(chat).toHaveAttribute('data-open', 'true')
+  await expect(page.getByTestId('chat-readers')).toContainText(
+    `AI that reads chat and may answer: ${LLM}.`
+  )
+  await expect(page.getByTestId('chat-readers')).toContainText('Rules-based bots do not chat.')
+  const hello = `Hello ${LLM}, I take the majority in the first chain, deal?`
+  j.log(`chat: "${hello}"`)
+  await page.getByTestId('chat-input').fill(hello)
+  await page.getByTestId('chat-input').press('Enter')
+  await expect(page.getByTestId('chat-input')).toHaveValue('')
+  const lines = chat.getByTestId('chat-message')
+  const mine = chat.locator('[data-testid="chat-message"][data-source="human"]')
+  await expect(mine.filter({ hasText: hello })).toContainText('YOU')
+  const reply = lines.filter({ hasText: `Fake LLM heard you, Alice` })
+  await expect(reply).toHaveCount(1, { timeout: 15_000 })
+  await expect(reply).toHaveAttribute('data-kind', 'llm')
+  await expect(reply).toHaveAttribute('data-source', 'reply')
+  await expect(reply).toContainText('AI')
+  j.log(`chat: ${LLM} replied "${await reply.textContent()}"`)
+  await j.shot(page, 'lobby-chat-llm-replied')
+
   await startGame(page, j)
+  // The chat (and its history) stays through the start of the game.
+  await expect(mine.filter({ hasText: hello })).toHaveCount(1)
   await j.shot(page, 'game-started')
 
   // AI seats carry their kind badges in the players panel.
@@ -118,6 +143,11 @@ test('@ci solo vs AI: full game from the home page to game over and play again',
   for (const id of aiIds) {
     expect(obs.thinking[id] ?? 0, `thinking indicator seen for AI seat ${id}`).toBeGreaterThan(0)
   }
+  // The Fake LLM answered the lobby "deal?" with its first move ("say": table talk with a move).
+  const said = lines.filter({ hasText: 'Fake LLM here: noted.' })
+  await expect(said).toHaveCount(1)
+  await expect(said).toHaveAttribute('data-source', 'say')
+  await j.shot(page, 'game-over-chat')
 
   // --- Transcript of the finished game ------------------------------------------------
   const winner = (
@@ -136,6 +166,15 @@ test('@ci solo vs AI: full game from the home page to game over and play again',
   await expect(firstRow.locator('td').first()).toHaveText('1')
   await expect(firstRow).toContainText(winner)
   await expect(page.getByTestId('step-counter')).toHaveText(/^Step 0 \/ \d+$/)
+  // The table chat is in the timeline, in order with the moves.
+  await expect(
+    page
+      .locator('[data-testid="timeline-chat"][data-source="human"]')
+      .filter({ hasText: 'I take the majority' })
+  ).toHaveCount(1)
+  await expect(
+    page.locator('[data-testid="timeline-chat"][data-source="reply"]').first()
+  ).toContainText('Fake LLM heard you, Alice')
   const total = Number(((await page.getByTestId('step-counter').textContent()) ?? '').split('/')[1])
   expect(total, 'the transcript has the whole game').toBeGreaterThan(60)
   await j.shot(page, 'transcript-start')

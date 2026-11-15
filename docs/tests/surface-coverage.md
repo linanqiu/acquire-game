@@ -87,14 +87,18 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | PG-10 | End game button (`end-game-button`), offered only when declarable | | `screens/end-game.spec.ts : end game available`; `screens/turn-basics.spec.ts : opening turn`; `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 3, 4 |
 | PG-11 | Waiting for another player ("Waiting for X to place a tile") | not my turn | `screens/merger.spec.ts : disposition (waiting)`; `journeys/two-humans-and-bot.spec.ts : two humans and a bot` | 3, 4 |
 | PG-12 | Thinking indicator while an AI seat decides (`AiThinking`) | AI on turn | `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI`; GAP: no screen test, the scripted and fake-LLM seats answer instantly and have no delay option in test mode, so there is no stable state to assert on | 4 |
-| PG-13 | Players panel (cash and stock badges per player, YOU badge) (`PlayersPanel`) | all game phases | `screens/layout.spec.ts : busy`; `screens/place-tile.spec.ts : opening`; `journeys/two-humans-and-bot.spec.ts : two humans and a bot` | 3, 4 |
-| PG-14 | Portfolio strip, header cash and tile-pool counter (`PageShell`, `Header`, `Portfolio`) | all game phases | `screens/buy-phase.spec.ts : buy phase: prices and availability shown`; `screens/turn-basics.spec.ts : opening turn`; `journeys/reconnect-and-refresh.spec.ts : reconnect and refresh` | 3, 4 |
+| PG-13 | Players table (`Standings`): rank, cash, shares at current prices, net worth, stock badges, YOU badge, turn marker | all game phases | `screens/table-view.spec.ts : table view on desktop`; `screens/table-view.spec.ts : table view on phone`; `screens/layout.spec.ts : busy`; `screens/place-tile.spec.ts : opening`; `journeys/two-humans-and-bot.spec.ts : two humans and a bot` | 3, 4 |
+| PG-14 | Header: cash, net worth and rank, bag counter (`PageShell`, `Header`); my holdings in the chains table (`portfolio-row-*`, `portfolio-empty`; the separate Portfolio panel was removed in BL-007) | all game phases | `screens/buy-phase.spec.ts : buy phase: prices and availability shown`; `screens/turn-basics.spec.ts : opening turn`; `journeys/reconnect-and-refresh.spec.ts : reconnect and refresh` | 3, 4 |
 | PG-15 | Game over (`GameOver`) on player page: standings, winner, breakdown, tie | `game_over` | `screens/end-game.spec.ts : game over: standings`; `screens/end-game.spec.ts : game over with a tie`; `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 3, 4 |
 | PG-16 | Play again / back to lobby (`GameOver`) | after game over | `screens/end-game.spec.ts : game over: standings`; `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 3, 4 |
 | PG-17 | Board colours and chain sizes follow the play (expansion, absorbed lone tiles) | | `screens/turn-basics.spec.ts : expanding a chain` | 3 |
 | PG-18 | Rack refills and bag counter shrinks after a turn; lone tile shown on the board | | `screens/turn-basics.spec.ts : opening turn` | 3 |
 | PG-19 | Merger payout: majority/minority bonuses reach the right players on screen | | `screens/merger-payout.spec.ts : merger payout` | 3 |
 | PG-20 | AI seat badge in the players panel (`SeatKindBadge`) | bot / LLM seats | `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 4 |
+| PG-22 | Chains table (`ChainTable`): size, price, bank stock, SAFE, majority and minority holders with shares and bonus if bought now (ties marked), my shares and position ("2nd, 1 ahead", "3 behind 2nd") | all game phases | `screens/table-view.spec.ts : table view on desktop`; `screens/table-view.spec.ts : table view on phone`; `src/components/game/TableView.test.tsx : names the 1st and 2nd holders` | 3 |
+| PG-23 | Merger result card (`MergerResult`): takeover, sizes, bonuses paid, each stockholder's sell/trade/keep as it comes in, CLOSE | a merger starts (or is in progress on load) | `screens/table-view.spec.ts : merger result: bonuses at once`; `screens/table-view.spec.ts : merger result after the human's own merger`; `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 3, 4 |
+| PG-24 | Merger log (`MergerLog`): every merger of the game, reopens its result card | after the first merger | `screens/table-view.spec.ts : merger result: bonuses at once` | 3 |
+| PG-25 | Desktop layout at 1366x768: board with the rack under it, action panel beside it, rack on screen without scrolling in every phase | all decision phases | `screens/table-view.spec.ts : 1366x768, place tile`; `screens/table-view.spec.ts : 1366x768, disposition`; `screens/table-view.spec.ts : 1366x768, buy` | 3 |
 | PG-21 | AI fallback marker ("BOT ASSIST xN") when an LLM seat had to be replaced by the bot | `seat-fallback-*` | `src/components/game/AgentFallback.test.tsx : fallback`; GAP: browser coverage needs a fake LLM that answers illegally on purpose; the test-mode fake LLM only plays legal first moves (protocol side: `backend/tests/protocol/test_llm_retries.py`) | unit |
 
 ## 5. Player page: modals and trading
@@ -109,19 +113,36 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | TR-06 | Outgoing offer pending, with cancel | `trade-outgoing-*`, `trade-cancel-*` | `screens/trades.spec.ts : outgoing offer stays pending until cancelled` | 3, 4 |
 | TR-07 | Server refuses a trade: reason in the builder and a toast | `trade-error` | `screens/trades.spec.ts : server refuses a trade mid-merger` | 3 |
 
+## 5b. Table chat (`ChatPanel`, player and host pages)
+
+| ID | Surface | Notes | Covered by | Tier |
+|----|---------|-------|------------|------|
+| CH-01 | Chat in the player lobby: send with Enter, own line marked YOU, the Fake LLM answers | `chat-panel`, `chat-input`, `chat-message` | `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 4 |
+| CH-02 | Chat in game on desktop: open by default, AI reply with the AI badge, text shown as text (never HTML), the game untouched | `chat-send`, `chat-list` | `screens/chat.spec.ts : chat on desktop` | 3 |
+| CH-03 | Chat on a phone: collapsed by default behind a bar with an unread count; never over the board or the tile rack; open, send, collapse | `chat-toggle`, `chat-unread` | `screens/chat.spec.ts : chat on a phone` | 3 |
+| CH-04 | Who reads the chat: the AI seats that may answer; "rules-based bots do not chat" | `chat-readers` | `screens/chat.spec.ts : chat on desktop`; `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 3, 4 |
+| CH-05 | Host / spectator view: same messages, read-only with the reason | `chat-read-only` | `screens/chat.spec.ts : chat on desktop` | 3 |
+| CH-06 | Chat history after a reload / reconnect, in order | `chat_history` | `screens/chat.spec.ts : chat on desktop`; `backend/tests/protocol/test_chat.py : test_reconnect_gets_the_history_in_order` | 2, 3 |
+| CH-07 | Send refused (too fast, too long, empty): reason under the input | `chat-error` | `backend/tests/protocol/test_chat.py : test_rate_limit`; `backend/tests/protocol/test_chat.py : test_refusals` | 2 |
+| CH-08 | An LLM seat's table talk with its move (`say`) and off-turn talk after a game event | `data-source="say"` | `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI`; `backend/tests/protocol/test_chat.py : test_llm_seat_speaks_unprompted_after_a_game_event` | 2, 4 |
+| CH-09 | "New messages" button when the reader scrolled up | `chat-new-below` | GAP: needs more messages than the list shows while scrolled up; unit test `src/components/game/ChatPanel.test.tsx` | unit |
+| CH-10 | Chat lines in the transcript timeline, in order with the moves | `timeline-chat` | `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 4 |
+
 ## 6. Host / spectator page (`/host/:room`)
 
 | ID | Surface | Notes | Covered by | Tier |
 |----|---------|-------|------------|------|
 | HO-01 | Host lobby: "WAITING FOR PLAYERS", player list | | `journeys/spectator-host-view.spec.ts : spectator host view`; `screens/lobby.spec.ts : host/spectator lobby` | 3, 4 |
 | HO-02 | Host lobby: add AI control, START GAME | | `journeys/spectator-host-view.spec.ts : spectator host view`; `screens/lobby.spec.ts : host/spectator lobby` | 3, 4 |
-| HO-03 | Host in-game view: board (large), player cards (`PlayerCard`), chain list | | `screens/host.spec.ts : host view of a busy mid-game board`; `journeys/spectator-host-view.spec.ts : spectator host view` | 3, 4 |
+| HO-03 | Host in-game view: board (large), players table (`Standings`, rows `player-card`), chains table (`ChainTable`) | | `screens/host.spec.ts : host view of a busy mid-game board`; `journeys/spectator-host-view.spec.ts : spectator host view` | 3, 4 |
 | HO-04 | Host: merger in progress | | `screens/host.spec.ts : host view of a merger in progress` | 3, 4 |
 | HO-05 | Host: thinking indicator | | `journeys/spectator-host-view.spec.ts : spectator host view`; GAP: no screen test, same reason as PG-12 | 4 |
 | HO-06 | Host: game over with the full results table | | `screens/host.spec.ts : host view of a finished game`; `journeys/spectator-host-view.spec.ts : spectator host view` | 3, 4 |
-| HO-07 | Host: activity log ("Bot 1 joined", ...) | `role=log` | `journeys/spectator-host-view.spec.ts : spectator host view` | 4 |
+| HO-07 | Host: activity log ("Bot 1 joined", ..., and the mergers) | `role=log` | `journeys/spectator-host-view.spec.ts : spectator host view` | 4 |
 | HO-08 | Host: start/add failure toast | | `screens/lobby.spec.ts : host/spectator lobby` | 3 |
 | HO-09 | Host: pending trades list | `pending-trades` | `screens/host.spec.ts : host view lists a pending trade` | 3 |
+| HO-10 | Host: net worth and rank per player, majority/minority holders per chain | | `screens/table-view.spec.ts : table view on desktop`; `screens/table-view.spec.ts : table view on phone` | 3 |
+| HO-11 | Host: merger result card and its entry in the activity log (reopen after closing) | | `screens/table-view.spec.ts : merger result: bonuses at once` | 3 |
 
 ## 7. Connection and error states
 
@@ -175,8 +196,9 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | `ChainMarker` | each of 7 chains, size, price, stock left | PG-04, HO-03 | `screens/host.spec.ts : host view of a busy mid-game board`; `screens/buy-phase.spec.ts : buy phase: prices and availability shown` |
 | `ChainSelector` | available chains only; "NOT TIED" in a survivor choice | PG-04, PG-05 | `screens/found-chain.spec.ts : found chain`; `screens/merger.spec.ts : merger: tie between two equal chains` |
 | `MergerDisposition` / `StockStepper` | sell/trade/hold limits, trade max by survivor stock, buy stepper | PG-06, PG-08 | `screens/merger.spec.ts : disposition (human first)`; `screens/buy-phase.spec.ts : buy phase: prices and availability shown` |
-| `Portfolio` | holdings with prices, zero holdings | PG-14 | `screens/place-tile.spec.ts : opening`; `screens/buy-phase.spec.ts : buy phase: prices and availability shown` |
-| `PlayerCard` | current turn marker, cash, stocks | HO-03 | `screens/host.spec.ts : host view of a busy mid-game board` |
+| `Standings` | rank (ties "="), cash, share value, net worth, badges, turn marker, YOU | PG-13, HO-03, HO-10 | `screens/table-view.spec.ts : table view on desktop`; `screens/table-view.spec.ts : table view on phone`; `screens/host.spec.ts : host view of a busy mid-game board` |
+| `ChainTable` | majority, minority, ties, sole holder, nobody; my position; held off-board chains; no holdings | PG-14, PG-22 | `screens/table-view.spec.ts : table view on desktop`; `screens/table-view.spec.ts : table view on phone`; `screens/place-tile.spec.ts : opening`; `screens/merger.spec.ts : disposition (human first)` |
+| `MergerResult`, `MergerLog` | in progress (deciding / to decide), bonuses with ties, complete with dispositions, closed, reopened | PG-23, PG-24, HO-11 | `screens/table-view.spec.ts : merger result: bonuses at once` |
 | `TradeBuilder` | stocks and money both ways, player picker | TR-01 | `screens/trades.spec.ts : propose a trade through the builder` |
 | `TradeOffers` | incoming, outgoing, none | TR-03, TR-06 | `screens/trades.spec.ts : outgoing offer stays pending until cancelled` |
 | `GameOver` | final scores, winner, ties, breakdown | PG-15, HO-06 | `screens/end-game.spec.ts : game over with a tie`; `screens/host.spec.ts : host view of a finished game` |
@@ -184,10 +206,12 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | `AddAiControl`, `RemoveSeatButton` | menu, disabled entry, remove | PL-02..04 | `screens/lobby.spec.ts : lobby: AI menu` |
 | `AiThinking` | shown while an AI seat decides | PG-12 | `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` |
 | `SeatKindBadge` | bot, LLM, scripted, fallback marker | PG-20, PG-21 | `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` |
+| `ChatPanel` | open, collapsed with unread count, read-only (spectator), AI badge | CH-01..CH-05 | `screens/chat.spec.ts : chat on a phone`; `screens/chat.spec.ts : chat on desktop` |
 | `Modal` | open (trade builder), backdrop | TR-01 | `screens/trades.spec.ts : propose a trade through the builder` |
 | `Header`, `PageShell` | room, name, cash, tile pool | PG-14 | `screens/turn-basics.spec.ts : opening turn` |
 | `Slider`, `Badge` | disposition sliders; status and kind badges | PG-06, TX-01 | `screens/merger.spec.ts : disposition (human first)` |
 | `DecisionPanel`, `LlmPanel`, `TextBlock`, `Timeline`, `VirtualList`, `ReplayBoard`, `SummaryHeader`, `SeatChip`, `RangeBar`, `PageFrame` | transcript and bench widgets | TX-01..TX-15, BN-01..BN-07 | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` |
+
 
 ## Known gaps (also listed by the check script)
 
@@ -198,6 +222,8 @@ Every `GAP:` above has a reason. In short:
 - **BOT ASSIST marker** (PG-21): needs a fake LLM that answers illegally; unit tests only.
 - **LOAD MORE** (TX-04), **replay play/pause/speed** (TX-08),
   **leaderboard selectors** (BN-03): no test drives them.
+- **Chat "New messages" button** (CH-09): the screen would need more messages than the list
+  shows while the reader is scrolled up; covered by the ChatPanel unit test.
 
 Facts learned while filling this map (2026-11-14):
 
@@ -211,9 +237,9 @@ Facts learned while filling this map (2026-11-14):
 
 ## Summary (checked by the script; update when rows change)
 
-- Surfaces: 116
-- Covered: 112
-- GAP: 6
+- Surfaces: 134
+- Covered: 129
+- GAP: 7
 - Journeys: 7
 
 ## Appendix: Snapshot fixtures available

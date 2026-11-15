@@ -135,7 +135,7 @@ describe('host view of a running game', () => {
     const state = playedGame('default').states['place_tile/place_tile']
     deliver(state)
     renderHostPage()
-    expect(screen.getByText(/No active hotel chains/)).toBeInTheDocument()
+    expect(screen.getByText(/No hotel chains on the board yet/)).toBeInTheDocument()
   })
 
   it('during a merger the banner names whom the table waits for', () => {
@@ -200,16 +200,22 @@ describe('host view details', () => {
     deliver(view.host)
     renderHostPage()
     const cards = within(screen.getByTestId('scoreboard')).getAllByTestId('player-card')
-    for (const p of Object.values<any>(view.host.players)) {
+    for (const [id, p] of Object.entries<any>(view.host.players)) {
       const card = cards.find((c) => c.textContent!.includes(p.name))!
       const shown = within(card).queryByTestId('player-stocks')
       const held = Object.entries<number>(p.stocks).filter(([, q]) => q > 0)
       expect(held.length).toBeGreaterThan(0)
       for (const [chain, qty] of held) {
-        const marker = within(shown!).getByTestId(`chain-marker-${chain.toLowerCase()}`)
-        expect(marker.parentElement).toHaveTextContent(String(qty))
+        expect(within(shown!).getByTestId(`player-stock-${id}-${chain}`)).toHaveTextContent(
+          String(qty)
+        )
       }
-      expect(within(shown!).getAllByTestId(/^chain-marker-/)).toHaveLength(held.length)
+      expect(within(shown!).getAllByTestId(/^player-stock-/)).toHaveLength(held.length)
+      // Net worth and rank, as the server computed them.
+      expect(within(card).getByTestId(`player-networth-${id}`)).toHaveTextContent(
+        money(p.net_worth)
+      )
+      expect(within(card).getByTestId(`player-rank-${id}`)).toHaveTextContent(String(p.rank))
     }
   })
 

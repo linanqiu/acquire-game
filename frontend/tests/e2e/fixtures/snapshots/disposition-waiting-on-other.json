@@ -52,6 +52,280 @@
         "size": 4
       }
     },
+    "chain_holders": {
+      "aurelia": {
+        "holders": [
+          {
+            "bonus": 7000,
+            "majority": 7000,
+            "minority": 0,
+            "player_id": "p3",
+            "role": "majority",
+            "shares": 6,
+            "tied": false
+          },
+          {
+            "bonus": 1800,
+            "majority": 0,
+            "minority": 1800,
+            "player_id": "p1",
+            "role": "minority",
+            "shares": 4,
+            "tied": true
+          },
+          {
+            "bonus": 1800,
+            "majority": 0,
+            "minority": 1800,
+            "player_id": "p2",
+            "role": "minority",
+            "shares": 4,
+            "tied": true
+          },
+          {
+            "bonus": 0,
+            "majority": 0,
+            "minority": 0,
+            "player_id": "p4",
+            "role": null,
+            "shares": 3,
+            "tied": false
+          }
+        ],
+        "majority_bonus": 7000,
+        "minority_bonus": 3500,
+        "price": 700,
+        "size": 5
+      },
+      "halcyon": {
+        "holders": [
+          {
+            "bonus": 6000,
+            "majority": 6000,
+            "minority": 0,
+            "player_id": "p2",
+            "role": "majority",
+            "shares": 3,
+            "tied": false
+          },
+          {
+            "bonus": 3000,
+            "majority": 0,
+            "minority": 3000,
+            "player_id": "p1",
+            "role": "minority",
+            "shares": 2,
+            "tied": false
+          },
+          {
+            "bonus": 0,
+            "majority": 0,
+            "minority": 0,
+            "player_id": "p3",
+            "role": null,
+            "shares": 1,
+            "tied": false
+          },
+          {
+            "bonus": 0,
+            "majority": 0,
+            "minority": 0,
+            "player_id": "p4",
+            "role": null,
+            "shares": 1,
+            "tied": false
+          }
+        ],
+        "majority_bonus": 6000,
+        "minority_bonus": 3000,
+        "price": 600,
+        "size": 5
+      },
+      "juniper": {
+        "holders": [
+          {
+            "bonus": 5000,
+            "majority": 5000,
+            "minority": 0,
+            "player_id": "p1",
+            "role": "majority",
+            "shares": 7,
+            "tied": false
+          },
+          {
+            "bonus": 1300,
+            "majority": 0,
+            "minority": 1300,
+            "player_id": "p2",
+            "role": "minority",
+            "shares": 2,
+            "tied": true
+          },
+          {
+            "bonus": 1300,
+            "majority": 0,
+            "minority": 1300,
+            "player_id": "p4",
+            "role": "minority",
+            "shares": 2,
+            "tied": true
+          }
+        ],
+        "majority_bonus": 5000,
+        "minority_bonus": 2500,
+        "price": 500,
+        "size": 4
+      },
+      "marlowe": {
+        "holders": [
+          {
+            "bonus": 1500,
+            "majority": 1500,
+            "minority": 0,
+            "player_id": "p2",
+            "role": "majority",
+            "shares": 2,
+            "tied": true
+          },
+          {
+            "bonus": 1500,
+            "majority": 1500,
+            "minority": 0,
+            "player_id": "p4",
+            "role": "majority",
+            "shares": 2,
+            "tied": true
+          },
+          {
+            "bonus": 0,
+            "majority": 0,
+            "minority": 0,
+            "player_id": "p3",
+            "role": null,
+            "shares": 1,
+            "tied": false
+          }
+        ],
+        "majority_bonus": 2000,
+        "minority_bonus": 1000,
+        "price": 200,
+        "size": 2
+      },
+      "meridian": {
+        "holders": [
+          {
+            "bonus": 4000,
+            "majority": 4000,
+            "minority": 0,
+            "player_id": "p4",
+            "role": "majority",
+            "shares": 5,
+            "tied": false
+          },
+          {
+            "bonus": 1000,
+            "majority": 0,
+            "minority": 1000,
+            "player_id": "p2",
+            "role": "minority",
+            "shares": 3,
+            "tied": true
+          },
+          {
+            "bonus": 1000,
+            "majority": 0,
+            "minority": 1000,
+            "player_id": "p3",
+            "role": "minority",
+            "shares": 3,
+            "tied": true
+          }
+        ],
+        "majority_bonus": 4000,
+        "minority_bonus": 2000,
+        "price": 400,
+        "size": 3
+      },
+      "obsidian": {
+        "holders": [
+          {
+            "bonus": 8000,
+            "majority": 8000,
+            "minority": 0,
+            "player_id": "p3",
+            "role": "majority",
+            "shares": 3,
+            "tied": false
+          },
+          {
+            "bonus": 2000,
+            "majority": 0,
+            "minority": 2000,
+            "player_id": "p2",
+            "role": "minority",
+            "shares": 2,
+            "tied": true
+          },
+          {
+            "bonus": 2000,
+            "majority": 0,
+            "minority": 2000,
+            "player_id": "p4",
+            "role": "minority",
+            "shares": 2,
+            "tied": true
+          }
+        ],
+        "majority_bonus": 8000,
+        "minority_bonus": 4000,
+        "price": 800,
+        "size": 7
+      },
+      "sandpiper": {
+        "holders": [
+          {
+            "bonus": 4000,
+            "majority": 4000,
+            "minority": 0,
+            "player_id": "p1",
+            "role": "majority",
+            "shares": 7,
+            "tied": false
+          },
+          {
+            "bonus": 1000,
+            "majority": 0,
+            "minority": 1000,
+            "player_id": "p3",
+            "role": "minority",
+            "shares": 5,
+            "tied": true
+          },
+          {
+            "bonus": 1000,
+            "majority": 0,
+            "minority": 1000,
+            "player_id": "p4",
+            "role": "minority",
+            "shares": 5,
+            "tied": true
+          },
+          {
+            "bonus": 0,
+            "majority": 0,
+            "minority": 0,
+            "player_id": "p2",
+            "role": null,
+            "shares": 3,
+            "tied": false
+          }
+        ],
+        "majority_bonus": 4000,
+        "minority_bonus": 2000,
+        "price": 400,
+        "size": 4
+      }
+    },
     "current_player": "p2",
     "decisions": [
       {
@@ -120,6 +394,77 @@
     },
     "human_decisions": [],
     "inactive_chains": [],
+    "mergers": [
+      {
+        "complete": false,
+        "defunct": [
+          {
+            "bonuses": [
+              {
+                "majority": 7000,
+                "minority": 0,
+                "player_id": "p3"
+              },
+              {
+                "majority": 0,
+                "minority": 1800,
+                "player_id": "p1"
+              },
+              {
+                "majority": 0,
+                "minority": 1800,
+                "player_id": "p2"
+              }
+            ],
+            "chain": "aurelia",
+            "dispositions": [],
+            "price": 700,
+            "size": 5,
+            "waiting_on": [
+              "p2",
+              "p3",
+              "p4",
+              "p1"
+            ]
+          }
+        ],
+        "player_id": "p2",
+        "seq": 175,
+        "sizes": {
+          "aurelia": 5,
+          "halcyon": 5
+        },
+        "survivor": "halcyon",
+        "survivor_size": null,
+        "tile": "6H"
+      }
+    ],
+    "net_worth": {
+      "p1": {
+        "cash": 1800,
+        "net_worth": 12100,
+        "rank": 2,
+        "stock_value": 10300
+      },
+      "p2": {
+        "cash": 1900,
+        "net_worth": 11900,
+        "rank": 3,
+        "stock_value": 10000
+      },
+      "p3": {
+        "cash": 7000,
+        "net_worth": 17600,
+        "rank": 1,
+        "stock_value": 10600
+      },
+      "p4": {
+        "cash": 0,
+        "net_worth": 9700,
+        "rank": 4,
+        "stock_value": 9700
+      }
+    },
     "pending_trades": [],
     "phase": "merger",
     "players": [

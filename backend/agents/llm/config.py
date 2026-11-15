@@ -120,7 +120,6 @@ def _default_entries() -> list[CatalogEntry]:
             model="claude-haiku-5-5",
             api_key_env="ANTHROPIC_API_KEY",
             timeout=30.0,
-            effort="low",
         ),
         CatalogEntry(
             id="llm:claude-sonnet-5-5",
@@ -129,9 +128,6 @@ def _default_entries() -> list[CatalogEntry]:
             provider="anthropic",
             model="claude-sonnet-5-5",
             api_key_env="ANTHROPIC_API_KEY",
-            # Thinking is billed as output, the expensive side. Low effort
-            # keeps a game affordable; raise it per entry in GAME_LLM_CATALOG.
-            effort="low",
         ),
         CatalogEntry(
             id="llm:claude-opus-5-5",
@@ -221,7 +217,10 @@ def catalog_entries() -> list[dict]:
 
 def _build_provider(entry: CatalogEntry) -> Provider:
     if entry.provider == "fake":
-        return FakeProvider(model="fake")
+        from agents.llm.talk import fake_talk_responder
+
+        # First legal action; deterministic table talk (see fake_talk_responder).
+        return FakeProvider(fake_talk_responder(), model="fake")
     if entry.provider == "anthropic":
         return AnthropicProvider(
             model=entry.model, api_key=entry.resolved_key(), effort=entry.effort
@@ -251,4 +250,5 @@ def create_agent(agent_id: str, *, name: str) -> LLMAgent:
         timeout=entry.timeout,
         max_tokens=entry.max_tokens,
         max_illegal_retries=entry.max_illegal_retries,
+        table_talk=True,
     )

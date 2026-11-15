@@ -8,6 +8,7 @@
 
 import type { TileState } from '../types/game'
 import type {
+  ChatEntry,
   DecisionEntry,
   EngineEvent,
   PublicState,
@@ -20,6 +21,8 @@ export interface ReplayStep {
   step: number
   decision: DecisionEntry | null
   events: EngineEvent[]
+  /** Table chat written after this step's decision (step 0: lobby and opening chat). */
+  chat: ChatEntry[]
   state: PublicState | null
   /** 1-based turn number (turns advance on `turn_ended`). */
   turn: number
@@ -42,6 +45,7 @@ type Normalized =
   | { kind: 'decision'; entry: DecisionEntry }
   | { kind: 'state'; entry: StateEntry }
   | { kind: 'event'; entry: EngineEvent }
+  | { kind: 'chat'; entry: ChatEntry }
 
 /**
  * Entries are `{type:"event", event:{...}}`, `decision` and `state` lines in file order
@@ -54,6 +58,8 @@ export function normalizeEntries(entries: TranscriptEntry[]): Normalized[] {
     const e = raw as unknown as Record<string, unknown>
     if (e.type === 'decision') out.push({ kind: 'decision', entry: raw as DecisionEntry })
     else if (e.type === 'state') out.push({ kind: 'state', entry: raw as StateEntry })
+    else if (e.type === 'chat' && typeof e.text === 'string')
+      out.push({ kind: 'chat', entry: raw as ChatEntry })
     else if (e.type === 'event' && e.event && typeof e.event === 'object')
       out.push({ kind: 'event', entry: e.event as EngineEvent })
   }
@@ -63,7 +69,7 @@ export function normalizeEntries(entries: TranscriptEntry[]): Normalized[] {
 export function buildReplay(transcript: Transcript): Replay {
   const items = normalizeEntries(transcript.entries)
   const steps: ReplayStep[] = [
-    { step: 0, decision: null, events: [], state: null, turn: 1, turnPlayerId: null },
+    { step: 0, decision: null, events: [], chat: [], state: null, turn: 1, turnPlayerId: null },
   ]
   let cur = steps[0]
   let turnsEnded = 0
@@ -74,11 +80,14 @@ export function buildReplay(transcript: Transcript): Replay {
         step: steps.length,
         decision: it.entry,
         events: [],
+        chat: [],
         state: null,
         turn: turnsEnded + 1,
         turnPlayerId: prev.state?.current_player ?? it.entry.player_id,
       }
       steps.push(cur)
+    } else if (it.kind === 'chat') {
+      cur.chat.push(it.entry)
     } else if (it.kind === 'event') {
       cur.events.push(it.entry)
       if (it.entry.type === 'turn_ended') turnsEnded += 1

@@ -43,6 +43,27 @@ class Settings(BaseSettings):
     max_agent_actions_per_turn: int = 40
     max_trade_proposals_per_turn: int = 2
 
+    # Table chat (chat.py; docs/architecture/seat-contract.md, "Table chat").
+    # Every value can be set by an environment variable of the same name in
+    # upper case (e.g. CHAT_REPLY_MAX_PER_GAME=4).
+    chat_max_chars: int = 280  # longer messages are refused (422)
+    chat_rate_limit_count: int = 5  # messages per player per window ...
+    chat_rate_limit_window_s: float = 10.0  # ... else 429
+    chat_history_size: int = 200  # kept per room; the last 100 re-sent on connect
+    chat_prompt_messages: int = 10  # recent messages in an LLM seat's decision prompt
+    # Off-turn talk of LLM seats ("do you want to say something?" calls after
+    # chat messages and notable game events; one model call each, at the
+    # seat's normal effort; cost counted in the transcript totals).
+    chat_replies_enabled: bool = True
+    chat_reply_cooldown_s: float = 8.0  # per seat, between talk calls
+    chat_ai_streak_max: int = 3  # AI messages in a row before AI talk stops
+    #                              triggering more (a human message or a move resets)
+    chat_reply_max_per_game: int = 60  # runaway guard per seat per game (and lobby)
+    chat_reply_max_tokens: int = (
+        2048  # output cap (thinking included); replies are short
+    )
+    chat_reply_timeout_s: float = 30.0
+
     # Game variant / theme (env GAME_RULESET): a name in backend/rulesets/
     # ("default", "valley", "mini") or a path to a ruleset JSON file. New
     # games use it; see game/ruleset.py and docs/architecture/seat-contract.md.

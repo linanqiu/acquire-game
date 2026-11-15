@@ -268,7 +268,7 @@ describe.each(THEMED)('%s ruleset', (_name, rs) => {
       gameState: gameStateFor(rs, 'place_tile'),
     })
     renderPlayer()
-    const table = screen.getByTestId('portfolio-table')
+    const table = screen.getByTestId('chain-list')
     for (const ch of rs.chains.slice(0, 3)) {
       expect(within(table).getByTestId(`portfolio-row-${ch.id.toLowerCase()}`)).toHaveTextContent(
         ch.name

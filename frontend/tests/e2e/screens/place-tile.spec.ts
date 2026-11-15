@@ -33,13 +33,13 @@ async function expectRackMatchesFixture(page: Page, room: RoomContext) {
       // Visually distinct (lock or cross) and not an interactive control.
       await expect(rackTile(page, t)).not.toHaveAttribute('role', 'button')
       await expect(rackTile(page, t)).toContainText(/🔒|✕/)
-      await expect(page.getByTestId(`rack-note-${t}`)).toContainText(
+      await expect(page.locator(`[data-testid="rack-note"][data-tiles~="${t}"]`)).toContainText(
         REASON_TEXT[human.unplayable_tiles[t]]
       )
     } else {
       await expect(rackTile(page, t)).toHaveAttribute('role', 'button')
       await expect(rackTile(page, t)).not.toContainText(/🔒|✕/)
-      await expect(page.getByTestId(`rack-note-${t}`)).toHaveCount(0)
+      await expect(page.locator(`[data-testid="rack-note"][data-tiles~="${t}"]`)).toHaveCount(0)
     }
   }
   // Holdings in the portfolio and the players panel.

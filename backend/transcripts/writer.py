@@ -38,7 +38,15 @@ TRANSCRIPT_VERSION = 1
 SUMMARY_SUFFIX = ".summary.json"
 # engine ``game_ended.reason`` -> footer reason
 _END_REASON = {"declared": "declared", "no_playable_tiles": "no_playable_tiles"}
-_LLM_KEYS = ("model", "system_prompt_id", "user_prompt", "attempts", "why", "note")
+_LLM_KEYS = (
+    "model",
+    "system_prompt_id",
+    "user_prompt",
+    "attempts",
+    "why",
+    "note",
+    "say",
+)
 _ATTEMPT_KEYS = (
     "raw",
     "parsed",
@@ -122,6 +130,7 @@ def _empty_totals() -> dict:
         "cache_write_tokens": 0,
         "cost_usd": None,
         "latency_s": 0.0,
+        "reply_calls": 0,
     }
 
 
@@ -296,6 +305,75 @@ class TranscriptWriter:
             self._count(player_id, source, latency_s, entry)
             self._sync_events()
             self._write_state()
+        except Exception as exc:  # noqa: BLE001
+            self._fail(exc)
+
+    def record_chat(self, message: dict) -> None:
+        """Write one table-chat message (``chat.post_message``): engine events
+        not written yet come first, so the line sits in order with them."""
+        if self._inactive:
+            return
+        try:
+            self.sync()
+            self._write({"type": "chat", **message})
+        except Exception as exc:  # noqa: BLE001
+            self._fail(exc)
+
+    def record_chat_reply(
+        self,
+        *,
+        player_id: str,
+        reply_to: int | None,
+        outcome: str,
+        message_id: int | None,
+        llm: dict | None,
+        latency_s: float | None = None,
+        trigger: dict | None = None,
+    ) -> None:
+        """Write one off-turn talk call of an LLM seat (``chat.py``) and count
+        its tokens in that seat's totals (``reply_calls``, ``llm_calls``,
+        tokens)."""
+        if self._inactive:
+            return
+        try:
+            self.sync()
+            entry = None
+            if llm:
+                entry = {
+                    "model": llm.get("model"),
+                    "system_prompt_id": llm.get("system_prompt_id"),
+                    "user_prompt": llm.get("user_prompt"),
+                    "attempts": [
+                        {k: a.get(k) for k in _ATTEMPT_KEYS}
+                        for a in (llm.get("attempts") or [])
+                    ],
+                }
+                if llm.get("error"):
+                    entry["error"] = llm.get("error")
+            self._write(
+                {
+                    "type": "chat_reply",
+                    "after_seq": self._next_seq - 1,
+                    "player_id": player_id,
+                    "trigger": trigger,
+                    "reply_to": reply_to,
+                    "outcome": outcome,
+                    "message_id": message_id,
+                    "latency_s": None if latency_s is None else round(latency_s, 4),
+                    "llm": entry,
+                }
+            )
+            t = self.totals.setdefault(player_id, _empty_totals())
+            t["reply_calls"] = t.get("reply_calls", 0) + 1
+            for a in (entry or {}).get("attempts") or []:
+                t["llm_calls"] += int(a.get("raw") is not None)
+                for k in (
+                    "input_tokens",
+                    "output_tokens",
+                    "cache_read_tokens",
+                    "cache_write_tokens",
+                ):
+                    t[k] += int(a.get(k) or 0)
         except Exception as exc:  # noqa: BLE001
             self._fail(exc)
 

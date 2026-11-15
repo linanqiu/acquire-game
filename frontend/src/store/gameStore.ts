@@ -13,6 +13,7 @@ import type {
   TilePlayabilityInfo,
   TradeOffer,
   AgentFallbackMessage,
+  ChatMessage,
   WebSocketMessage,
 } from '../types/api'
 
@@ -70,6 +71,9 @@ export interface GameStoreState {
   lastTradeEvent: TradeEvent | null
   lastFallbackEvent: FallbackEvent | null
 
+  /** Public table chat, oldest first (deduplicated by id, at most CHAT_KEEP). */
+  chatMessages: ChatMessage[]
+
   /** The final `game_over` message (scores with their breakdown), once the game ended. */
   gameOver: GameOverMessage | null
 
@@ -103,6 +107,17 @@ export interface GameStoreState {
   reset: () => void
 }
 
+/** Chat messages kept in the store (the server re-sends its last 100 on reconnect). */
+export const CHAT_KEEP = 200
+
+/** `current` plus `incoming`, deduplicated by id and ordered by id. */
+export function mergeChat(current: ChatMessage[], incoming: ChatMessage[]): ChatMessage[] {
+  const byId = new Map<number, ChatMessage>()
+  for (const m of current) byId.set(m.id, m)
+  for (const m of incoming) if (m && typeof m.id === 'number') byId.set(m.id, m)
+  return [...byId.values()].sort((a, b) => a.id - b.id).slice(-CHAT_KEEP)
+}
+
 const initialState = {
   connectionStatus: 'disconnected' as ConnectionStatus,
   connectionError: null,
@@ -118,6 +133,7 @@ const initialState = {
   lastTradeEvent: null as TradeEvent | null,
   gameOver: null as GameOverMessage | null,
   lastFallbackEvent: null as FallbackEvent | null,
+  chatMessages: [] as ChatMessage[],
   pendingChainChoice: null,
   pendingMergerChoice: null,
   pendingStockDisposition: null,
@@ -277,6 +293,14 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             message,
           },
         })
+        break
+
+      case 'chat_message':
+        set({ chatMessages: mergeChat(store.chatMessages, [message.message]) })
+        break
+
+      case 'chat_history':
+        set({ chatMessages: mergeChat(store.chatMessages, message.messages ?? []) })
         break
 
       case 'tiles_replaced':

@@ -404,8 +404,10 @@ test.describe('Transcripts and Buyout Bench on the real servers', () => {
       expect(t.header.seed).not.toBeNull()
       expect(Array.isArray(t.entries)).toBe(true)
       expect(t.entries.length).toBeGreaterThan(200)
+      // The Fake LLM seat also talks at the table (it reacts to chains being founded), so
+      // the file has table-chat lines and its talk calls between the game lines.
       expect(new Set(t.entries.map((e: { type: string }) => e.type))).toEqual(
-        new Set(['event', 'decision', 'state'])
+        new Set(['event', 'decision', 'state', 'chat', 'chat_reply'])
       )
       expect(t.footer.standings).toHaveLength(3)
       expect(t.redacted).toBe(false)
@@ -477,7 +479,7 @@ test.describe('Transcripts and Buyout Bench on the real servers', () => {
       ).toBeVisible()
       await shot(page, 'leaderboard')
       await expect(page.getByTestId('bench-protocol-id')).toHaveText('bench-v1')
-      await expect(page.getByTestId('bench-prompt-version')).toContainText(/prompt\s+v1-/)
+      await expect(page.getByTestId('bench-prompt-version')).toContainText(/prompt\s+v2-/)
       await expect(page.getByTestId('bench-track')).toContainText('all')
       await expect(page.getByTestId('bench-warnings')).toHaveCount(0)
       await expect(page.getByTestId('bench-sample-size')).toContainText(`${BENCH_GAMES} games`)

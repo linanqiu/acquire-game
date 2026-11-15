@@ -46,6 +46,7 @@ from agents.driving import (
     llm_record,
     timeout_for,
 )
+import chat
 from agents.heuristic import HeuristicAgent
 from app_state import session_manager
 from broadcast import (
@@ -169,6 +170,7 @@ async def apply_and_publish(
         kind, legal = _decision_info(game, player_id, action)
         info.setdefault("kind", kind)
         info.setdefault("legal", legal)
+    top_before = chat.top_holders(game)
     result = apply_action(game, player_id, action)
     if not result.get("success"):
         if (
@@ -203,8 +205,15 @@ async def apply_and_publish(
             latency_s=info.get("latency_s"),
             llm=info.get("llm"),
         )
-        if game.phase == GamePhase.GAME_OVER:
-            writer.close_from_game()
+    # Table talk (never part of the game): a move resets the AI streak and
+    # gives the seats its notable events concern a chance to speak; an LLM
+    # seat's `say` is posted with its move.
+    chat.on_action(room_code, room, game, since, top_before, player_id)
+    await _post_say(room_code, room, player_id, info)
+    if writer is not None and game.phase == GamePhase.GAME_OVER:
+        # before publishing, so `game_over` arrives with the transcript final
+        # (unless talk calls are in flight: then once they are done)
+        chat.close_when_quiet(room)
     await publish_events(room_code, game, since)
     after = flow_decision(game)
     if after is not None and after != before:
@@ -296,6 +305,7 @@ def open_transcript(room, *, loaded_from_snapshot: bool = False) -> None:
         loaded_from_snapshot=loaded_from_snapshot,
         prices=_prices(),
     )
+    chat.write_lobby_chat(room)
 
 
 _PRICES: list = []
@@ -465,6 +475,8 @@ async def _drive_loop(room_code: str) -> None:
             seat = room.players[decision.player_id]
             agent = seat.agent
             ctx = build_context(game, decision)
+            if seat.kind == "llm":
+                ctx.chat = chat.prompt_messages(room)
             rt.thinking = {
                 "player_id": decision.player_id,
                 "kind": seat.kind,
@@ -633,6 +645,24 @@ async def _drive_loop(room_code: str) -> None:
             await asyncio.sleep(delay)
         else:
             await asyncio.sleep(0)  # let humans' handlers in between actions
+
+
+async def _post_say(room_code: str, room, player_id: str, record: dict) -> None:
+    """Post the ``say`` an LLM seat attached to the move just applied (table
+    talk; never when the rules-based player made the move)."""
+    if record.get("source") != "llm":
+        return
+    say = (record.get("llm") or {}).get("say")
+    if not isinstance(say, str) or not say.strip():
+        return
+    writer = room.transcript
+    index = writer.decisions - 1 if writer is not None and writer.decisions else None
+    try:
+        await chat.post_message(
+            room_code, player_id, say, source="say", decision_index=index
+        )
+    except chat.ChatError as exc:
+        logger.info("Room %s: say of %s dropped: %s", room_code, player_id, exc)
 
 
 def _announcement(room, seat, decision, reason: str, attempts: int, started) -> dict:

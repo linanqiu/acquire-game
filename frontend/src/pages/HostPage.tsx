@@ -9,14 +9,17 @@ import { Panel } from '../components/ui/Panel'
 import { Button } from '../components/ui/Button'
 import { Spinner } from '../components/ui/Spinner'
 import { Board } from '../components/game/Board'
-import { ChainMarker } from '../components/game/ChainMarker'
-import { PlayerCard, type StockHolding } from '../components/game/PlayerCard'
+import { Standings } from '../components/game/Standings'
+import { ChainTable } from '../components/game/ChainTable'
+import { MergerResult, MergerLog } from '../components/game/MergerResult'
+import { useMergerResult } from '../hooks/useMergerResult'
 import { GameOver } from '../components/game/GameOver'
+import { ChatPanel } from '../components/game/ChatPanel'
 import { AddAiControl } from '../components/game/AddAiControl'
 import { ReconnectionOverlay } from '../components/game/ReconnectionOverlay'
 import { SeatKindBadge } from '../components/game/SeatKindBadge'
 import { RemoveSeatButton } from '../components/game/RemoveSeatButton'
-import { isAiThinking, resolveSeatKind } from '../lib/agents'
+import { resolveSeatKind } from '../lib/agents'
 import { buildFinalScores } from '../lib/finalScores'
 import { roomUnavailable } from '../lib/roomAvailability'
 import { useGameStore } from '../store/gameStore'
@@ -27,7 +30,6 @@ import { transformBoardToTileStates } from '../utils/transforms'
 import type { ChainId, TradeOffer } from '../types/api'
 import { RulesetScope } from '../ruleset/RulesetScope'
 import { rulesFor, useBrand, useServerRuleset, type Rules } from '../ruleset/useRules'
-import { orderChainIds } from '../lib/ruleset'
 import { hostPhaseText } from '../lib/phaseText'
 import styles from './HostPage.module.css'
 
@@ -91,9 +93,7 @@ export function HostPage() {
 
   // Local UI state
   const [actionLoading, setActionLoading] = useState(false)
-  const [activityLog, setActivityLog] = useState<{ id: number; text: string }[]>([
-    { id: 0, text: 'Waiting for players...' },
-  ])
+  const [activityLog, setActivityLog] = useState<{ id: number; text: string }[]>([])
   const addActivityLog = useCallback((text: string) => {
     setActivityLog((prev) => [...prev, { id: prev.length, text }])
   }, [])
@@ -110,37 +110,7 @@ export function HostPage() {
     return transformBoardToTileStates(gameState.board.cells)
   }, [gameState])
 
-  const activeChains = useMemo(() => {
-    if (!gameState) return []
-    return gameState.hotel.chains
-      .filter((c) => gameState.hotel.active_chains.includes(c.name))
-      .sort((a, b) => b.size - a.size)
-  }, [gameState])
-
-  const safeSize = ruleset.safe_chain_size
-
-  const allPlayers = useMemo(() => {
-    if (!gameState) return []
-    return gameState.turn_order.map((playerId) => {
-      const player = gameState.players[playerId]
-      const stocks: StockHolding[] = orderChainIds(
-        ruleset,
-        Object.keys(player.stocks).filter((c) => (player.stocks[c] ?? 0) > 0)
-      ).map((chain) => ({ chain, quantity: player.stocks[chain] }))
-      return {
-        id: playerId,
-        name: player.name,
-        cash: player.money,
-        stocks,
-        isCurrentTurn: playerId === currentTurnPlayerId,
-        isBot: resolveSeatKind(player) !== 'human',
-        kind: player.kind,
-        agentLabel: player.agent_label,
-        fallbacks: player.fallbacks,
-        thinking: isAiThinking(gameState.awaiting, playerId),
-      }
-    })
-  }, [gameState, currentTurnPlayerId, ruleset])
+  const mergerResult = useMergerResult(gameState?.mergers, `merger-dismissed-host:${room}`)
 
   const handleStartGame = useCallback(async () => {
     setActionLoading(true)
@@ -244,46 +214,26 @@ export function HostPage() {
       </div>
 
       <div className={styles.sidebar}>
-        <Panel title="SCOREBOARD">
-          <div className={styles.scoreboard} data-testid="scoreboard">
-            {allPlayers.map((p) => (
-              <PlayerCard
-                key={p.id}
-                name={p.name}
-                cash={p.cash}
-                stocks={p.stocks}
-                isCurrentTurn={p.isCurrentTurn}
-                isBot={p.isBot}
-                playerId={p.id}
-                kind={p.kind}
-                agentLabel={p.agentLabel}
-                fallbacks={p.fallbacks}
-                thinking={p.thinking}
-                variant="full"
-              />
-            ))}
-          </div>
-        </Panel>
+        {/* What just happened: the merger result stays until closed (reopen it from the log). */}
+        {mergerResult.shown && gameState && (
+          <MergerResult
+            merger={mergerResult.shown}
+            players={gameState.players}
+            onDismiss={mergerResult.dismiss}
+          />
+        )}
 
-        <Panel title={theme.chain_noun_plural.toUpperCase()}>
-          <div className={styles.chainList} data-testid="chain-list">
-            {activeChains.length === 0 ? (
-              <p className={styles.noChains}>No active {theme.chain_noun_plural}</p>
-            ) : (
-              activeChains.map((chain) => (
-                <ChainMarker
-                  key={chain.name}
-                  chain={chain.name}
-                  size={chain.size}
-                  price={chain.price}
-                  available={chain.stocks_available}
-                  safe={chain.size >= safeSize}
-                  variant="full"
-                />
-              ))
-            )}
-          </div>
-        </Panel>
+        {gameState && (
+          <Panel title="PLAYERS">
+            <Standings gameState={gameState} rowTestId="player-card" testId="scoreboard" />
+          </Panel>
+        )}
+
+        {gameState && (
+          <Panel title={theme.chain_noun_plural.toUpperCase()}>
+            <ChainTable gameState={gameState} />
+          </Panel>
+        )}
 
         {publicTrades.length > 0 && gameState && (
           <Panel title="PENDING TRADES">
@@ -299,15 +249,35 @@ export function HostPage() {
             </ul>
           </Panel>
         )}
-      </div>
 
-      <div className={styles.activityLog} role="log" aria-live="polite" aria-label="Game activity">
-        <span className={styles.logLabel}>ACTIVITY:</span>
-        {activityLog.slice(-5).map((entry) => (
-          <span key={entry.id} className={styles.logEntry}>
-            {entry.text}
-          </span>
-        ))}
+        <Panel title="ACTIVITY">
+          <div
+            className={styles.activityLog}
+            role="log"
+            aria-live="polite"
+            aria-label="Game activity"
+          >
+            {gameState && (
+              <MergerLog
+                mergers={gameState.mergers ?? []}
+                players={gameState.players}
+                openSeq={mergerResult.shown?.seq}
+                onOpen={mergerResult.open}
+              />
+            )}
+            {activityLog
+              .slice(-5)
+              .reverse()
+              .map((entry) => (
+                <span key={entry.id} className={styles.logEntry}>
+                  {entry.text}
+                </span>
+              ))}
+          </div>
+        </Panel>
+
+        {/* Table chat (read-only for the host): last card of the side column. */}
+        <ChatPanel room={room} mode="spectator" />
       </div>
     </div>
   )
@@ -371,6 +341,9 @@ export function HostPage() {
   return (
     <RulesetScope ruleset={gameState?.ruleset}>
       {renderPage()}
+      {!unavailable && (phase === 'lobby' || phase === 'game_over') && (
+        <ChatPanel room={room} mode="spectator" />
+      )}
       {hasConnected && connectionStatus !== 'connected' && !unavailable && (
         <ReconnectionOverlay
           connectionStatus={connectionStatus === 'disconnected' ? 'disconnected' : 'reconnecting'}
