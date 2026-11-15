@@ -12,7 +12,6 @@ import { Standings } from '../components/game/Standings'
 import { ChainTable } from '../components/game/ChainTable'
 import { MergerResult, MergerLog } from '../components/game/MergerResult'
 import { useMergerResult } from '../hooks/useMergerResult'
-import { useMediaQuery } from '../hooks/useMediaQuery'
 import { Board } from '../components/game/Board'
 import { ChainSelector } from '../components/game/ChainSelector'
 import { MergerDisposition } from '../components/game/MergerDisposition'
@@ -22,6 +21,8 @@ import { ReconnectionOverlay } from '../components/game/ReconnectionOverlay'
 import { ReconnectedToast } from '../components/game/ReconnectedToast'
 import { GameOver } from '../components/game/GameOver'
 import { ChatPanel } from '../components/game/ChatPanel'
+import { GameLayout } from '../components/game/GameLayout'
+import { shortLabel } from '../lib/gameTabs'
 import { buildFinalScores } from '../lib/finalScores'
 import { roomUnavailable } from '../lib/roomAvailability'
 import { waitingMessage } from '../lib/waiting'
@@ -119,18 +120,12 @@ export function PlayerPage() {
   }, [turnRefused, tradeRefused])
 
   const [selectedTile, setSelectedTile] = useState<Coordinate | undefined>()
-  // Same breakpoint as the two-column layout in PlayerPage.module.css.
-  const wide = useMediaQuery('(min-width: 900px)')
   const mergerResult = useMergerResult(gameState?.mergers, `merger-dismissed:${room}`)
 
   // The game's ruleset (the server's until the first game_state arrives): every limit and word.
   const serverRuleset = useServerRuleset()
   const ruleset = gameState?.ruleset ?? serverRuleset
   const { theme } = rulesFor(ruleset)
-
-  // Phone layout: the board can be folded away while a decision panel needs the room. The
-  // player's choice holds until the phase changes.
-  const [boardOverride, setBoardOverride] = useState<{ key: string; open: boolean } | null>(null)
 
   const phase = gameState?.phase ?? 'lobby'
   const currentTurnPlayerId = gameState?.current_player
@@ -215,7 +210,7 @@ export function PlayerPage() {
   const renderPlacementActions = () => (
     <div className={styles.tilePlacementContent} data-testid="placement-actions">
       {isMyTurn && !selectedTile && (
-        <p className={styles.hintText}>Pick a tile from your rack or click a lit square.</p>
+        <p className={styles.hintText}>Pick a tile from your rack or the lit squares.</p>
       )}
       {isMyTurn && selectedTile && (
         <div className={styles.placementActions}>
@@ -387,15 +382,6 @@ export function PlayerPage() {
     }
   }
 
-  // A decision panel (not the board) is what this phase is about: on a phone the board then
-  // folds behind a "SHOW BOARD" button (one tap away); on wider screens it always shows.
-  const decisionPhase =
-    !!pendingMergerChoice ||
-    !!pendingStockDisposition ||
-    (isMyTurn && (phase === 'found_chain' || phase === 'buy_stocks'))
-  const boardKey = `${phase}:${isMyTurn}:${decisionPhase}`
-  const boardOpen = boardOverride?.key === boardKey ? boardOverride.open : !decisionPhase
-
   const outOfGame = renderOutOfGame()
   const inGame = phase !== 'lobby' && phase !== 'game_over'
 
@@ -412,6 +398,8 @@ export function PlayerPage() {
     !!pendingMergerChoice ||
     !!pendingStockDisposition ||
     (isMyTurn && phase !== 'merger' && phase !== 'stock_disposition')
+
+  const incomingCount = myTrades.filter((t) => t.to_player_id === myPlayerId).length
 
   // The buy and disposition panels are cards of their own.
   const ownCard =
@@ -435,103 +423,122 @@ export function PlayerPage() {
         rank={inGame ? myPlayerData?.rank : undefined}
         playerName={currentPlayer?.name}
         tilePool={gameState?.tiles_remaining ?? undefined}
-        // Desktop: the rack sits under the board. Phones: it sticks to the bottom of the screen.
-        footer={wide ? undefined : rack}
+        fill={!outOfGame}
       >
         {outOfGame ? (
           <div className={styles.content}>{outOfGame}</div>
         ) : (
-          <div className={styles.gameLayout} data-testid="game-layout">
-            {/* 1. The board (and on desktop the rack right under it). */}
-            <section
-              className={`${styles.boardPane} ${boardOpen ? '' : styles.boardFolded}`}
-              aria-label="Board"
-              data-testid="board-pane"
-              data-folded={boardOpen ? undefined : 'true'}
-            >
-              <button
-                type="button"
-                className={styles.boardToggle}
-                aria-expanded={boardOpen}
-                onClick={() => setBoardOverride({ key: boardKey, open: !boardOpen })}
-                data-testid="board-toggle"
-              >
-                {boardOpen ? 'HIDE BOARD ▲' : 'SHOW BOARD ▼'}
-              </button>
-              <div className={styles.boardBody}>
+          gameState && (
+            <GameLayout
+              room={room}
+              scope="player"
+              myId={myPlayerId}
+              mergers={gameState.mergers}
+              myPlaceTurn={isMyTurn && phase === 'place_tile'}
+              board={
                 <Board
                   tiles={boardTileStates}
                   highlightedTile={selectedTile}
                   playableTiles={new Set(playableHand)}
-                  size="md"
+                  size="lg"
                   interactive={isMyTurn && phase === 'place_tile'}
                   onTileClick={(coord) => {
                     if (playableHand.includes(coord)) setSelectedTile(coord)
                   }}
                 />
-              </div>
-              {wide && <div className={styles.rackUnderBoard}>{rack}</div>}
-            </section>
-
-            <div className={styles.sidePane}>
-              {/* 2. What I must do now. */}
-              <div
-                className={`${styles.actionCard} ${myDecision ? styles.actionMine : ''} ${
-                  ownCard ? styles.actionBare : ''
-                }`}
-                data-testid="action-panel"
-              >
-                {renderAction()}
-              </div>
-
-              {/* 3. What just happened: the merger result, until closed. */}
-              {mergerResult.shown && gameState && (
-                <MergerResult
-                  merger={mergerResult.shown}
-                  players={gameState.players}
-                  onDismiss={mergerResult.dismiss}
-                />
-              )}
-
-              {/* 4. Reference: players (net worth), chains (majorities), trades, history. */}
-              {gameState && (
-                <section className={styles.refCard} aria-label="Players">
-                  <Standings gameState={gameState} myPlayerId={myPlayerId} />
-                </section>
-              )}
-              {gameState && (
-                <section className={styles.refCard} aria-label={theme.chain_noun_plural}>
-                  <h4 className={styles.refTitle}>{theme.chain_noun_plural}</h4>
-                  <ChainTable gameState={gameState} myPlayerId={myPlayerId} />
-                </section>
-              )}
-              {myPlayerId && gameState && (
-                <TradeOffers
-                  offers={myTrades}
-                  myPlayerId={myPlayerId}
-                  players={gameState.players}
-                  onAccept={trades.accept}
-                  onReject={trades.reject}
-                  onCancel={trades.cancel}
-                  onPropose={trades.openBuilder}
-                />
-              )}
-              {gameState && (gameState.mergers?.length ?? 0) > 0 && (
-                <section className={styles.refCard} aria-label="Activity">
-                  <h4 className={styles.refTitle}>{theme.merger_noun_plural}</h4>
-                  <MergerLog
-                    mergers={gameState.mergers ?? []}
+              }
+              rack={rack}
+              now={
+                <>
+                  {/* What I must do now, whatever tab is open. */}
+                  <div
+                    className={`${styles.actionCard} ${myDecision ? styles.actionMine : ''} ${
+                      ownCard ? styles.actionBare : ''
+                    }`}
+                    data-testid="action-panel"
+                  >
+                    {renderAction()}
+                  </div>
+                  {/* Offers waiting for my answer are a decision too. */}
+                  {myPlayerId && (
+                    <TradeOffers
+                      part="incoming"
+                      offers={myTrades}
+                      myPlayerId={myPlayerId}
+                      players={gameState.players}
+                      onAccept={trades.accept}
+                      onReject={trades.reject}
+                      onCancel={trades.cancel}
+                      onPropose={trades.openBuilder}
+                    />
+                  )}
+                </>
+              }
+              banner={
+                mergerResult.shown && (
+                  <MergerResult
+                    merger={mergerResult.shown}
                     players={gameState.players}
-                    openSeq={mergerResult.shown?.seq}
-                    onOpen={mergerResult.open}
+                    onDismiss={mergerResult.dismiss}
                   />
-                </section>
-              )}
-
-              {/* Table chat: last card of the side column; on phones it folds itself to a bar. */}
-              <ChatPanel room={room} />
-            </div>
-          </div>
+                )
+              }
+              wideDefault="players"
+              logTab="trades"
+              tabs={[
+                {
+                  id: 'players',
+                  label: 'Players',
+                  content: <Standings gameState={gameState} myPlayerId={myPlayerId} />,
+                },
+                {
+                  id: 'chains',
+                  label: shortLabel(theme.chain_noun_plural),
+                  content: <ChainTable gameState={gameState} myPlayerId={myPlayerId} />,
+                },
+                {
+                  id: 'chat',
+                  label: 'Chat',
+                  content: (shown) => <ChatPanel room={room} inTab active={shown} />,
+                },
+                {
+                  id: 'trades',
+                  label: 'Trades',
+                  badge: incomingCount,
+                  badgeLabel: `${incomingCount} for you`,
+                  content: (
+                    <div className={styles.tradesTab}>
+                      {myPlayerId && (
+                        <TradeOffers
+                          part="mine"
+                          offers={myTrades}
+                          myPlayerId={myPlayerId}
+                          players={gameState.players}
+                          onAccept={trades.accept}
+                          onReject={trades.reject}
+                          onCancel={trades.cancel}
+                          onPropose={trades.openBuilder}
+                        />
+                      )}
+                      <section aria-label="Activity">
+                        <h4 className={styles.refTitle}>{theme.merger_noun_plural}</h4>
+                        {(gameState.mergers?.length ?? 0) > 0 ? (
+                          <MergerLog
+                            mergers={gameState.mergers ?? []}
+                            players={gameState.players}
+                            openSeq={mergerResult.shown?.seq}
+                            onOpen={mergerResult.open}
+                          />
+                        ) : (
+                          <p className={styles.hintText}>None yet.</p>
+                        )}
+                      </section>
+                    </div>
+                  ),
+                },
+              ]}
+            />
+          )
         )}
         {/* Lobby, game over and the waiting screens: chat under the content. */}
         {!unavailable && outOfGame && <ChatPanel room={room} />}

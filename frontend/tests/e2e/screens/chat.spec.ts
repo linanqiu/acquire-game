@@ -9,6 +9,8 @@
 import type { Page } from '@playwright/test'
 import { test, expect } from './support/test'
 import { loadFixture } from './support/fixtures'
+import { expectFits } from './support/layout'
+import { openTab, tab, tabBadge } from '../support/tabs'
 
 const LLM = 'Fake LLM (test)'
 
@@ -36,7 +38,9 @@ async function chatRoom(page: Page, viewport: { width: number; height: number })
   })
   expect(add.ok(), await add.text()).toBeTruthy()
   const llmId = ((await add.json()) as { player_id: string }).player_id
-  const join = await page.request.post('/api/join', { form: { room_code: code, player_name: 'Bob' } })
+  const join = await page.request.post('/api/join', {
+    form: { room_code: code, player_name: 'Bob' },
+  })
   expect(join.ok(), await join.text()).toBeTruthy()
   const bobId = ((await join.json()) as { player_id: string }).player_id
 
@@ -102,8 +106,8 @@ test('chat on desktop: talk to the table, the Fake LLM answers, the host view re
   shots,
 }) => {
   const room = await chatRoom(page, { width: 1280, height: 900 })
-  const panel = page.getByTestId('chat-panel')
-  await expect(panel).toHaveAttribute('data-open', 'true')
+  // The chat is a tab of the sidebar; the board stays on the left.
+  await openTab(page, 'chat')
   await expect(page.getByTestId('chat-readers')).toHaveText(
     `AI that reads chat and may answer: ${LLM}. Talk is not binding; deals happen through trade offers.`
   )
@@ -138,6 +142,10 @@ test('chat on desktop: talk to the table, the Fake LLM answers, the host view re
   const host = await page.context().newPage()
   await host.setViewportSize({ width: 1280, height: 900 })
   await host.goto(`/host/${room.code}`)
+  await expect(host.getByTestId('game-phase')).toBeVisible()
+  // Lines that arrived before the host opened the page are history, not unread.
+  await expect(tabBadge(host, 'chat')).toHaveCount(0)
+  await openTab(host, 'chat')
   const hostPanel = host.getByTestId('chat-panel')
   await expect(hostPanel.getByTestId('chat-message')).toHaveCount(4)
   await expect(hostPanel.getByTestId('chat-input')).toHaveCount(0)
@@ -148,49 +156,50 @@ test('chat on desktop: talk to the table, the Fake LLM answers, the host view re
   await shots.take(host, 'host-chat-read-only')
   await host.close()
 
-  // Reload: the history comes back in order.
+  // Reload: the Chat tab is still the open one (remembered for the session) and the history
+  // comes back in order.
   await page.reload()
   await expect(page.getByTestId('tile-rack')).toBeVisible()
+  await expect(tab(page, 'chat')).toHaveAttribute('aria-selected', 'true')
   await expect(lines(page)).toHaveCount(4)
   await expect(lines(page).first()).toContainText('Hello table')
   await shots.take(page, 'chat-after-reload')
 })
 
-test('chat on a phone: collapsed by default, unread count, never over the board or the rack', async ({
+test('chat on a phone: a tab with an unread count, never over the board, the rack or the tab bar', async ({
   page,
   shots,
 }) => {
   const room = await chatRoom(page, { width: 390, height: 844 })
-  const panel = page.getByTestId('chat-panel')
-  await expect(panel).toHaveAttribute('data-open', 'false')
-  await expect(page.getByTestId('chat-list')).toHaveCount(0)
-  await expectApart(page, '[data-testid="chat-panel"]', '[data-testid="board"]')
-  await expectApart(page, '[data-testid="chat-panel"]', '[data-testid="tile-rack"]')
+  // The Board tab is open while I place a tile; the chat is one tap away.
+  await expect(tab(page, 'board')).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByTestId('chat-list')).toBeHidden()
   await expectNoHorizontalScroll(page)
-  await shots.take(page, 'phone-collapsed', { fullPage: false })
+  await shots.take(page, 'phone-board-tab', { fullPage: false })
 
-  // Bob talks; the LLM answers him: two unread on the collapsed bar.
+  // Bob talks; the LLM answers him: two unread on the Chat tab.
   await bobSays(page, room, 'anyone up for a deal?')
-  await expect(page.getByTestId('chat-unread')).toHaveText('2')
-  await page.getByTestId('chat-toggle').scrollIntoViewIfNeeded()
-  await expectApart(page, '[data-testid="chat-toggle"]', '[data-testid="tile-rack"]')
+  await expect(tabBadge(page, 'chat')).toHaveText('2')
+  await expect(tab(page, 'chat')).toHaveAccessibleName('Chat (2 unread)')
+  await expectFits(page, ['game-phase', 'tabpanel-board', 'now-area', 'tab-bar'])
   await shots.take(page, 'phone-unread', { fullPage: false })
 
-  await page.getByTestId('chat-toggle').click()
-  await expect(panel).toHaveAttribute('data-open', 'true')
-  await expect(page.getByTestId('chat-unread')).toHaveCount(0)
+  await openTab(page, 'chat')
+  await expect(tabBadge(page, 'chat')).toHaveCount(0)
   await expect(lines(page)).toHaveCount(2)
   await page.getByTestId('chat-input').fill('Not today, Bob')
   await page.getByTestId('chat-send').click()
   await expect(lines(page).filter({ hasText: 'Not today, Bob' })).toContainText('YOU')
   await expect(lines(page).filter({ hasText: 'Fake LLM heard you, Bob' })).toHaveCount(1)
-  await page.getByTestId('chat-input').scrollIntoViewIfNeeded()
-  await expectApart(page, '[data-testid="chat-input"]', '[data-testid="tile-rack"]')
-  await expectNoHorizontalScroll(page)
-  await shots.take(page, 'phone-open', { fullPage: false })
+  // The input, the rack and the tab bar are all on screen, apart, without scrolling the page.
+  await expect(page.getByTestId('chat-input')).toBeInViewport({ ratio: 1 })
+  await expectApart(page, '[data-testid="chat-panel"]', '[data-testid="tile-rack"]')
+  await expectApart(page, '[data-testid="chat-panel"]', '[data-testid="tab-bar"]')
+  await expectFits(page, ['game-phase', 'tabpanel-chat', 'now-area', 'tab-bar'])
+  await shots.take(page, 'phone-chat-tab', { fullPage: false })
 
-  // Collapsing again hides the list; the rack still works.
-  await page.getByTestId('chat-toggle').click()
-  await expect(page.getByTestId('chat-list')).toHaveCount(0)
+  // Back to the board: the chat hides, the rack still works.
+  await openTab(page, 'board')
+  await expect(page.getByTestId('chat-list')).toBeHidden()
   await expect(page.getByTestId('tile-rack')).toBeVisible()
 })

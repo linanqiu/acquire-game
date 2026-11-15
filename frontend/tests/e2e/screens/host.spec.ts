@@ -3,6 +3,8 @@ import { test as base, expect } from './support/test'
 import { startFromSnapshot, type RoomContext } from './support/room'
 import { dollars, loadFixture } from './support/fixtures'
 import { playHumanTurns } from './support/ui'
+import { expectFits, outsideWidth } from './support/layout'
+import { openTab, tab, type TabName } from '../support/tabs'
 
 /** The seat the 'disposition-waiting-on-other' fixture is waiting on (read from the fixture). */
 const WAITING_ON = loadFixture('disposition-waiting-on-other').expect.decisions[0]
@@ -36,13 +38,17 @@ const cards = (host: Page) => host.getByTestId('player-card')
 /** The host sees the board, every active chain with size/price/stock left, every player's cash. */
 async function expectHostMatchesFixture(host: Page, room: RoomContext) {
   const { active_chains, players } = room.fixture.expect
+  // Phones: the Board, Players and Chains are tabs; wide screens: the board is always there.
+  if ((await tab(host, 'board').count()) > 0) await openTab(host, 'board')
   await expect(host.getByTestId('board')).toBeVisible()
+  await openTab(host, 'chains')
   for (const [chain, c] of Object.entries(active_chains)) {
     const marker = host.getByTestId('chain-list').getByTestId(`chain-marker-${chain.toLowerCase()}`)
     await expect(marker).toContainText(`${c.size} tiles`)
     await expect(marker).toContainText(dollars(c.price))
     await expect(marker).toContainText(`[${c.available}]`)
   }
+  await openTab(host, 'players')
   await expect(cards(host)).toHaveCount(players.length)
   for (const p of players) {
     const card = cards(host).filter({ hasText: p.name })
@@ -128,6 +134,7 @@ test('host view lists a pending trade between two players', async ({ page, openH
   const from = room.names[room.seatMap[trade.from_player_id]]
   const to = room.names[room.seatMap[trade.to_player_id]]
 
+  await openTab(host, 'log')
   const line = host.getByTestId(`pending-trade-${trade.trade_id}`)
   await expect(line).toBeVisible()
   await expect(line).toContainText(from)
@@ -137,6 +144,7 @@ test('host view lists a pending trade between two players', async ({ page, openH
   await shots.take(host, 'host-pending-trade')
 
   // Cancelling on the player page empties the host's list.
+  await openTab(page, 'trades')
   await page.getByTestId(`trade-cancel-${trade.trade_id}`).click()
   await expect(host.getByTestId('pending-trades')).toHaveCount(0)
   await playHumanTurns(page, room, 2, shots)
@@ -179,14 +187,18 @@ test('host view of a finished game shows the full results table', async ({
 })
 
 /**
- * The host page on small screens. It was only ever tested at 1280px; on a phone the board and the
- * scoreboard were laid on top of each other and half the board was off-screen.
+ * The host page at every size (BL-008). Phones: the Board is a tab like Players, Chains, Chat and
+ * Log, above a bottom tab bar; wide screens: the board is always on the left and the tabs are in
+ * the sidebar; a TV-sized screen shows board, players and chains together without a tap. Every
+ * tab fits the screen, nothing overlaps, and the page itself never scrolls.
  */
 for (const vp of [
   { label: 'phone', width: 390, height: 844 },
   { label: 'small phone', width: 360, height: 640 },
   { label: 'tablet', width: 768, height: 1024 },
   { label: 'small laptop', width: 1100, height: 700 },
+  { label: 'laptop', width: 1366, height: 768 },
+  { label: 'TV', width: 1920, height: 1080 },
 ]) {
   test(`host view on a ${vp.label}: board, scoreboard and chain list do not overlap or leave the screen`, async ({
     page,
@@ -195,44 +207,43 @@ for (const vp of [
   }) => {
     const room = await startFromSnapshot(page, 'six-player-midgame')
     const host = await openHost(room, { width: vp.width, height: vp.height })
+    await expect(host.getByTestId('game-phase')).toBeVisible()
+    const phone = (await tab(host, 'board').count()) > 0
+    const tv = vp.width >= 1600
+    expect(phone, 'a Board tab only on phones').toBe(vp.width < 768)
+
+    if (tv) {
+      // Board, players and chains at once, no tab to open; Chat and Log stay tabs.
+      await expect(host.getByTestId('board')).toBeInViewport({ ratio: 1 })
+      await expect(host.getByTestId('pinned-players').getByTestId('scoreboard')).toBeInViewport()
+      await expect(host.getByTestId('pinned-chains').getByTestId('chain-list')).toBeInViewport()
+      await expect(tab(host, 'players')).toHaveCount(0)
+      await expect(tab(host, 'chat')).toBeVisible()
+      await expect(tab(host, 'log')).toBeVisible()
+      await expectFits(host, ['board-pane', 'pinned-players', 'pinned-chains', 'tab-list'])
+    }
+
     await expectHostMatchesFixture(host, room)
     await expectNoHorizontalScroll(host)
 
-    const problems = await host.evaluate(() => {
-      const width = document.documentElement.clientWidth
-      const ids = ['board', 'scoreboard', 'chain-list', 'game-phase']
-      const boxes = ids.map((id) => {
-        const r = document.querySelector(`[data-testid="${id}"]`)!.getBoundingClientRect()
-        return { id, left: r.left, right: r.right, top: r.top, bottom: r.bottom }
-      })
-      const out: string[] = []
-      for (const b of boxes) {
-        if (b.left < -0.5 || b.right > width + 0.5) {
-          out.push(
-            `${b.id} leaves the screen: ${Math.round(b.left)}..${Math.round(b.right)} of ${width}`
-          )
-        }
-      }
-      for (let i = 0; i < boxes.length; i++) {
-        for (let j = i + 1; j < boxes.length; j++) {
-          const [a, b] = [boxes[i], boxes[j]]
-          const overlapX = Math.min(a.right, b.right) - Math.max(a.left, b.left)
-          const overlapY = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)
-          if (overlapX > 1 && overlapY > 1) out.push(`${a.id} overlaps ${b.id}`)
-        }
-      }
-      // Every board square and every player card is fully on screen sideways.
-      for (const el of document.querySelectorAll(
-        '[data-testid="board"] [data-testid^="tile-"], [data-testid="player-card"]'
-      )) {
-        const r = el.getBoundingClientRect()
-        if (r.left < -0.5 || r.right > width + 0.5) {
-          out.push(`${el.getAttribute('data-testid')} leaves the screen`)
-        }
-      }
-      return out
-    })
-    expect(problems).toEqual([])
-    await shots.take(host, `host-${vp.label.replace(' ', '-')}`)
+    const tabs: TabName[] = phone
+      ? ['board', 'players', 'chains', 'chat', 'log']
+      : tv
+        ? ['chat', 'log']
+        : ['players', 'chains', 'chat', 'log']
+    for (const name of tabs) {
+      await openTab(host, name)
+      await expectFits(host, [
+        'game-phase',
+        ...(phone ? ['tab-bar'] : ['board-pane', 'tab-list']),
+        `tabpanel-${name}`,
+      ])
+      await shots.take(host, `host-${vp.label.replace(' ', '-')}-${name}`, { fullPage: false })
+    }
+    // Every board square and every player card is fully on screen sideways.
+    if (phone) await openTab(host, 'board')
+    expect(await outsideWidth(host, '[data-testid="board"] [data-testid^="tile-"]')).toEqual([])
+    await openTab(host, 'players')
+    expect(await outsideWidth(host, '[data-testid="player-card"]')).toEqual([])
   })
 }

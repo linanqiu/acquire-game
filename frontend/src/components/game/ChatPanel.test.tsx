@@ -73,7 +73,7 @@ describe('ChatPanel', () => {
         msg(3, { player_id: 'me', name: 'Alice', text: 'mine' }),
       ],
     })
-    render(<ChatPanel room="ABCD" defaultOpen />)
+    render(<ChatPanel room="ABCD" />)
     const lines = screen.getAllByTestId('chat-message')
     expect(lines).toHaveLength(3)
     expect(lines[0]).toHaveTextContent('<img src=x onerror=alert(1)><b>bold</b>')
@@ -84,7 +84,7 @@ describe('ChatPanel', () => {
   })
 
   it('says which seats are AI that read the chat, and that rules-based bots do not', () => {
-    render(<ChatPanel room="ABCD" defaultOpen />)
+    render(<ChatPanel room="ABCD" />)
     const readers = screen.getByTestId('chat-readers')
     expect(readers).toHaveTextContent('AI that reads chat and may answer: Claude.')
     expect(readers).toHaveTextContent('Rules-based bots do not chat.')
@@ -93,7 +93,7 @@ describe('ChatPanel', () => {
 
   it('sends on Enter over HTTP and clears the input', async () => {
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ status: 'ok' }), { status: 200 }))
-    render(<ChatPanel room="ABCD" defaultOpen />)
+    render(<ChatPanel room="ABCD" />)
     const input = screen.getByTestId('chat-input')
     fireEvent.change(input, { target: { value: '  Claude, I take Marlowe  ' } })
     fireEvent.submit(input.closest('form')!)
@@ -111,7 +111,7 @@ describe('ChatPanel', () => {
         status: 429,
       })
     )
-    render(<ChatPanel room="ABCD" defaultOpen />)
+    render(<ChatPanel room="ABCD" />)
     const input = screen.getByTestId('chat-input')
     fireEvent.change(input, { target: { value: 'again' } })
     fireEvent.click(screen.getByTestId('chat-send'))
@@ -120,7 +120,7 @@ describe('ChatPanel', () => {
   })
 
   it('does not send an empty message', () => {
-    render(<ChatPanel room="ABCD" defaultOpen />)
+    render(<ChatPanel room="ABCD" />)
     expect(screen.getByTestId('chat-send')).toBeDisabled()
     fireEvent.change(screen.getByTestId('chat-input'), { target: { value: '   ' } })
     fireEvent.submit(screen.getByTestId('chat-input').closest('form')!)
@@ -128,45 +128,24 @@ describe('ChatPanel', () => {
   })
 
   it('is read-only for spectators, with the reason', () => {
-    render(<ChatPanel room="ABCD" mode="spectator" defaultOpen />)
+    render(<ChatPanel room="ABCD" mode="spectator" />)
     expect(screen.queryByTestId('chat-input')).toBeNull()
     expect(screen.getByTestId('chat-read-only')).toHaveTextContent(
       'Spectators can read the chat but not write.'
     )
   })
 
-  it('collapsed: counts unread messages from others, clears them when opened', () => {
-    render(<ChatPanel room="ABCD" defaultOpen={false} />)
-    expect(screen.getByTestId('chat-panel')).toHaveAttribute('data-open', 'false')
-    expect(screen.queryByTestId('chat-list')).toBeNull()
-    deliver(msg(1))
-    deliver(msg(2, { player_id: 'me', name: 'Alice' })) // my own: not unread
-    deliver(msg(3, { player_id: 'ai', name: 'Claude', kind: 'llm' }))
-    expect(screen.getByTestId('chat-unread')).toHaveTextContent('2')
-    fireEvent.click(screen.getByTestId('chat-toggle'))
-    expect(screen.queryByTestId('chat-unread')).toBeNull()
-    expect(screen.getAllByTestId('chat-message')).toHaveLength(3)
-    fireEvent.click(screen.getByTestId('chat-toggle'))
-    expect(screen.queryByTestId('chat-unread')).toBeNull()
-    deliver(msg(4))
-    expect(screen.getByTestId('chat-unread')).toHaveTextContent('1')
-  })
-
-  it('starts collapsed on phones', () => {
-    const mm = window.matchMedia as unknown as ReturnType<typeof vi.fn>
-    mm.mockImplementationOnce((query: string) => ({
-      matches: query.includes('max-width'),
-      media: query,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    }))
-    render(<ChatPanel room="ABCD" />)
-    expect(screen.getByTestId('chat-panel')).toHaveAttribute('data-open', 'false')
+  it('in a tab: no title of its own; outside a game: titled card', () => {
+    const { rerender } = render(<ChatPanel room="ABCD" inTab />)
+    expect(screen.queryByText('TABLE CHAT')).toBeNull()
+    expect(screen.getByTestId('chat-input')).toBeInTheDocument()
+    rerender(<ChatPanel room="ABCD" />)
+    expect(screen.getByText('TABLE CHAT')).toBeInTheDocument()
   })
 
   it('follows new messages at the bottom but does not yank a reader who scrolled up', () => {
     useGameStore.setState({ chatMessages: [msg(1), msg(2)] })
-    render(<ChatPanel room="ABCD" defaultOpen />)
+    render(<ChatPanel room="ABCD" />)
     const list = screen.getByTestId('chat-list')
     // jsdom has no layout: fake a scrollable list
     let top = 0

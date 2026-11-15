@@ -3,6 +3,7 @@ import { test, expect } from './support/test'
 import { startFromSnapshot, type RoomContext } from './support/room'
 import { dollars, loadFixture } from './support/fixtures'
 import { headerCash, phaseBanner, playHumanTurns } from './support/ui'
+import { openTab, tabBadge } from '../support/tabs'
 
 /** Latest toast containing `text` (an earlier identical toast may still be fading out). */
 const toast = (page: Page, text: string | RegExp) =>
@@ -19,6 +20,12 @@ async function expectIncomingCard(page: Page, room: RoomContext) {
   const trade = incomingTrade(room)
   const card = page.getByTestId(`trade-offer-${trade.trade_id}`)
   await expect(card).toBeVisible()
+  // An offer for me is a decision: it shows in the "now" area whatever tab is open, and the
+  // Trades tab carries the count.
+  await expect(page.getByTestId('now-area').getByTestId('trade-incoming')).toContainText(
+    room.names[room.seatMap[trade.from_player_id]]
+  )
+  await expect(tabBadge(page, 'trades')).toHaveText('1')
   await expect(page.getByTestId('trade-incoming-count')).toHaveText('1 NEW')
   await expect(card).toContainText(room.names[room.seatMap[trade.from_player_id]])
   for (const [chain, qty] of Object.entries(trade.offering_stocks)) {
@@ -42,7 +49,8 @@ test('incoming offer on my turn: accept it, cash and shares change, turn goes on
 
   await page.getByTestId(`trade-accept-${trade.trade_id}`).click()
   await expect(page.getByTestId(`trade-offer-${trade.trade_id}`)).toHaveCount(0)
-  await expect(page.getByText('No pending offers')).toBeVisible()
+  await expect(page.getByTestId('trade-incoming')).toHaveCount(0)
+  await expect(tabBadge(page, 'trades')).toHaveCount(0)
   await expect(headerCash(page)).toHaveText(dollars(human.cash - trade.requesting_money))
   for (const [chain, qty] of Object.entries(trade.offering_stocks)) {
     await expect(page.getByTestId(`portfolio-row-${chain.toLowerCase()}`)).toContainText(
@@ -65,9 +73,11 @@ test('incoming offer on my turn: reject it, nothing changes', async ({ page, sho
 
   await page.getByTestId(`trade-reject-${trade.trade_id}`).click()
   await expect(page.getByTestId(`trade-offer-${trade.trade_id}`)).toHaveCount(0)
-  await expect(page.getByText('No pending offers')).toBeVisible()
+  await expect(page.getByTestId('trade-incoming')).toHaveCount(0)
+  await expect(tabBadge(page, 'trades')).toHaveCount(0)
   await expect(toast(page, 'Offer rejected')).toBeVisible()
   await expect(headerCash(page)).toHaveText(dollars(human.cash))
+  await openTab(page, 'chains')
   await expect(page.getByTestId('portfolio-empty')).toBeVisible()
   await shots.take(page, 'rejected')
   await playHumanTurns(page, room, 3, shots)
@@ -113,6 +123,9 @@ test('outgoing offer stays pending until cancelled', async ({ page, shots }) => 
   const room = await startFromSnapshot(page, 'trade-outgoing-pending', { idle: ['p2'] })
   const { human, pending_trades } = room.fixture.expect
   const trade = pending_trades[0]
+  // My own offers are in the Trades tab (no badge: nothing waits for my answer).
+  await expect(tabBadge(page, 'trades')).toHaveCount(0)
+  await openTab(page, 'trades')
   const card = page.getByTestId(`trade-outgoing-${trade.trade_id}`)
   await expect(card).toBeVisible()
   await expect(card).toContainText('waiting')
@@ -129,7 +142,7 @@ test('outgoing offer stays pending until cancelled', async ({ page, shots }) => 
   await page.getByTestId(`trade-cancel-${trade.trade_id}`).click()
   await expect(card).toHaveCount(0)
   await expect(toast(page, 'Offer canceled')).toBeVisible()
-  await expect(page.getByText('No pending offers')).toBeVisible()
+  await expect(page.getByText('No offers of yours pending')).toBeVisible()
   await expect(headerCash(page)).toHaveText(dollars(human.cash))
   await shots.take(page, 'cancelled')
   await playHumanTurns(page, room, 3, shots)
@@ -184,8 +197,9 @@ test('propose a trade through the builder: validation, then the offer shows as p
   })
   // Withdraw the fixture's own offer first so the proposal below is the only one.
   const existing = room.fixture.expect.pending_trades[0]
+  await openTab(page, 'trades')
   await page.getByTestId(`trade-cancel-${existing.trade_id}`).click()
-  await expect(page.getByText('No pending offers')).toBeVisible()
+  await expect(page.getByText('No offers of yours pending')).toBeVisible()
   const { human, players } = room.fixture.expect
   const partnerSeat = 'p3'
   const partner = players.find((p) => p.player_id === partnerSeat)!
@@ -241,6 +255,7 @@ test('server refuses a trade mid-merger: reason shown in the builder and as a to
   // A partner who can pay the $100 asked for (the fixture decides who has cash).
   const partner = players.find((p) => p.player_id !== room.fixture.human_seat && p.cash >= 100)!
 
+  await openTab(page, 'trades')
   await page.getByRole('button', { name: 'PROPOSE TRADE' }).click()
   // The builder warns up front that merging chains cannot be traded.
   await expect(page.getByTestId('trade-builder')).toContainText('A merger is in progress')

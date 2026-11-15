@@ -31,6 +31,7 @@ When you discover a potential improvement while using the app:
 | [BL-005](../stories/08-backlog/BL-005.md) | Frontend Simplification | low | L | not-started |
 | [BL-006](../stories/08-backlog/BL-006.md) | Fix 8th Chain Crash - Display Unplayable Tiles | high | M | completed |
 | [BL-007](../stories/08-backlog/BL-007.md) | Game screens: net worth, majorities, merger result, less clutter | high | L | completed |
+| [BL-008](../stories/08-backlog/BL-008.md) | Game screens navigate by tabs (sidebar / bottom tab bar) | high | L | completed |
 
 ## Promotion Process
 

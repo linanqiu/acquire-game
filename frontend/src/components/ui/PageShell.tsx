@@ -4,7 +4,8 @@ import styles from './PageShell.module.css'
 
 interface PageShellProps {
   phase?: string
-  footer?: ReactNode
+  /** In-game layout: the shell fills the screen and the page never scrolls (panels scroll). */
+  fill?: boolean
   children: ReactNode
   header?: ReactNode
   roomCode?: string
@@ -17,7 +18,7 @@ interface PageShellProps {
 
 export function PageShell({
   phase,
-  footer,
+  fill = false,
   children,
   header,
   roomCode,
@@ -28,7 +29,7 @@ export function PageShell({
   tilePool,
 }: PageShellProps) {
   return (
-    <div className={styles.shell}>
+    <div className={`${styles.shell} ${fill ? styles.fill : ''}`}>
       {header !== undefined ? (
         header
       ) : (
@@ -53,7 +54,6 @@ export function PageShell({
         </div>
       )}
       <main className={styles.main}>{children}</main>
-      {footer && <footer className={styles.footer}>{footer}</footer>}
     </div>
   )
 }
