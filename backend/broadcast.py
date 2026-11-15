@@ -22,7 +22,9 @@ Messages (shapes unchanged from the pre-seat server unless noted):
 * ``can_end_game`` - to the human whose turn just started when declaring is legal.
 * ``all_tiles_unplayable`` (room) / ``tiles_replaced`` (that player).
 * ``trade_proposed`` / ``trade_accepted`` / ``trade_rejected`` /
-  ``trade_canceled`` - to both trade parties and the host.
+  ``trade_canceled`` - to both trade parties and the host. Answers carry
+  ``from_player`` / ``to_player``, so a page that never saw the offer (an AI
+  seat can answer at once) still knows whose offer it was.
 * ``agent_fallback`` - room and host: the rules-based bot decided for an LLM
   seat (``player_id, player_name, agent_label, reason, decision, message``);
   ``game_state`` players also carry ``fallbacks: {count, last_reason}``.
@@ -399,6 +401,8 @@ async def publish_events(room_code: str, game: Game, since_seq: int) -> None:
                     "type": "trade_rejected",
                     "trade_id": e["trade_id"],
                     "rejected_by": pid,
+                    "from_player": a,
+                    "to_player": b,
                 },
             )
         elif etype == "trade_cancelled":
@@ -411,6 +415,8 @@ async def publish_events(room_code: str, game: Game, since_seq: int) -> None:
                     "type": "trade_canceled",
                     "trade_id": e["trade_id"],
                     "canceled_by": pid,
+                    "from_player": a,
+                    "to_player": b,
                 },
             )
         elif etype == "end_game_declared":

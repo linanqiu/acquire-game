@@ -39,6 +39,10 @@ export interface TradeEvent {
   trade?: TradeOffer
   /** Who rejected/canceled (accepted: the recipient). */
   byPlayerId?: string
+  /** Proposer and recipient: from the message itself, so the event is usable even
+   *  when this page never saw the offer (an AI seat can answer before it arrives). */
+  fromPlayerId?: string
+  toPlayerId?: string
 }
 
 /** The newest `agent_fallback` message, surfaced so pages can toast about it. */
@@ -251,6 +255,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             tradeId: trade.trade_id,
             trade,
             byPlayerId: trade.from_player_id,
+            fromPlayerId: trade.from_player_id,
+            toPlayerId: trade.to_player_id,
           },
         })
         break
@@ -280,6 +286,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             tradeId: message.trade_id,
             trade: known,
             byPlayerId,
+            fromPlayerId: known?.from_player_id ?? message.from_player ?? undefined,
+            toPlayerId: known?.to_player_id ?? message.to_player ?? undefined,
           },
         })
         break

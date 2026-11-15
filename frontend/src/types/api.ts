@@ -274,12 +274,18 @@ export interface TradeRejectedMessage {
   type: 'trade_rejected'
   trade_id: string
   rejected_by: string
+  /** The offer's proposer and recipient (null if the server no longer knows them). */
+  from_player?: string | null
+  to_player?: string | null
 }
 
 export interface TradeCanceledMessage {
   type: 'trade_canceled'
   trade_id: string
   canceled_by: string
+  /** The offer's proposer and recipient (null if the server no longer knows them). */
+  from_player?: string | null
+  to_player?: string | null
 }
 
 /** The rules-based bot made a decision on behalf of an LLM seat (room + host). */
