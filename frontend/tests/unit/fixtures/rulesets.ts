@@ -9,7 +9,7 @@ import { useRulesetStore } from '../../../src/ruleset/store'
 
 const DIR = resolve(__dirname, '../../../../backend/rulesets')
 
-export function loadRuleset(name: 'default' | 'valley' | 'mini'): Ruleset {
+function loadRuleset(name: 'default' | 'valley' | 'mini'): Ruleset {
   return JSON.parse(readFileSync(resolve(DIR, `${name}.json`), 'utf8')) as Ruleset
 }
 
@@ -19,7 +19,7 @@ export const MINI = loadRuleset('mini')
 export const ALL_RULESETS = { default: DEFAULT_RS, valley: VALLEY, mini: MINI }
 
 /** Every default chain name, any case (must not appear when another ruleset is active). */
-export const DEFAULT_CHAIN_WORDS = DEFAULT_RS.chains.map((c) => c.name)
+const DEFAULT_CHAIN_WORDS = DEFAULT_RS.chains.map((c) => c.name)
 
 /** Make `rs` the server's configured ruleset (what `/api/config/game` would return). */
 export function useServerRuleset(rs: Ruleset | null) {

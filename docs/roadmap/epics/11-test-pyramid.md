@@ -2,7 +2,7 @@
 
 ## Overview
 
-Owner decision 2026-11-14. Replaces the strategy in [Epic 7](07-scenario-tests.md). Measured
+Owner decision 2026-11-14. Replaces the strategy in Epic 7 (deleted). Measured
 problem: the Playwright scenario suite (62 tests, about 9,300 lines) did not finish in 10 minutes,
 because each test plays 20-40 turns through the browser against live heuristic bots to reach the
 screen it wants to check. The rules are re-verified through the browser over and over.
@@ -71,8 +71,7 @@ These are written out in `CLAUDE.md`, Testing section.
 
 ## Relationship to other epics
 
-- [Epic 7](07-scenario-tests.md): ST-001..009 are complete and their helpers are reused where they
-  fit; ST-010 is superseded by TP-006; the "Testing Standards" there are replaced by this epic.
+- Epic 7 (the first browser-suite strategy, ST-001..ST-010) is deleted; this epic replaced it.
 - [Epic 10](10-engine-seam.md) provides snapshots, scripted seats and test-mode endpoints.
 
 ## Status

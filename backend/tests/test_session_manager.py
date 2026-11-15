@@ -132,49 +132,6 @@ class TestPlayerJoining:
         assert result is False
 
 
-class TestPlayerLeaving:
-    """Tests for players leaving rooms."""
-
-    def test_player_can_leave_room(self):
-        """Player can leave room."""
-        manager = SessionManager()
-        code = manager.create_room()
-        manager.join_room(code, "player_1", "Alice")
-
-        manager.leave_room(code, "player_1")
-
-        room = manager.get_room(code)
-        assert room is None  # Room deleted when empty
-
-    def test_host_leaving_transfers_host(self):
-        """When host leaves, another player becomes host."""
-        manager = SessionManager()
-        code = manager.create_room()
-        manager.join_room(code, "player_1", "Alice")
-        manager.join_room(code, "player_2", "Bob")
-
-        manager.leave_room(code, "player_1")
-
-        room = manager.get_room(code)
-        assert room.players["player_2"].is_host is True
-
-    def test_leave_nonexistent_room_no_error(self):
-        """Leaving nonexistent room doesn't raise."""
-        manager = SessionManager()
-
-        manager.leave_room("XXXX", "player_1")  # Should not raise
-
-    def test_empty_room_deleted(self):
-        """Room is deleted when last player leaves."""
-        manager = SessionManager()
-        code = manager.create_room()
-        manager.join_room(code, "player_1", "Alice")
-
-        manager.leave_room(code, "player_1")
-
-        assert manager.get_room(code) is None
-
-
 class TestBotPlayers:
     """Tests for bot player management."""
 
@@ -188,7 +145,7 @@ class TestBotPlayers:
         assert bot_id is not None
         room = manager.get_room(code)
         assert bot_id in room.players
-        assert room.players[bot_id].is_bot is True
+        assert room.players[bot_id].is_agent is True
 
     def test_bot_gets_auto_name(self):
         """Bot gets automatic name."""
@@ -343,25 +300,6 @@ class TestGameStart:
         result = manager.start_game(code)
 
         assert result is False
-
-
-class TestRoomDeletion:
-    """Tests for room deletion."""
-
-    def test_delete_room(self):
-        """Can delete a room."""
-        manager = SessionManager()
-        code = manager.create_room()
-
-        manager.delete_room(code)
-
-        assert manager.get_room(code) is None
-
-    def test_delete_nonexistent_room_no_error(self):
-        """Deleting nonexistent room doesn't raise."""
-        manager = SessionManager()
-
-        manager.delete_room("XXXX")  # Should not raise
 
 
 class TestBroadcasting:

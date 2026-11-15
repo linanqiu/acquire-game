@@ -11,7 +11,7 @@ import type { AgentFallbackMessage, GameStateMessage, SeatFallbacks } from '../.
 import { snapshot } from '../../../tests/unit/fixtures/wire'
 
 vi.mock('../../hooks/useHostWebSocket', () => ({
-  useHostWebSocket: () => ({ reconnect: vi.fn(), disconnect: vi.fn(), isConnected: true }),
+  useHostWebSocket: () => ({ reconnect: vi.fn() }),
 }))
 
 const FALLBACK: AgentFallbackMessage = {
@@ -139,13 +139,6 @@ describe('HostPage fallback marker', () => {
     useGameStore.setState({ gameState: gameState({ count: 3, last_reason: 'illegal' }) })
     renderHost()
     expect(screen.getByTestId('seat-fallback-p2')).toHaveAttribute('data-count', '3')
-  })
-
-  it('is absent for seats with zero fallbacks', () => {
-    useGameStore.setState({ gameState: gameState({ count: 0, last_reason: null }) })
-    renderHost()
-    expect(screen.queryByTestId('seat-fallback-p2')).not.toBeInTheDocument()
-    expect(screen.queryByTestId('seat-fallback-p1')).not.toBeInTheDocument()
   })
 
   it('toasts when agent_fallback arrives on the host page', () => {

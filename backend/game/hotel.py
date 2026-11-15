@@ -1,98 +1,28 @@
-"""Hotel chain logic: chain definitions, prices and the bank's stock.
+"""The bank: active chains, available stock and price lookups.
 
-Everything numeric comes from the game's ``Ruleset``. ``Hotel.CHAINS`` and
-``HotelTier`` are aliases of the default ruleset kept for older callers; the
-engine itself uses ``hotel.ruleset`` / instance methods.
+Everything numeric comes from the game's ``Ruleset``.
 """
 
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import ClassVar, Optional, Union
+from typing import Optional
 
-from game.board import hybridmethod
-from game.ruleset import Ruleset, default_ruleset, resolve
-
-
-class HotelTier(Enum):
-    """The default ruleset's pricing tiers (alias; other rulesets use tier ids)."""
-
-    CHEAP = "cheap"
-    MEDIUM = "medium"
-    EXPENSIVE = "expensive"
-
-
-@dataclass
-class HotelChain:
-    """A chain: display data plus price lookups from its ruleset's tier."""
-
-    name: str
-    tier: Union[HotelTier, str]
-    color: str
-    ruleset: Optional[Ruleset] = field(default=None, compare=False, repr=False)
-
-    @property
-    def tier_id(self) -> str:
-        return self.tier.value if isinstance(self.tier, HotelTier) else self.tier
-
-    @property
-    def _rs(self) -> Ruleset:
-        return resolve(self.ruleset)
-
-    def get_stock_price(self, size: int) -> int:
-        """Get stock price based on chain size."""
-        return self._rs.tier_price(self.tier_id, size)
-
-    def get_majority_bonus(self, size: int) -> int:
-        """Get majority stockholder bonus (multiplier x stock price)."""
-        return self.get_stock_price(size) * self._rs.bonuses.majority_multiplier
-
-    def get_minority_bonus(self, size: int) -> int:
-        """Get minority stockholder bonus (multiplier x stock price)."""
-        return self.get_stock_price(size) * self._rs.bonuses.minority_multiplier
-
-    def is_safe(self, size: int) -> bool:
-        """Check if chain is safe (cannot be acquired)."""
-        return self._rs.is_safe_size(size)
-
-
-def _chains_for(ruleset: Ruleset) -> dict[str, HotelChain]:
-    return {c.id: HotelChain(c.id, c.tier, c.color, ruleset) for c in ruleset.chains}
-
-
-def _default_chains() -> dict[str, HotelChain]:
-    rs = default_ruleset()
-    return {c.id: HotelChain(c.id, HotelTier(c.tier), c.color, rs) for c in rs.chains}
+from game.ruleset import Ruleset, resolve
 
 
 class Hotel:
     """Manages all hotel chains in the game (the bank's stock, active chains)."""
 
-    # Default aliases (class-level); instances use their ruleset.
-    ruleset: ClassVar[Ruleset] = default_ruleset()
-    CHAINS: ClassVar[dict[str, HotelChain]] = _default_chains()
-    TOTAL_STOCKS_PER_CHAIN: ClassVar[int] = default_ruleset().stocks_per_chain
-
     def __init__(self, ruleset: Optional[Ruleset] = None):
         self.ruleset = resolve(ruleset)
-        self._chains = _chains_for(self.ruleset)
         # Track available stocks for each chain
         self._available_stocks: dict[str, int] = {
-            name: self.ruleset.stocks_per_chain for name in self._chains
+            name: self.ruleset.stocks_per_chain for name in self.ruleset.chain_ids
         }
         # Track if chain is on the board
         self._active_chains: set[str] = set()
 
-    @hybridmethod
-    def get_chain(target, name: str) -> HotelChain:
-        """Get a hotel chain by id (on the class: default chains)."""
-        if isinstance(target, Hotel):
-            return target._chains[name]
-        return target.CHAINS[name]
-
-    @hybridmethod
-    def get_all_chain_names(target) -> list[str]:
-        """All chain ids in ruleset order (on the class: default chains)."""
-        return list(target.ruleset.chain_ids)
+    def get_all_chain_names(self) -> list[str]:
+        """All chain ids in ruleset order."""
+        return list(self.ruleset.chain_ids)
 
     def activate_chain(self, name: str):
         """Mark a chain as active on the board."""
@@ -112,7 +42,9 @@ class Hotel:
 
     def get_inactive_chains(self) -> list[str]:
         """Get list of chains not on the board (available to found)."""
-        return [name for name in self._chains if name not in self._active_chains]
+        return [
+            name for name in self.ruleset.chain_ids if name not in self._active_chains
+        ]
 
     def get_available_stocks(self, chain_name: str) -> int:
         """Get number of stocks available to purchase."""
@@ -147,10 +79,3 @@ class Hotel:
     def is_chain_safe(self, chain_name: str, size: int) -> bool:
         """Check if a chain is safe."""
         return self.ruleset.is_safe_size(size)
-
-    def get_state(self) -> dict:
-        """Get serializable state."""
-        return {
-            "available_stocks": dict(self._available_stocks),
-            "active_chains": list(self._active_chains),
-        }

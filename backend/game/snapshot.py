@@ -24,7 +24,8 @@ from typing import Any
 from game.action import TradeOffer
 from game.board import BoardCell, Tile, TileState
 from game.bot import Bot
-from game.game import Game, GamePhase, MergerState
+from game.game import Game, GamePhase
+from game.merger import MergerState
 from game.player import Player
 from game.ruleset import Ruleset, RulesetError, default_ruleset
 
@@ -59,9 +60,7 @@ HANDLED_PLAYER_ATTRS = frozenset(
     {"ruleset", "player_id", "name", "_money", "_hand", "_stocks"}
 )
 HANDLED_BOT_ATTRS = frozenset({"player", "difficulty", "rng"})
-HANDLED_HOTEL_ATTRS = frozenset(
-    {"ruleset", "_chains", "_available_stocks", "_active_chains"}
-)
+HANDLED_HOTEL_ATTRS = frozenset({"ruleset", "_available_stocks", "_active_chains"})
 HANDLED_BOARD_ATTRS = frozenset({"ruleset", "_grid"})
 HANDLED_MERGER_FIELDS = frozenset(
     {

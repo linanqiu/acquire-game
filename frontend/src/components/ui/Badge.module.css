@@ -8,17 +8,8 @@
   letter-spacing: 0.05em;
   border-radius: var(--radius-sm);
   white-space: nowrap;
-}
-
-/* Size variants */
-.sm {
   font-size: var(--text-xs);
   padding: 2px 6px;
-}
-
-.md {
-  font-size: var(--text-sm);
-  padding: 4px 8px;
 }
 
 /* Color variants */

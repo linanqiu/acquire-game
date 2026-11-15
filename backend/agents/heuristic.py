@@ -1,8 +1,7 @@
 """Heuristic agent: the rule-based bot, one decision at a time.
 
 Wraps the scoring logic in ``game/bot.py`` but only ever answers with an
-action drawn from ``ctx.legal`` (``Bot._get_playable_tiles`` alone can pick a
-tile that would found an 8th chain; the legal list from the engine cannot).
+action drawn from ``ctx.legal``.
 
 It sees only what the seat contract allows: the public state plus its own
 hand (``ctx.state``), the legal options and the calculator pack. The engine

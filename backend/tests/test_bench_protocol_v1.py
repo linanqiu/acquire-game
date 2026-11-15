@@ -23,12 +23,29 @@ from bench import (
     run_protocol,
     schedule,
 )
-from bench.protocols import balance, lineups, seatings
-from bench.rating import ANCHOR_RATING, bootstrap, bradley_terry, expected_score
+from bench.protocols import lineups, seat_label, seatings
+from bench.rating import ANCHOR_RATING, bootstrap, bradley_terry
 from transcripts import read_transcript
 from transcripts.replay import final_scores, replay
 
 BACKEND = Path(__file__).resolve().parents[1]
+
+
+def balance(specs) -> dict[str, dict[int, int]]:
+    """``{agent label: {position: games}}`` of a schedule."""
+    out: dict[str, dict[int, int]] = {}
+    for spec in specs:
+        for pos, s in enumerate(spec.seating):
+            d = out.setdefault(seat_label(s), {})
+            d[pos] = d.get(pos, 0) + 1
+    return out
+
+
+def expected_score(r_a: float, r_b: float) -> float:
+    """Bradley-Terry: probability that ``a`` finishes ahead of ``b``."""
+    return 1 / (1 + 10 ** ((r_b - r_a) / 400))
+
+
 P = get_protocol("bench-v1")
 
 

@@ -182,10 +182,6 @@ class GameRecord:
     def decisions(self) -> int:
         return sum(s.decisions for s in self.seats)
 
-    @property
-    def completed(self) -> bool:
-        return self.status == "completed"
-
     def to_dict(self) -> dict:
         return {
             "key": self.key,

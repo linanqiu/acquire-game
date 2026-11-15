@@ -3,7 +3,8 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from main import app, session_manager
+from app_state import session_manager
+from main import app
 
 
 @pytest.fixture

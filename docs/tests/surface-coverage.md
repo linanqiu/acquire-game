@@ -64,7 +64,7 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 
 | ID | Surface | Notes | Covered by | Tier |
 |----|---------|-------|------------|------|
-| PL-01 | Player lobby: room code, player list, "WAITING FOR HOST" | host and guest views | `screens/home-entry.spec.ts : names are trimmed`; `screens/lobby.spec.ts : lobby: AI menu`; `journeys/two-humans-and-bot.spec.ts : two humans and a bot` | 3, 4 |
+| PL-01 | Player lobby: room code, player list, "WAITING FOR HOST" | host and guest views (`LobbyPanel`) | `screens/home-entry.spec.ts : names are trimmed`; `screens/lobby.spec.ts : lobby: AI menu`; `journeys/two-humans-and-bot.spec.ts : two humans and a bot` | 3, 4 |
 | PL-02 | Add AI control (catalog list and "+ ADD BOT") | `AddAiControl` | `screens/lobby.spec.ts : lobby: AI menu`; `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 3, 4 |
 | PL-03 | Add AI: unavailable catalog entry shown disabled; failed catalog leaves only ADD BOT | | `screens/server-faults.spec.ts : AI menu: unavailable entries are disabled`; `screens/lobby.spec.ts : lobby: AI menu` | 3 |
 | PL-04 | Remove AI seat in lobby (host only, not for humans) | `RemoveSeatButton` | `screens/lobby.spec.ts : lobby: AI menu`; `journeys/entry-errors.spec.ts : entry errors` | 3, 4 |
@@ -82,12 +82,12 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | PG-05 | Merger: choose surviving chain | `pendingMergerChoice` | `screens/merger.spec.ts : merger: tie between two equal chains` | 3, 4 |
 | PG-06 | Merger: stock disposition (`MergerDisposition`, `StockStepper`) | `stock_disposition` | `screens/merger.spec.ts : disposition (human first)`; `screens/merger.spec.ts : disposition (trade limited by the bank)`; `screens/merger.spec.ts : multi-chain merger` | 3, 4 |
 | PG-07 | Merger: disposition shown when not my turn / waiting on another stockholder | `pendingStockDisposition` | `screens/merger.spec.ts : disposition (waiting)`; `screens/merger.spec.ts : disposition (trade limited by the bank)` | 3 |
-| PG-08 | Buy stocks: stepper, cost, 3-share cap, sold-out chain, "No cash" note | `buy_stocks` | `screens/buy-phase.spec.ts : buy phase: prices and availability shown`; `screens/buy-phase.spec.ts : low cash` | 3 |
+| PG-08 | Buy stocks: stepper, cost, 3-share cap, sold-out chain, "No cash" note | `buy_stocks` (`BuyPanel`) | `screens/buy-phase.spec.ts : buy phase: prices and availability shown`; `screens/buy-phase.spec.ts : low cash` | 3 |
 | PG-09 | End turn button (`end-turn-button`: BUY & END TURN / SKIP & END TURN) | buy phase | `screens/buy-phase.spec.ts : buy phase: skip buying keeps cash`; `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 3, 4 |
 | PG-10 | End game button (`end-game-button`), offered only when declarable | | `screens/end-game.spec.ts : end game available`; `screens/turn-basics.spec.ts : opening turn`; `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 3, 4 |
 | PG-11 | Waiting for another player ("Waiting for X to place a tile") | not my turn | `screens/merger.spec.ts : disposition (waiting)`; `journeys/two-humans-and-bot.spec.ts : two humans and a bot` | 3, 4 |
 | PG-12 | Thinking indicator while an AI seat decides (`AiThinking`) | AI on turn | `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI`; GAP: no screen test, the scripted and fake-LLM seats answer instantly and have no delay option in test mode, so there is no stable state to assert on | 4 |
-| PG-13 | Players panel (cash and stock badges per player, YOU badge) | all game phases | `screens/layout.spec.ts : busy`; `screens/place-tile.spec.ts : opening`; `journeys/two-humans-and-bot.spec.ts : two humans and a bot` | 3, 4 |
+| PG-13 | Players panel (cash and stock badges per player, YOU badge) (`PlayersPanel`) | all game phases | `screens/layout.spec.ts : busy`; `screens/place-tile.spec.ts : opening`; `journeys/two-humans-and-bot.spec.ts : two humans and a bot` | 3, 4 |
 | PG-14 | Portfolio strip, header cash and tile-pool counter (`PageShell`, `Header`, `Portfolio`) | all game phases | `screens/buy-phase.spec.ts : buy phase: prices and availability shown`; `screens/turn-basics.spec.ts : opening turn`; `journeys/reconnect-and-refresh.spec.ts : reconnect and refresh` | 3, 4 |
 | PG-15 | Game over (`GameOver`) on player page: standings, winner, breakdown, tie | `game_over` | `screens/end-game.spec.ts : game over: standings`; `screens/end-game.spec.ts : game over with a tie`; `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 3, 4 |
 | PG-16 | Play again / back to lobby (`GameOver`) | after game over | `screens/end-game.spec.ts : game over: standings`; `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 3, 4 |

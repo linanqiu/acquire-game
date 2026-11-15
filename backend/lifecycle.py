@@ -26,7 +26,7 @@ async def initialize_game(room_code: str) -> None:
             seed = int(seed_str) if seed_str else None
         game = Game(seed=seed, tile_order=tile_order, ruleset=room.ruleset)
         for player_id, seat in room.players.items():
-            game.add_player(player_id, seat.name, is_bot=seat.is_agent or seat.is_bot)
+            game.add_player(player_id, seat.name, is_bot=seat.is_agent)
         game.start_game()
         room.game = game
         open_transcript(room)

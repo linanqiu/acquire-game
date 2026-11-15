@@ -39,14 +39,8 @@
 
 | Epic | Progress | Available Stories |
 |------|----------|-------------------|
-| [Backend Hardening](epics/00-backend-hardening.md) | 13/13 done | Complete |
-| [Frontend Foundation](epics/01-frontend-foundation.md) | 11/11 done | Complete |
-| [Game UI](epics/02-game-ui.md) | 16/16 done | Complete |
 | [Real-time Integration](epics/03-realtime-integration.md) | 5/6 | RT-004 (optional) |
-| [AI Training](epics/04-ai-training.md) | superseded | Dropped; see Epic 9 |
-| [Deployment](epics/05-deployment.md) | 5/5 done | Complete |
 | [Security Hardening](epics/06-security-hardening.md) | 0/5 | SH-002..SH-005 (SH-001 after test pyramid) |
-| [Scenario Tests](epics/07-scenario-tests.md) | 9/10, ST-010 superseded | Strategy replaced by Epic 11; ST-011 flaky-test work is subsumed by TP-007 |
 | [Backlog](epics/08-backlog.md) | 4/6, BL-004 superseded | BL-005 |
 | [LLM Opponents](epics/09-llm-bot.md) | 1/6 (LO-006 harness done; LO-007 superseded) | LO-001..LO-005 partly built; LO-003 needs the 4-retry loop and fallback notice |
 | [Engine Seam](epics/10-engine-seam.md) | 6/6 (ES-001..ES-006) | Complete (fuzz volume: 600 games in the slow tier) |
@@ -162,16 +156,17 @@ story needed? If a gap is found, create the story immediately.
 
 ## Epic Overview
 
+Finished or scrapped epics have no files any more (their stories were deleted when the docs were
+pruned on 2026-11-15; the code is the record): Epic 0 Backend Hardening, Epic 1 Frontend
+Foundation, Epic 2 Game UI and Epic 5 Deployment are done. Epic 4 (reinforcement learning / MCTS
+training) was scrapped for good in favour of LLM opponents (Epic 9). Epic 7 (the first browser
+scenario suite) was replaced by Epic 11; see
+[legacy-suite-retirement.md](../tests/legacy-suite-retirement.md).
+
 | Epic | Summary |
 |------|---------|
-| 0 Backend Hardening | Unified state, 645 tests, frontend-ready APIs. Done. |
-| 1 Frontend Foundation | Vite, React 18, TypeScript, design system. Done. |
-| 2 Game UI | All game components and pages. Done. |
 | 3 Real-time Integration | WebSocket client and state sync. RT-004 optional. |
-| 4 AI Training | RL/MCTS pipeline. Superseded; dropped for good. |
-| 5 Deployment | Railway, Docker, logging. Done. |
 | 6 Security Hardening | CORS, rate limiting, validation, session tokens. Must finish before production deploy. |
-| 7 Scenario Tests | Browser suite from the first strategy. Replaced by Epic 11; ST-001..009 kept as history and for reusable helpers. |
 | 8 Backlog | Ideas discovered in use (BL-XXX). |
 | 9 LLM Opponents | LLM seats: provider adapters, prompt builder, decision loop with validate/retry/fallback (visible), trading, lobby UI, benchmark harness. Observability moved to Epic 12. |
 | 10 Engine Seam | Decisions API, single apply entry point, event log, snapshots, calculator pack, seat driver, test-mode endpoints. |
@@ -185,8 +180,4 @@ story needed? If a gap is found, create the story immediately.
 | [docs/architecture/seat-contract.md](../architecture/seat-contract.md) | Seat/engine contract (authoritative) |
 | [docs/ai/benchmarking.md](../ai/benchmarking.md) | Buyout Bench: how to run, read and extend it |
 | [docs/tests/surface-coverage.md](../tests/surface-coverage.md) | Which test covers which user-visible surface |
-| [docs/ui/storyboard.md](../ui/storyboard.md) | Complete UI specification |
-| [docs/ui/design-system.md](../ui/design-system.md) | Colors, typography, spacing |
-| [docs/ui/components.md](../ui/components.md) | Component props and structure |
 | [docs/rules/](../rules/) | Game rules reference |
-| [docs/ai/ROADMAP.md](../ai/ROADMAP.md) | Historical (RL phases, superseded) |

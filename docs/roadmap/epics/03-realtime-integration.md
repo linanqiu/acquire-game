@@ -95,5 +95,5 @@ Based on existing backend (`backend/main.py`):
 
 ## Reference
 
-- [Backend main.py](../../backend/main.py) - WebSocket endpoints
-- [Backend game.py](../../backend/game/game.py) - Game state structure
+- [Backend main.py](../../../backend/main.py) - WebSocket endpoints
+- [Backend game.py](../../../backend/game/game.py) - Game state structure

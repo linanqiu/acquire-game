@@ -17,7 +17,7 @@ export const playerRows = (page: Page): Locator => page.getByTestId('player-row'
 export const playerRow = (page: Page, name: string): Locator =>
   playerRows(page).filter({ hasText: name })
 
-export const MY_DECISION_BANNERS = [
+const MY_DECISION_BANNERS = [
   'PLACE A TILE',
   'CHOOSE A HOTEL CHAIN',
   'CHOOSE THE SURVIVING HOTEL CHAIN',
@@ -54,7 +54,7 @@ export async function waitForMyDecision(page: Page, room?: RoomContext | null): 
  * Play one complete human turn through the UI with first-available choices: place a tile, answer
  * any chain/merger prompts, then end the turn (buying nothing). Returns a short log line.
  */
-export async function playHumanTurn(
+async function playHumanTurn(
   page: Page,
   room: RoomContext | null,
   shots?: Shots,

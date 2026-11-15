@@ -56,7 +56,7 @@ def seat_info(room: GameRoom, player_id: str) -> dict:
         return {"kind": "human", "is_bot": False, "agent_label": None}
     return {
         "kind": seat.kind,
-        "is_bot": bool(seat.is_bot or seat.is_agent),
+        "is_bot": seat.is_agent,
         "agent_label": seat.agent_label,
     }
 

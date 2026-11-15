@@ -3,14 +3,13 @@ import { formatBytes } from '../../lib/format'
 import styles from './TextBlock.module.css'
 
 /** Above this many characters the block shows a prefix until the reader asks for everything. */
-export const TEXT_PREVIEW_LIMIT = 60_000
+const TEXT_PREVIEW_LIMIT = 60_000
 
 interface TextBlockProps {
   label: string
   text: string
   /** Stable id used for data-testid hooks. */
   id: string
-  defaultOpen?: boolean
   tone?: 'default' | 'error'
 }
 
@@ -18,14 +17,8 @@ interface TextBlockProps {
  * A collapsible monospace block for prompts and raw model output. The text is not put in
  * the DOM until the block is opened, so a decision with several large prompts is cheap.
  */
-export function TextBlock({
-  label,
-  text,
-  id,
-  defaultOpen = false,
-  tone = 'default',
-}: TextBlockProps) {
-  const [open, setOpen] = useState(defaultOpen)
+export function TextBlock({ label, text, id, tone = 'default' }: TextBlockProps) {
+  const [open, setOpen] = useState(false)
   const [full, setFull] = useState(false)
   const [copied, setCopied] = useState(false)
 

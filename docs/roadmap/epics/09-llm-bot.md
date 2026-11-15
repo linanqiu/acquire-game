@@ -15,7 +15,7 @@ seat on top of the seam delivered by [Epic 10](10-engine-seam.md).
 Transcripts of every game and the Buyout Bench benchmark are specified in
 [Epic 12](12-bench.md).
 
-Mechanistic RL/MCTS training ([Epic 4](04-ai-training.md)) is dropped for good. LLM opponents are
+Mechanistic RL/MCTS training (Epic 4) is dropped for good. LLM opponents are
 a first-class capability alongside humans, not an experiment.
 
 ## How an LLM seat decides

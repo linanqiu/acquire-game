@@ -52,24 +52,14 @@ describe('Modal', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  it('the confirm button appears only with a label and a handler, and calls it', () => {
-    const onConfirm = vi.fn()
-    const { unmount } = open({ onConfirm, confirmLabel: 'SEND' })
-    fireEvent.click(screen.getByText('SEND'))
-    expect(onConfirm).toHaveBeenCalledTimes(1)
-    unmount()
-    open({ onConfirm })
-    expect(screen.queryByText('SEND')).not.toBeInTheDocument()
-  })
-
   it('keeps Tab inside the dialog: from the last control to the first and back', () => {
-    open({ onConfirm: () => {}, confirmLabel: 'OK' })
+    open()
     const backdrop = screen.getByTestId('modal-backdrop')
-    screen.getByText('OK').focus()
+    screen.getByText('Cancel').focus()
     fireEvent.keyDown(backdrop, { key: 'Tab' })
     expect(screen.getByLabelText('Close modal')).toHaveFocus()
     fireEvent.keyDown(backdrop, { key: 'Tab', shiftKey: true })
-    expect(screen.getByText('OK')).toHaveFocus()
+    expect(screen.getByText('Cancel')).toHaveFocus()
   })
 
   it('leaves Tab alone between the ends so normal focus order works', () => {

@@ -22,7 +22,8 @@ if os.environ.get("PYTEST_XDIST_WORKER") or "GAME_BENCH_DIR" not in os.environ:
 os.environ["FRONTEND_DIST"] = os.path.join(tempfile.gettempdir(), "no-frontend-dist")
 from fastapi.testclient import TestClient
 
-from main import app, session_manager
+from app_state import session_manager
+from main import app
 from game.game import Game
 
 
@@ -80,7 +81,7 @@ def game_room(clean_session_manager):
     # Seeded: tests must not depend on a lucky deal.
     game = Game(seed=7)
     for player_id, connection in room.players.items():
-        game.add_player(player_id, connection.name, is_bot=connection.is_bot)
+        game.add_player(player_id, connection.name, is_bot=connection.is_agent)
     game.start_game()
 
     room.game = game

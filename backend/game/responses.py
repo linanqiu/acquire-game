@@ -5,7 +5,7 @@ interfaces for all Game method responses.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict
 
 
 @dataclass
@@ -21,26 +21,6 @@ class GameResponse:
         if self.error:
             result["error"] = self.error
         return result
-
-    def __getitem__(self, key: str) -> Any:
-        """Support dict-like access for test compatibility."""
-        if key == "result" and hasattr(self, "result_type"):
-            return getattr(self, "result_type")
-        if hasattr(self, key):
-            return getattr(self, key)
-        raise KeyError(key)
-
-    def get(self, key: str, default: Any = None) -> Any:
-        """Support dict-like get() for test compatibility."""
-        if key == "result" and hasattr(self, "result_type"):
-            return getattr(self, "result_type", default)
-        return getattr(self, key, default)
-
-    def __contains__(self, key: str) -> bool:
-        """Support 'in' operator for test compatibility."""
-        if key == "result":
-            return hasattr(self, "result_type")
-        return hasattr(self, key)
 
 
 # =============================================================================
@@ -285,12 +265,6 @@ class PlayerStanding:
             "rank": self.rank,
             "is_bot": self.is_bot,
         }
-
-    def __getitem__(self, key: str) -> Any:
-        """Support dict-like access for test compatibility."""
-        if hasattr(self, key):
-            return getattr(self, key)
-        raise KeyError(key)
 
 
 @dataclass
