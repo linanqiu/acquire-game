@@ -277,9 +277,9 @@ def played_game(client, ruleset: str, seed: int) -> dict:
 
     get_settings().game_ruleset = ruleset
     code, me = create_room(client, "Alice")
+    configure(client, code, seed)  # first: the seed also picks the bot's name
     add_seat(client, code, "bot")
     add_seat(client, code, "scripted")
-    configure(client, code, seed)
     kept: dict[str, dict] = {}
     prompts: dict[str, dict] = {}
     with client.websocket_connect(f"/ws/player/{code}/{me}") as ws:

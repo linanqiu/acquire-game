@@ -102,6 +102,31 @@ export function seatBadges(page: Page, kind: string) {
   return page.locator(`[data-testid^="lobby-player-"] [data-kind="${kind}"]`)
 }
 
+/**
+ * The name the server gave the lobby seat of kind `kind` (the `n`-th one): AI seats get a
+ * random character name (BL-010), so tests read it from the page instead of hard-coding it.
+ */
+export async function seatName(page: Page, kind: string, n = 0): Promise<string> {
+  const row = page
+    .locator('[data-testid^="lobby-player-"]')
+    .filter({ has: page.locator(`[data-kind="${kind}"]`) })
+    .nth(n)
+  await expect(row).toBeVisible()
+  const name = ((await row.locator('span').first().textContent()) ?? '').trim()
+  expect(name, `lobby seat ${kind} #${n} has a name`).not.toBe('')
+  return name
+}
+
+/** The first lobby seat badge of `kind`: its accessible name (kind and model) matches `label`. */
+export async function expectSeatBadge(
+  page: Page,
+  kind: string,
+  label: string | RegExp
+): Promise<void> {
+  const badge = seatBadges(page, kind).first()
+  await expect(badge).toHaveAccessibleName(label)
+}
+
 /** Host clicks START GAME; waits until the game screen replaces the lobby. */
 export async function startGame(page: Page, j: Journey): Promise<void> {
   const start = page.getByRole('button', { name: 'START GAME' })

@@ -10,13 +10,12 @@
  */
 import type { Locator, Page } from '@playwright/test'
 import { test, expect } from './support/journey'
-import { addAi, addBot, createGame, startGame } from './support/lobby'
+import { addAi, addBot, createGame, seatName, startGame } from './support/lobby'
 import { Seat, installObservers } from './support/play'
 import { outgoingTo, proposeTrade } from './support/trade'
 import { openTab } from '../support/tabs'
 
 const WIDTH = 390
-const LLM = 'Fake LLM (test)'
 
 test.use({
   viewport: { width: WIDTH, height: 844 },
@@ -56,6 +55,8 @@ test('mobile player: 8 turns at phone size with trade panel and disposition', as
   await reachable(page.getByTestId('add-ai-button'), '+ ADD AI')
   await addBot(page, j)
   await addAi(page, j, 'llm:fake')
+  // The LLM seat's character name, as the server named it (BL-010).
+  const LLM = await seatName(page, 'llm')
   await reachable(page.getByRole('button', { name: 'START GAME' }), 'START GAME')
   await j.shot(page, 'mobile-lobby')
   await startGame(page, j)

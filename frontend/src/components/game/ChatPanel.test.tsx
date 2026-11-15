@@ -22,8 +22,14 @@ function msg(id: number, over: Partial<ChatMessage> = {}): ChatMessage {
 const SEATS: LobbySeat[] = [
   { player_id: 'me', name: 'Alice', is_bot: false, kind: 'human' },
   { player_id: 'p2', name: 'Bob', is_bot: false, kind: 'human' },
-  { player_id: 'ai', name: 'Claude', is_bot: true, kind: 'llm', agent_label: 'Claude' },
-  { player_id: 'b1', name: 'Bot 1', is_bot: true, kind: 'bot' },
+  {
+    player_id: 'ai',
+    name: 'Lady Ledger',
+    is_bot: true,
+    kind: 'llm',
+    agent_label: 'Claude Haiku 5.5',
+  },
+  { player_id: 'b1', name: 'Baron Brick', is_bot: true, kind: 'bot' },
 ]
 
 function deliver(m: ChatMessage) {
@@ -69,7 +75,13 @@ describe('ChatPanel', () => {
     useGameStore.setState({
       chatMessages: [
         msg(1, { text: '<img src=x onerror=alert(1)><b>bold</b>' }),
-        msg(2, { player_id: 'ai', name: 'Claude', kind: 'llm', source: 'reply', text: 'Deal.' }),
+        msg(2, {
+          player_id: 'ai',
+          name: 'Lady Ledger',
+          kind: 'llm',
+          source: 'reply',
+          text: 'Deal.',
+        }),
         msg(3, { player_id: 'me', name: 'Alice', text: 'mine' }),
       ],
     })
@@ -79,29 +91,37 @@ describe('ChatPanel', () => {
     expect(lines[0]).toHaveTextContent('<img src=x onerror=alert(1)><b>bold</b>')
     expect(lines[0].querySelector('img, b')).toBeNull()
     expect(lines[1]).toHaveAttribute('data-kind', 'llm')
-    expect(within(lines[1]).getByText('AI')).toBeInTheDocument()
+    // The AI author: character name, then the seat badge naming the model (not spelled out).
+    expect(lines[1]).toHaveTextContent('Lady Ledger')
+    expect(lines[1]).not.toHaveTextContent('Claude Haiku')
+    const badge = within(lines[1]).getByRole('button', { name: 'AI player, Claude Haiku 5.5' })
+    fireEvent.click(badge)
+    expect(screen.getByRole('dialog', { name: 'About Lady Ledger' })).toHaveTextContent(
+      'Reads the table chat'
+    )
     expect(within(lines[2]).getByText('YOU')).toBeInTheDocument()
+    expect(within(lines[0]).queryByRole('button')).not.toBeInTheDocument()
   })
 
   it('says which seats are AI that read the chat, and that rules-based bots do not', () => {
     render(<ChatPanel room="ABCD" />)
     const readers = screen.getByTestId('chat-readers')
-    expect(readers).toHaveTextContent('AI that reads chat and may answer: Claude.')
+    expect(readers).toHaveTextContent('AI that reads chat and may answer: Lady Ledger.')
     expect(readers).toHaveTextContent('Rules-based bots do not chat.')
-    expect(readers).not.toHaveTextContent('Bot 1')
+    expect(readers).not.toHaveTextContent('Baron Brick')
   })
 
   it('sends on Enter over HTTP and clears the input', async () => {
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ status: 'ok' }), { status: 200 }))
     render(<ChatPanel room="ABCD" />)
     const input = screen.getByTestId('chat-input')
-    fireEvent.change(input, { target: { value: '  Claude, I take Marlowe  ' } })
+    fireEvent.change(input, { target: { value: '  Lady, I take Marlowe  ' } })
     fireEvent.submit(input.closest('form')!)
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
     const [url, init] = fetchMock.mock.calls[0]
     expect(url).toBe('/api/room/ABCD/chat/me')
     expect(init.method).toBe('POST')
-    expect(JSON.parse(init.body)).toEqual({ text: 'Claude, I take Marlowe' })
+    expect(JSON.parse(init.body)).toEqual({ text: 'Lady, I take Marlowe' })
     await waitFor(() => expect(input).toHaveValue(''))
   })
 

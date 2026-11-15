@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useToast } from '../../components/ui/useToast'
-import type { TradeEvent } from '../../store/gameStore'
+import { useGameStore, type TradeEvent } from '../../store/gameStore'
 import type { ChainId, GameAction, GameStateMessage } from '../../types/api'
 
 const NOT_CONNECTED = 'Not connected to the game. Try again in a moment.'
@@ -91,13 +91,13 @@ export function usePlayerTrades({ sendAction, gameState, myPlayerId, lastTradeEv
   const cancel = useCallback((id: string) => respond('cancel_trade', id), [respond])
 
   // One toast per trade event that involves me.
-  const seenTradeSeq = useRef(lastTradeEvent?.seq ?? 0)
   useEffect(() => {
-    if (!lastTradeEvent || lastTradeEvent.seq <= seenTradeSeq.current) return
+    if (!lastTradeEvent) return
+    if (lastTradeEvent.seq <= useGameStore.getState().tradeEventAnnouncedSeq) return
     // A trade can resolve before the first game state arrives (an AI seat
     // answers at once). Wait for the state so the toast can name the player.
     if (!gameState) return
-    seenTradeSeq.current = lastTradeEvent.seq
+    useGameStore.setState({ tradeEventAnnouncedSeq: lastTradeEvent.seq })
     if (!myPlayerId) return
     const nameOf = (id?: string) => (id && gameState.players[id]?.name) || 'Someone'
     const { kind, byPlayerId, fromPlayerId, toPlayerId } = lastTradeEvent

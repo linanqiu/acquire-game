@@ -162,6 +162,7 @@ export function HostPage() {
                 kind={p.kind}
                 isBot={p.is_bot}
                 agentLabel={p.agent_label}
+                playerName={p.name}
               />
               {resolveSeatKind(p) !== 'human' && (
                 <RemoveSeatButton room={room} playerId={p.player_id} playerName={p.name} />

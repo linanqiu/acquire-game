@@ -10,7 +10,7 @@
  */
 import type { Page } from '@playwright/test'
 import { test, expect } from './support/journey'
-import { addBot, createGame, joinGame, startGame } from './support/lobby'
+import { addBot, createGame, joinGame, seatName, startGame } from './support/lobby'
 import { Seat, installObservers, playTogether } from './support/play'
 import { incomingFrom, outgoingTo, proposeTrade } from './support/trade'
 
@@ -68,6 +68,7 @@ test('reconnect and refresh: reloads mid-turn and with a pending offer, offline/
   const room = await createGame(a, j, 'Alice')
   await joinGame(b, j, 'Bob', room)
   await addBot(a, j)
+  const botName = await seatName(a, 'bot')
   await startGame(a, j)
   const alice = new Seat(a, j, 'alice', { maxShares: 2, cashReserve: 1500 })
   const bob = new Seat(b, j, 'bob', { maxShares: 2, cashReserve: 1500 })
@@ -90,7 +91,9 @@ test('reconnect and refresh: reloads mid-turn and with a pending offer, offline/
   await alice.buyAndEnd()
 
   // (c) A pending offer survives reloads on both sides.
-  await expect.poll(() => bob.phaseText()).toMatch(/PLACE A TILE|Alice's TURN|Bot 1's TURN/)
+  await expect
+    .poll(() => bob.phaseText())
+    .toMatch(new RegExp(`PLACE A TILE|Alice's TURN|${botName}'s TURN`))
   await proposeTrade(bob, { partner: 'Alice', offerCash: 200, wantCash: 100 }, 'offer-to-alice')
   await expect(incomingFrom(a, 'Bob')).toBeVisible()
   await alice.shot('offer-pending')

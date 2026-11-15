@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app_state import session_manager
+from session.seat_names import SEAT_NAMES
 from tests.protocol.helpers import (
     HumanClient,
     add_seat,
@@ -95,8 +96,10 @@ def test_all_agent_game_runs_to_completion(app_client, monkeypatch):
     bot = add_seat(client, code, "bot")
     add_seat(client, code, "scripted")
     llm = add_seat(client, code, "llm:test")
-    assert bot == {"player_id": bot["player_id"], "name": "Bot 1", "kind": "bot"}
-    assert llm["name"] == "Test LLM" and llm["kind"] == "llm"
+    assert bot == {"player_id": bot["player_id"], "name": bot["name"], "kind": "bot"}
+    # Character names (session.seat_names), never the model's label.
+    assert bot["name"] in SEAT_NAMES and llm["name"] in SEAT_NAMES
+    assert llm["name"] != "Test LLM" and llm["kind"] == "llm"
     configure(client, code, 11)
 
     log: list[dict] = []
@@ -123,13 +126,13 @@ def test_all_heuristic_game_is_deterministic_for_a_seed(app_client):
 
     def run():
         code = app_client.post("/create-spectator").json()["room_code"]
-        add_seat(app_client, code, "bot")
-        add_seat(app_client, code, "bot")
-        add_seat(app_client, code, "bot")
+        ids = [add_seat(app_client, code, "bot")["player_id"] for _ in range(3)]
         configure(app_client, code, 3)
         with app_client.websocket_connect(f"/ws/host/{code}") as host:
             start(app_client, code)
             final = watch_until_game_over(host)
-        return sorted((p["name"], p["money"]) for p in final["players"].values())
+        # By seat order: the bots' character names are random here (the seed is
+        # configured after they joined); their play is not (seeded "Bot N").
+        return [final["players"][pid]["money"] for pid in ids]
 
     assert run() == run()

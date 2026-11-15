@@ -41,6 +41,18 @@ test('spectator host view: watch an all-AI game to game over', async ({ page, jo
   await expect(page.getByText('Ready to start!')).toBeVisible()
   await expect(page.locator('[data-kind="bot"]')).toHaveCount(2)
   await expect(page.locator('[data-kind="llm"]')).toHaveCount(1)
+  // AI seats have character names (BL-010); read the first bot's from its lobby card.
+  const firstBot = (
+    (await page
+      .locator('[data-kind="bot"]')
+      .first()
+      .locator('xpath=..')
+      .locator('span')
+      .first()
+      .textContent()) ?? ''
+  ).trim()
+  expect(firstBot).not.toBe('')
+  j.log(`first bot: "${firstBot}"`)
   await j.shot(page, 'host-lobby-three-ai')
 
   j.log('start game')
@@ -82,7 +94,9 @@ test('spectator host view: watch an all-AI game to game over', async ({ page, jo
       await j.shot(page, 'host-mid-game')
       await expect(page.getByTestId('turn-marker')).toHaveCount(1)
       await openTab(page, 'log')
-      await expect(page.getByRole('log', { name: 'Game activity' })).toContainText('Bot 1 joined')
+      await expect(page.getByRole('log', { name: 'Game activity' })).toContainText(
+        `${firstBot} joined`
+      )
       await j.shot(page, 'host-log-tab')
       await openTab(page, 'players')
       // Refresh the host screen mid-game: the board and scoreboard come back.

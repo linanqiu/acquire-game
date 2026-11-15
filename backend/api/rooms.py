@@ -114,18 +114,18 @@ def _add_seat(
         if not isinstance(name, str) or not name.strip():
             raise HTTPException(status_code=422, detail="Invalid name")
         name = name.strip()
+    elif agent_id == "scripted":
+        # Test seats keep plain numbered names ("Scripted 1").
+        name = session_manager.next_seat_name(room_code, "Scripted", numbered=True)
     else:
-        label = entry.get("label") or agent_id
-        if agent_id == "bot":
-            name = session_manager.next_seat_name(room_code, "Bot", numbered=True)
-        elif agent_id == "scripted":
-            name = session_manager.next_seat_name(room_code, "Scripted", numbered=True)
-        else:
-            name = session_manager.next_seat_name(room_code, label, numbered=False)
+        # Bots and LLM seats get a character name; the model is in agent_label.
+        name = session_manager.next_ai_name(room_code)
     if any(p.name.lower() == name.lower() for p in room.players.values()):
         raise HTTPException(status_code=400, detail="Player name already taken")
     try:
         opts = {"script": script} if script is not None else {}
+        if agent_id == "bot":
+            opts["seed"] = session_manager.bot_seed(room_code)
         if strict:
             opts["strict"] = True
         agent = registry.create(agent_id, name=name, **opts)

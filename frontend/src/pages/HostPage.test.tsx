@@ -52,7 +52,7 @@ describe('host lobby', () => {
     expect(screen.getByText(human.name)).toBeInTheDocument()
     expect(screen.queryByTestId(`seat-kind-${human.player_id}`)).not.toBeInTheDocument()
     expect(screen.queryByTestId(`remove-seat-${human.player_id}`)).not.toBeInTheDocument()
-    expect(screen.getByTestId(`seat-kind-${bot.player_id}`)).toHaveTextContent('BOT')
+    expect(screen.getByTestId(`seat-kind-${bot.player_id}`)).toHaveAccessibleName('Rules-based bot')
     expect(screen.getByTestId(`remove-seat-${bot.player_id}`)).toBeInTheDocument()
     expect(screen.getByTestId(`remove-seat-${scripted.player_id}`)).toBeInTheDocument()
   })

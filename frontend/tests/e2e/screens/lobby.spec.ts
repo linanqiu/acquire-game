@@ -58,7 +58,14 @@ test('lobby: AI menu, START GAME needs three seats, removing a seat, then a real
   await addScripted(page)
   await expect(page.getByText('3/6 players')).toBeVisible()
   await expect(page.getByRole('button', { name: 'START GAME' })).toBeEnabled()
-  await expect(page.getByText('Scripted', { exact: true })).toHaveCount(2)
+  // Two scripted seats: each with its icon badge, whose accessible name says what it is.
+  await expect(page.getByRole('button', { name: /^Scripted test seat/ })).toHaveCount(2)
+  await expect(
+    page.locator('[data-testid^="lobby-player-"]', { hasText: 'Scripted 1' })
+  ).toHaveCount(1)
+  await expect(
+    page.locator('[data-testid^="lobby-player-"]', { hasText: 'Scripted 2' })
+  ).toHaveCount(1)
   await shots.take(page, 'lobby-three-seats')
 
   // Remove a seat: back to two, START disabled again.

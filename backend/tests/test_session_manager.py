@@ -7,6 +7,7 @@ import pytest
 from unittest.mock import MagicMock, AsyncMock
 
 from session.manager import SessionManager
+from session.seat_names import SEAT_NAMES
 
 
 class TestRoomCreation:
@@ -155,10 +156,10 @@ class TestBotPlayers:
         bot_id = manager.add_bot(code)
 
         room = manager.get_room(code)
-        assert room.players[bot_id].name == "Bot 1"
+        assert room.players[bot_id].name in SEAT_NAMES
 
-    def test_bot_names_increment(self):
-        """Bot names increment correctly."""
+    def test_bot_names_are_distinct(self):
+        """Two bots get two different character names."""
         manager = SessionManager()
         code = manager.create_room()
 
@@ -166,8 +167,8 @@ class TestBotPlayers:
         bot2_id = manager.add_bot(code)
 
         room = manager.get_room(code)
-        assert room.players[bot1_id].name == "Bot 1"
-        assert room.players[bot2_id].name == "Bot 2"
+        names = {room.players[bot1_id].name, room.players[bot2_id].name}
+        assert len(names) == 2 and names <= set(SEAT_NAMES)
 
     def test_bot_counts_toward_player_limit(self):
         """Bots count toward maximum player limit."""
