@@ -177,7 +177,10 @@ def fake_talk_responder() -> Any:
                     return {"reply": f'Fake LLM heard you, {name}: "{text[:80]}"'}
                 return {"reply": f"{my_name} answers {name}: deal?"}
             trigger = user.split("Something just happened:", 1)
-            if len(trigger) == 2 and "chain founded" in trigger[1].split("# Table talk")[0]:
+            if (
+                len(trigger) == 2
+                and "chain founded" in trigger[1].split("# Table talk")[0]
+            ):
                 return {"reply": f"{my_name} saw: a chain founded"}
             return {"reply": ""}
         answer = schema_first_answer(schema)
