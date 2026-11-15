@@ -24,7 +24,8 @@ from typing import Any
 from game.action import TradeOffer
 from game.board import BoardCell, Tile, TileState
 from game.bot import Bot
-from game.game import Game, GamePhase, MergerState
+from game.game import Game, GamePhase
+from game.merger import MergerState
 from game.player import Player
 from game.ruleset import Ruleset, RulesetError, default_ruleset
 

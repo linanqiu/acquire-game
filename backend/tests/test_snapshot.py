@@ -19,7 +19,8 @@ import pytest
 from game.action import TradeOffer
 from game.board import Tile, TileState
 from game.bot import Bot
-from game.game import Game, GamePhase, MergerState
+from game.game import Game, GamePhase
+from game.merger import MergerState
 from game.hotel import Hotel
 from game.player import Player
 from game.rules import Rules
