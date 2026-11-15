@@ -73,6 +73,7 @@ export interface GameStoreState {
   trades: TradeOffer[]
   publicTrades: TradeOffer[]
   lastTradeEvent: TradeEvent | null
+  tradeEventAnnouncedSeq: number
   lastFallbackEvent: FallbackEvent | null
 
   /** Public table chat, oldest first (deduplicated by id, at most CHAT_KEEP). */
@@ -137,6 +138,9 @@ const initialState = {
   trades: [] as TradeOffer[],
   publicTrades: [] as TradeOffer[],
   lastTradeEvent: null as TradeEvent | null,
+  /** `seq` of the newest trade event already announced (a toast). Kept here, not in the
+   *  page, so a page that mounts or remounts after the event still announces it once. */
+  tradeEventAnnouncedSeq: 0,
   gameOver: null as GameOverMessage | null,
   lastFallbackEvent: null as FallbackEvent | null,
   chatMessages: [] as ChatMessage[],
