@@ -17,8 +17,8 @@ if [ ${#modules[@]} -eq 0 ]; then
   modules=(game/rules.py game/hotel.py game/game.py game/decisions.py game/player.py
            game/board.py game/ranking.py game/calculator.py)
 fi
-out="${OUT:-/tmp/acquire-mutation/result.json}"
-work="${WORKDIR:-/tmp/acquire-mutation}"
+out="${OUT:-/tmp/game-mutation/result.json}"
+work="${WORKDIR:-/tmp/game-mutation}"
 mkdir -p "$work"
 args=()
 for m in "${modules[@]}"; do args+=(--module "$m"); done

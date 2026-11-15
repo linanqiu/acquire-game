@@ -574,7 +574,7 @@ def main() -> int:
         help="--rerun: which earlier statuses to run again (comma separated)",
     )
     ap.add_argument(
-        "--workdir", type=Path, default=Path(tempfile.gettempdir()) / "acquire-mutation"
+        "--workdir", type=Path, default=Path(tempfile.gettempdir()) / "game-mutation"
     )
     ap.add_argument("--list", action="store_true", help="only list mutants")
     ap.add_argument(

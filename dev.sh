@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Acquire Game - Local Development Script
+# Buyout Game - Local Development Script
 # Usage: ./dev.sh <command>
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -141,13 +141,13 @@ cmd_serve() {
 
 cmd_docker_build() {
     info "Building Docker image..."
-    docker build -t acquire-game -f "$SCRIPT_DIR/deploy/Dockerfile" "$SCRIPT_DIR"
-    info "Docker image built: acquire-game"
+    docker build -t buyout -f "$SCRIPT_DIR/deploy/Dockerfile" "$SCRIPT_DIR"
+    info "Docker image built: buyout"
 }
 
 cmd_docker_run() {
     info "Running Docker container..."
-    docker run -it --rm -p "${PORT:-8000}:8000" acquire-game
+    docker run -it --rm -p "${PORT:-8000}:8000" buyout
 }
 
 cmd_ci() {
@@ -193,7 +193,7 @@ cmd_dev() {
 
 cmd_help() {
     cat << EOF
-Acquire Game - Development Script
+Buyout Game - Development Script
 
 Usage: ./dev.sh <command> [options]
 

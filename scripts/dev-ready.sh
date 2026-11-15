@@ -21,7 +21,7 @@ echo "✓ Playwright browser: OK"
 if ! curl -s http://127.0.0.1:8000/docs > /dev/null 2>&1; then
   echo "Starting backend..."
   # Test mode + fixed seed: what the Playwright screens/journeys projects expect.
-  cd backend && ACQUIRE_TEST_MODE=1 ACQUIRE_GAME_SEED=2 python3 -m uvicorn main:app --host 127.0.0.1 --port 8000 &
+  cd backend && GAME_TEST_MODE=1 GAME_SEED=2 python3 -m uvicorn main:app --host 127.0.0.1 --port 8000 &
   cd "$PROJECT_ROOT"
   sleep 2
 fi

@@ -41,12 +41,12 @@ jobs:
         run: |
           pytest -n auto --cov=game --cov=session --cov-report=xml --cov-report=term-missing -q
 
-      - name: Acquire Bench offline smoke (fake LLM, 2 games, ~3 s)
+      - name: Buyout Bench offline smoke (fake LLM, 2 games, ~3 s)
         working-directory: backend
         env:
-          ACQUIRE_TEST_MODE: '1'
+          GAME_TEST_MODE: '1'
         run: |
-          python -m bench run --protocol acquire-bench-v1 --models llm:fake \
+          python -m bench run --protocol bench-v1 --models llm:fake \
             --track vs-baseline --games 2 --out "$RUNNER_TEMP/bench-smoke" --json --quiet \
             > "$RUNNER_TEMP/bench-smoke.json"
           python -c "import json,sys; s=json.load(open(sys.argv[1])); assert s['status']=='complete' and s['games']['ran']==2, s" "$RUNNER_TEMP/bench-smoke.json"
@@ -112,7 +112,7 @@ jobs:
         run: npm test
 
   # Browser tiers 3 (screens), 4 (journeys) and the transcripts journey, one parallel job each.
-  # Each job starts its own backend (ACQUIRE_TEST_MODE=1) and Vite dev server through the
+  # Each job starts its own backend (GAME_TEST_MODE=1) and Vite dev server through the
   # Playwright webServer config. Tracing is off (screenshots are the evidence).
   e2e:
     runs-on: ubuntu-latest
@@ -190,6 +190,6 @@ jobs:
           context: .
           file: deploy/Dockerfile
           push: false
-          tags: acquire-game:latest
+          tags: buyout:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max

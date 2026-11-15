@@ -1,8 +1,8 @@
-# Acquire Bench: run the standalone LLM benchmark on demand and keep the
+# Buyout Bench: run the standalone LLM benchmark on demand and keep the
 # results directory (results.jsonl, transcripts/, leaderboard.json, report.md)
 # as a build artifact. Manual only: it spends API credits, so it never runs
 # on push or pull_request. See docs/ai/benchmarking.md.
-name: Acquire Bench
+name: Buyout Bench
 
 on:
   workflow_dispatch:
@@ -37,7 +37,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: acquire-bench
+  group: bench
   cancel-in-progress: false
 
 jobs:
@@ -47,7 +47,7 @@ jobs:
     env:
       # Provider keys come from repository secrets (by name only).
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      ACQUIRE_LLM_OPENAI_API_KEY: ${{ secrets.ACQUIRE_LLM_OPENAI_API_KEY }}
+      GAME_LLM_OPENAI_API_KEY: ${{ secrets.GAME_LLM_OPENAI_API_KEY }}
       MODELS: ${{ inputs.models }}
       TRACK: ${{ inputs.track }}
       GAMES: ${{ inputs.games }}
@@ -70,22 +70,22 @@ jobs:
         working-directory: backend
         run: python -m bench list-models
 
-      - name: Run Acquire Bench
+      - name: Run Buyout Bench
         id: run
         working-directory: backend
         run: |
           set +e
-          args=(run --protocol acquire-bench-v1 --models "$MODELS" --track "$TRACK"
-                --out "$RUNNER_TEMP/acquire-bench" --json --max-concurrency 4)
+          args=(run --protocol bench-v1 --models "$MODELS" --track "$TRACK"
+                --out "$RUNNER_TEMP/bench" --json --max-concurrency 4)
           [ -n "$GAMES" ] && args+=(--games "$GAMES")
           [ -n "$MAX_USD" ] && args+=(--max-usd "$MAX_USD")
           [ -n "$MAX_DECISIONS" ] && args+=(--max-decisions "$MAX_DECISIONS")
           python -m bench "${args[@]}" > "$RUNNER_TEMP/summary.json"
           code=$?
-          cp "$RUNNER_TEMP/summary.json" "$RUNNER_TEMP/acquire-bench/summary.json" 2>/dev/null || true
+          cp "$RUNNER_TEMP/summary.json" "$RUNNER_TEMP/bench/summary.json" 2>/dev/null || true
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
-          if [ -f "$RUNNER_TEMP/acquire-bench/report.md" ]; then
-            cat "$RUNNER_TEMP/acquire-bench/report.md" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "$RUNNER_TEMP/bench/report.md" ]; then
+            cat "$RUNNER_TEMP/bench/report.md" >> "$GITHUB_STEP_SUMMARY"
           fi
           # 0 = complete, 1 = partial (budget stop / stalled game): keep the
           # results either way; 2 = configuration error (e.g. missing key).
@@ -96,7 +96,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: acquire-bench-${{ github.run_id }}
-          path: ${{ runner.temp }}/acquire-bench
+          name: bench-${{ github.run_id }}
+          path: ${{ runner.temp }}/bench
           if-no-files-found: warn
           retention-days: 90

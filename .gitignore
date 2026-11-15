@@ -42,5 +42,5 @@ Thumbs.db
 # Benchmark harness output
 backend/bench_results/
 
-# Game transcripts (ACQUIRE_TRANSCRIPT_DIR default)
+# Game transcripts (GAME_TRANSCRIPT_DIR default)
 backend/data/transcripts/

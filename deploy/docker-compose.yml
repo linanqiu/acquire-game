@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  acquire:
+  buyout:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
@@ -11,11 +11,11 @@ services:
       - ENVIRONMENT=prod
       # LLM players (optional). Set in your shell or a .env next to this file.
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - ACQUIRE_LLM_OPENAI_BASE_URL=${ACQUIRE_LLM_OPENAI_BASE_URL:-}
-      - ACQUIRE_LLM_OPENAI_MODEL=${ACQUIRE_LLM_OPENAI_MODEL:-}
-      - ACQUIRE_LLM_OPENAI_API_KEY=${ACQUIRE_LLM_OPENAI_API_KEY:-}
-      - ACQUIRE_LLM_CATALOG=${ACQUIRE_LLM_CATALOG:-}
-      - ACQUIRE_LLM_LOG_DIR=${ACQUIRE_LLM_LOG_DIR:-}
+      - GAME_LLM_OPENAI_BASE_URL=${GAME_LLM_OPENAI_BASE_URL:-}
+      - GAME_LLM_OPENAI_MODEL=${GAME_LLM_OPENAI_MODEL:-}
+      - GAME_LLM_OPENAI_API_KEY=${GAME_LLM_OPENAI_API_KEY:-}
+      - GAME_LLM_CATALOG=${GAME_LLM_CATALOG:-}
+      - GAME_LLM_LOG_DIR=${GAME_LLM_LOG_DIR:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
