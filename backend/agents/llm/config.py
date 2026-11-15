@@ -120,6 +120,7 @@ def _default_entries() -> list[CatalogEntry]:
             model="claude-haiku-5-5",
             api_key_env="ANTHROPIC_API_KEY",
             timeout=30.0,
+            effort="low",
         ),
         CatalogEntry(
             id="llm:claude-sonnet-5-5",
@@ -128,6 +129,9 @@ def _default_entries() -> list[CatalogEntry]:
             provider="anthropic",
             model="claude-sonnet-5-5",
             api_key_env="ANTHROPIC_API_KEY",
+            # Thinking is billed as output, the expensive side. Low effort
+            # keeps a game affordable; raise it per entry in GAME_LLM_CATALOG.
+            effort="low",
         ),
         CatalogEntry(
             id="llm:claude-opus-5-5",

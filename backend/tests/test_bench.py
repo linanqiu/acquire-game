@@ -9,7 +9,6 @@ run unstubbed and are marked ``slow``.
 from __future__ import annotations
 
 import asyncio
-import json
 from types import SimpleNamespace
 
 import pytest
@@ -17,7 +16,7 @@ import pytest
 from agents.base import DecisionContext
 from agents.scripted import default_action
 from bench import report
-from bench.prices import DEFAULT_PATH, PriceTable
+from bench.prices import PriceTable
 from bench.runner import assign_ranks, percentile, run_game
 from bench.series import BenchError, Budget, plan, rotate, run_series
 
@@ -393,14 +392,14 @@ def test_verdict_flags_real_edge_only_with_enough_games():
     assert report.games_to_detect(0.40, 0.25) == 71
 
 
-def test_prices_file_ships_with_unknowns():
+def test_prices_file_prices_the_built_in_models_and_nothing_else():
     t = PriceTable.load()
-    assert t.cost("claude-haiku-5-5", 1000, 100) is None
+    # $0.10 in / $0.50 out per million tokens
+    assert t.cost("claude-haiku-5-5", 1_000_000, 100_000) == pytest.approx(0.15)
+    assert t.cost("claude-sonnet-5-5", 1_000_000, 100_000) == pytest.approx(3.0)
     assert t.cost("fake", 1000, 100) == 0.0
     assert t.cost("not-listed", 1, 1) is None
-    assert not t.known("claude-sonnet-5-5")
-    raw = json.loads(DEFAULT_PATH.read_text())
-    assert raw["models"]["claude-opus-5-5"]["input"] is None
+    assert t.known("claude-sonnet-5-5") and not t.known("not-listed")
 
 
 # ------------------------------------------------------------ real LLM path

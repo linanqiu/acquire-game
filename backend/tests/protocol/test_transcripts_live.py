@@ -84,7 +84,8 @@ def test_unfinished_live_game_is_redacted_then_complete(app_client, tdir):
         for marker in PROMPT_MARKERS:
             assert marker not in text
         decisions = [e for e in t["entries"] if e["type"] == "decision"]
-        llm = [d for d in decisions if d["source"] == "llm"]
+        # (an LLM seat's forced end of turn is a move with no model call)
+        llm = [d for d in decisions if d["source"] == "llm" and d["llm"]]
         assert llm and all("user_prompt" not in d["llm"] for d in llm)
         assert any(d["source"] == "human" for d in decisions)
         assert t["live_totals"][me]["decisions"] >= 4
@@ -100,7 +101,11 @@ def test_unfinished_live_game_is_redacted_then_complete(app_client, tdir):
     t, text = get_transcript(client, game_id, prefix="")
     assert t["redacted"] is False and t["footer"] is not None
     assert "# Your seat" in text  # the full prompts are public now
-    llm = [e for e in t["entries"] if e["type"] == "decision" and e["source"] == "llm"]
+    llm = [
+        e
+        for e in t["entries"]
+        if e["type"] == "decision" and e["source"] == "llm" and e["llm"]
+    ]
     assert llm[0]["llm"]["user_prompt"] and llm[0]["llm"]["attempts"][0]["raw"]
     sp = llm[0]["llm"]["system_prompt_id"]
     assert sp in t["header"]["system_prompts"]

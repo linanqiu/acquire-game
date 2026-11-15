@@ -453,3 +453,33 @@ async def test_fake_provider_default_plays_first_legal_action(game):
     assert (await agent.decide(ctx))["tile"] == first_tile(ctx)
     buy = await agent.decide(buy_ctx(game))
     assert buy == {"action": "buy_stocks", "purchases": {}}
+
+
+def after_purchase_ctx(game, *, can_declare=False):
+    """The buy decision as the engine asks it again once the purchase is made."""
+    types = [
+        "end_turn",
+        *(["declare_end_game"] if can_declare else []),
+        "propose_trade",
+    ]
+    legal = {"action_types": types, "max_total": 0, "options": [], "money": 0}
+    return make_ctx(game, "p1", "buy_stocks", legal)
+
+
+async def test_after_its_purchase_the_seat_ends_the_turn_without_a_model_call(game):
+    prov = FakeProvider([])
+    agent = LLMAgent(prov, agent_id="llm:x")
+    assert await agent.decide(after_purchase_ctx(game)) == {"action": "end_turn"}
+    assert prov.calls == []
+    # no record of a model decision is attached to this move
+    assert agent.last_decision_record(after_purchase_ctx(game)) is None
+
+
+async def test_model_is_still_asked_when_it_can_buy_or_declare_the_end(game):
+    for ctx, act in (
+        (buy_ctx(game), {"action": "end_turn"}),
+        (after_purchase_ctx(game, can_declare=True), {"action": "declare_end_game"}),
+    ):
+        prov = FakeProvider([answer(act)])
+        assert await LLMAgent(prov, agent_id="llm:x").decide(ctx) == act
+        assert len(prov.calls) == 1
