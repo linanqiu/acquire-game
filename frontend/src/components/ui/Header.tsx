@@ -4,11 +4,14 @@ import { useBrand, useRules } from '../../ruleset/useRules'
 interface HeaderProps {
   roomCode?: string
   cash?: number
+  /** The viewer's net worth and rank (from the server), shown next to their cash. */
+  netWorth?: number
+  rank?: number
   playerName?: string
   tilePool?: number | 'EMPTY'
 }
 
-export function Header({ roomCode, cash, playerName, tilePool }: HeaderProps) {
+export function Header({ roomCode, cash, netWorth, rank, playerName, tilePool }: HeaderProps) {
   // Product name: the brand; amounts: the ruleset in effect (a game's own).
   const brand = useBrand()
   const rules = useRules()
@@ -20,7 +23,13 @@ export function Header({ roomCode, cash, playerName, tilePool }: HeaderProps) {
       <div className={styles.info}>
         {roomCode && (
           <div className={styles.roomCode} data-testid="header-room">
-            Room: {roomCode}
+            Room {roomCode}
+          </div>
+        )}
+        {tilePool !== undefined && (
+          <div className={styles.tilePool} title="Tiles left in the bag">
+            <span className={styles.label}>bag</span>{' '}
+            <span data-testid="header-tile-pool">[{tilePool}]</span>
           </div>
         )}
         {playerName && (
@@ -29,13 +38,21 @@ export function Header({ roomCode, cash, playerName, tilePool }: HeaderProps) {
           </div>
         )}
         {cash !== undefined && (
-          <div className={styles.cash} data-testid="header-cash">
-            {rules.money(cash)}
+          <div className={styles.cash} title="Cash">
+            <span className={styles.label}>cash</span>{' '}
+            <span data-testid="header-cash">{rules.money(cash)}</span>
           </div>
         )}
-        {tilePool !== undefined && (
-          <div className={styles.tilePool} data-testid="header-tile-pool">
-            [{typeof tilePool === 'number' ? tilePool : tilePool}]
+        {netWorth !== undefined && (
+          <div className={styles.worth} title="Net worth: cash + shares at current prices">
+            <span className={styles.label}>worth</span>{' '}
+            <span data-testid="header-networth">{rules.money(netWorth)}</span>
+            {rank !== undefined && (
+              <span className={styles.rank} data-testid="header-rank">
+                {' '}
+                #{rank}
+              </span>
+            )}
           </div>
         )}
       </div>

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { act, render, screen } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { SeatKindBadge } from './SeatKindBadge'
-import { PlayerCard } from './PlayerCard'
+import { Standings } from './Standings'
 import { HostPage } from '../../pages/HostPage'
 import { ToastProvider } from '../ui/ToastProvider'
 import { useFallbackToasts } from '../../hooks/useFallbackToasts'
@@ -69,10 +69,8 @@ describe('fallback marker', () => {
     expect(marker).toHaveAttribute('title', expect.stringContaining('timed out'))
   })
 
-  it('shows on the player card', () => {
-    render(
-      <PlayerCard name="Claude" cash={1} stocks={[]} playerId="p2" kind="llm" fallbacks={two} />
-    )
+  it('shows in the players table', () => {
+    render(<Standings gameState={gameState(two)} rowTestId="player-card" />)
     expect(screen.getByTestId('seat-fallback-p2')).toBeInTheDocument()
   })
 

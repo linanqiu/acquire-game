@@ -8,7 +8,12 @@ import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { Spinner } from '../components/ui/Spinner'
 import { TileRack, type RackTile } from '../components/game/TileRack'
-import { Portfolio, type StockHolding, type ChainPrices } from '../components/game/Portfolio'
+import { Standings } from '../components/game/Standings'
+import { ChainTable } from '../components/game/ChainTable'
+import { MergerResult, MergerLog } from '../components/game/MergerResult'
+import { ChatSlot } from '../components/game/ChatSlot'
+import { useMergerResult } from '../hooks/useMergerResult'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 import { Board } from '../components/game/Board'
 import { ChainSelector } from '../components/game/ChainSelector'
 import { MergerDisposition } from '../components/game/MergerDisposition'
@@ -37,10 +42,11 @@ import { dispositionPhaseText, playerPhaseText, survivorPhaseText } from '../lib
 import type { Coordinate } from '../types/game'
 import { BuyPanel } from './player/BuyPanel'
 import { LobbyPanel } from './player/LobbyPanel'
-import { PlayersPanel } from './player/PlayersPanel'
 import { usePlayerTrades } from './player/usePlayerTrades'
 import { useTurnActions } from './player/useTurnActions'
 import styles from './PlayerPage.module.css'
+
+type StockHolding = { chain: ChainId; quantity: number }
 
 export function PlayerPage() {
   const room = useRoom()
@@ -113,6 +119,9 @@ export function PlayerPage() {
   }, [turnRefused, tradeRefused])
 
   const [selectedTile, setSelectedTile] = useState<Coordinate | undefined>()
+  // Same breakpoint as the two-column layout in PlayerPage.module.css.
+  const wide = useMediaQuery('(min-width: 900px)')
+  const mergerResult = useMergerResult(gameState?.mergers, `merger-dismissed:${room}`)
 
   // The game's ruleset (the server's until the first game_state arrives): every limit and word.
   const serverRuleset = useServerRuleset()
@@ -130,7 +139,7 @@ export function PlayerPage() {
     (currentTurnPlayerId && gameState?.players[currentTurnPlayerId]?.name) || ''
   const myPlayerData = (myPlayerId && gameState?.players[myPlayerId]) || null
 
-  const chainPrices: ChainPrices = useMemo(
+  const chainPrices: Record<string, number> = useMemo(
     () => Object.fromEntries((gameState?.hotel.chains ?? []).map((c) => [c.name, c.price])),
     [gameState]
   )
@@ -390,6 +399,20 @@ export function PlayerPage() {
   const outOfGame = renderOutOfGame()
   const inGame = phase !== 'lobby' && phase !== 'game_over'
 
+  const rack = inGame && !outOfGame && (
+    <TileRack
+      tiles={rackTiles}
+      selectedTile={selectedTile}
+      onTileSelect={setSelectedTile}
+      disabled={phase !== 'place_tile' || !isMyTurn}
+    />
+  )
+  // Is it on me to act right now (the action card is highlighted)?
+  const myDecision =
+    !!pendingMergerChoice ||
+    !!pendingStockDisposition ||
+    (isMyTurn && phase !== 'merger' && phase !== 'stock_disposition')
+
   return (
     <RulesetScope ruleset={gameState?.ruleset}>
       <PageShell
@@ -404,24 +427,18 @@ export function PlayerPage() {
         }
         roomCode={room}
         cash={myPlayerData?.money}
+        netWorth={inGame ? myPlayerData?.net_worth : undefined}
+        rank={inGame ? myPlayerData?.rank : undefined}
         playerName={currentPlayer?.name}
         tilePool={gameState?.tiles_remaining ?? undefined}
-        footer={
-          inGame &&
-          !outOfGame && (
-            <TileRack
-              tiles={rackTiles}
-              selectedTile={selectedTile}
-              onTileSelect={setSelectedTile}
-              disabled={phase !== 'place_tile' || !isMyTurn}
-            />
-          )
-        }
+        // Desktop: the rack sits under the board. Phones: it sticks to the bottom of the screen.
+        footer={wide ? undefined : rack}
       >
         {outOfGame ? (
           <div className={styles.content}>{outOfGame}</div>
         ) : (
           <div className={styles.gameLayout} data-testid="game-layout">
+            {/* 1. The board (and on desktop the rack right under it). */}
             <section
               className={`${styles.boardPane} ${boardOpen ? '' : styles.boardFolded}`}
               aria-label="Board"
@@ -449,11 +466,39 @@ export function PlayerPage() {
                   }}
                 />
               </div>
+              {wide && <div className={styles.rackUnderBoard}>{rack}</div>}
             </section>
 
             <div className={styles.sidePane}>
-              <div className={styles.content}>{renderAction()}</div>
+              {/* 2. What I must do now. */}
+              <div
+                className={`${styles.actionCard} ${myDecision ? styles.actionMine : ''}`}
+                data-testid="action-panel"
+              >
+                {renderAction()}
+              </div>
 
+              {/* 3. What just happened: the merger result, until closed. */}
+              {mergerResult.shown && gameState && (
+                <MergerResult
+                  merger={mergerResult.shown}
+                  players={gameState.players}
+                  onDismiss={mergerResult.dismiss}
+                />
+              )}
+
+              {/* 4. Reference: players (net worth), chains (majorities), trades, history. */}
+              {gameState && (
+                <section className={styles.refCard} aria-label="Players">
+                  <Standings gameState={gameState} myPlayerId={myPlayerId} />
+                </section>
+              )}
+              {gameState && (
+                <section className={styles.refCard} aria-label={theme.chain_noun_plural}>
+                  <h4 className={styles.refTitle}>{theme.chain_noun_plural}</h4>
+                  <ChainTable gameState={gameState} myPlayerId={myPlayerId} />
+                </section>
+              )}
               {myPlayerId && gameState && (
                 <TradeOffers
                   offers={myTrades}
@@ -465,12 +510,23 @@ export function PlayerPage() {
                   onPropose={trades.openBuilder}
                 />
               )}
+              {gameState && (gameState.mergers?.length ?? 0) > 0 && (
+                <section className={styles.refCard} aria-label="Activity">
+                  <h4 className={styles.refTitle}>{theme.merger_noun_plural}</h4>
+                  <MergerLog
+                    mergers={gameState.mergers ?? []}
+                    players={gameState.players}
+                    openSeq={mergerResult.shown?.seq}
+                    onOpen={mergerResult.open}
+                  />
+                </section>
+              )}
 
-              {gameState && <PlayersPanel gameState={gameState} myPlayerId={myPlayerId} />}
-
-              <div className={styles.portfolioStrip}>
-                <Portfolio holdings={myHoldings} prices={chainPrices} showTotal={false} />
-              </div>
+              {/* CHAT SLOT (reserved for ChatPanel, built on another branch): mount it here with
+                  one line, e.g. <ChatPanel room={room} />. Desktop: last card of this column,
+                  under the players panel. Phones: ChatSlot folds it behind a CHAT button in the
+                  page flow, so it never covers the board or the rack. Renders nothing while empty. */}
+              <ChatSlot>{/* <ChatPanel ... /> */}</ChatSlot>
             </div>
           </div>
         )}

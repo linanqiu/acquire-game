@@ -2,9 +2,7 @@
   display: flex;
   justify-content: center;
   gap: var(--space-2);
-  padding: var(--space-3);
-  background-color: var(--bg-secondary);
-  border-top: 1px solid var(--border);
+  padding: var(--space-2);
 }
 
 /* Responsive: ensure tiles fit on small screens */
@@ -17,7 +15,7 @@
 
 .notes {
   margin: 0;
-  padding: 0 var(--space-3) var(--space-3);
+  padding: 0 var(--space-2) var(--space-2);
   list-style: none;
   text-align: center;
   font-size: var(--text-sm, 0.85rem);

@@ -3,14 +3,14 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-3) var(--space-6);
+  padding: var(--space-1) var(--space-4);
   background-color: var(--bg-secondary);
   border-bottom: var(--border-default);
 }
 
 .hostLogo {
   font-family: var(--font-primary);
-  font-size: var(--text-2xl);
+  font-size: var(--text-lg);
   font-weight: var(--font-bold);
   color: var(--text-accent);
   letter-spacing: 4px;
@@ -30,7 +30,7 @@
 
 .roomValue {
   font-family: var(--font-mono);
-  font-size: var(--text-xl);
+  font-size: var(--text-lg);
   font-weight: var(--font-bold);
   color: var(--text-primary);
   letter-spacing: 2px;
@@ -174,13 +174,13 @@
 }
 
 /* Game Layout */
+/* Board left, one scrolling side column right (result, players, chains, trades, activity, chat). */
 .gameLayout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
-  grid-template-rows: minmax(0, 1fr) auto;
-  gap: var(--space-4);
-  height: calc(100vh - 120px);
-  padding: var(--space-4);
+  grid-template-columns: minmax(0, 1fr) 420px;
+  grid-template-rows: minmax(0, 1fr);
+  gap: var(--space-3);
+  height: calc(100vh - 100px);
   box-sizing: border-box;
 }
 
@@ -192,65 +192,28 @@
   grid-row: 1;
   min-width: 0;
   min-height: 0;
-  --board-max-height: calc(100vh - 200px);
+  --board-max-height: calc(100vh - 110px);
 }
 
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-2);
   grid-row: 1;
   overflow-y: auto;
-}
-
-.chainList {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-/* The 320px sidebar must fit name, size, price, stock left and SAFE on one row; the host page's
-   18px base font is too big for that. */
-.chainList > * {
-  font-size: 13px;
-}
-
-.noChains {
-  color: var(--text-secondary);
-  font-style: italic;
-  text-align: center;
-  padding: var(--space-2);
-  margin: 0;
-}
-
-/* Up to six seats must fit beside the board at 1280x900 without scrolling. */
-.scoreboard {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  font-size: 16px;
+  min-width: 0;
 }
 
 .activityLog {
-  grid-column: 1 / -1;
   display: flex;
-  gap: var(--space-4);
-  padding: var(--space-2) var(--space-4);
-  background-color: var(--bg-tertiary);
-  border-radius: var(--radius-md);
+  flex-direction: column;
+  gap: 2px;
   font-size: var(--text-sm);
   color: var(--text-secondary);
-  overflow-x: auto;
-}
-
-.logLabel {
-  font-weight: var(--font-medium);
-  color: var(--text-primary);
-  flex-shrink: 0;
 }
 
 .logEntry {
-  white-space: nowrap;
+  padding: 0 var(--space-2);
 }
 
 /* Game Over */
@@ -276,21 +239,15 @@
   color: var(--error);
 }
 
-/* TV-optimized sizing (min 18px body, 24px headers) */
+/* Readable from a sofa, without the old 24px panel headings that took a third of the column. */
 .gameLayout {
-  font-size: 18px;
-}
-
-.gameLayout h2,
-.gameLayout h3,
-.gameLayout h4 {
-  font-size: 24px;
+  font-size: 15px;
 }
 
 /* Responsive - for smaller host displays */
 @media (max-width: 1200px) {
   .gameLayout {
-    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-columns: minmax(0, 1fr) 380px;
   }
 }
 
@@ -300,7 +257,7 @@
      on phones and tablets. */
   .gameLayout {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto auto;
+    grid-template-rows: auto auto;
     height: auto;
   }
 
@@ -320,10 +277,6 @@
 
   .sidebar > * {
     min-width: 0;
-  }
-
-  .activityLog {
-    grid-row: 3;
   }
 }
 
@@ -361,15 +314,8 @@
   }
 
   .gameLayout {
-    padding: var(--space-2);
     gap: var(--space-2);
-    font-size: 16px;
-  }
-
-  .gameLayout h2,
-  .gameLayout h3,
-  .gameLayout h4 {
-    font-size: 18px;
+    font-size: 14px;
   }
 
   .hostHeader {

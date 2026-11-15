@@ -37,7 +37,14 @@ function isPlayable(playability: Playability): boolean {
 }
 
 export function TileRack({ tiles, selectedTile, onTileSelect, disabled = false }: TileRackProps) {
-  const blocked = tiles.filter((t) => !isPlayable(t.playability) && t.reason)
+  // One line per reason ("3F, 3I can't be played: ..."), not one per tile.
+  const groups: Array<[string, Coordinate[]]> = []
+  for (const t of tiles) {
+    if (isPlayable(t.playability) || !t.reason) continue
+    const group = groups.find(([reason]) => reason === t.reason)
+    if (group) group[1].push(t.coordinate)
+    else groups.push([t.reason, [t.coordinate]])
+  }
 
   return (
     <>
@@ -58,11 +65,11 @@ export function TileRack({ tiles, selectedTile, onTileSelect, disabled = false }
           )
         })}
       </div>
-      {blocked.length > 0 && (
+      {groups.length > 0 && (
         <ul className={styles.notes} data-testid="rack-notes">
-          {blocked.map((t) => (
-            <li key={t.coordinate} data-testid={`rack-note-${t.coordinate}`}>
-              <strong>{t.coordinate}</strong> can't be played: {t.reason}
+          {groups.map(([reason, coords]) => (
+            <li key={reason} data-testid="rack-note" data-tiles={coords.join(' ')}>
+              <strong>{coords.join(', ')}</strong> can't be played: {reason}
             </li>
           ))}
         </ul>

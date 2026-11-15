@@ -17,6 +17,10 @@ import {
   deliver,
 } from '../../tests/unit/fixtures/wire'
 
+/** The rack note line that explains `tile` (notes are grouped by reason). */
+const rackNote = (tile: string) =>
+  document.querySelector(`[data-testid="rack-note"][data-tiles~="${tile}"]`)
+
 const { sendAction, socket } = vi.hoisted(() => ({
   sendAction: vi.fn((_action: unknown) => true),
   // The options the page gave the socket hook (its onError is how a server refusal arrives).
@@ -139,7 +143,7 @@ describe('placing a tile', () => {
     const view = loadSnapshotAsPlayer('dead-tile-in-hand')
     renderPage()
     const [dead] = Object.keys(view.expect.human.unplayable_tiles)
-    expect(screen.getByTestId(`rack-note-${dead}`)).toHaveTextContent(/8th hotel chain/)
+    expect(rackNote(dead)).toHaveTextContent(/8th hotel chain/)
     fireEvent.click(rackTile(dead))
     expect(screen.queryByTestId('place-tile-button')).not.toBeInTheDocument()
     // A playable one still works.
