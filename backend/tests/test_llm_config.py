@@ -116,6 +116,8 @@ def test_invalid_catalog_json_falls_back_to_defaults(monkeypatch):
         "not json",
         '[{"id": "x"}]',
         '[{"provider":"carrier-pigeon","model":"m"}]',
+        '[{"provider":"openai","model":"m","base_url":"https://a.b/v1","extra_body":[1]}]',
+        '[{"provider":"openai","model":"m","base_url":"https://a.b/v1","extra_body":{"model":"x"}}]',
     ):
         monkeypatch.setenv("GAME_LLM_CATALOG", bad)
         assert len(catalog_entries()) == 3
@@ -182,3 +184,31 @@ def test_catalog_overrides_max_illegal_retries(monkeypatch):
     monkeypatch.setenv("GAME_LLM_CATALOG", json.dumps(entries))
     assert create_agent("llm:a", name="A").max_illegal_retries == 4
     assert create_agent("llm:b", name="B").max_illegal_retries == 7
+
+
+def test_catalog_extra_body_reaches_the_request(monkeypatch):
+    """A model that thinks at "max" by default (Kimi K3) is configured to a
+    sensible effort through the catalog, and the field is sent with each call."""
+    monkeypatch.setenv("KIMI_KEY", "k")
+    monkeypatch.setenv(
+        "GAME_LLM_CATALOG",
+        json.dumps(
+            [
+                {
+                    "id": "llm:kimi",
+                    "provider": "openai",
+                    "model": "kimi-k3",
+                    "base_url": "https://api.moonshot.ai/v1",
+                    "api_key_env": "KIMI_KEY",
+                    "max_tokens": 16000,
+                    "extra_body": {"reasoning_effort": "high"},
+                }
+            ]
+        ),
+    )
+    agent = create_agent("llm:kimi", name="Kimi")
+    body = agent.provider.build_request(
+        system="S", user="U", schema={"type": "object"}, max_tokens=agent.max_tokens
+    )
+    assert body["reasoning_effort"] == "high" and body["max_tokens"] == 16000
+    assert body["response_format"] == {"type": "json_object"}
