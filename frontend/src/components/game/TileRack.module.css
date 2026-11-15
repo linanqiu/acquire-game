@@ -21,3 +21,12 @@
   font-size: var(--text-sm, 0.85rem);
   color: var(--text-secondary, #9aa3b5);
 }
+
+/* Phones: the rack sticks to the bottom of the screen; one line per note keeps it short. */
+@media (max-width: 768px) {
+  .notes li {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}

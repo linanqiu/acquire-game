@@ -413,6 +413,10 @@ export function PlayerPage() {
     !!pendingStockDisposition ||
     (isMyTurn && phase !== 'merger' && phase !== 'stock_disposition')
 
+  // The buy and disposition panels are cards of their own.
+  const ownCard =
+    (!!pendingStockDisposition && !pendingMergerChoice) || (isMyTurn && phase === 'buy_stocks')
+
   return (
     <RulesetScope ruleset={gameState?.ruleset}>
       <PageShell
@@ -472,7 +476,9 @@ export function PlayerPage() {
             <div className={styles.sidePane}>
               {/* 2. What I must do now. */}
               <div
-                className={`${styles.actionCard} ${myDecision ? styles.actionMine : ''}`}
+                className={`${styles.actionCard} ${myDecision ? styles.actionMine : ''} ${
+                  ownCard ? styles.actionBare : ''
+                }`}
                 data-testid="action-panel"
               >
                 {renderAction()}

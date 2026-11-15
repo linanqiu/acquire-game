@@ -172,9 +172,16 @@
   border-radius: var(--radius-md);
 }
 
-.actionMine {
-  border-color: var(--text-accent);
-  box-shadow: 0 0 0 1px var(--text-accent);
+/* Panels that bring their own card (buy, disposition) fill the action card: one frame, not two. */
+.actionBare {
+  padding: 0;
+}
+
+.actionBare > *,
+.actionBare > .mergerContent > *,
+.actionBare > .buyingContent > * {
+  border: none;
+  background: transparent;
 }
 
 /* Reference cards: players, chains, history. Small type, little chrome. */
@@ -390,4 +397,8 @@
     left: var(--space-4);
     bottom: 96px;
   }
+}
+
+.actionBare .buyingActions {
+  padding: 0 var(--space-3) var(--space-3);
 }
