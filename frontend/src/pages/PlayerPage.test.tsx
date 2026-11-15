@@ -46,7 +46,9 @@ describe('PlayerPage lobby', () => {
     for (const p of lobby().players) {
       expect(screen.getByTestId(`lobby-player-${p.player_id}`)).toHaveTextContent(p.name)
     }
-    expect(screen.getByTestId(`seat-kind-${lobby().players[1].player_id}`)).toHaveTextContent('BOT')
+    expect(screen.getByTestId(`seat-kind-${lobby().players[1].player_id}`)).toHaveAccessibleName(
+      'Rules-based bot'
+    )
     expect(
       screen.queryByTestId(`seat-kind-${lobby().players[0].player_id}`)
     ).not.toBeInTheDocument()

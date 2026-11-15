@@ -4,10 +4,15 @@ import { Card } from '../ui/Card'
 import { Button } from '../ui/Button'
 import styles from './GameOver.module.css'
 import { useRules } from '../../ruleset/useRules'
+import { SeatKindBadge } from './SeatKindBadge'
+import type { SeatKind } from '../../types/api'
 
 export interface FinalScore {
   playerId: string
   name: string
+  /** Seat kind and model label, for the seat badge (omitted: no badge). */
+  kind?: SeatKind
+  agentLabel?: string | null
   /** Cash before the end-of-game payouts (equals `total` when the breakdown is unknown). */
   cash: number
   /** Omit both when the server only reports final cash (bonuses and stock sales are then
@@ -104,7 +109,15 @@ export function GameOver({
                     )}
                     {rank}.
                   </span>
-                  <span className={styles.name}>{score.name}</span>
+                  <span className={styles.name}>
+                    {score.name}
+                    <SeatKindBadge
+                      playerId={score.playerId}
+                      kind={score.kind ?? 'human'}
+                      agentLabel={score.agentLabel}
+                      playerName={score.name}
+                    />
+                  </span>
                   <span className={styles.total}>{rules.money(score.total)}</span>
                 </div>
               )

@@ -134,3 +134,9 @@
 .logOpen {
   border-color: var(--accent-gold);
 }
+
+.who {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}

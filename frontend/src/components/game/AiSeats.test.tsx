@@ -158,16 +158,16 @@ describe('RemoveSeatButton', () => {
 })
 
 describe('SeatKindBadge', () => {
-  it('shows the agent label for llm seats and distinguishes kinds', () => {
+  it('names the model in the badge (not next to the name) and distinguishes kinds', () => {
     render(
       <>
         <SeatKindBadge playerId="a" kind="llm" agentLabel="Claude" />
         <SeatKindBadge playerId="b" kind="bot" />
       </>
     )
-    expect(screen.getByTestId('seat-kind-a')).toHaveTextContent('Claude')
+    expect(screen.getByTestId('seat-kind-a')).toHaveAccessibleName('AI player, Claude')
     expect(screen.getByTestId('seat-kind-a')).toHaveAttribute('data-kind', 'llm')
-    expect(screen.getByTestId('seat-kind-b')).toHaveTextContent('BOT')
+    expect(screen.getByTestId('seat-kind-b')).toHaveAccessibleName('Rules-based bot')
     expect(screen.getByTestId('seat-kind-b')).toHaveAttribute('data-kind', 'bot')
   })
 })

@@ -2,6 +2,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { CHAT_MAX_CHARS, authorBadge, chatReaders, sendChat, type ChatSeat } from '../../lib/chat'
 import type { ChatMessage, SeatKind } from '../../types/api'
+import { SeatKindBadge } from './SeatKindBadge'
 import styles from './ChatPanel.module.css'
 
 export interface ChatPanelProps {
@@ -46,12 +47,14 @@ export function ChatPanel({ room, mode = 'player', inTab = false, active = true 
         id,
         name: p.name,
         kind: (p.kind ?? (p.is_bot ? 'bot' : 'human')) as SeatKind,
+        agentLabel: p.agent_label,
       }))
     }
     return lobbyPlayers.map((p) => ({
       id: p.player_id,
       name: p.name,
       kind: (p.kind ?? (p.is_bot ? 'bot' : 'human')) as SeatKind,
+      agentLabel: p.agent_label,
     }))
   }, [players, lobbyPlayers])
   const readers = chatReaders(seats)
@@ -131,7 +134,14 @@ export function ChatPanel({ room, mode = 'player', inTab = false, active = true 
           {messages.length === 0 ? (
             <p className={styles.empty}>No messages yet.</p>
           ) : (
-            messages.map((m) => <ChatLine key={m.id} m={m} myId={myId} />)
+            messages.map((m) => (
+              <ChatLine
+                key={m.id}
+                m={m}
+                myId={myId}
+                agentLabel={seats.find((s) => s.id === m.player_id)?.agentLabel}
+              />
+            ))
           )}
         </div>
         {newBelow && (
@@ -197,7 +207,15 @@ export function ChatPanel({ room, mode = 'player', inTab = false, active = true 
   )
 }
 
-function ChatLine({ m, myId }: { m: ChatMessage; myId?: string }) {
+function ChatLine({
+  m,
+  myId,
+  agentLabel,
+}: {
+  m: ChatMessage
+  myId?: string
+  agentLabel?: string | null
+}) {
   const badge = authorBadge(m, myId)
   return (
     <div
@@ -210,6 +228,14 @@ function ChatLine({ m, myId }: { m: ChatMessage; myId?: string }) {
       <span className={styles.author}>
         {m.name}
         {badge && <span className={styles.badge}>{badge}</span>}
+        {m.kind !== 'human' && (
+          <SeatKindBadge
+            playerId={m.player_id}
+            kind={m.kind}
+            agentLabel={agentLabel}
+            playerName={m.name}
+          />
+        )}
       </span>
       <span className={styles.text}>{m.text}</span>
     </div>

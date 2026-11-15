@@ -12,13 +12,19 @@ export interface ChatSeat {
   id: string
   name: string
   kind: SeatKind
+  /** Catalog label of an AI seat (the model), for the author's seat badge. */
+  agentLabel?: string | null
 }
 
 /**
  * Post a message as a human seat. Resolves to null on success, or the reason it was
  * refused (shown under the input). Not retried: a retried POST could post twice.
  */
-export async function sendChat(room: string, playerId: string, text: string): Promise<string | null> {
+export async function sendChat(
+  room: string,
+  playerId: string,
+  text: string
+): Promise<string | null> {
   try {
     const res = await fetch(
       `/api/room/${encodeURIComponent(room)}/chat/${encodeURIComponent(playerId)}`,
@@ -48,10 +54,11 @@ export function chatReaders(seats: ChatSeat[]): ChatSeat[] {
   return seats.filter((s) => s.kind === 'llm')
 }
 
-/** Short badge text for a message's author. */
+/**
+ * Short text badge for a message's author: "YOU" for my own lines, else nothing (an AI author
+ * gets the seat badge icon instead, BL-020).
+ */
 export function authorBadge(m: Pick<ChatMessage, 'kind' | 'player_id'>, myId?: string): string {
   if (myId && m.player_id === myId) return 'YOU'
-  if (m.kind === 'llm') return 'AI'
-  if (m.kind === 'human') return ''
-  return m.kind.toUpperCase()
+  return ''
 }

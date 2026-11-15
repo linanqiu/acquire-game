@@ -41,6 +41,51 @@ export function seatKindLabel(seat: SeatLike): string {
   }
 }
 
+/** What the seat badge's popover says, and the badge's accessible name. */
+export interface SeatDescription {
+  kind: SeatKind
+  /** "AI player · Claude Haiku 5.5", "Rules-based bot · does not chat". */
+  headline: string
+  /** Second line, e.g. "Reads the table chat" (LLM seats). */
+  detail: string | null
+  /** Accessible name of the badge: kind and model, readable without opening it. */
+  label: string
+}
+
+/**
+ * Describe an AI seat for its badge (BL-020). Seat names are characters ("Baron Brick"), so the
+ * model lives only here: `agent_label` is the catalog label of an LLM or scripted seat.
+ */
+export function describeSeat(seat: SeatLike): SeatDescription {
+  const kind = resolveSeatKind(seat)
+  const model = seat.agent_label?.trim() || null
+  switch (kind) {
+    case 'llm':
+      return {
+        kind,
+        headline: `AI player · ${model ?? 'language model'}`,
+        detail: 'Reads the table chat',
+        label: `AI player, ${model ?? 'language model'}`,
+      }
+    case 'scripted':
+      return {
+        kind,
+        headline: 'Scripted test seat · does not chat',
+        detail: model,
+        label: `Scripted test seat${model ? `, ${model}` : ''}`,
+      }
+    case 'bot':
+      return {
+        kind,
+        headline: 'Rules-based bot · does not chat',
+        detail: null,
+        label: 'Rules-based bot',
+      }
+    default:
+      return { kind, headline: 'Human player', detail: null, label: 'Human player' }
+  }
+}
+
 const FALLBACK_REASON_TEXT: Record<FallbackReason, string> = {
   timeout: 'timed out',
   error: 'provider error',

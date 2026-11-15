@@ -20,6 +20,8 @@ export function buildFinalScores(
     return {
       playerId: id,
       name: p.name,
+      kind: p.kind ?? (p.is_bot ? 'bot' : 'human'),
+      agentLabel: p.agent_label ?? null,
       cash: known ? p.money - (bonuses ?? 0) - (stockSales ?? 0) : p.money,
       bonuses,
       stockSales,

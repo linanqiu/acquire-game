@@ -1,4 +1,5 @@
 import { ChainMarker } from './ChainMarker'
+import { SeatKindBadge } from './SeatKindBadge'
 import { chainTestId } from '../../lib/ruleset'
 import { useRules } from '../../ruleset/useRules'
 import type { GameStateMessage, MergerDefunctRecord, MergerRecord } from '../../types/api'
@@ -27,6 +28,24 @@ export function MergerResult({ merger, players, onDismiss }: MergerResultProps) 
   const rules = useRules()
   const { theme } = rules
   const nameOf = (id: string | null) => (id ? (players[id]?.name ?? '?') : '?')
+  /** A stockholder's name with their seat badge (AI seats). */
+  const who = (id: string) => {
+    const p = players[id]
+    return (
+      <span className={styles.who}>
+        {p?.name ?? '?'}
+        {p && (
+          <SeatKindBadge
+            playerId={id}
+            kind={p.kind}
+            isBot={p.is_bot}
+            agentLabel={p.agent_label}
+            playerName={p.name}
+          />
+        )}
+      </span>
+    )
+  }
   const survivor = rules.name(merger.survivor)
   const defunctNames = merger.defunct.map((d) => rules.name(d.chain)).join(' and ')
   const before = merger.sizes[merger.survivor]
@@ -81,7 +100,7 @@ export function MergerResult({ merger, players, onDismiss }: MergerResultProps) 
                   {d.bonuses.map((b) => (
                     <tr key={b.player_id} data-testid={`merger-bonus-${id}-${b.player_id}`}>
                       <td className={styles.label}>{bonusLabel(b, d.bonuses!)}</td>
-                      <td>{nameOf(b.player_id)}</td>
+                      <td>{who(b.player_id)}</td>
                       <td className={styles.money}>+{rules.money(b.majority + b.minority)}</td>
                     </tr>
                   ))}
@@ -96,7 +115,7 @@ export function MergerResult({ merger, players, onDismiss }: MergerResultProps) 
                 <tbody>
                   {d.dispositions.map((x) => (
                     <tr key={x.player_id} data-testid={`merger-disposition-${id}-${x.player_id}`}>
-                      <td>{nameOf(x.player_id)}</td>
+                      <td>{who(x.player_id)}</td>
                       <td>
                         {[
                           x.sell > 0 && `sold ${x.sell} (+${rules.money(x.sale_proceeds)})`,
@@ -113,7 +132,7 @@ export function MergerResult({ merger, players, onDismiss }: MergerResultProps) 
                     .filter((p) => !decided.has(p))
                     .map((p, i) => (
                       <tr key={p} data-testid={`merger-waiting-${id}-${p}`}>
-                        <td>{nameOf(p)}</td>
+                        <td>{who(p)}</td>
                         <td className={styles.muted}>{i === 0 ? 'deciding…' : 'to decide'}</td>
                       </tr>
                     ))}
