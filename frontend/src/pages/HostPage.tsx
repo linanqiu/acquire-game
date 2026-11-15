@@ -174,7 +174,6 @@ export function HostPage() {
         throw new Error('Failed to start game')
       }
       addActivityLog('Game started!')
-      toast('Game started!', 'success')
     } catch (err) {
       console.error('Failed to start game:', err)
       toast('Failed to start game', 'error')
@@ -208,20 +207,12 @@ export function HostPage() {
         {serverRuleset.title}
       </p>
       <div className={styles.joinInfo}>
-        <div className={styles.qrSection}>
-          <div className={styles.qrPlaceholder}>
-            <div className={styles.qrBox} role="img" aria-label={`QR code to join room ${room}`}>
-              QR
-            </div>
-            <p className={styles.scanText}>SCAN TO JOIN</p>
-          </div>
-          <div className={styles.roomCodeDisplay}>
-            <span className={styles.roomLabel}>ROOM CODE</span>
-            <span className={styles.roomCodeLarge}>{room}</span>
-          </div>
+        <div className={styles.roomCodeDisplay}>
+          <span className={styles.roomLabel}>ROOM CODE</span>
+          <span className={styles.roomCodeLarge}>{room}</span>
         </div>
         <div className={styles.urlDisplay}>
-          <span className={styles.urlLabel}>Or visit:</span>
+          <span className={styles.urlLabel}>Join at:</span>
           <code className={styles.url}>{joinUrl}</code>
         </div>
       </div>

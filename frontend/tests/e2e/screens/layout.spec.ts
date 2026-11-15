@@ -13,6 +13,7 @@ import {
 
 const VIEWPORTS = [
   { label: 'desktop', width: 1280, height: 800 },
+  { label: 'tablet', width: 768, height: 1024 },
   { label: 'phone', width: 390, height: 844 },
 ]
 

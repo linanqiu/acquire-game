@@ -12,11 +12,14 @@ const WAITING_ON = loadFixture('disposition-waiting-on-other').expect.decisions[
  * Open the host/spectator page for the same room in its own browser context (a second tab in
  * the same window would put the player page in the background and slow it down).
  */
-const test = base.extend<{ openHost: (room: RoomContext) => Promise<Page> }>({
+type Viewport = { width: number; height: number }
+const test = base.extend<{
+  openHost: (room: RoomContext, viewport?: Viewport) => Promise<Page>
+}>({
   openHost: async ({ browser, guard }, provide) => {
     const contexts: BrowserContext[] = []
-    await provide(async (room) => {
-      const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } })
+    await provide(async (room, viewport = { width: 1280, height: 900 }) => {
+      const ctx = await browser.newContext({ viewport })
       contexts.push(ctx)
       const host = await ctx.newPage()
       guard.watch(host, 'host')
@@ -174,3 +177,62 @@ test('host view of a finished game shows the full results table', async ({
   }
   await shots.take(host, 'host-game-over')
 })
+
+/**
+ * The host page on small screens. It was only ever tested at 1280px; on a phone the board and the
+ * scoreboard were laid on top of each other and half the board was off-screen.
+ */
+for (const vp of [
+  { label: 'phone', width: 390, height: 844 },
+  { label: 'small phone', width: 360, height: 640 },
+  { label: 'tablet', width: 768, height: 1024 },
+  { label: 'small laptop', width: 1100, height: 700 },
+]) {
+  test(`host view on a ${vp.label}: board, scoreboard and chain list do not overlap or leave the screen`, async ({
+    page,
+    openHost,
+    shots,
+  }) => {
+    const room = await startFromSnapshot(page, 'six-player-midgame')
+    const host = await openHost(room, { width: vp.width, height: vp.height })
+    await expectHostMatchesFixture(host, room)
+    await expectNoHorizontalScroll(host)
+
+    const problems = await host.evaluate(() => {
+      const width = document.documentElement.clientWidth
+      const ids = ['board', 'scoreboard', 'chain-list', 'game-phase']
+      const boxes = ids.map((id) => {
+        const r = document.querySelector(`[data-testid="${id}"]`)!.getBoundingClientRect()
+        return { id, left: r.left, right: r.right, top: r.top, bottom: r.bottom }
+      })
+      const out: string[] = []
+      for (const b of boxes) {
+        if (b.left < -0.5 || b.right > width + 0.5) {
+          out.push(
+            `${b.id} leaves the screen: ${Math.round(b.left)}..${Math.round(b.right)} of ${width}`
+          )
+        }
+      }
+      for (let i = 0; i < boxes.length; i++) {
+        for (let j = i + 1; j < boxes.length; j++) {
+          const [a, b] = [boxes[i], boxes[j]]
+          const overlapX = Math.min(a.right, b.right) - Math.max(a.left, b.left)
+          const overlapY = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)
+          if (overlapX > 1 && overlapY > 1) out.push(`${a.id} overlaps ${b.id}`)
+        }
+      }
+      // Every board square and every player card is fully on screen sideways.
+      for (const el of document.querySelectorAll(
+        '[data-testid="board"] [data-testid^="tile-"], [data-testid="player-card"]'
+      )) {
+        const r = el.getBoundingClientRect()
+        if (r.left < -0.5 || r.right > width + 0.5) {
+          out.push(`${el.getAttribute('data-testid')} leaves the screen`)
+        }
+      }
+      return out
+    })
+    expect(problems).toEqual([])
+    await shots.take(host, `host-${vp.label.replace(' ', '-')}`)
+  })
+}

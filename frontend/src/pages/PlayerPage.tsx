@@ -316,7 +316,6 @@ export function PlayerPage() {
       if (!res.ok) {
         throw new Error('Failed to start game')
       }
-      toast('Game started!', 'success')
     } catch (err) {
       console.error('Failed to start game:', err)
       toast('Failed to start game', 'error')

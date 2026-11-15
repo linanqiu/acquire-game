@@ -206,13 +206,15 @@ describe('starting the game as host', () => {
     return fn
   }
 
-  it('START GAME posts to the room (no auth header: the server uses none), and says so', async () => {
+  it('START GAME posts to the room (no auth header: the server uses none)', async () => {
     const fn = answer(200)
     useGameStore.getState().handleMessage(lobby())
     useGameStore.setState({ connectionStatus: 'connected' })
     renderPage('?is_host=1')
     fireEvent.click(screen.getByText('START GAME'))
-    await waitFor(() => expect(screen.getByText('Game started!')).toBeInTheDocument())
+    await waitFor(() =>
+      expect(fn.mock.calls.some((c) => String(c[0]).endsWith('/start'))).toBe(true)
+    )
     const call = fn.mock.calls.find((c) => String(c[0]).endsWith('/start'))!
     const [url, init] = call as unknown as [string, RequestInit]
     expect(url).toBe('/api/room/TEST/start')

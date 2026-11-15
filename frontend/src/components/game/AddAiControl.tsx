@@ -44,7 +44,6 @@ export function AddAiControl({ room, disabled = false, size = 'md', onAdded }: A
       })
       if (!res.ok) throw new Error('Failed to add bot')
       const data = await res.json().catch(() => ({}))
-      toast('Bot added successfully', 'success')
       onAdded?.(data?.bot_id, data?.name)
     } catch (err) {
       console.error('Failed to add bot:', err)
@@ -59,7 +58,6 @@ export function AddAiControl({ room, disabled = false, size = 'md', onAdded }: A
     try {
       const data = await addSeat(room, entry.id)
       setOpen(false)
-      toast(`${entry.label} added`, 'success')
       onAdded?.(data?.player_id, data?.name)
     } catch (err) {
       console.error('Failed to add AI opponent:', err)

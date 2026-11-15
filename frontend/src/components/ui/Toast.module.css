@@ -100,3 +100,24 @@
     transform: translateX(0);
   }
 }
+
+/* Phones: toasts at the bottom covered the tile rack and the lobby buttons, several at a time.
+   Show them at the top, full width, and only the two newest. */
+@media (max-width: 640px) {
+  .container {
+    top: var(--space-2);
+    bottom: auto;
+    left: var(--space-2);
+    right: var(--space-2);
+  }
+
+  .toast {
+    min-width: 0;
+    max-width: none;
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .toast:nth-last-child(n + 3) {
+    display: none;
+  }
+}

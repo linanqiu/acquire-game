@@ -86,7 +86,6 @@ export function LobbyPage() {
       sessionStorage.setItem('player_id', data.player_id)
       sessionStorage.setItem('player_name', createName.trim())
 
-      toast('Game created!', 'success')
       navigate(`/play/${data.room_code}?is_host=1`)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
@@ -134,7 +133,6 @@ export function LobbyPage() {
       sessionStorage.setItem('player_id', data.player_id)
       sessionStorage.setItem('player_name', joinName.trim())
 
-      toast('Joined game!', 'success')
       navigate(`/play/${data.room_code}`)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
@@ -174,7 +172,6 @@ export function LobbyPage() {
       sessionStorage.removeItem('player_id')
       sessionStorage.removeItem('player_name')
 
-      toast('Spectator room created!', 'success')
       navigate(`/host/${data.room_code}`)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
