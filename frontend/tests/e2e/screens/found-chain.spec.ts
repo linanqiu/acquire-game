@@ -3,15 +3,7 @@ import { startFromSnapshot } from './support/room'
 import { dollars } from './support/fixtures'
 import { headerCash, phaseBanner, playHumanTurns } from './support/ui'
 
-const ALL_CHAINS = [
-  'Luxor',
-  'Tower',
-  'American',
-  'Worldwide',
-  'Festival',
-  'Imperial',
-  'Continental',
-]
+const ALL_CHAINS = ['sandpiper', 'marlowe', 'halcyon', 'meridian', 'juniper', 'obsidian', 'aurelia']
 
 test('found chain: only the chains not on the board are offered; founder gets a free share', async ({
   page,

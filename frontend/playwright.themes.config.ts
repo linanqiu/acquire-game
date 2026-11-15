@@ -5,7 +5,7 @@ import * as path from 'path'
 /**
  * Themed rulesets end to end (tests/e2e/themes): the same spec runs once against a server
  * started with GAME_RULESET=valley and once against GAME_RULESET=mini. Each ruleset gets its
- * OWN backend + Vite pair on its own ports (never reused from another suite: a classic server
+ * OWN backend + Vite pair on its own ports (never reused from another suite: a default server
  * on the same port would make the test meaningless), so this lives in its own config.
  *
  *   npm run e2e:themes            (PW_CHROMIUM_PATH=... to pick the browser binary)
@@ -18,7 +18,7 @@ const browserLaunch = process.env.PW_CHROMIUM_PATH
   : {}
 
 const BASE = Number(process.env.PW_THEMES_PORT_BASE ?? 8300)
-const ROOT = process.env.ACQUIRE_E2E_DIR ?? path.join(os.tmpdir(), 'acquire-e2e-themes')
+const ROOT = process.env.GAME_E2E_DIR ?? path.join(os.tmpdir(), 'game-e2e-themes')
 
 const THEMES = [
   { ruleset: 'valley', backend: BASE, frontend: BASE + 100 },
@@ -56,9 +56,9 @@ export default defineConfig({
       env: {
         ...process.env,
         GAME_RULESET: t.ruleset,
-        ACQUIRE_GAME_SEED: '2',
-        ACQUIRE_TRANSCRIPT_DIR: path.join(ROOT, t.ruleset, 'transcripts'),
-        ACQUIRE_BENCH_DIR: path.join(ROOT, t.ruleset, 'bench'),
+        GAME_SEED: '2',
+        GAME_TRANSCRIPT_DIR: path.join(ROOT, t.ruleset, 'transcripts'),
+        GAME_BENCH_DIR: path.join(ROOT, t.ruleset, 'bench'),
       },
     },
     {

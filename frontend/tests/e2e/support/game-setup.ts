@@ -15,7 +15,7 @@ export interface GameContext {
 /** Create a new game from the home page and wait for the lobby. */
 export async function createGameViaUI(page: Page, playerName: string): Promise<GameContext> {
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'ACQUIRE' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'BUYOUT' })).toBeVisible()
   await page.getByTestId('create-name-input').fill(playerName)
   await page.getByTestId('create-button').click()
   await page.waitForURL(/\/play\/[A-Z]{4}/)

@@ -7,14 +7,14 @@ import { createGameViaUI, addBotViaUI, startGameViaUI } from '../support/game-se
 import { BENCH_DIR, BENCH_RUN_DIR } from './dirs'
 
 /**
- * Game transcripts + Acquire Bench, end to end on the real servers (no mocks, no API
+ * Game transcripts + Buyout Bench, end to end on the real servers (no mocks, no API
  * shortcuts): a human plays a real game through the UI against a bot and the test-mode
  * "Fake LLM (test)" seat; the live transcript is inspected from a second tab while the
  * game runs (it must be redacted); after game over the full transcript is replayed,
  * its LLM prompts opened, its JSON downloaded; then the leaderboard produced by a real
  * standalone `python -m bench run` is checked, and one of its games opened.
  *
- * Needs: backend with ACQUIRE_TEST_MODE=1 and ACQUIRE_BENCH_DIR=BENCH_DIR (playwright.config.ts
+ * Needs: backend with GAME_TEST_MODE=1 and GAME_BENCH_DIR=BENCH_DIR (playwright.config.ts
  * starts it that way), frontend on :5173.
  */
 
@@ -138,10 +138,10 @@ async function seatTotals(rows: Locator, pattern: RegExp) {
   return out
 }
 
-test.describe('Transcripts and Acquire Bench on the real servers', () => {
+test.describe('Transcripts and Buyout Bench on the real servers', () => {
   test.beforeAll(() => {
     // The standalone benchmark, exactly as a person would run it, into the directory the
-    // backend serves at /bench/* (ACQUIRE_BENCH_DIR, set by playwright.config.ts).
+    // backend serves at /bench/* (GAME_BENCH_DIR, set by playwright.config.ts).
     fs.rmSync(BENCH_DIR, { recursive: true, force: true })
     execFileSync(
       'python3',
@@ -150,7 +150,7 @@ test.describe('Transcripts and Acquire Bench on the real servers', () => {
         'bench',
         'run',
         '--protocol',
-        'acquire-bench-v1',
+        'bench-v1',
         '--models',
         'llm:fake',
         '--track',
@@ -163,7 +163,7 @@ test.describe('Transcripts and Acquire Bench on the real servers', () => {
       ],
       {
         cwd: path.resolve(process.cwd(), '../backend'),
-        env: { ...process.env, ACQUIRE_TEST_MODE: '1' },
+        env: { ...process.env, GAME_TEST_MODE: '1' },
         stdio: 'inherit',
         timeout: 240_000,
       }
@@ -473,10 +473,10 @@ test.describe('Transcripts and Acquire Bench on the real servers', () => {
       const table = page.getByTestId('leaderboard-table')
       await expect(
         table,
-        `leaderboard empty: is the backend serving ACQUIRE_BENCH_DIR=${BENCH_DIR}?`
+        `leaderboard empty: is the backend serving GAME_BENCH_DIR=${BENCH_DIR}?`
       ).toBeVisible()
       await shot(page, 'leaderboard')
-      await expect(page.getByTestId('bench-protocol-id')).toHaveText('acquire-bench-v1')
+      await expect(page.getByTestId('bench-protocol-id')).toHaveText('bench-v1')
       await expect(page.getByTestId('bench-prompt-version')).toContainText(/prompt\s+v1-/)
       await expect(page.getByTestId('bench-track')).toContainText('all')
       await expect(page.getByTestId('bench-warnings')).toHaveCount(0)
@@ -526,7 +526,7 @@ test.describe('Transcripts and Acquire Bench on the real servers', () => {
       await expect(page.getByTestId('transcript-viewer')).toBeVisible()
       await expect(page.getByTestId('summary-header')).toContainText('BENCH')
       await expect(page.getByTestId('summary-header')).toContainText('FINISHED')
-      await expect(page.getByTestId('summary-header')).toContainText('acquire-bench-v1')
+      await expect(page.getByTestId('summary-header')).toContainText('bench-v1')
       await expect(page.getByTestId('redacted-banner')).toHaveCount(0)
       await page.getByTestId('step-next').click()
       await expect(page.getByTestId('step-counter')).toHaveText(/^Step 1 \//)

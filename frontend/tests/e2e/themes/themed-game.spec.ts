@@ -4,8 +4,9 @@
  *
  * Home page -> create a game -> add bots -> START -> play at least 8 human turns (founding a
  * chain and buying shares along the way) -> open the transcript viewer for that game.
- * On every screen: the ruleset's title, chain names and board size are shown, and no classic
- * chain name or "Acquire" is anywhere in the page. Console errors fail the test.
+ * On every screen: the brand ("Buyout", the product name), the ruleset's theme title, chain
+ * names and board size are shown, and no default-theme word (its title, hotel words, or a default
+ * chain name the theme does not share) is anywhere in the page. Console errors fail the test.
  */
 import { test, expect, type Page, type TestInfo } from '@playwright/test'
 import * as fs from 'fs'
@@ -33,19 +34,31 @@ const HERE = path.dirname(fileURLToPath(import.meta.url))
 const RULESETS = path.resolve(HERE, '../../../../backend/rulesets')
 const readRuleset = (name: string): Ruleset =>
   JSON.parse(fs.readFileSync(path.join(RULESETS, `${name}.json`), 'utf8')) as Ruleset
-const CLASSIC = readRuleset('classic')
+const DEFAULT_RS = readRuleset('default')
 
 const MIN_HUMAN_TURNS = 8
 const MAX_HUMAN_TURNS = 40
 
-/** Classic words that must never be on a themed page (case-sensitive, whole words). */
-const FORBIDDEN = [
-  ...CLASSIC.chains.flatMap((c) => [c.name, c.name.toUpperCase()]),
-  'Acquire',
-  'ACQUIRE',
-  'hotel',
-  'HOTEL',
-]
+/** The product name (server setting GAME_BRAND_NAME, default "Buyout"): the same in every theme. */
+const BRAND = 'Buyout'
+
+/**
+ * Default-theme words that must never be on a page of theme `rs` (case-sensitive, whole words).
+ * mini uses five of the default chains, so only the default chains `rs` does not have count.
+ */
+function forbiddenFor(rs: Ruleset): string[] {
+  const own = new Set(rs.chains.map((c) => c.name))
+  return [
+    ...DEFAULT_RS.chains
+      .filter((c) => !own.has(c.name))
+      .flatMap((c) => [c.name, c.name.toUpperCase()]),
+    DEFAULT_RS.title,
+    DEFAULT_RS.title.toUpperCase(),
+    'hotel',
+    'HOTEL',
+  ]
+}
+let FORBIDDEN: string[] = []
 
 function article(phrase: string) {
   return /^[aeiou]/i.test(phrase) ? 'an' : 'a'
@@ -67,10 +80,10 @@ class Shots {
   }
 }
 
-async function expectNoClassicText(page: Page, where: string) {
+async function expectNoDefaultText(page: Page, where: string) {
   const text = await page.evaluate(() => document.body.textContent ?? '')
   const leaks = FORBIDDEN.filter((w) => new RegExp(`\\b${w}\\b`).test(text))
-  expect(leaks, `classic words on ${where}`).toEqual([])
+  expect(leaks, `default words on ${where}`).toEqual([])
 }
 
 async function expectBoard(page: Page, rs: Ruleset) {
@@ -90,7 +103,7 @@ test('themed game from the home page to the transcript', async ({ page }, testIn
   const name = String(testInfo.project.metadata.ruleset)
   const rs = readRuleset(name)
   const t = rs.theme
-  const TITLE = rs.title.toUpperCase()
+  FORBIDDEN = forbiddenFor(rs)
   const PHASE = {
     place: 'PLACE A TILE',
     found: `CHOOSE ${article(t.chain_noun)} ${t.chain_noun}`.toUpperCase(),
@@ -111,14 +124,15 @@ test('themed game from the home page to the transcript', async ({ page }, testIn
 
   // -- Home page: the configured product, before any game exists ------------------------
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: TITLE })).toBeVisible()
+  await expect(page.getByRole('heading', { name: BRAND.toUpperCase() })).toBeVisible()
+  await expect(page.getByTestId('home-theme')).toHaveText(rs.title)
   await expect(page.getByTestId('home-tagline')).toHaveText(t.tagline)
-  await expect(page).toHaveTitle(rs.title)
+  await expect(page).toHaveTitle(BRAND)
   await expect(page.getByTestId('home-meta')).toContainText(
     `${rs.board.columns}×${rs.board.rows} board`
   )
-  await expect(page.getByTestId('bench-link')).toHaveText(`${rs.title} Bench`)
-  await expectNoClassicText(page, 'home')
+  await expect(page.getByTestId('bench-link')).toHaveText(`${BRAND} Bench`)
+  await expectNoDefaultText(page, 'home')
   await shots.take(page, 'home')
 
   // -- Create a game and fill it with bots -----------------------------------------------
@@ -127,7 +141,7 @@ test('themed game from the home page to the transcript', async ({ page }, testIn
   await page.waitForURL(/\/play\/[A-Z]{4}\?is_host=1$/)
   const room = /\/play\/([A-Z]{4})/.exec(page.url())![1]
   log(`room ${room}`)
-  await expect(page.getByTestId('header-title')).toHaveText(TITLE)
+  await expect(page.getByTestId('header-title')).toHaveText(BRAND.toUpperCase())
   await expect(page.getByText(`1/${rs.max_players} players`)).toBeVisible()
   await shots.take(page, 'lobby')
   const seats = Math.max(rs.min_players, 3)
@@ -136,7 +150,7 @@ test('themed game from the home page to the transcript', async ({ page }, testIn
     await expect(page.getByText(`${n}/${rs.max_players} players`)).toBeVisible()
   }
   await expect(page.getByTestId('start-hint')).toHaveText('Ready to start!')
-  await expectNoClassicText(page, 'lobby')
+  await expectNoDefaultText(page, 'lobby')
   await shots.take(page, 'lobby-full')
   await page.getByRole('button', { name: 'START GAME' }).click()
   await expect(page.getByTestId('game-phase')).toBeVisible()
@@ -198,7 +212,7 @@ test('themed game from the home page to the transcript', async ({ page }, testIn
       )
     }
     await expectBoard(page, rs)
-    await expectNoClassicText(page, phase)
+    await expectNoDefaultText(page, phase)
 
     if (phase === PHASE.place) {
       turns += 1
@@ -305,7 +319,7 @@ test('themed game from the home page to the transcript', async ({ page }, testIn
   await page.getByTestId('games-link').click()
   const row = page.locator('[data-testid^="game-row-"]', { hasText: 'Alice' }).first()
   await expect(row).toBeVisible()
-  await expectNoClassicText(page, 'games list')
+  await expectNoDefaultText(page, 'games list')
   await shots.take(page, 'games-list')
   await row.locator('a').first().click()
   const viewer = page.getByTestId('transcript-viewer')
@@ -320,12 +334,12 @@ test('themed game from the home page to the transcript', async ({ page }, testIn
     [...chainNames].some((n) => tableText.includes(n)),
     'chain names in replay'
   ).toBe(true)
-  await expectNoClassicText(page, 'transcript viewer')
+  await expectNoDefaultText(page, 'transcript viewer')
   await shots.take(page, 'transcript-last-step')
   // Step back through a few decisions: every event sentence uses the theme's names.
   for (let i = 0; i < 6; i++) {
     await page.getByTestId('step-prev').click()
-    await expectNoClassicText(page, `transcript step -${i + 1}`)
+    await expectNoDefaultText(page, `transcript step -${i + 1}`)
   }
   await shots.take(page, 'transcript-earlier-step')
 

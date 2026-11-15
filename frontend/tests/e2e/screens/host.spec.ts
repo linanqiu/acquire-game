@@ -123,7 +123,7 @@ test('host view lists a pending trade between two players', async ({ page, openH
   await expect(line).toBeVisible()
   await expect(line).toContainText(from)
   await expect(line).toContainText(to)
-  await expect(line).toContainText('2 Luxor')
+  await expect(line).toContainText('2 Sandpiper')
   await expect(line).toContainText(dollars(trade.requesting_money))
   await shots.take(host, 'host-pending-trade')
 

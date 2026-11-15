@@ -40,7 +40,7 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], ...browserLaunch },
     },
     {
-      // Transcript viewer + Acquire Bench against the real backend (see tests/e2e/transcripts).
+      // Transcript viewer + Buyout Bench against the real backend (see tests/e2e/transcripts).
       name: 'transcripts',
       testDir: './tests/e2e/transcripts',
       timeout: 600000,
@@ -58,12 +58,12 @@ export default defineConfig({
       stderr: 'pipe',
       env: {
         ...process.env,
-        ACQUIRE_GAME_SEED: '2',
-        ACQUIRE_TEST_MODE: '1',
+        GAME_SEED: '2',
+        GAME_TEST_MODE: '1',
         // Where the transcripts spec's standalone benchmark run is served from (/bench/*),
         // and where live games write their transcripts (keeps the source tree clean).
-        ACQUIRE_BENCH_DIR: BENCH_DIR,
-        ACQUIRE_TRANSCRIPT_DIR: TRANSCRIPT_DIR,
+        GAME_BENCH_DIR: BENCH_DIR,
+        GAME_TRANSCRIPT_DIR: TRANSCRIPT_DIR,
       },
     },
     {

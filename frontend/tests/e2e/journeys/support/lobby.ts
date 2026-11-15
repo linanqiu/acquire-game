@@ -8,7 +8,7 @@ import type { Journey } from './journey'
 export async function openHome(page: Page, j: Journey, who = 'p1'): Promise<void> {
   j.log(`(${who}) open home page /`)
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'ACQUIRE' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'BUYOUT' })).toBeVisible()
   await expect(page.getByTestId('create-button')).toBeVisible()
   await expect(page.getByTestId('join-button')).toBeVisible()
   await expect(page.getByTestId('watch-bots-button')).toBeVisible()
@@ -72,7 +72,7 @@ export async function expectInLobby(page: Page, names: string[]): Promise<void> 
   }
 }
 
-/** Host clicks "+ ADD BOT" (classic heuristic bot). Returns the new seat count. */
+/** Host clicks "+ ADD BOT" (rule-based heuristic bot). Returns the new seat count. */
 export async function addBot(page: Page, j: Journey): Promise<number> {
   const before = await lobbyCount(page)
   j.log(`add bot (seats ${before} -> ${before + 1})`)

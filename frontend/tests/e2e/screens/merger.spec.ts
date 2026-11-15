@@ -4,15 +4,7 @@ import { startFromSnapshot, type RoomContext } from './support/room'
 import { dollars } from './support/fixtures'
 import { headerCash, phaseBanner, playHumanTurns } from './support/ui'
 
-const ALL_CHAINS = [
-  'Luxor',
-  'Tower',
-  'American',
-  'Worldwide',
-  'Festival',
-  'Imperial',
-  'Continental',
-]
+const ALL_CHAINS = ['sandpiper', 'marlowe', 'halcyon', 'meridian', 'juniper', 'obsidian', 'aurelia']
 
 interface DispositionLegal {
   defunct_chain: string
