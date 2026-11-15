@@ -306,15 +306,15 @@ export function LobbyPage() {
             aria-busy={spectatorLoading || undefined}
             data-testid="watch-bots-button"
           >
-            <span className={styles.entryTitle}>WATCH BOTS PLAY</span>
+            <span className={styles.entryTitle}>WATCH BOTS PLAY</span>{' '}
             <span className={styles.entryHint}>Create a game with only AI players and watch</span>
           </button>
           <Link to="/games" className={styles.entry} data-testid="games-link">
-            <span className={styles.entryTitle}>Games &amp; transcripts</span>
+            <span className={styles.entryTitle}>Games &amp; transcripts</span>{' '}
             <span className={styles.entryHint}>Replay finished games move by move</span>
           </Link>
           <Link to="/bench" className={styles.entry} data-testid="bench-link">
-            <span className={styles.entryTitle}>{brand} Bench</span>
+            <span className={styles.entryTitle}>{brand} Bench</span>{' '}
             <span className={styles.entryHint}>How AI players rank against each other</span>
           </Link>
         </nav>
