@@ -185,10 +185,23 @@ describe('trades', () => {
     expect(store().lastTradeEvent.trade.trade_id).toBe(id)
   })
 
-  it('answers about an offer this browser never saw still announce the outcome', () => {
-    store().handleMessage(t.accepted)
-    expect(store().lastTradeEvent).toMatchObject({ kind: 'accepted', trade: undefined })
-  })
+  it.each(['accepted', 'rejected', 'canceled'])(
+    'an answer (%s) about an offer this browser never saw still names both players',
+    (kind) => {
+      // An AI seat can answer before this page has the offer: the message itself
+      // says who proposed and who received it, so the toast can still be raised.
+      const msg = t[kind]
+      store().handleMessage(msg)
+      expect(store().lastTradeEvent).toMatchObject({
+        kind,
+        trade: undefined,
+        fromPlayerId: msg.from_player,
+        toPlayerId: msg.to_player,
+      })
+      expect(msg.from_player).toBeTruthy()
+      expect(msg.to_player).toBeTruthy()
+    }
+  )
 })
 
 describe('trade lists follow what the server says', () => {

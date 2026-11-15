@@ -68,7 +68,13 @@ def test_trade_lists_notifications_and_stale_accept(app_client):
         err = recv_until(wb, lambda m: m["type"] in ("error", "trade_accepted"), log)
         assert err["type"] == "error" and "no longer valid" in err["message"]
         rej = recv_until(wa, lambda m: m["type"] == "trade_rejected")
-        assert rej == {"type": "trade_rejected", "trade_id": "t-ben", "rejected_by": b}
+        assert rej == {
+            "type": "trade_rejected",
+            "trade_id": "t-ben",
+            "rejected_by": b,
+            "from_player": a,
+            "to_player": b,
+        }
         recv_until(host, lambda m: m["type"] == "trade_rejected")
         # Ben got the rejection notice and a fresh state before his error.
         assert [m["type"] for m in log][-3:] == [
