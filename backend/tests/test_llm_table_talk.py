@@ -165,7 +165,7 @@ def test_talk_prompt_for_events_and_lost_majority(game):
 def test_talk_prompt_in_the_lobby():
     view = {
         "player_id": "llm_1",
-        "name": "Fake LLM (test)",
+        "name": "Baron Brick",
         "trigger": {
             "source": "human",
             "message": msg(1, "Alice", "hi all"),
@@ -174,13 +174,51 @@ def test_talk_prompt_in_the_lobby():
         "chat": [msg(1, "Alice", "hi all")],
         "lobby_players": [
             {"player_id": "a", "name": "Alice", "kind": "human"},
-            {"player_id": "llm_1", "name": "Fake LLM (test)", "kind": "llm"},
+            {"player_id": "llm_1", "name": "Baron Brick", "kind": "llm"},
         ],
         "kinds": {"a": "human", "llm_1": "llm"},
     }
     p = build_talk_prompt(view)
     assert "lobby" in p and "- Alice (human)" in p
     assert "Alice just wrote (to the table)" in p
+    # The seat knows its own (character) name and the short form others may use.
+    assert 'You are Baron Brick (player id llm_1). Players may call you "Baron".' in p
+
+
+def test_talk_prompt_addressed_by_first_word():
+    """A message naming the seat by the first word of its name is "to you",
+    the same rule the server uses to pick who is addressed (chat.named_seats)."""
+    players = [
+        {"player_id": "a", "name": "Alice", "kind": "human"},
+        {"player_id": "llm_1", "name": "Baron Brick", "kind": "llm"},
+        {"player_id": "llm_2", "name": "Lady Ledger", "kind": "llm"},
+    ]
+
+    def prompt(name, text):
+        me = next(p for p in players if p["name"] == name)
+        return build_talk_prompt(
+            {
+                "player_id": me["player_id"],
+                "name": name,
+                "trigger": {"source": "human", "message": msg(1, "Alice", text)},
+                "lobby_players": players,
+            }
+        )
+
+    assert "(to you)" in prompt("Baron Brick", "Baron, deal?")
+    assert "(to you)" in prompt("Baron Brick", "@baron brick sell me some")
+    assert "(to the table)" in prompt("Lady Ledger", "Baron, deal?")
+    # A first word shared by two seats is not distinctive: nobody is "you".
+    twins = players + [{"player_id": "h2", "name": "Baron Bob", "kind": "human"}]
+    p = build_talk_prompt(
+        {
+            "player_id": "llm_1",
+            "name": "Baron Brick",
+            "trigger": {"source": "human", "message": msg(1, "Alice", "Baron?")},
+            "lobby_players": twins,
+        }
+    )
+    assert "(to the table)" in p and "Players may call you" not in p
 
 
 def test_agent_reply_records_the_call_and_never_touches_decisions(game):

@@ -386,8 +386,10 @@ instant. Heuristic and scripted agents ignore all of this (plain
 
 Implementations: `agents/heuristic.py` (`HeuristicAgent`, kind `bot`: the
 `game/bot.py` scoring on a board/hotel/player rebuilt from `ctx.state`,
-answers always drawn from `ctx.legal`; RNG seeded by seat name so a seeded
-game is reproducible; declares the end when legal and `ctx.calc` ranks it
+answers always drawn from `ctx.legal`; RNG seeded by `seed` (a seat added
+through the server gets "Bot N" for the room's N-th bot, so its play does not
+depend on its random character name), else by seat name, so a seeded game is
+reproducible; declares the end when legal and `ctx.calc` ranks it
 first; accepts a trade only when `can_accept` and what it receives is worth
 strictly more at current prices; it is also the fallback for every other
 seat), `agents/scripted.py` (`ScriptedAgent`, deterministic test
@@ -511,7 +513,7 @@ driver, the one action path), `lifecycle.py` (start / host-forced end),
 | Route | Body | Notes |
 |-------|------|-------|
 | `GET /agents/catalog` | – | `[{"id","kind","label","description","available"}]` – AI opponents the lobby can offer. Always includes `{"id":"bot","kind":"bot",...}`; LLM entries from `agents.llm.config.catalog_entries()` (`available` only when their provider key is configured); `scripted` only in test mode. |
-| `POST /room/{code}/add-seat` | `{"agent_id": "<catalog id>", "name"?: str}` | Adds an AI seat. Returns `{"player_id", "name", "kind"}`. 404 unknown id, 400 unavailable / full / started / name taken, 422 missing id. Names: `Bot 1`, `Bot 2`...; LLM seats use the catalog label, `Label 2` when taken; `Scripted 1`... |
+| `POST /room/{code}/add-seat` | `{"agent_id": "<catalog id>", "name"?: str}` | Adds an AI seat. Returns `{"player_id", "name", "kind"}`. 404 unknown id, 400 unavailable / full / started / name taken, 422 missing id. Default names: see "Seat names" below; `Scripted 1`, `Scripted 2`... for scripted test seats. An explicit `name` wins (trimmed; 400 when taken). |
 | `POST /room/{code}/add-bot` | – | Alias for `agent_id="bot"`; returns `{"bot_id", "player_id", "name", "kind"}`. |
 | `POST /room/{code}/remove-seat/{player_id}` | – | Lobby only, AI seats only (400 human / started, 404 unknown). Returns `{"status": "removed", "player_id"}`. |
 | `GET /room/{code}/debug` | – | Driver diagnostics (above). |
@@ -521,6 +523,35 @@ Lobby updates (and `GET /room/{code}/state`) list each player as
 `{player_id, name, is_bot, kind, agent_label}`. The default bot has
 `agent_label: null` (its badge stays "BOT"); other AI seats carry the catalog
 label.
+
+### Seat names (BL-020)
+
+The wire fields are unchanged (`name`, `kind`, `agent_label`); only the default
+`name` of an AI seat changed. A bot or LLM seat added without `name` gets a
+playful character name from `backend/session/seat_names.py` (`SEAT_NAMES`, 48
+names such as "Penny Stocks", "Baron Brick", "Lady Ledger", "Max Margin"):
+
+- **Never the model.** The model is only in `agent_label`; clients show it in
+  the seat badge's popover (and as primary text where models are compared:
+  the lobby's Add AI menu, the transcript summary, the bench leaderboard).
+- **Unique in the room**, case-insensitively, against every seat including
+  humans. Every name in the list has its own first word, and a name whose full
+  name or first word equals a taken name or a taken name's first word is
+  skipped, so addressing a seat by its first word in the chat ("Baron, deal?")
+  stays unambiguous.
+- **Random per room; deterministic under a seed.** The room's name generator
+  is created when its first unnamed AI seat is added, seeded from the room's
+  `seed` (`/configure`) if already set, else `GAME_SEED`, else unseeded. Under
+  `GAME_SEED` (tests, `dev-ready.sh`) the same sequence of seats gets the same
+  names in every room.
+- **Exhaustion:** when no list name is free, `Tycoon 1`, `Tycoon 2`...
+- Scripted test seats keep `Scripted N`; an explicit `name` always wins.
+
+LLM seats learn their name from the prompts ("You are Baron Brick (player id
+...)"); the talk prompt adds the short form others may use ('Players may call
+you "Baron".') and marks a message "to you" when it names the seat by full
+name, `@name` or that distinctive first word (`seat_names.short_names`, the
+same rule as `chat.named_seats`).
 
 ### Test-mode only (`GAME_TEST_MODE=1`)
 

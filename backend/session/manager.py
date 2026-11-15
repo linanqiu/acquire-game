@@ -59,6 +59,9 @@ class GameRoom:
     transcript: Any = None
     # chat.ChatState: table chat (messages, rate limits, reply calls); lazy.
     chat: Any = None
+    # random.Random for default AI seat names (session.seat_names); created
+    # when the first unnamed AI seat is added (seeded from ``seed``/GAME_SEED).
+    name_rng: Any = None
 
 
 class SessionManager:
@@ -130,15 +133,35 @@ class SessionManager:
         room = self.get_room(room_code)
         if room is None or room.started or len(room.players) >= room.max_players:
             return None
-        name = self.next_seat_name(room_code, "Bot", numbered=True)
+        name = self.next_ai_name(room_code)
         return self.add_seat(
             room_code,
             kind="bot",
             name=name,
             agent_id="bot",
             agent_label=None,
-            agent=create("bot", name=name),
+            agent=create("bot", name=name, seed=self.bot_seed(room_code)),
         )
+
+    def bot_seed(self, room_code: str) -> str:
+        """RNG seed of the next rules-based bot: "Bot N" for the room's N-th
+        bot. Its play then does not depend on its (random) character name and
+        is the same as when bots were named "Bot N"."""
+        room = self.get_room(room_code)
+        n = sum(1 for p in room.players.values() if p.kind == "bot") if room else 0
+        return f"Bot {n + 1}"
+
+    def next_ai_name(self, room_code: str) -> str:
+        """A playful default name for a new bot or LLM seat (never the model's
+        name; see session.seat_names and docs/architecture/seat-contract.md)."""
+        from session.seat_names import name_rng, pick_seat_name
+
+        room = self.get_room(room_code)
+        if room is None:
+            return pick_seat_name([], name_rng(None))
+        if room.name_rng is None:
+            room.name_rng = name_rng(room.seed)
+        return pick_seat_name([p.name for p in room.players.values()], room.name_rng)
 
     def next_seat_name(self, room_code: str, base: str, numbered: bool) -> str:
         """Pick a free seat name: "Bot 1" style when ``numbered``, else ``base``

@@ -30,6 +30,7 @@ from agents.llm.prompt import (
 from agents.llm.providers import schema_first_answer
 from agents.llm.schema import SAY_MAX_CHARS
 from game.ruleset import ruleset_from_state
+from session.seat_names import short_names
 
 TALK_BUDGET = PromptBudget(detailed_events=30, milestone_lines=10)
 
@@ -53,14 +54,27 @@ def _names(view: dict) -> dict[str, str]:
     return names
 
 
+def _my_names(view: dict, names: dict[str, str]) -> list[str]:
+    """What the table may call this seat (lower case): its full name and, when
+    distinctive at the table, its first word ("baron" for "Baron Brick"), the
+    same rule the server uses to pick who is addressed (chat.named_seats)."""
+    me = (view.get("name") or "").strip().lower()
+    out = [me] if me else []
+    short = short_names({**names, view.get("player_id"): view.get("name") or ""})
+    word = short.get(view.get("player_id"))
+    if word:
+        out.append(word)
+    return out
+
+
 def _trigger_text(view: dict, names: dict[str, str]) -> str:
     trigger = view.get("trigger") or {}
-    me = view.get("name") or ""
     msg = trigger.get("message")
     if msg:
-        to_you = re.search(
-            r"(?<![\w])@?" + re.escape(me.lower()) + r"(?![\w])",
-            str(msg.get("text", "")).lower(),
+        text = str(msg.get("text", "")).lower()
+        to_you = any(
+            re.search(r"(?<![\w])@?" + re.escape(n) + r"(?![\w])", text)
+            for n in _my_names(view, names)
         )
         who = "to you" if to_you else "to the table"
         return f"{msg.get('name')} just wrote ({who}):\n{chat_line(msg)}"
@@ -92,6 +106,9 @@ def _build(view: dict, notes: Any) -> str:
     names = _names(view)
     me, my_name = view.get("player_id"), view.get("name")
     parts = [f"# Your seat\nYou are {my_name} (player id {me})."]
+    nick = _my_names(view, names)[1:]
+    if nick:
+        parts[0] += f' Players may call you "{nick[0].capitalize()}".'
     voice = f"# Your table voice\n{table_voice(me)}."
     calc = view.get("calc")
     if calc:

@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app_state import session_manager
+from session.seat_names import SEAT_NAMES
 from tests.protocol.helpers import add_seat, create_room, join_room, start
 
 REPO = Path(__file__).resolve().parents[3]
@@ -117,21 +118,22 @@ class TestAddRemoveSeat:
         with app_client.websocket_connect(f"/ws/player/{code}/{me}") as ws:
             assert ws.receive_json()["type"] == "lobby_update"
             out = add_seat(app_client, code, "llm:x")
-            assert out["kind"] == "llm" and out["name"] == "Model X"
+            assert out["kind"] == "llm" and out["name"] in SEAT_NAMES
             msg = ws.receive_json()
             assert msg["type"] == "lobby_update"
             seat = next(p for p in msg["players"] if p["player_id"] == out["player_id"])
             assert seat == {
                 "player_id": out["player_id"],
-                "name": "Model X",
+                "name": out["name"],
                 "is_bot": True,
                 "kind": "llm",
                 "agent_label": "Model X",
             }
             human = next(p for p in msg["players"] if p["player_id"] == me)
             assert human["kind"] == "human" and human["is_bot"] is False
-            # duplicate label gets a number
-            assert add_seat(app_client, code, "llm:x")["name"] == "Model X 2"
+            # a second seat of the same model gets another character name
+            second = add_seat(app_client, code, "llm:x")["name"]
+            assert second in SEAT_NAMES and second != out["name"]
             ws.receive_json()
             r = app_client.post(f"/room/{code}/remove-seat/{out['player_id']}")
             assert r.status_code == 200
@@ -139,12 +141,45 @@ class TestAddRemoveSeat:
             assert msg["type"] == "lobby_update"
             assert out["player_id"] not in [p["player_id"] for p in msg["players"]]
 
+    def test_default_names(self, app_client, monkeypatch):
+        """Unnamed bot and LLM seats get distinct character names that never
+        contain the model; the label stays in agent_label; an explicit name
+        wins; scripted test seats keep "Scripted N"."""
+        self._fake_llm(monkeypatch)
+        code, me = create_room(app_client, "Alice")
+        seats = [add_seat(app_client, code, a) for a in ("bot", "llm:x", "llm:x")]
+        names = [s["name"] for s in seats]
+        assert len({n.lower() for n in names + ["Alice"]}) == 4
+        assert all(n in SEAT_NAMES and "Model" not in n for n in names)
+        state = app_client.get(f"/room/{code}/state").json()
+        labels = {p["player_id"]: p.get("agent_label") for p in state["players"]}
+        assert [labels[s["player_id"]] for s in seats] == [None, "Model X", "Model X"]
+        named = add_seat(app_client, code, "llm:x", name="  Hal  ")
+        assert named["name"] == "Hal"
+        assert add_seat(app_client, code, "scripted")["name"] == "Scripted 1"
+
+    def test_default_names_follow_game_seed(self, app_client, monkeypatch):
+        monkeypatch.setenv("GAME_SEED", "2")
+
+        def room_names():
+            code, _ = create_room(app_client, "Alice")
+            return [add_seat(app_client, code, "bot")["name"] for _ in range(3)]
+
+        assert room_names() == room_names()
+
+    def test_explicit_name_clash_is_refused(self, app_client):
+        code, _ = create_room(app_client, "Alice")
+        r = app_client.post(
+            f"/room/{code}/add-seat", json={"agent_id": "bot", "name": "alice"}
+        )
+        assert r.status_code == 400
+
     def test_add_bot_alias(self, app_client):
         code, _ = create_room(app_client)
         r = app_client.post(f"/room/{code}/add-bot")
         assert r.status_code == 200
         body = r.json()
-        assert body["bot_id"] == body["player_id"] and body["name"] == "Bot 1"
+        assert body["bot_id"] == body["player_id"] and body["name"] in SEAT_NAMES
         state = app_client.get(f"/room/{code}/state").json()
         seat = next(p for p in state["players"] if p["player_id"] == body["bot_id"])
         assert seat["kind"] == "bot" and seat["is_bot"] is True

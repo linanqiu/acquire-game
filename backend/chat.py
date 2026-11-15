@@ -305,13 +305,10 @@ def _mentions(text: str, name: str) -> bool:
 
 def _short_names(seats) -> dict[str, str]:
     """First word of each seat name when it is distinctive (3+ characters and
-    no other seat starts with it): "Claude" for "Claude Sonnet 5.5"."""
-    firsts: dict[str, list[str]] = {}
-    for s in seats:
-        word = (s.name.split() or [""])[0].strip("()@,.:;!?").lower()
-        if len(word) >= 3 and word != s.name.lower():
-            firsts.setdefault(word, []).append(s.player_id)
-    return {pids[0]: w for w, pids in firsts.items() if len(pids) == 1}
+    no other seat starts with it): "baron" for "Baron Brick"."""
+    from session.seat_names import short_names
+
+    return short_names({s.player_id: s.name for s in seats})
 
 
 def named_seats(room, msg: dict) -> list:
