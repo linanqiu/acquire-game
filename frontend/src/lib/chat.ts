@@ -56,7 +56,7 @@ export function chatReaders(seats: ChatSeat[]): ChatSeat[] {
 
 /**
  * Short text badge for a message's author: "YOU" for my own lines, else nothing (an AI author
- * gets the seat badge icon instead, BL-020).
+ * gets the seat badge icon instead, BL-010).
  */
 export function authorBadge(m: Pick<ChatMessage, 'kind' | 'player_id'>, myId?: string): string {
   if (myId && m.player_id === myId) return 'YOU'

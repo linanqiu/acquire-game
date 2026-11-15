@@ -9,7 +9,7 @@
  */
 import type { Page } from '@playwright/test'
 import { test, expect } from './support/journey'
-import { addBot, createGame, expectInLobby, joinGame, startGame } from './support/lobby'
+import { addBot, createGame, expectInLobby, joinGame, seatName, startGame } from './support/lobby'
 import { Seat, installObservers, parseMoney, playTogether } from './support/play'
 import { incomingFrom, outgoingTo, proposeTrade, tradePanel } from './support/trade'
 import { openTab } from '../support/tabs'
@@ -40,7 +40,7 @@ test('two humans and a bot: join by code, play, trade accept/reject/cancel', asy
   await j.shot(a, 'alice-lobby-sees-bob')
   await expect(a.getByRole('button', { name: 'START GAME' })).toBeDisabled()
   await addBot(a, j)
-  await expectInLobby(b, ['Alice', 'Bob', 'Bot 1'])
+  await expectInLobby(b, ['Alice', 'Bob', await seatName(a, 'bot')])
   await j.shot(b, 'bob-lobby-sees-bot')
   await startGame(a, j)
   await expect(b.getByTestId('tile-rack')).toBeVisible()

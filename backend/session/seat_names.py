@@ -1,4 +1,4 @@
-"""Default names for AI seats (BL-020; docs/architecture/seat-contract.md).
+"""Default names for AI seats (BL-010; docs/architecture/seat-contract.md).
 
 An AI seat (rules-based bot or LLM) added without an explicit ``name`` gets a
 playful character name from :data:`SEAT_NAMES`, picked at random per room.

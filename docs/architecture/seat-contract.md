@@ -524,7 +524,7 @@ Lobby updates (and `GET /room/{code}/state`) list each player as
 `agent_label: null` (its badge stays "BOT"); other AI seats carry the catalog
 label.
 
-### Seat names (BL-020)
+### Seat names (BL-010)
 
 The wire fields are unchanged (`name`, `kind`, `agent_label`); only the default
 `name` of an AI seat changed. A bot or LLM seat added without `name` gets a

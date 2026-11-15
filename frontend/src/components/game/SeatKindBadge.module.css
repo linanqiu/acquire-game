@@ -1,5 +1,5 @@
 /*
- * Seat kind badge (BL-020): a 20px coloured disc with an icon. The button's hit area is 32x32
+ * Seat kind badge (BL-010): a 22px coloured disc with an icon. The button's hit area is 32x32
  * (thumb-sized) but negative margins keep it from making the row taller or pushing the name.
  */
 .badge {
@@ -15,7 +15,7 @@
 button.badge {
   width: 32px;
   height: 32px;
-  margin: -6px -6px;
+  margin: -9px -5px; /* takes 14px of line height: never taller than the name */
   padding: 0;
   border: 0;
   background: transparent;
@@ -29,10 +29,10 @@ button.badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border-radius: var(--radius-full, 999px);
-  border: 1px solid var(--seat-color);
+  border: 1.5px solid var(--seat-color);
   background-color: rgba(136, 136, 170, 0.18);
   background-color: color-mix(in srgb, var(--seat-color) 18%, transparent);
   transition: background-color var(--duration-fast, 120ms) ease;
@@ -66,8 +66,8 @@ button.badge:focus-visible .face {
 
 .icon {
   display: block;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
 }
 
 .eye {

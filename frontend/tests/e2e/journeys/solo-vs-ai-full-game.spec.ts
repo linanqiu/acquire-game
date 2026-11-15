@@ -7,13 +7,22 @@
  * home -> a fresh game can be created.
  */
 import { test, expect } from './support/journey'
-import { addAi, addBot, createGame, seatBadges, startGame } from './support/lobby'
+import {
+  addAi,
+  addBot,
+  createGame,
+  expectSeatBadge,
+  seatBadges,
+  seatName,
+  startGame,
+} from './support/lobby'
 import { Seat, installObservers, observed } from './support/play'
 import { outgoingTo, proposeTrade } from './support/trade'
 import { openTab } from '../support/tabs'
 
 const MIN_TURNS = 20
-const LLM = 'Fake LLM (test)'
+/** Catalog label of the test-mode LLM: shown in its seat badge, never as its name. */
+const MODEL = 'Fake LLM (test)'
 
 test('@ci solo vs AI: full game from the home page to game over and play again', async ({
   page,
@@ -28,8 +37,21 @@ test('@ci solo vs AI: full game from the home page to game over and play again',
   await addAi(page, j, 'llm:fake')
   await expect(seatBadges(page, 'bot')).toHaveCount(1)
   await expect(seatBadges(page, 'llm')).toHaveCount(1)
-  await expect(seatBadges(page, 'bot')).toHaveText('BOT')
-  await expect(seatBadges(page, 'llm')).toContainText('Fake LLM')
+  // AI seats have character names; the model is in the badge (accessible name, popover).
+  await expectSeatBadge(page, 'bot', 'Rules-based bot')
+  await expectSeatBadge(page, 'llm', `AI player, ${MODEL}`)
+  const LLM = await seatName(page, 'llm')
+  const BOT = await seatName(page, 'bot')
+  j.log(`seat names: bot "${BOT}", LLM "${LLM}"`)
+  expect(LLM).not.toContain('LLM')
+  await expect(page.locator('[data-testid^="lobby-player-"]', { hasText: MODEL })).toHaveCount(0)
+  await seatBadges(page, 'llm').click()
+  await expect(page.getByRole('dialog', { name: `About ${LLM}` })).toContainText(
+    `AI player · ${MODEL}`
+  )
+  await j.shot(page, 'lobby-llm-badge-open')
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
   const aiIds = await page
     .locator('[data-testid^="lobby-player-"] [data-testid^="seat-kind-"]')
     .evaluateAll((els) =>
@@ -59,7 +81,7 @@ test('@ci solo vs AI: full game from the home page to game over and play again',
   await expect(reply).toHaveCount(1, { timeout: 15_000 })
   await expect(reply).toHaveAttribute('data-kind', 'llm')
   await expect(reply).toHaveAttribute('data-source', 'reply')
-  await expect(reply).toContainText('AI')
+  await expect(reply.getByRole('button', { name: /^AI player, / })).toBeVisible()
   j.log(`chat: ${LLM} replied "${await reply.textContent()}"`)
   await j.shot(page, 'lobby-chat-llm-replied')
 

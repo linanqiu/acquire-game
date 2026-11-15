@@ -53,7 +53,7 @@ export interface SeatDescription {
 }
 
 /**
- * Describe an AI seat for its badge (BL-020). Seat names are characters ("Baron Brick"), so the
+ * Describe an AI seat for its badge (BL-010). Seat names are characters ("Baron Brick"), so the
  * model lives only here: `agent_label` is the catalog label of an LLM or scripted seat.
  */
 export function describeSeat(seat: SeatLike): SeatDescription {

@@ -33,6 +33,7 @@ When you discover a potential improvement while using the app:
 | [BL-007](../stories/08-backlog/BL-007.md) | Game screens: net worth, majorities, merger result, less clutter | high | L | completed |
 | [BL-008](../stories/08-backlog/BL-008.md) | Game screens navigate by tabs (sidebar / bottom tab bar) | high | L | completed |
 | [BL-009](../stories/08-backlog/BL-009.md) | Visual pass: board shapes, two typefaces, turn signal, motion, calmer palettes, Chains tab, home page, light theme | medium | L | completed |
+| [BL-010](../stories/08-backlog/BL-010.md) | Playful AI seat names; one icon badge per AI kind with the model in a popover | medium | M | completed |
 
 ## Promotion Process
 

@@ -12,7 +12,7 @@ interface SeatChipProps {
 /**
  * A seat in the transcript pages and the games list. These pages compare models, so an AI seat
  * shows its model as the primary text and its character name ("Baron Brick") second, with the
- * kind as a small icon (BL-020). A human seat shows the name only. The icon is not a button:
+ * kind as a small icon (BL-010). A human seat shows the name only. The icon is not a button:
  * the chip can sit inside a link (games list) and already spells the model out.
  */
 export function SeatChip({ seat, winner = false }: SeatChipProps) {

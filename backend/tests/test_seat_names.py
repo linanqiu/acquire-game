@@ -1,4 +1,4 @@
-"""Default AI seat names (session.seat_names, BL-020)."""
+"""Default AI seat names (session.seat_names, BL-010)."""
 
 from __future__ import annotations
 
