@@ -6,7 +6,11 @@ import * as path from 'path'
  * transcripts spec (which runs the standalone benchmark into BENCH_DIR before the test).
  * Outside the source tree and outside Playwright's own `test-results/` (which it wipes).
  */
-const ROOT = process.env.GAME_E2E_DIR ?? path.join(os.tmpdir(), 'game-e2e')
+// One directory per backend port, so two suites running at once on different ports (two
+// checkouts on one machine) do not read each other's benchmark results.
+const ROOT =
+  process.env.GAME_E2E_DIR ??
+  path.join(os.tmpdir(), `game-e2e-${process.env.PW_BACKEND_PORT ?? '8000'}`)
 
 /** `GAME_BENCH_DIR` of the backend: a parent of results directories (`run1/`). */
 export const BENCH_DIR = path.join(ROOT, 'bench')
