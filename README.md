@@ -19,24 +19,24 @@ colours, wording, numbers) comes from a ruleset file in `backend/rulesets/` (`GA
   the server has the matching API key, otherwise they are shown disabled.
 - **Trading**: any player can propose stock/cash trades out of turn. LLM seats answer and propose
   trades too.
-- **Transcripts** (in progress, [Epic 12](docs/roadmap/epics/12-bench.md)): every game
-  keeps a complete log of every move and, for AI seats, exactly what the model was shown and what it
-  returned, including rejected attempts and retries. The plan is that anyone can browse recent
-  games and step through a replay; hands and private AI notes of a running game stay hidden until it
-  ends. Format: the last section of the [seat contract](docs/architecture/seat-contract.md).
-- **Buyout Bench** (in progress): a versioned benchmark where models of different strength play
-  each other and the rules-based bot. It is meant to be runnable on its own (command and Python
-  API, JSON output, exit codes) and to appear as a leaderboard page that links to the transcripts.
-  A headless harness already exists (see [Buyout Bench](#buyout-bench)); no real-model results have
-  been published yet.
+- **Transcripts**: every game keeps a complete log of every move and, for AI seats, exactly what
+  the model was shown and what it returned, including rejected attempts and retries. Browse
+  recent games at `/games` and step through a replay; hands and private AI notes of a running game
+  stay hidden until it ends. Format: the last section of the
+  [seat contract](docs/architecture/seat-contract.md). Persistence across redeploys needs a volume
+  (open item, see Deploy).
+- **Buyout Bench**: a versioned benchmark where models of different strength play each other and
+  the rules-based bot, runnable on its own (command and Python API, JSON output, exit codes) and
+  shown as a leaderboard at `/bench` that links to the transcripts. See
+  [Buyout Bench](#buyout-bench); no real-model results have been published yet.
 
 How an AI seat behaves: it is asked one decision at a time. An illegal answer is sent back to the
-model with the reason so it can try again (default up to 4 retries, planned: today one repair);
+model with the reason so it can try again (default up to 4 retries);
 only a timeout, provider error or exhausted retries hand that single decision to the rules-based
 player, and the table is told. Details: [Epic 9](docs/roadmap/epics/09-llm-bot.md).
 
 Status and plans live in the [roadmap](docs/roadmap/README.md). Reinforcement-learning training was
-dropped; old notes under `docs/ai/` are historical.
+dropped for good.
 
 ---
 
@@ -108,23 +108,23 @@ confidence intervals, mean rank, score margin against the bot, retries/fallbacks
 and cost. From `backend/`:
 
 ```bash
-python -m bench --matchup bot,bot,bot,bot --games 20                              # heuristic sanity run
-GAME_TEST_MODE=1 python -m bench --matchup llm:fake,bot,bot,bot --games 8     # LLM code path, offline
-python -m bench --matchup llm:claude-haiku-5-5,bot,bot,bot --games 4 --max-decisions 2000   # needs ANTHROPIC_API_KEY
+python -m bench run --matchup bot,bot,bot,bot --games 20 --out bench_results/sanity          # heuristic sanity run
+GAME_TEST_MODE=1 python -m bench run --protocol bench-v1 --models llm:fake --track vs-baseline --games 4 --out bench_results/smoke --json   # LLM code path, offline
+python -m bench run --protocol bench-v1 --models llm:claude-haiku-5-5 --track vs-baseline --out bench_results/haiku   # needs ANTHROPIC_API_KEY
+python -m bench leaderboard --out bench_results/haiku
 ```
 
 Exit codes: 0 all games finished, 1 stopped early or a game stalled, 2 configuration error. Real
 models need prices in `backend/bench/prices.json` (shipped as `null`; nothing is invented) for
-`--max-usd`. Planned and not built yet: a versioned protocol (`bench-v1`), a documented
-Python API and `--json` mode, transcripts, ratings, the leaderboard page. See
-[docs/ai/benchmarking.md](docs/ai/benchmarking.md).
+`--max-usd`. The protocol (`bench-v1`), Python API, `--json` mode, ratings and leaderboard page
+exist; first real-model results do not. See [docs/ai/benchmarking.md](docs/ai/benchmarking.md).
 
 ## Deploy
 
 One Railway service serves the UI, the HTTP API and the WebSockets from one origin; single replica;
 game state is in memory, so a redeploy ends running games. Setup, variables and checks are in
 [deploy/README.md](deploy/README.md). Never set `GAME_TEST_MODE` in production. Transcripts
-(when built) need a persistent volume to survive redeploys; that is an open item
+need a persistent volume to survive redeploys; that is an open item
 ([AB-008](docs/roadmap/stories/12-bench/AB-008.md)).
 
 ---
