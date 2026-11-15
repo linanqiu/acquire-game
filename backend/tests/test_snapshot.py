@@ -159,13 +159,9 @@ def step(game: Game, ctx: dict):
         if game.can_declare_end_game():
             r = game.declare_end_game(cur.player_id)
             return {"action": "declare_end_game", **r.to_dict()}
-        tile = bot.choose_tile_to_play(game.board, game.hotel)
-        # Engine oddity: Bot._get_playable_tiles ignores "would found an 8th
-        # chain", so a bot can insist on an unplayable tile forever. Fall back
-        # to the engine's own playability rules so games always progress.
+        # Drawn from the bot's RNG so a restored snapshot must carry its state.
         playable = Rules.get_playable_tiles(game.board, cur.hand, game.hotel)
-        if tile not in playable:
-            tile = playable[0] if playable else None
+        tile = bot.rng.choice(playable) if playable else None
         if tile is None:
             game.phase = GamePhase.BUYING_STOCKS
             return {"action": "skip_tile"}
