@@ -111,6 +111,12 @@ export interface GameStateMessage {
       agent_label?: string | null
       /** Rules-based-bot takeovers for this seat. */
       fallbacks?: SeatFallbacks
+      /** Shares at current prices (engine calculator; defunct chains count 0). */
+      stock_value?: number
+      /** money + stock_value. */
+      net_worth?: number
+      /** Competition rank by net worth (ties share a rank: 1, 1, 3). */
+      rank?: number
     }
   >
   tiles_remaining: number
@@ -128,6 +134,68 @@ export interface GameStateMessage {
   pending_trades?: TradeOffer[]
   /** The game's ruleset (until it arrives, the server's configured one applies). */
   ruleset?: Ruleset
+  /** Majority/minority holders of every active chain (engine calculator). */
+  chain_holders?: Record<ChainId, ChainHolders>
+  /** Every merger of the game so far, oldest first (from the engine's events). */
+  mergers?: MergerRecord[]
+}
+
+/** One holder of a chain; `role`/amounts are what the engine pays if it were bought out now. */
+export interface ChainHolder {
+  player_id: string
+  shares: number
+  role: 'majority' | 'minority' | null
+  /** Another holder shares this role (the bonus is split). */
+  tied: boolean
+  majority: number
+  minority: number
+  /** majority + minority */
+  bonus: number
+}
+
+export interface ChainHolders {
+  size: number
+  price: number
+  majority_bonus: number
+  minority_bonus: number
+  /** Most shares first; seat order breaks ties. */
+  holders: ChainHolder[]
+}
+
+export interface MergerDispositionRecord {
+  player_id: string
+  sell: number
+  trade: number
+  hold: number
+  sale_proceeds: number
+  survivor_shares_received: number
+}
+
+export interface MergerDefunctRecord {
+  chain: ChainId
+  /** Size and share price when it was bought. */
+  size: number
+  price: number
+  /** Bonuses as paid (largest first); null while it waits its turn in a multi-chain merger. */
+  bonuses: Array<{ player_id: string; majority: number; minority: number }> | null
+  dispositions: MergerDispositionRecord[]
+  /** Stockholders still to decide on this chain, in order. */
+  waiting_on: string[]
+}
+
+export interface MergerRecord {
+  /** Event seq of `merger_started`: a stable id. */
+  seq: number
+  /** Who placed the merging tile. */
+  player_id: string | null
+  tile: string | null
+  survivor: ChainId
+  /** Chain sizes before the merger. */
+  sizes: Record<ChainId, number>
+  defunct: MergerDefunctRecord[]
+  /** Survivor size after the merger; null while in progress. */
+  survivor_size: number | null
+  complete: boolean
 }
 
 export interface LobbyUpdateMessage {

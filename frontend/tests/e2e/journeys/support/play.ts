@@ -277,6 +277,15 @@ export class Seat {
       ((await form.getByText(/^You have:/).textContent()) ?? '').match(/\d+/)?.[0] ?? '0'
     )
     const defunct = title.replace('DISPOSE OF YOUR ', '').replace(' SHARES', '')
+    // The merger result is on screen while the seat decides: which chain took over this one and
+    // the bonuses the engine paid (BL-007).
+    const result = this.page.getByTestId('merger-result')
+    const defunctId = defunct.toLowerCase()
+    await expect(result).toBeVisible()
+    await expect(result.getByTestId(`merger-defunct-${defunctId}`)).toBeVisible()
+    await expect(result.getByTestId(`merger-defunct-${defunctId}`)).toContainText(
+      /Bonuses paid|no bonuses/
+    )
     await this.shot(`disposition-${defunct}`)
     const sell = Math.floor(owned / 2)
     const sellSlider = form.getByTestId('slider-sell-to-bank')
@@ -312,6 +321,14 @@ export class Seat {
         }
       )
       .not.toBe('same')
+    // ...and then shows what this seat did with its shares.
+    const me = await this.myId()
+    const row = result.getByTestId(`merger-disposition-${defunctId}-${me}`)
+    await expect(row).toBeVisible()
+    if (sell > 0) await expect(row).toContainText(`sold ${sell}`)
+    if (trade > 0) await expect(row).toContainText(`traded ${trade}`)
+    if (hold > 0) await expect(row).toContainText(`kept ${hold}`)
+    this.log(`merger result shows: ${(await row.textContent()) ?? ''}`)
     this.stats.dispositions.push({ defunct, sell, trade, hold })
     await this.shot(`disposition-${defunct}-done`)
   }

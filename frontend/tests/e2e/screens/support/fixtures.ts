@@ -61,6 +61,43 @@ export interface Expect {
   pending_trades: TradeDict[]
   tiles_on_board: number
   tiles_remaining: number
+  /** The table view game_state carries (engine calculator), by snapshot seat id. */
+  net_worth: Record<string, { cash: number; stock_value: number; net_worth: number; rank: number }>
+  chain_holders: Record<
+    string,
+    {
+      size: number
+      price: number
+      majority_bonus: number
+      minority_bonus: number
+      holders: Array<{
+        player_id: string
+        shares: number
+        role: 'majority' | 'minority' | null
+        tied: boolean
+        majority: number
+        minority: number
+        bonus: number
+      }>
+    }
+  >
+  mergers: Array<{
+    seq: number
+    player_id: string | null
+    tile: string | null
+    survivor: string
+    sizes: Record<string, number>
+    defunct: Array<{
+      chain: string
+      size: number
+      price: number
+      bonuses: Array<{ player_id: string; majority: number; minority: number }> | null
+      dispositions: Array<{ player_id: string; sell: number; trade: number; hold: number }>
+      waiting_on: string[]
+    }>
+    survivor_size: number | null
+    complete: boolean
+  }>
 }
 
 export interface Fixture {

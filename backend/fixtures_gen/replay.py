@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from game.calculator import merger_history, public_chain_holders, public_net_worth
 from game.decisions import apply_action, legal_actions, pending_decisions
 from game.game import Game, GamePhase
 from game.rules import Rules
@@ -114,6 +115,10 @@ def build_expect(game: Game, human_seat: str) -> dict:
         "tiles_remaining": public["tiles_remaining"],
         "turns_completed": turn_count(game),
         "pending_trades": public["pending_trades"],
+        # What game_state carries for the table (same calculator functions).
+        "net_worth": public_net_worth(game),
+        "chain_holders": public_chain_holders(game),
+        "mergers": merger_history(game),
     }
     if game.phase == GamePhase.GAME_OVER:
         ended = [e for e in game.events if e["type"] == "game_ended"][-1]

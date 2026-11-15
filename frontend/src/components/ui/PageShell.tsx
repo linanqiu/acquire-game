@@ -9,6 +9,8 @@ interface PageShellProps {
   header?: ReactNode
   roomCode?: string
   cash?: number
+  netWorth?: number
+  rank?: number
   playerName?: string
   tilePool?: number | 'EMPTY'
 }
@@ -20,6 +22,8 @@ export function PageShell({
   header,
   roomCode,
   cash,
+  netWorth,
+  rank,
   playerName,
   tilePool,
 }: PageShellProps) {
@@ -28,7 +32,14 @@ export function PageShell({
       {header !== undefined ? (
         header
       ) : (
-        <Header roomCode={roomCode} cash={cash} playerName={playerName} tilePool={tilePool} />
+        <Header
+          roomCode={roomCode}
+          cash={cash}
+          netWorth={netWorth}
+          rank={rank}
+          playerName={playerName}
+          tilePool={tilePool}
+        />
       )}
       {phase && (
         <div

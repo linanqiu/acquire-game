@@ -24,6 +24,51 @@
         "size": 2
       }
     },
+    "chain_holders": {
+      "aurelia": {
+        "holders": [
+          {
+            "bonus": 4000,
+            "majority": 4000,
+            "minority": 0,
+            "player_id": "p3",
+            "role": "majority",
+            "shares": 4,
+            "tied": false
+          },
+          {
+            "bonus": 2000,
+            "majority": 0,
+            "minority": 2000,
+            "player_id": "p4",
+            "role": "minority",
+            "shares": 2,
+            "tied": false
+          }
+        ],
+        "majority_bonus": 4000,
+        "minority_bonus": 2000,
+        "price": 400,
+        "size": 2
+      },
+      "sandpiper": {
+        "holders": [
+          {
+            "bonus": 3000,
+            "majority": 2000,
+            "minority": 1000,
+            "player_id": "p4",
+            "role": "majority",
+            "shares": 2,
+            "tied": false
+          }
+        ],
+        "majority_bonus": 2000,
+        "minority_bonus": 1000,
+        "price": 200,
+        "size": 2
+      }
+    },
     "current_player": "p1",
     "decisions": [
       {
@@ -210,6 +255,33 @@
       "meridian",
       "obsidian"
     ],
+    "mergers": [],
+    "net_worth": {
+      "p1": {
+        "cash": 6000,
+        "net_worth": 6000,
+        "rank": 3,
+        "stock_value": 0
+      },
+      "p2": {
+        "cash": 6000,
+        "net_worth": 6000,
+        "rank": 3,
+        "stock_value": 0
+      },
+      "p3": {
+        "cash": 4800,
+        "net_worth": 6400,
+        "rank": 1,
+        "stock_value": 1600
+      },
+      "p4": {
+        "cash": 5000,
+        "net_worth": 6200,
+        "rank": 2,
+        "stock_value": 1200
+      }
+    },
     "pending_trades": [
       {
         "from_player_id": "p3",

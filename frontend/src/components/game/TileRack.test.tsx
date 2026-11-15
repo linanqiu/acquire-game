@@ -9,6 +9,10 @@ import {
 import { playerState } from '../../../tests/unit/fixtures/wire'
 import { DEFAULT_RS } from '../../../tests/unit/fixtures/rulesets'
 
+/** The rack note line that explains `tile` (notes are grouped by reason). */
+const rackNote = (tile: string) =>
+  document.querySelector(`[data-testid="rack-note"][data-tiles~="${tile}"]`)
+
 /** The rack props the page builds from a real server state (same transforms as PlayerPage). */
 function rackFrom(name: string) {
   const state = playerState(name)
@@ -48,7 +52,7 @@ describe('TileRack with a real hand', () => {
     fireEvent.click(tile('4G'))
     expect(onTileSelect).not.toHaveBeenCalled()
     expect(tile('4G')).toHaveTextContent('✕')
-    expect(screen.getByTestId('rack-note-4G')).toHaveTextContent(
+    expect(rackNote('4G')).toHaveTextContent(
       /can't be played: it would start an 8th hotel chain \(all 7 are already on the board\)/
     )
   })
@@ -60,7 +64,7 @@ describe('TileRack with a real hand', () => {
     fireEvent.click(tile('7D'))
     expect(onTileSelect).not.toHaveBeenCalled()
     expect(tile('7D')).toHaveTextContent('🔒')
-    expect(screen.getByTestId('rack-note-7D')).toHaveTextContent(/merge two hotel chains/)
+    expect(rackNote('7D')).toHaveTextContent(/merge two hotel chains/)
   })
 
   it('a tile that would cause a merger is flagged but still playable', () => {
@@ -75,6 +79,6 @@ describe('TileRack with a real hand', () => {
     const { tiles, onTileSelect, tile } = mount('dead-tile-in-hand', { disabled: true })
     for (const t of tiles) fireEvent.click(tile(t.coordinate))
     expect(onTileSelect).not.toHaveBeenCalled()
-    expect(screen.getByTestId('rack-note-4G')).toBeInTheDocument()
+    expect(rackNote('4G')).toBeInTheDocument()
   })
 })

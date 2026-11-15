@@ -47,7 +47,7 @@ async function expectHostMatchesFixture(host: Page, room: RoomContext) {
   for (const p of players) {
     const card = cards(host).filter({ hasText: p.name })
     await expect(card).toBeVisible()
-    await expect(card.getByTestId('player-cash')).toHaveText(dollars(p.cash))
+    await expect(card.getByTestId(/^player-cash-/)).toHaveText(dollars(p.cash))
     for (const qty of Object.values(p.holdings)) {
       if (qty > 0) await expect(card.getByTestId('player-stocks')).toContainText(String(qty))
     }

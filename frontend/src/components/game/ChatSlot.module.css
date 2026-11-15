@@ -1,0 +1,40 @@
+.slot {
+  min-width: 0;
+}
+
+/* Phones: a full-width button in the flow; the chat opens below it. */
+.toggle {
+  width: 100%;
+  min-height: 36px;
+  padding: var(--space-1) var(--space-3);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+
+.body {
+  display: none;
+  margin-top: var(--space-2);
+}
+
+.open .body {
+  display: block;
+}
+
+/* Wide screens: always open, no button. */
+@media (min-width: 900px) {
+  .toggle {
+    display: none;
+  }
+
+  .body {
+    display: block;
+    margin-top: 0;
+  }
+}

@@ -105,12 +105,11 @@ export function TradeOffers({
             </span>
           )}
         </h4>
+        {offers.length === 0 && <span className={styles.empty}>No pending offers</span>}
         <Button variant="secondary" size="sm" onClick={onPropose}>
           PROPOSE TRADE
         </Button>
       </header>
-
-      {offers.length === 0 && <p className={styles.empty}>No pending offers</p>}
 
       {incoming.map((offer) => {
         const proposer = players[offer.from_player_id]

@@ -10,6 +10,7 @@
   "description": "Turn 1: empty board, the human holds 6 tiles and must place one.",
   "expect": {
     "active_chains": {},
+    "chain_holders": {},
     "current_player": "p1",
     "decisions": [
       {
@@ -165,6 +166,33 @@
       "obsidian",
       "sandpiper"
     ],
+    "mergers": [],
+    "net_worth": {
+      "p1": {
+        "cash": 6000,
+        "net_worth": 6000,
+        "rank": 1,
+        "stock_value": 0
+      },
+      "p2": {
+        "cash": 6000,
+        "net_worth": 6000,
+        "rank": 1,
+        "stock_value": 0
+      },
+      "p3": {
+        "cash": 6000,
+        "net_worth": 6000,
+        "rank": 1,
+        "stock_value": 0
+      },
+      "p4": {
+        "cash": 6000,
+        "net_worth": 6000,
+        "rank": 1,
+        "stock_value": 0
+      }
+    },
     "pending_trades": [],
     "phase": "place_tile",
     "players": [
