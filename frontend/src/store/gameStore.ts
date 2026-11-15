@@ -145,9 +145,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       yourHand: message.your_hand ?? get().yourHand,
       tilePlayability: message.tile_playability ?? get().tilePlayability,
     }
-    // When the server includes trade lists they are authoritative (this is also what
-    // restores offers after a reconnect). Older backends omit them; then we rely on the
-    // trade_* messages alone.
+    // A player's game_state carries its trade lists, which are authoritative (this is also
+    // what restores offers after a reconnect). The host's has only the public list.
     if (message.incoming_trades || message.outgoing_trades) {
       const byId = new Map<string, TradeOffer>()
       for (const t of [...(message.incoming_trades ?? []), ...(message.outgoing_trades ?? [])]) {

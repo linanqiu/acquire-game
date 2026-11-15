@@ -68,16 +68,6 @@ export interface BenchHeader {
   lineup?: string[]
 }
 
-/** `GET /games/{id}`. */
-export interface GameDetail extends GameSummary {
-  standings: Standing[]
-  totals: Record<string, SeatTotals>
-  end_reason: string | null
-  prompt_version: string | null
-  bench: BenchHeader | null
-  loaded_from_snapshot: boolean
-}
-
 export interface GamesResponse {
   games: GameSummary[]
   /** `before` cursor for the next page; null on the last page. */
