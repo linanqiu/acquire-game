@@ -1,6 +1,6 @@
 # Pricing Reference
 
-This document contains the complete stock price tables and stockholder bonus charts for Acquire.
+This document contains the complete stock price tables and stockholder bonus charts for Buyout.
 
 ---
 
@@ -8,13 +8,14 @@ This document contains the complete stock price tables and stockholder bonus cha
 
 The seven hotel chains are divided into three pricing tiers:
 
-| Tier | Chains | Marker Colors (Classic) |
-|------|--------|------------------------|
-| **Cheap** | Luxor, Tower | Gold, Brown |
-| **Medium** | American, Festival, Worldwide | Blue, Green, Purple |
-| **Expensive** | Continental, Imperial | Cyan, Red |
+| Tier | Chains | Colours |
+|------|--------|---------|
+| **Cheap** | Sandpiper, Marlowe | Sand gold, wine |
+| **Medium** | Halcyon, Meridian, Juniper | Teal, terracotta, forest green |
+| **Expensive** | Obsidian, Aurelia | Slate navy, lavender |
 
-**Note**: Colors listed are from the original board game. The digital UI may use different colors for better accessibility or aesthetics.
+**Note**: Names, tiers and colours come from `backend/rulesets/default.json`; other rulesets
+use their own.
 
 ---
 
@@ -26,7 +27,7 @@ Stock prices are determined by the chain's tier and the number of tiles in the c
 
 | Chain Size | Cheap | Medium | Expensive |
 |------------|-------|--------|-----------|
-| | (Luxor, Tower) | (American, Festival, Worldwide) | (Continental, Imperial) |
+| | (Sandpiper, Marlowe) | (Halcyon, Juniper, Meridian) | (Aurelia, Obsidian) |
 | **2 tiles** | $200 | $300 | $400 |
 | **3 tiles** | $300 | $400 | $500 |
 | **4 tiles** | $400 | $500 | $600 |
@@ -49,7 +50,7 @@ Stock prices are determined by the chain's tier and the number of tiles in the c
 
 For those who prefer looking up by specific chain name:
 
-### Cheap Tier: Luxor & Tower
+### Cheap Tier: Sandpiper & Marlowe
 
 | Tiles | Stock Price |
 |-------|-------------|
@@ -63,7 +64,7 @@ For those who prefer looking up by specific chain name:
 | 31-40 | $900 |
 | 41+ | $1,000 |
 
-### Medium Tier: American, Festival & Worldwide
+### Medium Tier: Halcyon, Juniper & Meridian
 
 | Tiles | Stock Price |
 |-------|-------------|
@@ -77,7 +78,7 @@ For those who prefer looking up by specific chain name:
 | 31-40 | $1,000 |
 | 41+ | $1,100 |
 
-### Expensive Tier: Continental & Imperial
+### Expensive Tier: Aurelia & Obsidian
 
 | Tiles | Stock Price |
 |-------|-------------|
@@ -118,7 +119,7 @@ Bonuses are paid to majority and minority stockholders when a chain becomes defu
 
 ## Bonus Tables by Tier
 
-### Cheap Tier Bonuses: Luxor & Tower
+### Cheap Tier Bonuses: Sandpiper & Marlowe
 
 | Tiles | Majority Bonus | Minority Bonus |
 |-------|----------------|----------------|
@@ -132,7 +133,7 @@ Bonuses are paid to majority and minority stockholders when a chain becomes defu
 | 31-40 | $9,000 | $4,500 |
 | 41+ | $10,000 | $5,000 |
 
-### Medium Tier Bonuses: American, Festival & Worldwide
+### Medium Tier Bonuses: Halcyon, Juniper & Meridian
 
 | Tiles | Majority Bonus | Minority Bonus |
 |-------|----------------|----------------|
@@ -146,7 +147,7 @@ Bonuses are paid to majority and minority stockholders when a chain becomes defu
 | 31-40 | $10,000 | $5,000 |
 | 41+ | $11,000 | $5,500 |
 
-### Expensive Tier Bonuses: Continental & Imperial
+### Expensive Tier Bonuses: Aurelia & Obsidian
 
 | Tiles | Majority Bonus | Minority Bonus |
 |-------|----------------|----------------|
@@ -198,7 +199,7 @@ Majority holder receives full majority bonus.
 
 This format mirrors the information cards included with the game:
 
-### CHEAP TIER (Luxor, Tower)
+### CHEAP TIER (Sandpiper, Marlowe)
 
 | Size | Stock | Majority | Minority |
 |------|-------|----------|----------|
@@ -212,7 +213,7 @@ This format mirrors the information cards included with the game:
 | 31-40 | $900 | $9,000 | $4,500 |
 | 41+ | $1,000 | $10,000 | $5,000 |
 
-### MEDIUM TIER (American, Festival, Worldwide)
+### MEDIUM TIER (Halcyon, Juniper, Meridian)
 
 | Size | Stock | Majority | Minority |
 |------|-------|----------|----------|
@@ -226,7 +227,7 @@ This format mirrors the information cards included with the game:
 | 31-40 | $1,000 | $10,000 | $5,000 |
 | 41+ | $1,100 | $11,000 | $5,500 |
 
-### EXPENSIVE TIER (Continental, Imperial)
+### EXPENSIVE TIER (Aurelia, Obsidian)
 
 | Size | Stock | Majority | Minority |
 |------|-------|----------|----------|

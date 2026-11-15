@@ -188,14 +188,14 @@ For turn-based tests, capture:
 
 #### 5. Determinism Through Seeding
 
-Use `ACQUIRE_GAME_SEED` environment variable for reproducible tests:
+Use `GAME_SEED` environment variable for reproducible tests:
 
 ```typescript
 // playwright.config.ts
 webServer: [{
   command: 'python3 -m uvicorn main:app --host 127.0.0.1 --port 8000',
   env: {
-    ACQUIRE_GAME_SEED: '2',  // Same seed = same tile distribution
+    GAME_SEED: '2',  // Same seed = same tile distribution
   },
 }]
 ```

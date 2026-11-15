@@ -23,11 +23,11 @@ the same commit.
 
 ```jsonc
 {"action": "place_tile", "tile": "5C"}
-{"action": "found_chain", "chain": "Tower"}
-{"action": "merger_choice", "surviving_chain": "Tower"}
-{"action": "merger_disposition", "defunct_chain": "Luxor",
+{"action": "found_chain", "chain": "Marlowe"}
+{"action": "merger_choice", "surviving_chain": "Marlowe"}
+{"action": "merger_disposition", "defunct_chain": "Sandpiper",
  "disposition": {"sell": 2, "trade": 2, "hold": 1}}
-{"action": "buy_stocks", "purchases": {"Tower": 2, "Luxor": 1}}   // may be {}
+{"action": "buy_stocks", "purchases": {"Marlowe": 2, "Sandpiper": 1}}   // may be {}
 {"action": "end_turn"}
 {"action": "declare_end_game"}
 // Player-to-player trading (allowed out of turn):
@@ -96,7 +96,7 @@ def public_events(game, viewer_id=None, since_seq=0) -> list[dict]
 
 Wire -> engine translation done by `apply_action` (same as `main.py` today):
 tile strings are stripped/upper-cased and must match `1A`..`12I`;
-`purchases` `{"Tower": 2}` -> `["Tower", "Tower"]` (zero counts ignored; the
+`purchases` `{"Marlowe": 2}` -> `["Marlowe", "Marlowe"]` (zero counts ignored; the
 engine's list form is also accepted); disposition `hold` -> engine `keep`
 (`keep` is accepted as an alias, missing keys default to 0); `propose_trade`
 builds a `TradeOffer` with `from_player_id = player_id`. All counts/money must
@@ -211,21 +211,25 @@ behaves identically to `g` under any subsequent action sequence.
 
 ## Ruleset (`backend/game/ruleset.py`, `backend/rulesets/*.json`)
 
-Every game parameter -- product name, theme words, board size, chains, tiers
+Every game parameter -- theme title and words, board size, chains, tiers
 and prices, bonuses, stock counts, limits -- lives in a ruleset file, so a
-variant or a re-theme is a new JSON file, not a code change. The engine is
+variant or a re-theme is a new JSON file, not a code change. The product name
+is not part of a ruleset: it is the brand setting `GAME_BRAND_NAME` (default
+"Buyout"), served as `brand` next to the ruleset by `GET /config/game` and used
+by the frontend for the site title, browser tab, headers and bench pages. The engine is
 parameterised end to end and never reads configuration: `Game(ruleset=...)`
-receives a validated, immutable `Ruleset` (default: the built-in `classic`)
+receives a validated, immutable `Ruleset` (default: the built-in `default`)
 and hands the same object to its `Board`, `Hotel` and `Player`s; `Rules`,
 `decisions`, the calculator, the bots, snapshots and the LLM prompt all read
 it from there.
 
-Shipped files: `classic` (the game as it has always been: Acquire, 12x9,
-seven hotel chains, $6,000, 25 shares...), `valley` (classic numbers,
+Shipped files: `default` ("Grand Hotels": 12x9, seven hotel chains --
+Sandpiper and Marlowe cheap; Halcyon, Meridian and Juniper medium; Obsidian and
+Aurelia expensive -- $6,000, 25 shares...), `valley` (default numbers,
 "Acquihire" theme with invented AI-startup chains) and `mini` (a deliberately
-different variant used by the tests: 9x7, five chains, 18 shares, safe at 8,
-end at 25, hand of 5, 2-5 players, 2 founder shares, 8x/4x bonuses rounded to
-$50).
+different variant used by the tests: 9x7, five of the default chains as
+"shipping lines" in the "Harborline" theme, 18 shares, safe at 8, end at 25,
+hand of 5, 2-5 players, 2 founder shares, 8x/4x bonuses rounded to $50).
 
 ### File format
 
@@ -233,9 +237,9 @@ All keys are required and unknown keys are rejected (at every level).
 
 ```jsonc
 {
-  "id": "classic",              // wire-safe id: [A-Za-z][A-Za-z0-9_-]{0,31}
+  "id": "default",              // wire-safe id: [A-Za-z][A-Za-z0-9_-]{0,31}
   "version": 1,                 // bump whenever numbers change
-  "title": "Acquire",           // product / game name
+  "title": "Grand Hotels",     // theme name (not the product name)
   "theme": {                    // words for the UI and the LLM prompt
     "chain_noun": "hotel chain", "chain_noun_plural": "hotel chains",
     "share_noun": "share", "share_noun_plural": "shares",
@@ -244,7 +248,7 @@ All keys are required and unknown keys are rejected (at every level).
     "safe_phrase": "safe",      // "too big to acquire" in valley
     "currency_symbol": "$",
     "tagline": "Found hotel chains, buy stock, merge for profit.",
-    "game_description": "Sid Sackson's hotel-chain board game"
+    "game_description": "a board game about founding and merging hotel chains"
   },
   "board": {"columns": 12, "rows": 9},   // 2-50 columns, 2-26 rows (A..Z)
   "tiers": [                             // cheapest first; rank = position
@@ -253,8 +257,8 @@ All keys are required and unknown keys are rejected (at every level).
                 {"from": 41, "price": 1000}]}   // must start at 2; last is open-ended
   ],
   "chains": [                            // order = display/state order
-    {"id": "Luxor", "name": "Luxor", "tier": "cheap",
-     "color": "#FFD700", "abbreviation": "L"}   // id is the state/wire key
+    {"id": "sandpiper", "name": "Sandpiper", "tier": "cheap",
+     "color": "#E3B448", "abbreviation": "SP"}  // id is the state/wire key
   ],
   "bonuses": {"majority_multiplier": 10, "minority_multiplier": 5,
               "tie_round_up_to": 100},   // tie splits round UP to this step
@@ -283,8 +287,8 @@ board, `min_players <= max_players`, and board tiles >= `max_players x hand_size
 ### Selection
 
 `GAME_RULESET` (setting `game_ruleset` in `backend/config.py`): a file name in
-`backend/rulesets/` (`classic`, `valley`, `mini`) or a path to a JSON file.
-Default `classic`. The app refuses to start on a bad ruleset. Each room is
+`backend/rulesets/` (`default`, `valley`, `mini`) or a path to a JSON file.
+Default `default`. The app refuses to start on a bad ruleset. Each room is
 created with the configured ruleset (`GameRoom.ruleset`, `max_players` from it)
 and its game uses it. Protocol validation of client messages (chain ids, tile
 pattern, per-turn purchase limit) uses the ruleset of the room's GAME
@@ -313,7 +317,8 @@ in the rating.
 ### What clients get
 
 - `GET /config/game` (also `/api/config/game`): the configured ruleset
-  before any game exists -- the file's dict plus `"fingerprint"`.
+  before any game exists -- the file's dict plus `"fingerprint"`, and `"brand"`
+  (the product name, `GAME_BRAND_NAME`; not part of the ruleset or its fingerprint).
 - Every `game_state` message, and `Game.get_public_state()` /
   `get_player_state()`, carries the same object as `ruleset` (the game's own
   ruleset). `hotel.chains[]` entries also carry `color`.
@@ -321,12 +326,12 @@ in the rating.
   display names, colours, abbreviations, tier labels and theme words come
   from `ruleset`.
 - `legal_actions` for `stock_disposition` adds `trade_ratio` only when the
-  ruleset's ratio is not 2 (classic output is unchanged).
+  ruleset's ratio is not 2 (default output is unchanged).
 
 ### Snapshots
 
-A non-classic game's snapshot stores the full ruleset dict under `"ruleset"`
-and `from_snapshot` restores it; classic games omit the key (snapshots and
+A non-default game's snapshot stores the full ruleset dict under `"ruleset"`
+and `from_snapshot` restores it; default games omit the key (snapshots and
 generated fixtures from before rulesets stay valid and byte-identical).
 `SNAPSHOT_VERSION` is unchanged.
 
@@ -337,7 +342,7 @@ tiles; the survivor/tie/defunct-order rules; sole holder takes both bonuses;
 majority tie pools majority + minority; end-game conditions (any chain >= end
 size, or all active chains safe) and the "frozen board ends the game" rule;
 dead-tile replacement; one tile per turn and one tile drawn at end of turn.
-Wire values such as `would_create_eighth_chain` and the classic fixtures'
+Wire values such as `would_create_eighth_chain` and the default fixtures'
 criterion names keep their historical names.
 
 ## Calculator pack (`backend/game/calculator.py`)
@@ -431,7 +436,7 @@ driver, the one action path), `lifecycle.py` (start / host-forced end),
   fallback_kinds: {error|timeout|illegal|cap|engine: n}, fallbacks: [last 50
   {player_id, seat_kind, decision, reason, category, at}], stalled}`.
 - **Fallbacks are announced** (LLM seats). When the rules-based bot decides for
-  an LLM seat the driver logs at WARNING on `acquire.llm` and sends, to every
+  an LLM seat the driver logs at WARNING on `llm` and sends, to every
   connected player and the host,
   `{"type": "agent_fallback", "player_id", "player_name", "agent_label",
   "reason": "timeout"|"error"|"illegal"|"cap", "decision": "<decision kind>",
@@ -482,14 +487,14 @@ driver, the one action path), `lifecycle.py` (start / host-forced end),
 | `POST /room/{code}/add-bot` | – | Alias for `agent_id="bot"`; returns `{"bot_id", "player_id", "name", "kind"}`. |
 | `POST /room/{code}/remove-seat/{player_id}` | – | Lobby only, AI seats only (400 human / started, 404 unknown). Returns `{"status": "removed", "player_id"}`. |
 | `GET /room/{code}/debug` | – | Driver diagnostics (above). |
-| `GET /config/game` | – | The server's configured ruleset dict + `fingerprint` (see Ruleset). Also under `/api`. |
+| `GET /config/game` | – | The server's configured ruleset dict + `fingerprint` (see Ruleset), plus `brand` (the product name, `GAME_BRAND_NAME`). Also under `/api`. |
 
 Lobby updates (and `GET /room/{code}/state`) list each player as
-`{player_id, name, is_bot, kind, agent_label}`. The classic bot has
+`{player_id, name, is_bot, kind, agent_label}`. The default bot has
 `agent_label: null` (its badge stays "BOT"); other AI seats carry the catalog
 label.
 
-### Test-mode only (`ACQUIRE_TEST_MODE=1`)
+### Test-mode only (`GAME_TEST_MODE=1`)
 
 | Route | Body | Notes |
 |-------|------|-------|
@@ -500,7 +505,7 @@ label.
 These routes do not exist when test mode is off (404; `scripted` is neither
 offered nor accepted).
 
-## Game transcripts and Acquire Bench (first-class requirement, 2026-11-14)
+## Game transcripts and Buyout Bench (first-class requirement, 2026-11-14)
 
 Every game — live or benchmark — writes a complete transcript: every engine
 event, every decision by every seat, and for LLM seats exactly what the model
@@ -510,7 +515,7 @@ server driver and by the benchmark runner.
 
 ### Storage
 
-One JSON Lines file per game: `<ACQUIRE_TRANSCRIPT_DIR>/<game_id>.jsonl`
+One JSON Lines file per game: `<GAME_TRANSCRIPT_DIR>/<game_id>.jsonl`
 (default `backend/data/transcripts/`, git-ignored; empty or `off` disables
 transcripts; `game_id` is URL-safe, unique and time-sortable, e.g.
 `20261114-153012-a1b2c3d4`, matching `[A-Za-z0-9][A-Za-z0-9_-]{0,95}`).
@@ -523,10 +528,10 @@ Lines, in order:
 {"type":"header","transcript_version":1,"game_id":"...","source":"live"|"bench",
  "room_code":"ABCD"|null,
  "bench":{"series_id":"...","matchup":"...","seed":1,"rotation":0,
-          "protocol":"acquire-bench-v1"|absent,"track":"vs-baseline"|...,"prompt_version":"...",
+          "protocol":"bench-v1"|absent,"track":"vs-baseline"|...,"prompt_version":"...",
           "series_games":72,"seating_index":0,"lineup":[...]}|null,
  "started_at":"<ISO-8601 UTC>","seed":1|null,"tile_order":[...]|null,
- "ruleset_id":"classic","ruleset_fingerprint":"<12 hex>",
+ "ruleset_id":"default","ruleset_fingerprint":"<12 hex>",
  "ruleset":{...the full ruleset dict (file format); replays use it...},
  "seats":[{"player_id","name","kind","agent_id"|null,"agent_label"|null,"model"|null,"is_bot"}],
  "prompt_version":"v1-<10 hex>",
@@ -646,9 +651,9 @@ served, so those can be client-side routes too; API clients use `/api/...`.
 The game-over message and every `game_state` carry `game_id` so clients can
 link to `/games/{game_id}`.
 
-### Acquire Bench
+### Buyout Bench
 
-A named, versioned protocol (`acquire-bench-v1`, `backend/bench/protocols.py`):
+A named, versioned protocol (`bench-v1`, `backend/bench/protocols.py`):
 fixed seed list (9001-9018), 4 seats, every distinct seating of each lineup
 played on the same deal, 72 games per series, ruleset (`ruleset_id`,
 `ruleset_fingerprint`) and prompt version recorded in every result — and two
@@ -658,7 +663,7 @@ empty seats; more than 4 models: every 4-combination). Results are only
 comparable within a protocol id + ruleset fingerprint + prompt version; the
 leaderboard never mixes them. A run plays on one ruleset (`python -m bench run
 --ruleset <name|path>`, `run_protocol(..., ruleset=)`; default the server's
-`GAME_RULESET`, else classic); the ruleset is part of every game key, series id,
+`GAME_RULESET`, else default); the ruleset is part of every game key, series id,
 prompt version, transcript header and leaderboard. Ratings are computed from finishing order across all games of a
 protocol + prompt version (pairwise Bradley-Terry on the Elo scale, the
 rules-based bot anchored at 1500, bootstrap CI over games); every leaderboard

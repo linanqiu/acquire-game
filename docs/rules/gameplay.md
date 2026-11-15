@@ -1,6 +1,6 @@
 # Gameplay Overview
 
-This document covers the complete turn structure, player actions, and game flow for Acquire.
+This document covers the complete turn structure, player actions, and game flow for Buyout.
 
 ---
 
@@ -20,9 +20,9 @@ Before placing a tile, the active player may propose stock trades with other pla
 - Once tile placement begins, trading closes for the turn
 
 **Examples of valid trades:**
-- 2 Tower shares for 1 Continental share
-- 3 Luxor shares for $1,500 cash
-- 1 American share + $500 for 2 Festival shares
+- 2 Marlowe shares for 1 Aurelia share
+- 3 Sandpiper shares for $1,500 cash
+- 1 Halcyon share + $500 for 2 Juniper shares
 
 ### Phase 2: Place a Tile
 
@@ -46,9 +46,9 @@ After placing a tile, the player **may** purchase stock certificates:
 - **Cost**: Pay the current stock price for each certificate purchased
 
 **Examples of valid purchases:**
-- 3 shares of Continental
-- 2 shares of Tower + 1 share of American
-- 1 share each of Luxor, Festival, and Imperial
+- 3 shares of Aurelia
+- 2 shares of Marlowe + 1 share of Halcyon
+- 1 share each of Sandpiper, Juniper, and Obsidian
 
 **Note**: If a player cannot afford any stock or chooses not to buy, they may skip this phase.
 
@@ -142,7 +142,7 @@ In rare situations, a player may be unable to legally place any of their tiles:
 - All 6 tiles would create an illegal merger (merging two safe chains)
 - All 6 tiles would create an 8th chain when 7 already exist
 
-**Resolution** (1999 Hasbro Rules):
+**Resolution**:
 1. The player may replace permanently unplayable tiles
 2. Draw new tiles to replace them
 3. Continue replacing until the player has playable tiles or the tile pool is empty

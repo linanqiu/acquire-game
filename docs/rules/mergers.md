@@ -1,6 +1,6 @@
 # Mergers
 
-This document provides comprehensive rules for mergers in Acquire, including survivor determination, stockholder bonuses, tie-breaking rules, and stock disposition options.
+This document provides comprehensive rules for mergers in Buyout, including survivor determination, stockholder bonuses, tie-breaking rules, and stock disposition options.
 
 ---
 
@@ -13,12 +13,12 @@ The placed tile is called the **"merger tile"** and the player who placed it is 
 ```
 Example - Merger situation:
 ┌────┬────┬────┐
-│    │[6C]│    │  [brackets] = American chain
+│    │[6C]│    │  [brackets] = Halcyon chain
 ├────┼────┼────┤
-│{5D}│    │[7D]│  {braces} = Tower chain
+│{5D}│    │[7D]│  {braces} = Marlowe chain
 └────┴────┴────┘
 
-Placing tile 6D connects American and Tower:
+Placing tile 6D connects Halcyon and Marlowe:
 ┌────┬────┬────┐
 │    │[6C]│    │
 ├────┼────┼────┤
@@ -39,9 +39,9 @@ When a merger occurs, follow these steps **in order**:
 **Counting tiles**: Count only tiles physically on the board; do not count stock certificates.
 
 **Example**:
-- American: 5 tiles
-- Tower: 3 tiles
-- **American survives**, Tower becomes defunct
+- Halcyon: 5 tiles
+- Marlowe: 3 tiles
+- **Halcyon survives**, Marlowe becomes defunct
 
 ### Step 2: Pay Stockholder Bonuses
 
@@ -83,9 +83,9 @@ The **larger chain** (more tiles) always survives.
 If two chains have **equal** tile counts, the **mergemaker chooses** which chain survives.
 
 **Example**:
-- American: 4 tiles
-- Festival: 4 tiles
-- Mergemaker decides: "American survives"
+- Halcyon: 4 tiles
+- Juniper: 4 tiles
+- Mergemaker decides: "Halcyon survives"
 
 ### Safe Chain Involvement
 
@@ -133,7 +133,7 @@ Bonuses are determined by:
 
 **Note**: The minority bonus is always **half** of the majority bonus.
 
-See [Pricing Reference](pricing.md) for the complete official bonus table.
+See [Pricing Reference](pricing.md) for the complete bonus table.
 
 ---
 
@@ -144,7 +144,7 @@ See [Pricing Reference](pricing.md) for the complete official bonus table.
 If **only one player** owns stock in the defunct chain:
 - That player receives **BOTH** the majority AND minority bonuses
 
-**Example**: Only Player A owns Tower stock (5 shares)
+**Example**: Only Player A owns Marlowe stock (5 shares)
 - Player A receives: $2,000 (majority) + $1,000 (minority) = **$3,000 total**
 
 ### Tie for Majority Stockholder
@@ -157,13 +157,13 @@ If **two or more players** tie for the most shares:
 4. **No minority bonus** is paid (it was absorbed into the split)
 
 **Example**: Player A and Player B both have 6 shares (tie for majority)
-- Chain: Tower (4 tiles) - Majority $4,000, Minority $2,000
+- Chain: Marlowe (4 tiles) - Majority $4,000, Minority $2,000
 - Combined bonus: $4,000 + $2,000 = $6,000
 - Split: $6,000 / 2 = **$3,000 each**
 - No minority bonus is paid
 
 **Example with rounding**: Player A, B, and C tie for majority
-- Chain: American (5 tiles) - Majority $6,000, Minority $3,000
+- Chain: Halcyon (5 tiles) - Majority $6,000, Minority $3,000
 - Combined: $6,000 + $3,000 = $9,000
 - Split: $9,000 / 3 = **$3,000 each**
 
@@ -176,7 +176,7 @@ If majority is clear but **two or more players** tie for second place:
 3. **Round up** to the nearest $100 if needed
 
 **Example**: Player A has 8 shares (majority), Players B and C have 4 shares each (tie for minority)
-- Chain: Continental (6 tiles) - Majority $8,000, Minority $4,000
+- Chain: Aurelia (6 tiles) - Majority $8,000, Minority $4,000
 - Player A receives: **$8,000** (majority)
 - Players B and C split: $4,000 / 2 = **$2,000 each**
 
@@ -217,8 +217,8 @@ Each player may use **any combination** of the following three options:
 - Stock certificates return to the stock market tray
 
 **Example**:
-- You have 5 shares of Tower
-- Tower had 4 tiles when merged (price: $400/share)
+- You have 5 shares of Marlowe
+- Marlowe had 4 tiles when merged (price: $400/share)
 - Sell all 5 shares: 5 x $400 = **$2,000**
 
 ### Option 3: TRADE
@@ -230,9 +230,9 @@ Each player may use **any combination** of the following three options:
 - Only works if surviving chain has stock available
 
 **Example**:
-- You have 6 shares of defunct Tower
-- American survived the merger
-- Trade 6 Tower shares for 3 American shares
+- You have 6 shares of defunct Marlowe
+- Halcyon survived the merger
+- Trade 6 Marlowe shares for 3 Halcyon shares
 - (If you had 7 shares, you could trade 6, then hold or sell the remaining 1)
 
 ### Combining Options
@@ -240,8 +240,8 @@ Each player may use **any combination** of the following three options:
 Players may **combine** options for their shares:
 
 **Example**:
-- You have 10 shares of defunct Festival
-- Trade 6 shares for 3 Continental shares
+- You have 10 shares of defunct Juniper
+- Trade 6 shares for 3 Aurelia shares
 - Sell 2 shares for cash
 - Hold 2 shares for possible re-founding
 
@@ -265,23 +265,23 @@ When a tile connects **three or more chains**, handle them in order:
 
 ```
 ┌────┬────┬────┐
-│    │{6C}│    │  Tower (4 tiles)
+│    │{6C}│    │  Marlowe (4 tiles)
 ├────┼────┼────┤
-│[5D]│    │(7D)│  American (6 tiles), Continental (3 tiles)
+│[5D]│    │(7D)│  Halcyon (6 tiles), Aurelia (3 tiles)
 └────┴────┴────┘
 
 Placing 6D merges all three chains.
 ```
 
 **Resolution**:
-1. American (6 tiles) survives (largest)
-2. First, resolve Tower (4 tiles) - second largest defunct:
-   - Pay Tower bonuses
-   - Players dispose of Tower stock
-3. Then, resolve Continental (3 tiles) - smallest:
-   - Pay Continental bonuses
-   - Players dispose of Continental stock
-4. All tiles become American tiles
+1. Halcyon (6 tiles) survives (largest)
+2. First, resolve Marlowe (4 tiles) - second largest defunct:
+   - Pay Marlowe bonuses
+   - Players dispose of Marlowe stock
+3. Then, resolve Aurelia (3 tiles) - smallest:
+   - Pay Aurelia bonuses
+   - Players dispose of Aurelia stock
+4. All tiles become Halcyon tiles
 
 ---
 

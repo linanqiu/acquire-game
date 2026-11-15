@@ -8,7 +8,7 @@ later, so it does not edit the map itself.
 
 All journeys live in `frontend/tests/e2e/journeys/`, start at the home page `/`, use the
 UI only, and run with `npm run e2e:journeys` (Playwright project `journeys`, real servers,
-`ACQUIRE_GAME_SEED=2`, `ACQUIRE_TEST_MODE=1`). The static guard `no-shortcuts.spec.ts`
+`GAME_SEED=2`, `GAME_TEST_MODE=1`). The static guard `no-shortcuts.spec.ts`
 fails the suite if a journey file uses `/api/`, `/test/`, `fetch(`, the `request` fixture,
 snapshots or `/configure`, or does not navigate to the home page first.
 

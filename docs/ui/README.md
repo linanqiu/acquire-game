@@ -1,10 +1,10 @@
-# Acquire UI Documentation
+# Buyout UI Documentation
 
-> Complete design documentation for the Acquire board game frontend.
+> Complete design documentation for the Buyout board game frontend.
 
 ## Overview
 
-This directory contains everything needed to implement the Acquire frontend:
+This directory contains everything needed to implement the Buyout frontend:
 
 | Document | Purpose |
 |----------|---------|
@@ -42,13 +42,13 @@ This directory contains everything needed to implement the Acquire frontend:
 ### Color Palette (Chain Colors)
 
 ```
-LUXOR:       #c9a227  (muted gold)      - Budget
-TOWER:       #7a5c3d  (brown/bronze)    - Budget
-AMERICAN:    #5e7a8a  (slate blue)      - Standard
-FESTIVAL:    #8a5e7a  (dusty mauve)     - Standard
-WORLDWIDE:   #5e8a6a  (sage green)      - Standard
-CONTINENTAL: #8a3d3d  (burgundy)        - Premium
-IMPERIAL:    #3d5e8a  (deep blue)       - Premium
+SANDPIPER:       #c9a227  (muted gold)      - Budget
+MARLOWE:       #7a5c3d  (brown/bronze)    - Budget
+HALCYON:    #5e7a8a  (slate blue)      - Standard
+JUNIPER:    #8a5e7a  (dusty mauve)     - Standard
+MERIDIAN:   #5e8a6a  (sage green)      - Standard
+AURELIA: #8a3d3d  (burgundy)        - Premium
+OBSIDIAN:    #3d5e8a  (deep blue)       - Premium
 ```
 
 ### Game Flow Summary

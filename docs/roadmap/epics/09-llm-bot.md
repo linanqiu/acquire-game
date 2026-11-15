@@ -12,8 +12,8 @@ tell which; all of them act through the same `apply_action()` entry point. The t
 [docs/architecture/seat-contract.md](../../architecture/seat-contract.md). This epic builds the LLM
 seat on top of the seam delivered by [Epic 10](10-engine-seam.md).
 
-Transcripts of every game and the Acquire Bench benchmark are specified in
-[Epic 12](12-acquire-bench.md).
+Transcripts of every game and the Buyout Bench benchmark are specified in
+[Epic 12](12-bench.md).
 
 Mechanistic RL/MCTS training ([Epic 4](04-ai-training.md)) is dropped for good. LLM opponents are
 a first-class capability alongside humans, not an experiment.
@@ -49,8 +49,8 @@ Arithmetic (prices, bonuses, affordability, score projections) is computed by
   `available` only when their provider key is configured on the server. Otherwise the lobby shows
   them disabled and only the rules-based player can be added (owner decision 2026-11-14; the server
   already rejects `add-seat` for an unavailable id).
-- Which model is the default for each difficulty tier is **decided by Acquire Bench results**
-  ([Epic 12](12-acquire-bench.md), AB-009), not fixed in this document. No real-model run has been
+- Which model is the default for each difficulty tier is **decided by Buyout Bench results**
+  ([Epic 12](12-bench.md), AB-009), not fixed in this document. No real-model run has been
   made yet; it needs an API key.
 
 ## Trading
@@ -76,7 +76,7 @@ decision (LO-004).
 - **Deterministic math stays in code.**
 - **Every decision is recorded in the game transcript**: prompt, every raw answer, retries,
   fallbacks, latency, tokens (owner decision 2026-11-14; format in the seat contract,
-  [Epic 12](12-acquire-bench.md), AB-001). This replaces the LO-007 per-decision log.
+  [Epic 12](12-bench.md), AB-001). This replaces the LO-007 per-decision log.
 - **Retries and fallbacks are visible and measured**, not hidden: the benchmark reports them
   separately.
 
@@ -95,7 +95,7 @@ decision (LO-004).
 Status as of 2026-11-14, checked against the repo: **1 of 6 active stories complete** (LO-006, the
 headless harness); LO-001..LO-005 are partly built (see the status note at the bottom of each story);
 LO-007 is superseded. The benchmark as a product (protocol, standalone CLI/API contract, ratings,
-leaderboard, first results) and transcripts moved to [Epic 12](12-acquire-bench.md). Changes caused
+leaderboard, first results) and transcripts moved to [Epic 12](12-bench.md). Changes caused
 by the 2026-11-14 owner decisions: LO-003 (retry loop, notice, seat marker), LO-005 (fallback marker,
 availability), LO-006 (moved), LO-007 (superseded).
 
@@ -109,7 +109,7 @@ These ideas from the July draft are **not** being built now:
   rolling summarizer.
 - Per-role x per-tier model routing table.
 
-Rule for promotion: Acquire Bench ([Epic 12](12-acquire-bench.md)) must show a measured win-rate gain per dollar
+Rule for promotion: Buyout Bench ([Epic 12](12-bench.md)) must show a measured win-rate gain per dollar
 over the single-call baseline before any of these gets a story.
 
 ## Status

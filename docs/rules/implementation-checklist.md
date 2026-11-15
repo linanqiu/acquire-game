@@ -1,6 +1,6 @@
-# Acquire Implementation Verification Checklist
+# Buyout Implementation Verification Checklist
 
-This document maps the official rules to implementation requirements for verifying game logic correctness.
+This document maps the rules to implementation requirements for verifying game logic correctness.
 
 ---
 
@@ -22,9 +22,9 @@ This document maps the official rules to implementation requirements for verifyi
 ### Configuration
 - [ ] **7 corporations** total
 - [ ] Correct tier assignments:
-  - Cheap: Luxor, Tower
-  - Medium: American, Worldwide, Festival
-  - Expensive: Imperial, Continental
+  - Cheap: Sandpiper, Marlowe
+  - Medium: Halcyon, Meridian, Juniper
+  - Expensive: Obsidian, Aurelia
 - [ ] **25 stock certificates** per corporation
 - [ ] Maximum **7 active corporations** at any time
 
@@ -116,7 +116,7 @@ This document maps the official rules to implementation requirements for verifyi
 
 ## Stock Price Table Verification
 
-### Cheap Tier (Luxor, Tower)
+### Cheap Tier (Sandpiper, Marlowe)
 | Size | Price |
 |------|-------|
 | 2 | $200 |
@@ -129,7 +129,7 @@ This document maps the official rules to implementation requirements for verifyi
 | 31-40 | $900 |
 | 41+ | $1,000 |
 
-### Medium Tier (American, Worldwide, Festival)
+### Medium Tier (Halcyon, Meridian, Juniper)
 | Size | Price |
 |------|-------|
 | 2 | $300 |
@@ -142,7 +142,7 @@ This document maps the official rules to implementation requirements for verifyi
 | 31-40 | $1,000 |
 | 41+ | $1,100 |
 
-### Expensive Tier (Imperial, Continental)
+### Expensive Tier (Obsidian, Aurelia)
 | Size | Price |
 |------|-------|
 | 2 | $400 |
@@ -222,7 +222,7 @@ Currently implemented as:
 - Majority = price × 10
 - Minority = price × 5
 
-This matches the official rules.
+This matches the rules in this folder.
 
 ---
 

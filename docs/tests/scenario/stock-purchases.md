@@ -2,7 +2,7 @@
 
 # Stock Purchase Scenarios
 
-Scenarios covering stock buying rules in Acquire, including purchase limits, availability, and pricing.
+Scenarios covering stock buying rules in Buyout, including purchase limits, availability, and pricing.
 
 ---
 
@@ -13,22 +13,22 @@ Scenarios covering stock buying rules in Acquire, including purchase limits, ava
 **Initial State:**
 - Player A is active player (in buy stock phase)
 - Player A has $5,000
-- American chain exists (3 tiles, Medium tier)
-- American stock price: $400
-- American stock available in pool
+- Halcyon chain exists (3 tiles, Medium tier)
+- Halcyon stock price: $400
+- Halcyon stock available in pool
 
 **Actions:**
-1. Player A buys 1 American stock
+1. Player A buys 1 Halcyon stock
 
 **Expected Outcomes:**
 - Player A pays $400
-- Player A receives 1 American stock
+- Player A receives 1 Halcyon stock
 - Player A money: $4,600
 
 **Key Assertions:**
-- Player A American stock increased by 1
+- Player A Halcyon stock increased by 1
 - Player A money decreased by $400
-- American stock pool decreased by 1
+- Halcyon stock pool decreased by 1
 
 ---
 
@@ -37,20 +37,20 @@ Scenarios covering stock buying rules in Acquire, including purchase limits, ava
 **Initial State:**
 - Player A is active player (in buy stock phase)
 - Player A has $3,000
-- Tower chain exists (2 tiles, Cheap tier)
-- Tower stock price: $200
-- Tower has 10+ stock available
+- Marlowe chain exists (2 tiles, Cheap tier)
+- Marlowe stock price: $200
+- Marlowe has 10+ stock available
 
 **Actions:**
-1. Player A buys 3 Tower stock
+1. Player A buys 3 Marlowe stock
 
 **Expected Outcomes:**
 - Player A pays $600 (3 x $200)
-- Player A receives 3 Tower stock
+- Player A receives 3 Marlowe stock
 - Maximum purchase in single turn
 
 **Key Assertions:**
-- Player A Tower stock increased by 3
+- Player A Marlowe stock increased by 3
 - Player A money: $2,400
 - 3 is the maximum per turn
 
@@ -61,11 +61,11 @@ Scenarios covering stock buying rules in Acquire, including purchase limits, ava
 **Initial State:**
 - Player A is active player (in buy stock phase)
 - Player A has $6,000
-- Continental chain exists (2 tiles, Expensive tier)
-- Continental stock price: $400
+- Aurelia chain exists (2 tiles, Expensive tier)
+- Aurelia stock price: $400
 
 **Actions:**
-1. Player A attempts to buy 4 Continental stock
+1. Player A attempts to buy 4 Aurelia stock
 
 **Expected Outcomes:**
 - Purchase rejected
@@ -73,7 +73,7 @@ Scenarios covering stock buying rules in Acquire, including purchase limits, ava
 
 **Key Assertions:**
 - Purchase rejected: true
-- Player A Continental stock unchanged
+- Player A Aurelia stock unchanged
 - Player A money unchanged
 
 ---
@@ -84,12 +84,12 @@ Scenarios covering stock buying rules in Acquire, including purchase limits, ava
 - Player A is active player (in buy stock phase)
 - Player A has $2,000
 - Active chains:
-  - Luxor (2 tiles): $200/share
-  - American (3 tiles): $400/share
-  - Imperial (4 tiles): $600/share
+  - Sandpiper (2 tiles): $200/share
+  - Halcyon (3 tiles): $400/share
+  - Obsidian (4 tiles): $600/share
 
 **Actions:**
-1. Player A buys 1 Luxor, 1 American, 1 Imperial
+1. Player A buys 1 Sandpiper, 1 Halcyon, 1 Obsidian
 
 **Expected Outcomes:**
 - Player A pays $1,200 total ($200 + $400 + $600)
@@ -97,9 +97,9 @@ Scenarios covering stock buying rules in Acquire, including purchase limits, ava
 - 3 total stocks purchased (at limit)
 
 **Key Assertions:**
-- Player A Luxor stock increased by 1
-- Player A American stock increased by 1
-- Player A Imperial stock increased by 1
+- Player A Sandpiper stock increased by 1
+- Player A Halcyon stock increased by 1
+- Player A Obsidian stock increased by 1
 - Player A money: $800
 - Total stocks this turn: 3
 
@@ -109,11 +109,11 @@ Scenarios covering stock buying rules in Acquire, including purchase limits, ava
 
 **Initial State:**
 - Player A is active player (in buy stock phase)
-- Active chains: American, Tower
-- Festival chain has never been founded (inactive)
+- Active chains: Halcyon, Marlowe
+- Juniper chain has never been founded (inactive)
 
 **Actions:**
-1. Player A attempts to buy Festival stock
+1. Player A attempts to buy Juniper stock
 
 **Expected Outcomes:**
 - Purchase rejected
@@ -121,7 +121,7 @@ Scenarios covering stock buying rules in Acquire, including purchase limits, ava
 
 **Key Assertions:**
 - Purchase rejected: true
-- Festival chain active: false
+- Juniper chain active: false
 - Can only buy stock in chains on the board
 
 ---
@@ -130,11 +130,11 @@ Scenarios covering stock buying rules in Acquire, including purchase limits, ava
 
 **Initial State:**
 - Player A is active player (in buy stock phase)
-- Luxor was acquired by American earlier (Luxor is defunct)
-- Luxor chain not currently on board
+- Sandpiper was acquired by Halcyon earlier (Sandpiper is defunct)
+- Sandpiper chain not currently on board
 
 **Actions:**
-1. Player A attempts to buy Luxor stock
+1. Player A attempts to buy Sandpiper stock
 
 **Expected Outcomes:**
 - Purchase rejected
@@ -142,7 +142,7 @@ Scenarios covering stock buying rules in Acquire, including purchase limits, ava
 
 **Key Assertions:**
 - Purchase rejected: true
-- Luxor chain active: false
+- Sandpiper chain active: false
 - Defunct chains not purchasable
 
 ---
@@ -154,11 +154,11 @@ Scenarios covering stock buying rules in Acquire, including purchase limits, ava
 **Initial State:**
 - Player A is active player (in buy stock phase)
 - Player A has $500
-- Continental chain exists (3 tiles)
-- Continental stock price: $500
+- Aurelia chain exists (3 tiles)
+- Aurelia stock price: $500
 
 **Actions:**
-1. Player A attempts to buy 2 Continental stock ($1,000 needed)
+1. Player A attempts to buy 2 Aurelia stock ($1,000 needed)
 
 **Expected Outcomes:**
 - Purchase rejected
@@ -176,11 +176,11 @@ Scenarios covering stock buying rules in Acquire, including purchase limits, ava
 **Initial State:**
 - Player A is active player (in buy stock phase)
 - Player A has $700
-- American chain exists (3 tiles, Medium tier)
-- American stock price: $400
+- Halcyon chain exists (3 tiles, Medium tier)
+- Halcyon stock price: $400
 
 **Actions:**
-1. Player A buys 1 American stock ($400)
+1. Player A buys 1 Halcyon stock ($400)
 
 **Expected Outcomes:**
 - Purchase succeeds
@@ -188,7 +188,7 @@ Scenarios covering stock buying rules in Acquire, including purchase limits, ava
 - Player A cannot afford second share
 
 **Key Assertions:**
-- Player A American stock increased by 1
+- Player A Halcyon stock increased by 1
 - Player A money: $300
 - Could only afford 1 share (not 2)
 
@@ -201,21 +201,21 @@ Scenarios covering stock buying rules in Acquire, including purchase limits, ava
 **Initial State:**
 - Player A is active player (in buy stock phase)
 - Player A has $3,000
-- Tower chain exists (4 tiles)
-- Tower stock price: $400
-- Tower stock pool: 0 (all 25 owned by players)
+- Marlowe chain exists (4 tiles)
+- Marlowe stock price: $400
+- Marlowe stock pool: 0 (all 25 owned by players)
 
 **Actions:**
-1. Player A attempts to buy Tower stock
+1. Player A attempts to buy Marlowe stock
 
 **Expected Outcomes:**
 - Purchase rejected
-- Error: "No Tower stock available"
+- Error: "No Marlowe stock available"
 
 **Key Assertions:**
 - Purchase rejected: true
-- Tower stock pool: 0
-- All 25 Tower shares distributed among players
+- Marlowe stock pool: 0
+- All 25 Marlowe shares distributed among players
 
 ---
 
@@ -224,22 +224,22 @@ Scenarios covering stock buying rules in Acquire, including purchase limits, ava
 **Initial State:**
 - Player A is active player (in buy stock phase)
 - Player A has $2,000
-- Festival chain exists (3 tiles, Medium tier)
-- Festival stock price: $400
-- Festival stock pool: 2 shares remaining
+- Juniper chain exists (3 tiles, Medium tier)
+- Juniper stock price: $400
+- Juniper stock pool: 2 shares remaining
 
 **Actions:**
-1. Player A attempts to buy 3 Festival stock
+1. Player A attempts to buy 3 Juniper stock
 
 **Expected Outcomes:**
 - Purchase limited to 2 shares (availability)
 - Player A pays $800 (2 x $400)
-- Player A receives 2 Festival stock
+- Player A receives 2 Juniper stock
 
 **Key Assertions:**
-- Player A Festival stock increased by 2
+- Player A Juniper stock increased by 2
 - Player A money: $1,200
-- Festival stock pool: 0
+- Juniper stock pool: 0
 - Limited by availability, not budget
 
 ---
@@ -273,7 +273,7 @@ Scenarios covering stock buying rules in Acquire, including purchase limits, ava
 **Initial State:**
 - Player A is active player (in buy stock phase)
 - Player A has $100
-- Only active chain: Continental (2 tiles, $400/share)
+- Only active chain: Aurelia (2 tiles, $400/share)
 
 **Actions:**
 1. Player A cannot afford any stock
@@ -297,10 +297,10 @@ Scenarios covering stock buying rules in Acquire, including purchase limits, ava
 
 **Initial State:**
 - Player A is active player
-- Luxor chain exists with varying sizes
+- Sandpiper chain exists with varying sizes
 
 **Actions:**
-1. Verify Luxor (Cheap) prices at each size bracket
+1. Verify Sandpiper (Cheap) prices at each size bracket
 
 **Expected Outcomes:**
 - 2 tiles: $200
@@ -315,7 +315,7 @@ Scenarios covering stock buying rules in Acquire, including purchase limits, ava
 
 **Key Assertions:**
 - Prices match Cheap tier table
-- Tower has same prices as Luxor
+- Marlowe has same prices as Sandpiper
 
 ---
 
@@ -323,10 +323,10 @@ Scenarios covering stock buying rules in Acquire, including purchase limits, ava
 
 **Initial State:**
 - Player A is active player
-- American chain exists with varying sizes
+- Halcyon chain exists with varying sizes
 
 **Actions:**
-1. Verify American (Medium) prices at each size bracket
+1. Verify Halcyon (Medium) prices at each size bracket
 
 **Expected Outcomes:**
 - 2 tiles: $300
@@ -341,7 +341,7 @@ Scenarios covering stock buying rules in Acquire, including purchase limits, ava
 
 **Key Assertions:**
 - Prices match Medium tier table
-- Festival and Worldwide have same prices
+- Juniper and Meridian have same prices
 
 ---
 
@@ -349,10 +349,10 @@ Scenarios covering stock buying rules in Acquire, including purchase limits, ava
 
 **Initial State:**
 - Player A is active player
-- Continental chain exists with varying sizes
+- Aurelia chain exists with varying sizes
 
 **Actions:**
-1. Verify Continental (Expensive) prices at each size bracket
+1. Verify Aurelia (Expensive) prices at each size bracket
 
 **Expected Outcomes:**
 - 2 tiles: $400
@@ -367,7 +367,7 @@ Scenarios covering stock buying rules in Acquire, including purchase limits, ava
 
 **Key Assertions:**
 - Prices match Expensive tier table
-- Imperial has same prices as Continental
+- Obsidian has same prices as Aurelia
 
 ---
 
@@ -379,19 +379,19 @@ Scenarios covering stock buying rules in Acquire, including purchase limits, ava
 - Player A is active player
 - Player A has $2,000
 - Player A places tile that founds new chain
-- Chain founded: Tower (Cheap tier, $200/share)
+- Chain founded: Marlowe (Cheap tier, $200/share)
 
 **Actions:**
-1. Player A receives 1 free Tower stock (founder's bonus)
-2. Player A buys 3 additional Tower stock ($600)
+1. Player A receives 1 free Marlowe stock (founder's bonus)
+2. Player A buys 3 additional Marlowe stock ($600)
 
 **Expected Outcomes:**
-- Player A has 4 Tower stock total
+- Player A has 4 Marlowe stock total
 - Founder's bonus (1) + purchased (3) = 4
 - 3 purchased is within turn limit
 
 **Key Assertions:**
-- Player A Tower stock: 4
+- Player A Marlowe stock: 4
 - Player A money: $1,400
 - Founder's bonus is separate from purchase limit
 - Can still buy 3 after receiving bonus
@@ -402,19 +402,19 @@ Scenarios covering stock buying rules in Acquire, including purchase limits, ava
 
 **Initial State:**
 - Player A is active player
-- Player A just founded American chain (2 tiles)
+- Player A just founded Halcyon chain (2 tiles)
 - Player A received founder's bonus
-- American stock price: $300
+- Halcyon stock price: $300
 
 **Actions:**
-1. Player A buys 2 more American stock
+1. Player A buys 2 more Halcyon stock
 
 **Expected Outcomes:**
 - Player A pays $600
-- Player A has 3 American total (1 bonus + 2 bought)
+- Player A has 3 Halcyon total (1 bonus + 2 bought)
 - Can buy stock in chain just founded
 
 **Key Assertions:**
-- Player A American stock: 3
+- Player A Halcyon stock: 3
 - Newly founded chain is immediately purchasable
 - Same turn as founding

@@ -1,34 +1,34 @@
 # Hotel Chains
 
-This document covers the seven hotel chains in Acquire, including their pricing tiers, how to found chains, expansion rules, and the safe chain threshold.
+This document covers the seven hotel chains in Buyout, including their pricing tiers, how to found chains, expansion rules, and the safe chain threshold.
 
 ---
 
 ## The Seven Hotel Chains
 
-Acquire features seven hotel chains organized into three pricing tiers:
+Buyout features seven hotel chains organized into three pricing tiers:
 
 ### Cheap Tier (Lowest Prices)
 
-| Chain | Color (Classic) | Starting Price | Stock per Share (2 tiles) |
-|-------|-----------------|----------------|---------------------------|
-| **Luxor** | Gold | $200 | $200 |
-| **Tower** | Brown | $200 | $200 |
+| Chain | Colour | Starting Price | Stock per Share (2 tiles) |
+|-------|--------|----------------|---------------------------|
+| **Sandpiper** | Sand gold `#E3B448` | $200 | $200 |
+| **Marlowe** | Wine `#8E2C48` | $200 | $200 |
 
 ### Medium Tier (Medium Prices)
 
-| Chain | Color (Classic) | Starting Price | Stock per Share (2 tiles) |
-|-------|-----------------|----------------|---------------------------|
-| **American** | Blue | $300 | $300 |
-| **Festival** | Green | $300 | $300 |
-| **Worldwide** | Purple | $300 | $300 |
+| Chain | Colour | Starting Price | Stock per Share (2 tiles) |
+|-------|--------|----------------|---------------------------|
+| **Halcyon** | Teal `#1F7A8C` | $300 | $300 |
+| **Juniper** | Forest green `#3E7C4A` | $300 | $300 |
+| **Meridian** | Terracotta `#E07A3F` | $300 | $300 |
 
 ### Expensive Tier (Highest Prices)
 
-| Chain | Color (Classic) | Starting Price | Stock per Share (2 tiles) |
-|-------|-----------------|----------------|---------------------------|
-| **Continental** | Cyan | $400 | $400 |
-| **Imperial** | Red | $400 | $400 |
+| Chain | Colour | Starting Price | Stock per Share (2 tiles) |
+|-------|--------|----------------|---------------------------|
+| **Aurelia** | Lavender `#B48CDB` | $400 | $400 |
+| **Obsidian** | Slate navy `#2E3A59` | $400 | $400 |
 
 ---
 
@@ -48,7 +48,7 @@ At any given chain size, the three tiers have different stock prices:
 | 31-40 tiles | $900 | $1,000 | $1,100 |
 | 41+ tiles | $1,000 | $1,100 | $1,200 |
 
-**Note**: See [Pricing Reference](pricing.md) for the complete official price table.
+**Note**: See [Pricing Reference](pricing.md) for the complete price table.
 
 ---
 
@@ -95,17 +95,17 @@ Player places tile 6D:
 └────┴────┴────┘
 
 1. Tiles 6C and 6D are now connected
-2. Player chooses to found "American" (Medium tier)
-3. American chain marker placed on the tiles
-4. Player receives 1 free American stock
+2. Player chooses to found "Halcyon" (Medium tier)
+3. Halcyon chain marker placed on the tiles
+4. Player receives 1 free Halcyon stock
 ```
 
 ### Strategic Considerations for Founding
 
 **Choosing the chain tier:**
-- **Cheap chains** (Luxor, Tower): Lower stock prices mean cheaper purchases, but smaller bonuses
-- **Medium chains** (American, Festival, Worldwide): Balanced pricing
-- **Expensive chains** (Continental, Imperial): Higher stock prices, larger bonuses, but more expensive to invest in
+- **Cheap chains** (Sandpiper, Marlowe): Lower stock prices mean cheaper purchases, but smaller bonuses
+- **Medium chains** (Halcyon, Juniper, Meridian): Balanced pricing
+- **Expensive chains** (Aurelia, Obsidian): Higher stock prices, larger bonuses, but more expensive to invest in
 
 **Timing considerations:**
 - Founding early allows you to buy cheap stock
@@ -178,13 +178,13 @@ This is an illegal move because:
 **Example of an illegal merger:**
 ```
 ┌────┬────┬────┐
-│[  ]│    │{  }│  [brackets] = Continental (12 tiles, SAFE)
-│[  ]│    │{  }│  {braces} = Imperial (11 tiles, SAFE)
+│[  ]│    │{  }│  [brackets] = Aurelia (12 tiles, SAFE)
+│[  ]│    │{  }│  {braces} = Obsidian (11 tiles, SAFE)
 │[  ]│ 6D │{  }│
 │[  ]│    │{  }│
 └────┴────┴────┘
 
-Tile 6D would connect Continental and Imperial.
+Tile 6D would connect Aurelia and Obsidian.
 Both chains are SAFE.
 6D CANNOT be played - it is permanently unplayable.
 ```
@@ -213,13 +213,13 @@ A tile that would found an 8th chain when 7 already exist **cannot be played**.
 **Example**:
 ```
 Seven chains already on board:
-- Luxor (3 tiles)
-- Tower (4 tiles)
-- American (5 tiles)
-- Festival (2 tiles)
-- Worldwide (6 tiles)
-- Continental (8 tiles)
-- Imperial (7 tiles)
+- Sandpiper (3 tiles)
+- Marlowe (4 tiles)
+- Halcyon (5 tiles)
+- Juniper (2 tiles)
+- Meridian (6 tiles)
+- Aurelia (8 tiles)
+- Obsidian (7 tiles)
 
 A tile that would connect two orphan tiles cannot be played
 because it would create an 8th chain.
@@ -234,31 +234,12 @@ because it would create an 8th chain.
 
 ## Chain Status Summary
 
-| Status | Tile Count | Can Be Acquired? | Can Acquire Others? |
+| Status | Tile Count | Can Be Acquired? | Can Buyout Others? |
 |--------|------------|------------------|---------------------|
 | Active (Small) | 2-10 tiles | Yes | Only smaller chains |
 | Safe | 11+ tiles | **No** | Yes (any smaller chain) |
 | Defunct | 0 tiles (after merger) | N/A | N/A |
 | Not Founded | N/A | N/A | N/A |
-
----
-
-## Edition Variations
-
-### Classic/1999 Rules
-- Safe threshold: **11 tiles**
-- All seven chains available from start
-
-### 2008 Wizards of the Coast Edition
-- Luxor renamed to **Sackson**
-- Tier assignments reorganized:
-  - Budget: Sackson, Worldwide
-  - Standard: Festival, Imperial, American
-  - Premium: Continental, Tower
-
-### 2016 Edition
-- Safe threshold changed to **10 tiles**
-- Board changed to 10x10
 
 ---
 

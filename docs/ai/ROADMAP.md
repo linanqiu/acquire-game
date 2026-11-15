@@ -1,6 +1,6 @@
-# Acquire AI Roadmap
+# Buyout AI Roadmap
 
-A holistic roadmap for building intelligent game-playing agents for Acquire, from simple heuristics to superhuman play.
+A holistic roadmap for building intelligent game-playing agents for Buyout, from simple heuristics to superhuman play.
 
 ## Vision
 

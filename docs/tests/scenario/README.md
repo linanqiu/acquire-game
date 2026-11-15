@@ -8,7 +8,7 @@
 > decision-seam tests in `backend/tests/test_decisions.py`. See
 > `docs/tests/backend-test-audit.md` for the mapping and the reasons.
 
-This directory contains comprehensive end-to-end test specifications for the Acquire board game. These are human-readable specifications that document test scenarios covering all major game mechanics.
+This directory contains comprehensive end-to-end test specifications for the Buyout board game. These are human-readable specifications that document test scenarios covering all major game mechanics.
 
 ## Purpose
 

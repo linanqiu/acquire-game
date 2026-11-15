@@ -38,7 +38,7 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | R-04 | `*` Not-found page (`NotFoundPage`, "Back to Lobby" link) | Navigate to an unknown URL | `screens/lobby.spec.ts : unknown URL shows the not-found page`; `journeys/entry-errors.spec.ts : entry errors` | 3, 4 |
 | R-05 | `/games` Games and transcripts list (`GamesPage`) | "Games & transcripts" link on the home page | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript`; `screens/waking-and-not-found.spec.ts : games list` | 3, 4 |
 | R-06 | `/games/:gameId` Transcript viewer (`TranscriptPage`) | Row in the games list, or "View full transcript" on the game-over screen | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript`; `screens/transcript-pages.spec.ts : snapshot game` | 3, 4 |
-| R-07 | `/bench` Acquire Bench leaderboard (`BenchPage`) | "Acquire Bench" link on the home page | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript`; `screens/transcript-pages.spec.ts : benchmark page` | 3, 4 |
+| R-07 | `/bench` Buyout Bench leaderboard (`BenchPage`) | "Buyout Bench" link on the home page | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript`; `screens/transcript-pages.spec.ts : benchmark page` | 3, 4 |
 | R-08 | `/bench/series/:seriesId` Benchmark series page (`BenchSeriesPage`) | Series row on the leaderboard | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript`; `screens/waking-and-not-found.spec.ts : unknown transcript and unknown benchmark series` | 3, 4 |
 
 ## 2. Home page entry points (`LobbyPage`)
@@ -55,7 +55,7 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | H-08 | Join error: game already started | inline error | `journeys/entry-errors.spec.ts : entry errors` | 4 |
 | H-09 | Create/spectator failure toast (server error) | toast | `screens/lobby.spec.ts : failures show a toast: create game, add bot, start game` | 3 |
 | H-10 | Link to the games list | `games-link` | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` | 4 |
-| H-11 | Link to the Acquire Bench leaderboard | `bench-link` | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` | 4 |
+| H-11 | Link to the Buyout Bench leaderboard | `bench-link` | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` | 4 |
 | H-12 | "Waking the server" note while the health check is retried | `waking-server` | `screens/waking-and-not-found.spec.ts : home page: waking the server note` | 3 |
 | H-13 | "The server is not answering yet" notice with Try again | `server-down`, `server-retry` | `screens/waking-and-not-found.spec.ts : home page: server not answering` | 3 |
 | H-14 | Names trimmed; room code upper-cased as typed; creator lands on `?is_host=1` | form behaviour | `screens/home-entry.spec.ts : names are trimmed` | 3 |
@@ -138,7 +138,7 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | CN-09 | Toast container: success / error / info / warning variants (`Toast`) | | `screens/lobby.spec.ts : failures show a toast`; `screens/trades.spec.ts : outgoing offer: a scripted opponent rejects it`; `journeys/two-humans-and-bot.spec.ts : two humans and a bot` | 3, 4 |
 | CN-10 | Reconnection overlay on the host page | `HostPage` mounts the same overlay | `screens/host-connection.spec.ts : host page: connection drops mid-game` | 3 |
 
-## 8. Transcripts, games list and Acquire Bench
+## 8. Transcripts, games list and Buyout Bench
 
 | ID | Surface | Notes | Covered by | Tier |
 |----|---------|-------|------------|------|

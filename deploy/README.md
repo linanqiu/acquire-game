@@ -19,6 +19,8 @@ by `deploy/Dockerfile` (Node stage builds `frontend/`, Python stage runs `backen
 | `GAME_LLM_OPENAI_BASE_URL`, `GAME_LLM_OPENAI_MODEL`, `GAME_LLM_OPENAI_API_KEY` | Adds one OpenAI-compatible model (e.g. DeepSeek). Needs base URL and model. |
 | `GAME_LLM_CATALOG` | JSON list that replaces the default LLM entries. |
 | `GAME_LLM_LOG_DIR` | Writes JSONL decision logs with full prompts; leave unset unless debugging (no volume, so ephemeral). |
+| `GAME_BRAND_NAME` | Product name shown as the site title, browser tab, headers and bench pages. Default `Buyout`. |
+| `GAME_RULESET` | Theme and numbers: a file name in `backend/rulesets/` (`default`, `valley`, `mini`) or a path to a ruleset JSON. Default `default`. |
 | `FRONTEND_DIST` | Override the built-app directory. The image default is correct. |
 | `GAME_TRANSCRIPT_DIR` | Where every game's transcript (`<game_id>.jsonl`, served at `/games`) is written. Default `backend/data/transcripts/` inside the container; empty or `off` disables transcripts. Point it at a mounted volume (below) to keep them. |
 | `GAME_BENCH_DIR` | Benchmark results served at `/bench/leaderboard`, `/bench/series/...` and `/games?source=bench`: one results directory from `python -m bench run --out ...`, or a parent of several. Default `backend/bench_results/`. |

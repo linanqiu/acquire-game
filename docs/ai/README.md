@@ -1,8 +1,8 @@
-> **Historical (2026-11-14):** this describes the dropped reinforcement-learning plan (Epic 4, superseded). The current AI work is LLM opponents ([Epic 9](../roadmap/epics/09-llm-bot.md)) and Acquire Bench ([benchmarking.md](benchmarking.md), [Epic 12](../roadmap/epics/12-acquire-bench.md)).
+> **Historical (2026-11-14):** this describes the dropped reinforcement-learning plan (Epic 4, superseded). The current AI work is LLM opponents ([Epic 9](../roadmap/epics/09-llm-bot.md)) and Buyout Bench ([benchmarking.md](benchmarking.md), [Epic 12](../roadmap/epics/12-bench.md)).
 
-# Acquire AI Training Infrastructure
+# Buyout AI Training Infrastructure
 
-This document describes the plan for training a neural network-based AI to play Acquire using Reinforcement Learning with Self-Play.
+This document describes the plan for training a neural network-based AI to play Buyout using Reinforcement Learning with Self-Play.
 
 ## Overview
 
@@ -61,7 +61,7 @@ class Action:
     disposition: Optional[Dict[str, int]] = None
 ```
 
-Factory methods: `Action.play_tile("1A")`, `Action.found_chain("Luxor")`, etc.
+Factory methods: `Action.play_tile("1A")`, `Action.found_chain("Sandpiper")`, etc.
 
 ### 3. Game Cloning Support
 - `Game.clone()` - Deep copy for MCTS/simulation
@@ -95,7 +95,7 @@ Observation space (~750 dimensions):
 
 ### Phase 2: Gymnasium Environment (`game_env.py`)
 ```python
-class AcquireEnv(gym.Env):
+class BuyoutEnv(gym.Env):
     def reset() -> observation
     def step(action) -> (obs, reward, done, truncated, info)
     def get_legal_actions_mask() -> np.ndarray

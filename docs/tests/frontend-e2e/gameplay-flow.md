@@ -45,25 +45,25 @@ await expect(page.locator('[data-testid="player-tiles"]')).not.toContainText('3B
 1. Player places adjacent tile
 2. Chain founding modal appears
 3. Modal shows available chain names
-4. Player selects "Luxor"
+4. Player selects "Sandpiper"
 5. Chain is created with both tiles
 6. Player receives founder bonus stock
-7. Tiles change color to Luxor color
+7. Tiles change color to Sandpiper color
 
 **Expected Outcomes:**
-- Both tiles show Luxor color
-- Player receives 1 Luxor stock
-- Chain info panel shows Luxor: 2 tiles
+- Both tiles show Sandpiper color
+- Player receives 1 Sandpiper stock
+- Chain info panel shows Sandpiper: 2 tiles
 - Phase advances to buy stocks
 
 **Playwright Hints:**
 ```typescript
 await page.click('[data-testid="tile-3C"]')
 await page.waitForSelector('[data-testid="chain-selection-modal"]')
-await page.click('[data-testid="chain-luxor"]')
-await expect(page.locator('[data-testid="board-cell-3B"]')).toHaveClass(/luxor/)
-await expect(page.locator('[data-testid="board-cell-3C"]')).toHaveClass(/luxor/)
-await expect(page.locator('[data-testid="player-stocks-luxor"]')).toHaveText('1')
+await page.click('[data-testid="chain-sandpiper"]')
+await expect(page.locator('[data-testid="board-cell-3B"]')).toHaveClass(/sandpiper/)
+await expect(page.locator('[data-testid="board-cell-3C"]')).toHaveClass(/sandpiper/)
+await expect(page.locator('[data-testid="player-stocks-sandpiper"]')).toHaveText('1')
 ```
 
 ---
@@ -77,9 +77,9 @@ await expect(page.locator('[data-testid="player-stocks-luxor"]')).toHaveText('1'
 
 **Steps:**
 1. Player sees available chains with prices
-2. Player clicks "+1" on Luxor (price $200)
+2. Player clicks "+1" on Sandpiper (price $200)
 3. Purchase counter shows 1
-4. Player clicks "+1" on Tower (price $200)
+4. Player clicks "+1" on Marlowe (price $200)
 5. Player clicks "Confirm Purchase"
 6. Cash decreases by $400
 7. Stock counts increase
@@ -92,8 +92,8 @@ await expect(page.locator('[data-testid="player-stocks-luxor"]')).toHaveText('1'
 
 **Playwright Hints:**
 ```typescript
-await page.click('[data-testid="buy-luxor-plus"]')
-await page.click('[data-testid="buy-tower-plus"]')
+await page.click('[data-testid="buy-sandpiper-plus"]')
+await page.click('[data-testid="buy-marlowe-plus"]')
 await expect(page.locator('[data-testid="purchase-total"]')).toHaveText('$400')
 await page.click('[data-testid="confirm-purchase"]')
 await expect(page.locator('[data-testid="player-cash"]')).toContainText('$5,600')
@@ -149,7 +149,7 @@ await expect(nextPlayerPage.locator('[data-testid="your-turn-indicator"]')).toBe
 
 **Playwright Hints:**
 ```typescript
-await expect(page.locator('[data-testid="buy-continental-plus"]')).toBeDisabled()
+await expect(page.locator('[data-testid="buy-aurelia-plus"]')).toBeDisabled()
 await page.click('[data-testid="skip-purchase"]')
 ```
 
@@ -173,10 +173,10 @@ await page.click('[data-testid="skip-purchase"]')
 
 **Playwright Hints:**
 ```typescript
-await page.click('[data-testid="buy-luxor-plus"]')
-await page.click('[data-testid="buy-luxor-plus"]')
-await page.click('[data-testid="buy-luxor-plus"]')
-await expect(page.locator('[data-testid="buy-tower-plus"]')).toBeDisabled()
+await page.click('[data-testid="buy-sandpiper-plus"]')
+await page.click('[data-testid="buy-sandpiper-plus"]')
+await page.click('[data-testid="buy-sandpiper-plus"]')
+await expect(page.locator('[data-testid="buy-marlowe-plus"]')).toBeDisabled()
 await expect(page.locator('[data-testid="stock-limit-message"]')).toBeVisible()
 ```
 
@@ -185,13 +185,13 @@ await expect(page.locator('[data-testid="stock-limit-message"]')).toBeVisible()
 ## E2E-2.7: Chain Expansion
 
 **Preconditions:**
-- Luxor chain exists with 3 tiles
-- Player has tile adjacent to Luxor
+- Sandpiper chain exists with 3 tiles
+- Player has tile adjacent to Sandpiper
 
 **Steps:**
-1. Player places tile adjacent to Luxor
-2. Tile automatically joins Luxor chain
-3. Tile shows Luxor color
+1. Player places tile adjacent to Sandpiper
+2. Tile automatically joins Sandpiper chain
+3. Tile shows Sandpiper color
 4. Chain size increases to 4
 
 **Expected Outcomes:**
@@ -202,8 +202,8 @@ await expect(page.locator('[data-testid="stock-limit-message"]')).toBeVisible()
 **Playwright Hints:**
 ```typescript
 await page.click('[data-testid="tile-5D"]')
-await expect(page.locator('[data-testid="board-cell-5D"]')).toHaveClass(/luxor/)
-await expect(page.locator('[data-testid="chain-luxor-size"]')).toHaveText('4')
+await expect(page.locator('[data-testid="board-cell-5D"]')).toHaveClass(/sandpiper/)
+await expect(page.locator('[data-testid="chain-sandpiper-size"]')).toHaveText('4')
 ```
 
 ---

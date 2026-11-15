@@ -1,66 +1,41 @@
 # Game Setup
 
-This document covers the complete setup procedure for Acquire, including all components, money distribution, and preparation steps.
+This document covers the complete setup procedure for Buyout, including all components, money distribution, and preparation steps.
 
 ---
 
-## Components
+## What the game keeps track of
 
-A standard Acquire game includes:
+Buyout is played in the browser; the server holds every piece of state.
 
-### Board
-- **Game Board**: 12 columns x 9 rows grid
-- **Total Spaces**: 108 squares
-- **Labeling**: Columns numbered 1-12, rows lettered A-I
-- Each space is uniquely identified (e.g., "1A", "6D", "12I")
+### Board and tiles
+- **Board**: 12 columns x 9 rows, 108 squares. Columns are numbered 1-12 and rows lettered
+  A-I, so every square has a name such as "1A", "6D" or "12I".
+- **Tiles**: one per square, named after it. Tiles not yet drawn are in a hidden pool; the
+  tiles in a player's hand are visible only to that player.
 
-### Tiles
-- **108 Tiles**: One tile corresponding to each board space
-- Tiles are labeled with their board coordinates (e.g., "1A", "6D")
-- Tiles are kept face-down during the game (hidden from other players)
-
-### Hotel Chain Markers
-- **7 Chain Markers**: One for each hotel chain
-- Used to identify active chains on the board
-- Placed on the board when a chain is founded
-
-### Stock Certificates
-- **25 Certificates per chain**: 175 total stock certificates
-- Seven different colors/designs matching the hotel chains
-- Stored in the stock market tray when not owned by players
-
-### Stock Market Tray
-- Holds available stock certificates organized by chain
-- Managed by the banker during play
+### Chains and shares
+- **7 hotel chains**, each with a name, a colour and a price tier.
+- **25 shares per chain** in the bank (175 in all). Shares a player owns are public.
 
 ### Money
-- Paper money in the following denominations:
-  - **$100 bills**
-  - **$500 bills**
-  - **$1,000 bills**
-  - **$5,000 bills**
-- Total bank should have sufficient funds for all transactions
-
-### Information Cards
-- **6 Reference Cards**: One per player (maximum)
-- Display stock prices and bonus amounts based on chain size
-- Players keep these for reference during the game
+- Each player's cash is public. The bank never runs out of money.
 
 ---
 
 ## The Seven Hotel Chains
 
-| Chain | Tier | Color (Classic) | Starting Price |
-|-------|------|-----------------|----------------|
-| **Luxor** | Cheap | Gold | $200 |
-| **Tower** | Cheap | Brown | $200 |
-| **American** | Medium | Blue | $300 |
-| **Festival** | Medium | Green | $300 |
-| **Worldwide** | Medium | Purple | $300 |
-| **Continental** | Expensive | Cyan | $400 |
-| **Imperial** | Expensive | Red | $400 |
+| Chain | Tier | Colour | Starting Price |
+|-------|------|--------|----------------|
+| **Sandpiper** | Cheap | Sand gold `#E3B448` | $200 |
+| **Marlowe** | Cheap | Wine `#8E2C48` | $200 |
+| **Halcyon** | Medium | Teal `#1F7A8C` | $300 |
+| **Juniper** | Medium | Forest green `#3E7C4A` | $300 |
+| **Meridian** | Medium | Terracotta `#E07A3F` | $300 |
+| **Aurelia** | Expensive | Lavender `#B48CDB` | $400 |
+| **Obsidian** | Expensive | Slate navy `#2E3A59` | $400 |
 
-**Note**: In the 2008 Wizards of the Coast edition, Luxor was renamed "Sackson" in honor of designer Sid Sackson. Colors listed are from the original board game; the digital UI may use different colors.
+**Note**: Names, tiers and colours come from `backend/rulesets/default.json`.
 
 ---
 

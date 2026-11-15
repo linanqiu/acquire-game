@@ -9,30 +9,30 @@ Test scenarios for chain mergers, bonuses, and stock disposition.
 ## E2E-3.1: Simple Two-Chain Merger
 
 **Preconditions:**
-- Luxor chain: 5 tiles
-- Tower chain: 3 tiles
+- Sandpiper chain: 5 tiles
+- Marlowe chain: 3 tiles
 - Player has tile that connects both chains
 
 **Steps:**
 1. Player places connecting tile
-2. Merger is triggered (Luxor acquires Tower)
+2. Merger is triggered (Sandpiper acquires Marlowe)
 3. Majority/minority bonuses calculated
-4. Stock disposition modal appears for Tower holders
+4. Stock disposition modal appears for Marlowe holders
 5. Each holder decides: sell, trade, or keep
-6. Tower tiles convert to Luxor color
+6. Marlowe tiles convert to Sandpiper color
 
 **Expected Outcomes:**
-- Larger chain (Luxor) survives
+- Larger chain (Sandpiper) survives
 - Bonuses paid to majority/minority holders
-- Tower stock removed, optionally traded 2:1
-- All Tower tiles become Luxor tiles
+- Marlowe stock removed, optionally traded 2:1
+- All Marlowe tiles become Sandpiper tiles
 
 **Playwright Hints:**
 ```typescript
 await page.click('[data-testid="tile-merge"]')
 await page.waitForSelector('[data-testid="merger-modal"]')
-await expect(page.locator('[data-testid="survivor-chain"]')).toHaveText('Luxor')
-await expect(page.locator('[data-testid="defunct-chain"]')).toHaveText('Tower')
+await expect(page.locator('[data-testid="survivor-chain"]')).toHaveText('Sandpiper')
+await expect(page.locator('[data-testid="defunct-chain"]')).toHaveText('Marlowe')
 ```
 
 ---
@@ -40,14 +40,14 @@ await expect(page.locator('[data-testid="defunct-chain"]')).toHaveText('Tower')
 ## E2E-3.2: Merger Survivor Selection (Tie)
 
 **Preconditions:**
-- Luxor chain: 4 tiles
-- Tower chain: 4 tiles (same size)
+- Sandpiper chain: 4 tiles
+- Marlowe chain: 4 tiles (same size)
 - Player has connecting tile
 
 **Steps:**
 1. Player places connecting tile
 2. Survivor selection modal appears
-3. Player chooses surviving chain (Luxor or Tower)
+3. Player chooses surviving chain (Sandpiper or Marlowe)
 4. Merger proceeds with chosen survivor
 
 **Expected Outcomes:**
@@ -61,7 +61,7 @@ await expect(page.locator('[data-testid="defunct-chain"]')).toHaveText('Tower')
 await page.click('[data-testid="tile-merge"]')
 await page.waitForSelector('[data-testid="survivor-selection-modal"]')
 await expect(page.locator('[data-testid="tie-message"]')).toBeVisible()
-await page.click('[data-testid="select-luxor-survivor"]')
+await page.click('[data-testid="select-sandpiper-survivor"]')
 ```
 
 ---
@@ -70,7 +70,7 @@ await page.click('[data-testid="select-luxor-survivor"]')
 
 **Preconditions:**
 - Merger in progress
-- Player holds 5 Tower (defunct) stocks
+- Player holds 5 Marlowe (defunct) stocks
 
 **Steps:**
 1. Stock disposition modal shows player's holdings
@@ -79,14 +79,14 @@ await page.click('[data-testid="select-luxor-survivor"]')
 4. Stocks removed from holdings
 
 **Expected Outcomes:**
-- Cash increases by (5 * Tower price)
-- Tower stock count goes to 0
+- Cash increases by (5 * Marlowe price)
+- Marlowe stock count goes to 0
 - Disposition complete for this player
 
 **Playwright Hints:**
 ```typescript
 await page.click('[data-testid="sell-all-button"]')
-await expect(page.locator('[data-testid="player-stocks-tower"]')).toHaveText('0')
+await expect(page.locator('[data-testid="player-stocks-marlowe"]')).toHaveText('0')
 // Verify cash increased
 ```
 
@@ -95,28 +95,28 @@ await expect(page.locator('[data-testid="player-stocks-tower"]')).toHaveText('0'
 ## E2E-3.4: Stock Disposition - Trade 2:1
 
 **Preconditions:**
-- Merger in progress (Tower into Luxor)
-- Player holds 6 Tower stocks
-- Luxor has available stocks
+- Merger in progress (Marlowe into Sandpiper)
+- Player holds 6 Marlowe stocks
+- Sandpiper has available stocks
 
 **Steps:**
-1. Player sees trade option (2 Tower = 1 Luxor)
-2. Player selects to trade 4 Tower for 2 Luxor
-3. Player keeps remaining 2 Tower stocks
+1. Player sees trade option (2 Marlowe = 1 Sandpiper)
+2. Player selects to trade 4 Marlowe for 2 Sandpiper
+3. Player keeps remaining 2 Marlowe stocks
 4. Trade executes
 
 **Expected Outcomes:**
-- Tower stocks: 6 → 2
-- Luxor stocks: +2
+- Marlowe stocks: 6 → 2
+- Sandpiper stocks: +2
 - No cash exchanged for trades
-- Remaining Tower stocks can be kept or sold
+- Remaining Marlowe stocks can be kept or sold
 
 **Playwright Hints:**
 ```typescript
 await page.fill('[data-testid="trade-count-input"]', '4')
 await page.click('[data-testid="trade-button"]')
-await expect(page.locator('[data-testid="player-stocks-tower"]')).toHaveText('2')
-await expect(page.locator('[data-testid="player-stocks-luxor"]')).toContainText('+2')
+await expect(page.locator('[data-testid="player-stocks-marlowe"]')).toHaveText('2')
+await expect(page.locator('[data-testid="player-stocks-sandpiper"]')).toContainText('+2')
 ```
 
 ---
@@ -140,7 +140,7 @@ await expect(page.locator('[data-testid="player-stocks-luxor"]')).toContainText(
 **Playwright Hints:**
 ```typescript
 await page.click('[data-testid="keep-all-button"]')
-await expect(page.locator('[data-testid="player-stocks-tower"]')).toHaveText('5')
+await expect(page.locator('[data-testid="player-stocks-marlowe"]')).toHaveText('5')
 ```
 
 ---
@@ -250,9 +250,9 @@ await expect(page.locator('[data-testid="player-cash"]')).toHaveText('$9,000')
 **Playwright Hints:**
 ```typescript
 // Verify merger order
-await expect(page.locator('[data-testid="merger-1-defunct"]')).toHaveText('Tower')
+await expect(page.locator('[data-testid="merger-1-defunct"]')).toHaveText('Marlowe')
 // After first merger resolves
-await expect(page.locator('[data-testid="merger-2-defunct"]')).toHaveText('American')
+await expect(page.locator('[data-testid="merger-2-defunct"]')).toHaveText('Halcyon')
 ```
 
 ---

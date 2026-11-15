@@ -6,7 +6,7 @@ Player-to-player trading is an optional feature that allows players to exchange 
 
 ## Overview
 
-Trading in Acquire allows players to negotiate stock/money exchanges outside of their turn. The backend supports:
+Trading in Buyout allows players to negotiate stock/money exchanges outside of their turn. The backend supports:
 - `propose_trade`: Offer a trade to another player
 - `accept_trade`: Accept a pending trade
 - `reject_trade`: Decline a pending trade
@@ -24,8 +24,8 @@ Trading in Acquire allows players to negotiate stock/money exchanges outside of 
 **Steps:**
 1. Player A opens trade dialog
 2. Player A selects Player B as recipient
-3. Player A offers: 2 Luxor stocks + $500
-4. Player A requests: 1 Tower stock
+3. Player A offers: 2 Sandpiper stocks + $500
+4. Player A requests: 1 Marlowe stock
 5. Player A submits trade proposal
 6. Player B receives trade notification
 7. Player B reviews trade details
@@ -33,18 +33,18 @@ Trading in Acquire allows players to negotiate stock/money exchanges outside of 
 9. Both players see trade confirmation
 
 **Expected Outcomes:**
-- Player A loses 2 Luxor stocks and $500
-- Player A gains 1 Tower stock
-- Player B gains 2 Luxor stocks and $500
-- Player B loses 1 Tower stock
+- Player A loses 2 Sandpiper stocks and $500
+- Player A gains 1 Marlowe stock
+- Player B gains 2 Sandpiper stocks and $500
+- Player B loses 1 Marlowe stock
 - Trade notification dismissed for both
 
 **WebSocket Messages:**
 ```typescript
 // Player A sends
 { action: 'propose_trade', to_player_id: 'player-b-uuid',
-  offering_stocks: { Luxor: 2 }, offering_money: 500,
-  requesting_stocks: { Tower: 1 }, requesting_money: 0 }
+  offering_stocks: { Sandpiper: 2 }, offering_money: 500,
+  requesting_stocks: { Marlowe: 1 }, requesting_money: 0 }
 
 // Both receive
 { type: 'trade_proposed', trade: { id: '...', from_player_id: '...', ... } }
@@ -63,7 +63,7 @@ await page.waitForSelector('[data-testid="trade-notification"]')
 // Accept trade
 await page.click('[data-testid="accept-trade"]')
 // Verify stocks updated
-await expect(page.locator('[data-testid="luxor-count"]')).toHaveText('2')
+await expect(page.locator('[data-testid="sandpiper-count"]')).toHaveText('2')
 ```
 
 ---
@@ -130,12 +130,12 @@ await expect(page.locator('[data-testid="luxor-count"]')).toHaveText('2')
 
 **Preconditions:**
 - Game in progress
-- Player A has 1 Luxor stock
+- Player A has 1 Sandpiper stock
 
 **Steps:**
-1. Player A tries to propose a trade offering 2 Luxor stocks
+1. Player A tries to propose a trade offering 2 Sandpiper stocks
 2. Frontend validation prevents submission
-3. Error message displayed: "You don't have enough Luxor stocks"
+3. Error message displayed: "You don't have enough Sandpiper stocks"
 
 **Expected Outcomes:**
 - Trade not submitted to backend
@@ -216,7 +216,7 @@ await expect(page.locator('[data-testid="luxor-count"]')).toHaveText('2')
 - Trade history (for current session)
 
 ### Chain Name Format
-Backend expects title-case chain names: `"Luxor"`, `"Tower"`, `"American"`, etc.
+Backend expects title-case chain names: `"Sandpiper"`, `"Marlowe"`, `"Halcyon"`, etc.
 
 ## Reference
 

@@ -48,7 +48,7 @@ Rules are tested once, in tier 1. They are not re-verified through the browser.
 
 - Never hide bugs: a test that hits a stuck state fails; it does not return early.
 - Screenshots as evidence at every step; console and page errors are checked.
-- Determinism through seeding (`ACQUIRE_GAME_SEED`).
+- Determinism through seeding (`GAME_SEED`).
 - Bots and humans use the same code paths.
 - Detailed per-step logging.
 - WebSocket for receiving state, HTTP for sending actions.

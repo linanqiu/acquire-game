@@ -15,7 +15,7 @@ Total dimension: ~750 features
 |-------|---------|
 | 0 | Empty |
 | 1 | Played (no chain) |
-| 2-8 | Chain index (Luxor=2, Tower=3, ..., Continental=8) |
+| 2-8 | Chain index (Sandpiper=2, Marlowe=3, ..., Aurelia=8) |
 
 ### 2. Chain Information (35 features)
 7 chains × 5 features each:
@@ -65,7 +65,7 @@ This ensures the agent always sees itself as "player 0", making the observation 
 
 ## Variable Player Count Support
 
-Acquire supports 2-6 players, but neural networks require fixed-size inputs. We solve this with **fixed-size encoding with masking**.
+Buyout supports 2-6 players, but neural networks require fixed-size inputs. We solve this with **fixed-size encoding with masking**.
 
 ### Strategy: Always Encode 6 Player Slots
 

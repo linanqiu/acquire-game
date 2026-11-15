@@ -1,121 +1,88 @@
-# Acquire Board Game - Official Rules Documentation
+# Buyout Rules
 
-This documentation provides a comprehensive reference for the official rules of **Acquire**, the classic board game of hotel chain acquisition and stock market strategy designed by Sid Sackson. Originally published by 3M in 1964, Acquire has been published by various companies including Avalon Hill, Hasbro (1999 edition), and Renegade Game Studios.
+These documents describe how a game of **Buyout** is played: players place tiles on a grid,
+found hotel chains, buy shares in them, and profit when chains merge. The engine in
+`backend/game/` implements exactly these rules; this is the reference its tests are checked
+against.
 
-> **Numbers in these documents describe the `classic` ruleset.** The server's
-> board size, chain names and tiers, price table, bonuses, stock counts,
-> starting cash, hand size, purchase limit, safe/end-game sizes, founder bonus,
-> trade ratio and player counts all come from a ruleset file
-> (`backend/rulesets/<name>.json`, selected with `GAME_RULESET`); other
-> rulesets (e.g. `valley`, `mini`) change those numbers and names but not the
-> flow of play described here. See the "Ruleset" section of
+> **Numbers in these documents describe the `default` ruleset** (theme "Grand Hotels").
+> The server's board size, chain names and tiers, price table, bonuses, share counts,
+> starting cash, hand size, purchase limit, safe/end-game sizes, founder bonus, trade ratio
+> and player counts all come from a ruleset file (`backend/rulesets/<name>.json`, selected
+> with `GAME_RULESET`); other rulesets (e.g. `valley`, `mini`) change those numbers and
+> names but not the flow of play described here. See the "Ruleset" section of
 > `docs/architecture/seat-contract.md`.
 
-## Game Overview
+## At a glance
 
-- **Players**: 3-6 (4 is optimal)
-- **Age**: 12+
-- **Duration**: 60-90 minutes
-- **Designer**: Sid Sackson
-- **First Published**: 1964
+- **Players**: 3-6
+- **Length**: about 60-90 minutes with humans; a few seconds with bots only
+- **Board**: 12 columns x 9 rows, one tile per square (108 tiles)
 
-## Objective
+## Goal
 
-Become the wealthiest player by strategically forming hotel chains, buying stock at the right time, merging chains to obtain capital and bonuses, and building chains in which you have controlling interest to increase their value.
+Finish with the most money. Money comes from cash on hand, shares sold at the end, and the
+bonuses paid to the largest and second-largest shareholders of a chain when it is absorbed in a
+merger or when the game ends.
 
 ---
 
-## Table of Contents
+## Contents
 
-### 1. [Game Setup](setup.md)
-- Components and materials
-- Starting money distribution ($6,000 per player)
-- Initial tile placement for turn order
-- Drawing starting tiles
+### 1. [Setup](setup.md)
+- What each player starts with ($6,000 and 6 tiles)
+- Deciding who goes first
 
-### 2. [Gameplay Overview](gameplay.md)
-- Turn structure (trade, place tile, buy stock, draw tile)
-- Player-to-player trading rules
-- Player order
-- Game flow
+### 2. [Turn sequence](gameplay.md)
+- Trade (optional), place a tile, buy shares, draw a tile
+- Trading between players
 
-### 3. [Tile Placement Rules](tiles.md)
-- Board layout (12x9 grid, 108 tiles)
-- Types of tile placements
-- Unplayable tiles and replacement rules
+### 3. [Placing tiles](tiles.md)
+- The 12x9 board
+- What a placed tile can do
+- Tiles that cannot be played, and replacing them
 
-### 4. [Hotel Chains](chains.md)
-- The seven hotel chains and their tiers
-- Founding a new chain
-- Founder's bonus stock
-- Chain expansion
-- Safe chains (11+ tiles)
+### 4. [Hotel chains](chains.md)
+- The seven chains and their price tiers
+- Founding a chain and the founder's free share
+- Growing a chain; safe chains (11+ tiles)
 
 ### 5. [Mergers](mergers.md)
-- When mergers occur
-- Determining the surviving chain
-- Majority and minority stockholder bonuses
-- Tie-breaking rules
-- Stock disposition options (hold, sell, trade)
-- Multiple chain mergers
+- When a merger happens and which chain survives
+- Largest and second-largest shareholder bonuses, and ties
+- Selling, trading or keeping shares of the absorbed chain
+- Mergers of three or four chains
 
-### 6. [Stock Purchasing](stocks.md)
-- Buying stock (up to 3 per turn)
-- Stock limits (25 per chain)
-- When stock can be purchased
-- Stock availability
+### 6. [Buying shares](stocks.md)
+- Up to 3 shares per turn, 25 per chain in the bank
 
-### 7. [End Game](endgame.md)
-- End game conditions
-- Declaring the game over
-- Final bonuses and stock liquidation
-- Determining the winner
+### 7. [End of the game](endgame.md)
+- When the game may be ended
+- Final bonuses and selling every share
+- The winner
 
-### 8. [Pricing Reference](pricing.md)
-- Complete stock price table by chain size and tier
-- Majority and minority bonus tables
-- Quick reference charts
+### 8. [Prices and bonuses](pricing.md)
+- Share price by chain size and tier
+- Bonus tables
 
 ---
 
-## The Seven Hotel Chains
+## The seven hotel chains (default ruleset)
 
-Acquire features seven hotel chains organized into three pricing tiers:
-
-| Tier | Chains | Starting Price (2 tiles) |
-|------|--------|-------------------------|
-| **Cheap** | Luxor, Tower | $200 |
-| **Medium** | American, Festival, Worldwide | $300 |
-| **Expensive** | Continental, Imperial | $400 |
+| Tier | Chains | Share price at 2 tiles |
+|------|--------|------------------------|
+| **Cheap** | Sandpiper, Marlowe | $200 |
+| **Medium** | Halcyon, Meridian, Juniper | $300 |
+| **Expensive** | Obsidian, Aurelia | $400 |
 
 ---
 
-## Quick Rules Summary
+## Summary
 
-1. **Start**: Each player receives $6,000 and draws 6 tiles
-2. **Turn**: Trade with players (optional), place 1 tile, buy up to 3 stocks, draw 1 tile
-3. **Found**: Connecting tiles creates a chain; founder gets 1 free stock
-4. **Merge**: Larger chain absorbs smaller; stockholders get bonuses
-5. **Safe**: Chains with 11+ tiles cannot be acquired
-6. **End**: Game ends when any chain reaches 41 tiles OR all chains are safe
-7. **Win**: Player with the most money (cash + liquidated stock) wins
-
----
-
-## Edition Notes
-
-This documentation is based primarily on the classic 1999 Hasbro/Avalon Hill edition rules, which are largely consistent with the original 3M rules. Notable variations in other editions:
-
-- **2008 Wizards of the Coast Edition**: Renamed Luxor to "Sackson" (honoring the designer); reorganized tier assignments
-- **2016 Edition**: Changed safe threshold to 10 tiles; modified board to 10x10
-- **Renegade Game Studios Edition**: Added "Tycoon Mode" with third-tier stockholder bonuses
-
-For tournament play, the classic rules with 11-tile safe threshold and 12x9 board are standard.
-
----
-
-## Document Version
-
-- **Version**: 1.0
-- **Based on**: 1999 Hasbro/Avalon Hill Official Rules
-- **Last Updated**: January 2026
+1. **Start**: everyone has $6,000 and 6 tiles.
+2. **Turn**: trade with other players if you like, place 1 tile, buy up to 3 shares, draw 1 tile.
+3. **Found**: a tile that joins loose tiles into a group of 2+ founds a chain; the founder gets 1 free share.
+4. **Merge**: a tile that joins two or more chains merges them; the largest survives and the shareholders of the others are paid bonuses.
+5. **Safe**: a chain of 11+ tiles can no longer be absorbed.
+6. **End**: the game may be ended once a chain has 41+ tiles, or every chain on the board is safe.
+7. **Win**: the most money after final bonuses and selling all shares.

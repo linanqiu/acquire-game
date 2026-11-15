@@ -29,7 +29,7 @@ Before committing any feature implementation, perform this review:
 2. **Type Alignment**:
    - Verify TypeScript types match actual backend data structures
    - Document any transformation logic needed between backend and frontend formats
-   - Check for case sensitivity mismatches (e.g., backend 'American' vs frontend 'american')
+   - Check for case sensitivity mismatches (e.g., backend 'Halcyon' vs frontend 'halcyon')
 
 3. **Test Coverage Reality Check**:
    - Tests should cover real user scenarios, not just code paths
@@ -85,7 +85,7 @@ This tests the FULL STACK - real browser, real servers, real user experience.
 | `./scripts/verify-change.sh` | ~10s | Lint, format, fast tests, surface coverage check, typecheck |
 | `./scripts/verify-full.sh` | ~60s | All above + full backend tests + frontend unit tests + `@ci` journeys |
 | `pytest backend/tests -q` | ~2s+ | Tier 1 (engine) + tier 2 (protocol) |
-| `npm run e2e:screens` | minutes | Tier 3: screen tests from snapshots (real servers, `ACQUIRE_TEST_MODE=1`) |
+| `npm run e2e:screens` | minutes | Tier 3: screen tests from snapshots (real servers, `GAME_TEST_MODE=1`) |
 | `npm run e2e:journeys` | minutes | Tier 4: home-page end-to-end journeys (real servers) |
 | `npm run e2e:ci` | ~1 min | The `@ci`-tagged journeys only |
 | `npm run e2e` | minutes | Screens + journeys + transcripts (the old scenario suite is gone: `docs/tests/legacy-suite-retirement.md`) |
@@ -143,7 +143,7 @@ through the app.
    error state) against the journey or screen test that covers it. When you add or change a
    surface, update the map in the same commit. A surface with no test is a visible gap. Coverage is
    measured by surfaces and journeys, not by line or scenario counts.
-4. Test-mode endpoints exist only when `ACQUIRE_TEST_MODE=1` and must never be enabled in deploy config.
+4. Test-mode endpoints exist only when `GAME_TEST_MODE=1` and must never be enabled in deploy config.
 
 Example - what each tier may do:
 ```typescript
@@ -194,11 +194,11 @@ page.on('console', msg => console.log('[' + msg.type() + ']', msg.text()))
 page.on('pageerror', err => console.log('Page error:', err.message))
 ```
 
-**Determinism through seeding.** Use `ACQUIRE_GAME_SEED` for reproducible tile distribution:
+**Determinism through seeding.** Use `GAME_SEED` for reproducible tile distribution:
 ```typescript
 // playwright.config.ts
 env: {
-  ACQUIRE_GAME_SEED: '2',  // Same seed = same tile distribution
+  GAME_SEED: '2',  // Same seed = same tile distribution
 }
 ```
 
@@ -232,7 +232,7 @@ cd frontend && npm run dev -- --host 127.0.0.1 &
 curl -s http://127.0.0.1:8000/docs > /dev/null && echo "Backend: OK"
 curl -s http://127.0.0.1:5173 > /dev/null && echo "Frontend: OK"
 ```
-(Tier 3 also needs `ACQUIRE_TEST_MODE=1` on the backend.)
+(Tier 3 also needs `GAME_TEST_MODE=1` on the backend.)
 
 ### WebSocket Reliability Pattern
 When building real-time features:

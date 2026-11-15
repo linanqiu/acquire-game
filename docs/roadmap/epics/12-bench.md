@@ -1,9 +1,9 @@
-# Epic 12: Transcripts & Acquire Bench
+# Epic 12: Transcripts & Buyout Bench
 
 > Created 2026-11-14 from owner decisions of the same date. Stories live in
-> `docs/roadmap/stories/12-acquire-bench/`, prefix `AB-`. The format and rules are specified in
+> `docs/roadmap/stories/12-bench/`, prefix `AB-`. The format and rules are specified in
 > [docs/architecture/seat-contract.md](../../architecture/seat-contract.md), section "Game
-> transcripts and Acquire Bench" (authoritative); this epic builds it.
+> transcripts and Buyout Bench" (authoritative); this epic builds it.
 
 ## Owner decisions (2026-11-14)
 
@@ -13,7 +13,7 @@
    testing/debugging, and because users are curious. Users can browse recent games and step
    through a replay showing each AI decision's prompt, answer and stated reasoning. Hands and
    private notes of a live game unlock only when it ends (privacy rule in the contract).
-2. **Acquire Bench is a first-class product, not a dev tool.** Putting LLMs in seats yields an AI
+2. **Buyout Bench is a first-class product, not a dev tool.** Putting LLMs in seats yields an AI
    benchmark as a byproduct: models of different strength play each other and the rules-based
    baseline. It must be
    (a) **programmatically runnable on its own**: a standalone command and a Python API with
@@ -45,7 +45,7 @@
   (Wilson intervals, mean rank, score margin vs bot, fallback and repair rates, latency, tokens,
   cost). Exit codes 0 / 1 / 2. See [docs/ai/benchmarking.md](../../ai/benchmarking.md).
 - `backend/agents/llm/decision_log.py`: per-decision records in a ring buffer and, if
-  `ACQUIRE_LLM_LOG_DIR` is set, JSONL with full prompts. Per agent, server-side only.
+  `GAME_LLM_LOG_DIR` is set, JSONL with full prompts. Per agent, server-side only.
 - Python entry points `bench.run_game` and `bench.run_series` (both async); no stable synchronous
   API, no protocol id, no transcripts, no leaderboard, no HTTP routes under `/games` or `/bench`,
   no frontend pages for either.
@@ -70,15 +70,15 @@ and must follow it.
 
 | Story | Title | Status | Depends on |
 |-------|-------|--------|------------|
-| [AB-001](../stories/12-acquire-bench/AB-001.md) | Transcript writer (server driver + bench runner) | in-progress | ES-002, LO-003 |
-| [AB-002](../stories/12-acquire-bench/AB-002.md) | Transcript HTTP API with redaction | in-progress | AB-001 |
-| [AB-003](../stories/12-acquire-bench/AB-003.md) | Transcript browser and replay viewer UI | in-progress | AB-002 |
-| [AB-004](../stories/12-acquire-bench/AB-004.md) | Standalone eval: CLI, Python API, exit codes, JSON output, CI workflow | in-progress | AB-001, AB-005 |
-| [AB-005](../stories/12-acquire-bench/AB-005.md) | Protocol `acquire-bench-v1` | in-progress | LO-006 (harness) |
-| [AB-006](../stories/12-acquire-bench/AB-006.md) | Ratings and leaderboard computation | in-progress | AB-005, AB-001 |
-| [AB-007](../stories/12-acquire-bench/AB-007.md) | Leaderboard UI | in-progress | AB-002, AB-006 |
-| [AB-008](../stories/12-acquire-bench/AB-008.md) | Transcript persistence and retention in deployment | not-started | AB-001 (blocked: volume decision) |
-| [AB-009](../stories/12-acquire-bench/AB-009.md) | First published results | not-started | AB-004, AB-006 (blocked: API key) |
+| [AB-001](../stories/12-bench/AB-001.md) | Transcript writer (server driver + bench runner) | in-progress | ES-002, LO-003 |
+| [AB-002](../stories/12-bench/AB-002.md) | Transcript HTTP API with redaction | in-progress | AB-001 |
+| [AB-003](../stories/12-bench/AB-003.md) | Transcript browser and replay viewer UI | in-progress | AB-002 |
+| [AB-004](../stories/12-bench/AB-004.md) | Standalone eval: CLI, Python API, exit codes, JSON output, CI workflow | in-progress | AB-001, AB-005 |
+| [AB-005](../stories/12-bench/AB-005.md) | Protocol `bench-v1` | in-progress | LO-006 (harness) |
+| [AB-006](../stories/12-bench/AB-006.md) | Ratings and leaderboard computation | in-progress | AB-005, AB-001 |
+| [AB-007](../stories/12-bench/AB-007.md) | Leaderboard UI | in-progress | AB-002, AB-006 |
+| [AB-008](../stories/12-bench/AB-008.md) | Transcript persistence and retention in deployment | not-started | AB-001 (blocked: volume decision) |
+| [AB-009](../stories/12-bench/AB-009.md) | First published results | not-started | AB-004, AB-006 (blocked: API key) |
 
 ## Non-goals
 

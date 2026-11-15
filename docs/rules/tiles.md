@@ -1,6 +1,6 @@
 # Tile Placement Rules
 
-This document provides detailed rules for tile placement in Acquire, including all possible placement outcomes and special situations.
+This document provides detailed rules for tile placement in Buyout, including all possible placement outcomes and special situations.
 
 ---
 
@@ -119,7 +119,7 @@ Before:           After placing 6D:
 │    │    │       │    │ 6D │ ← Founding tile
 └────┴────┘       └────┴────┘
 
-Player founds "American" chain and receives 1 free American stock.
+Player founds "Halcyon" chain and receives 1 free Halcyon stock.
 ```
 
 See [Hotel Chains](chains.md) for more details on founding.
@@ -144,8 +144,8 @@ Before:                After placing 7D:
 │    │[6D]│    │       │    │[6D]│[7D]│ ← Chain expands
 └────┴────┴────┘       └────┴────┴────┘
 
-[Brackets] indicate tiles in the American chain.
-American chain grows from 2 tiles to 3 tiles.
+[Brackets] indicate tiles in the Halcyon chain.
+Halcyon chain grows from 2 tiles to 3 tiles.
 ```
 
 ---
@@ -170,9 +170,9 @@ Before:                 After placing 6D:
 │{5D}│    │(7D)│        │[5D]│[6D]│[7D]│ ← Merger tile
 └────┴────┴────┘        └────┴────┴────┘
 
-{5D} = Tower chain (2 tiles total)
-(7D) = American chain (3 tiles total)
-American (larger) acquires Tower (smaller)
+{5D} = Marlowe chain (2 tiles total)
+(7D) = Halcyon chain (3 tiles total)
+Halcyon (larger) acquires Marlowe (smaller)
 ```
 
 See [Mergers](mergers.md) for detailed merger rules.
@@ -196,7 +196,7 @@ A tile is **permanently unplayable** if placing it would:
    - Maximum of 7 chains can exist simultaneously
    - A tile that would found an 8th chain cannot be played
 
-### Handling Unplayable Tiles (1999 Hasbro Rules)
+### Handling Unplayable Tiles
 
 1. **At the end of a turn**, a player may replace permanently unplayable tiles
 2. Return the unplayable tile(s) to the tile pool face-down

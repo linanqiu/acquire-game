@@ -82,7 +82,7 @@ Names below are `file : test`. Screen tests are in `frontend/tests/e2e/screens/`
 | 3.8 & 3.9 chain colours and size on board | screens `turn-basics.spec.ts : expanding a chain: ...` (new), `found-chain.spec.ts` |
 | 3.10 founding survives a disconnect | screens `reload.spec.ts : reload while choosing a chain: ...` |
 | 3.2 three-tile founding | engine `test_rules.py : test_found_multiple_adjacent_played_tiles` |
-| 3.6 founder bonus stock depleted | the legacy test only bought stock and logged progress (conditional `expect`); rule: engine `scenarios/test_chain_founding.py` ("Exhaust all Luxor stocks"); sold-out UI: screens `buy-phase.spec.ts : buy phase: prices and availability shown, ...` |
+| 3.6 founder bonus stock depleted | the legacy test only bought stock and logged progress (conditional `expect`); rule: engine `scenarios/test_chain_founding.py` ("Exhaust all Sandpiper stocks"); sold-out UI: screens `buy-phase.spec.ts : buy phase: prices and availability shown, ...` |
 | 3.7 cannot found 8th chain | screens `place-tile.spec.ts : dead tile in hand: ...` (the tile is marked and cannot be selected); engine `scenarios/test_chain_founding.py : test_scenario_3_5_cannot_found_eighth_chain`, `test_tile_placement.py : test_cannot_create_8th_chain` |
 
 ### Chain expansion (4.x)

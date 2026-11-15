@@ -63,7 +63,7 @@ killed. The decision-UI and page groups were not re-measured at all.
      messages a seat receives when it is loaded (prompt, `game_state` with private fields,
      `game_over`), the spectator's `game_state`, and, for one fixture, what the server sends after
      the human sold everything;
-   * one short real game per shipped ruleset (classic, valley, mini): first state of each phase,
+   * one short real game per shipped ruleset (default, valley, mini): first state of each phase,
      the prompts, the lobby, a buy turn with chains to buy into;
    * a real trade lifecycle (proposed, accepted, rejected, canceled), the sentences the server
      answers when an action is refused, the AI catalog, and the answers of the home page's routes
@@ -71,7 +71,7 @@ killed. The decision-UI and page groups were not re-measured at all.
 
    Helper: `frontend/tests/unit/fixtures/wire.ts` (`loadSnapshotAsPlayer`, `playedGame`, ...). It
    feeds the messages through the real store handler, so the UI sees what a browser would.
-   Regenerate with `ACQUIRE_TEST_MODE=1 python3 frontend/tests/unit/fixtures/generate_wire_messages.py`
+   Regenerate with `GAME_TEST_MODE=1 python3 frontend/tests/unit/fixtures/generate_wire_messages.py`
    (the file is not byte-stable: player ids are random; no test depends on a specific id).
 
 ## Results
@@ -103,7 +103,7 @@ Logic group (all mutators; `Timeout` counted as killed):
 | `src/lib/trades.ts` | 48.8% (21/43) | 100.0% (43/43) |
 | `src/lib/transcripts.ts` | 56.8% (46/81) | 91.1% (72/79) |
 | `src/lib/waiting.ts` | 95.0% (19/20) | 100.0% (20/20) |
-| `src/ruleset/classic.ts` | 100.0% (0/0) | 100.0% (0/0) |
+| `src/ruleset/defaultRuleset.ts` | 100.0% (0/0) | 100.0% (0/0) |
 | `src/ruleset/RulesetGate.tsx` | 69.2% (18/26) | 84.6% (22/26) |
 | `src/ruleset/RulesetScope.tsx` | 75.0% (3/4) | 75.0% (3/4) |
 | `src/ruleset/store.ts` | 46.6% (34/73) | 94.5% (69/73) |
@@ -173,7 +173,7 @@ Titles change when a test is rewritten, so "not carried over" counts rewrites as
 * **Renders-only / default prop / role exists** (about 90): ReconnectedToast (12 of 14),
   PageShell/Header/Panel/Card "renders title/children", ChainSelector rendering/aria matrix,
   Modal "has dialog role" (twice), LobbyPage "renders the title/subtitle/metadata/forms",
-  HostPage "renders ACQUIRE title in lobby".
+  HostPage "renders BUYOUT title in lobby".
 * **Cannot fail / no assertion**: barrel tests (`ui/index.test.ts`, `game/index.test.ts`:
   "is defined"), Slider "does not call onChange when disabled" (no assertion), Button
   "responds to Enter key" (fires a click), ReconnectionOverlay "hides manual rejoin UI when

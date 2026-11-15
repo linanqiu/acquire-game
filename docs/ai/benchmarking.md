@@ -1,29 +1,29 @@
 # Benchmarking seats
 
-> **Acquire Bench** (owner decision 2026-11-14): this harness is the engine of a product, not just
+> **Buyout Bench** (owner decision 2026-11-14): this harness is the engine of a product, not just
 > a dev tool. See the next section for the framing and what is still planned, and
-> [Epic 12](../roadmap/epics/12-acquire-bench.md) for the stories. Everything below the "Running"
+> [Epic 12](../roadmap/epics/12-bench.md) for the stories. Everything below the "Running"
 > heading describes what exists today.
 
-## Acquire Bench
+## Buyout Bench
 
 Putting LLMs in seats gives a benchmark as a byproduct: models of different strength play full
-games of Acquire against each other and against the rules-based baseline (the heuristic bot). The
+games of Buyout against each other and against the rules-based baseline (the heuristic bot). The
 owner wants it to be a first-class part of the product, with these properties:
 
 1. **Runs on its own.** A standalone command and a Python API, with machine-readable output and
    meaningful exit codes. No server, no browser, no WebSocket. Usable from CI or from a script that
    benchmarks its own agent.
-2. **Versioned.** A result belongs to a protocol id (`acquire-bench-v1`) and a prompt version.
+2. **Versioned.** A result belongs to a protocol id (`bench-v1`) and a prompt version.
    Results from different protocol ids or prompt versions are never mixed in one table.
 3. **Transparent.** Every game of a benchmark run writes a full transcript (every move, and for LLM
    seats the exact prompt, every raw answer, retries and fallbacks). Every leaderboard row links to
-   the transcripts behind it. Format: seat contract, "Game transcripts and Acquire Bench".
+   the transcripts behind it. Format: seat contract, "Game transcripts and Buyout Bench".
 4. **Honest about sample size and cost.** Intervals, not point estimates; rows with too few games
    are marked and not ranked; cost per game is `unknown` unless every price is known.
 5. **Visible in the product.** A leaderboard page in the app.
 
-### Protocol `acquire-bench-v1` (planned, AB-005)
+### Protocol `bench-v1` (planned, AB-005)
 
 Fixed seed list, 4 seats, full seat rotation (a game count that is a multiple of 4), fixed prompt
 version, retry limit and timeouts pinned. Two tracks: **vs-baseline** (one model against three
@@ -45,7 +45,7 @@ rate; the 4-retry loop is planned (LO-003) and the harness must follow it (see "
 
 | Piece | Requirement | State |
 |---|---|---|
-| Command | A documented command that runs a protocol for chosen models and writes a results directory (results, transcripts, report). | `python -m bench --matchup ...` exists (free-form matchups, below). Protocol mode, e.g. `python -m bench run --protocol acquire-bench-v1 --model llm:<id>`, is **planned** (AB-004, AB-005); final syntax set there. |
+| Command | A documented command that runs a protocol for chosen models and writes a results directory (results, transcripts, report). | `python -m bench --matchup ...` exists (free-form matchups, below). Protocol mode, e.g. `python -m bench run --protocol bench-v1 --model llm:<id>`, is **planned** (AB-004, AB-005); final syntax set there. |
 | Python API | A synchronous function callable from a plain script, returning the report as a dict; custom agents injectable. | `bench.run_game` / `bench.run_series` exist but are async and take internal arguments (`from bench import run_series`). A synchronous `bench.run(...)` is **planned** (AB-004). |
 | Output | A versioned JSON report (schema checked in), a Markdown summary, resumable per-game results, one transcript per game; `--json` prints only JSON on stdout. | Report JSON, Markdown and resumable JSONL exist. Schema file, `--json`, and transcripts are **planned** (AB-001, AB-004). |
 | Exit codes | `0` all games finished; `1` stopped early (budget) or a game stalled; `2` configuration error; `3` internal error. | `0`, `1`, `2` exist (see below). `3` is **planned**. |
@@ -55,7 +55,7 @@ rate; the 4-retry loop is planned (LO-003) and the harness must follow it (see "
 
 ## Current harness
 
-`backend/bench/` plays full Acquire games headlessly (no server, no sockets) and
+`backend/bench/` plays full Buyout games headlessly (no server, no sockets) and
 reports how each agent does against the others: win rate, rank, score margin
 versus the heuristic bot, reliability, latency, tokens and cost.
 
@@ -78,7 +78,7 @@ From `backend/`:
 python -m bench --matchup bot,bot,bot,bot --games 20
 
 # whole LLM code path offline (fake provider plays the first legal action)
-ACQUIRE_TEST_MODE=1 python -m bench --matchup llm:fake,bot,bot,bot --games 8
+GAME_TEST_MODE=1 python -m bench --matchup llm:fake,bot,bot,bot --games 8
 
 # a real model (needs ANTHROPIC_API_KEY; fails fast with a clear message otherwise)
 python -m bench --matchup llm:claude-haiku-5-5,bot,bot,bot --games 4 --max-decisions 2000
@@ -217,17 +217,17 @@ and is free (0.0). A model that is not in the file counts as unknown.
   driver (same retry and time budget); retries are counted from the agent's
   decision record (attempts with an error), so agents without one report only
   the driver's re-asks.
-* See "Acquire Bench: running the protocol" below for the protocol, transcripts,
+* See "Buyout Bench: running the protocol" below for the protocol, transcripts,
   ratings and the leaderboard.
 
-## Acquire Bench: running the protocol
+## Buyout Bench: running the protocol
 
 Implemented (transcripts, protocol, ratings, leaderboard, standalone CLI and
 Python API). Everything here runs without the server.
 
-### Protocol `acquire-bench-v1`
+### Protocol `bench-v1`
 
-Defined in `backend/bench/protocols.py` (`PROTOCOLS["acquire-bench-v1"]`):
+Defined in `backend/bench/protocols.py` (`PROTOCOLS["bench-v1"]`):
 
 | Pinned | Value |
 |---|---|
@@ -236,7 +236,7 @@ Defined in `backend/bench/protocols.py` (`PROTOCOLS["acquire-bench-v1"]`):
 | Series | 72 games: every distinct seating of the lineup is played on the same deal (seed), seed after seed |
 | vs-baseline | per model, lineup `(model, bot, bot, bot)`: 4 seatings x 18 seeds |
 | head-to-head | 2 models + 2 bots: 12 seatings x 6 seeds; 3 models + 1 bot or 4 models: 24 seatings x 3 seeds; more than 4 models: one series per 4-combination |
-| Ruleset | one game variant per run (`--ruleset classic\|valley\|mini\|<path>`; default env `GAME_RULESET`, else classic): `ruleset_id` and `ruleset_fingerprint` are recorded in every result and transcript header, and are part of every game key and series id |
+| Ruleset | one game variant per run (`--ruleset default\|valley\|mini\|<path>`; default env `GAME_RULESET`, else default): `ruleset_id` and `ruleset_fingerprint` are recorded in every result and transcript header, and are part of every game key and series id |
 | Prompt | `prompt_version(ruleset)` of `agents.llm` (hash of the ruleset fingerprint, the system prompt text built for it and `PROMPT_BUILDER_VERSION`), recorded in every result |
 | Retries / timeouts | the server's: `max_illegal_retries` per catalog entry (default 4), `llm_decision_timeout` (130 s per decision) |
 
@@ -259,7 +259,7 @@ fingerprint AND prompt version; the leaderboard never mixes them (it lists the
 other versions and rulesets under `available` and in `warnings`;
 `GET /bench/leaderboard?ruleset=<id or fingerprint>` and `python -m bench
 leaderboard --ruleset` choose one, default: that of the newest result).
-Records written before rulesets existed count as classic. Changing seeds, seats, schedule or game
+Records written before rulesets existed count as default. Changing seeds, seats, schedule or game
 count means a new protocol id; changing what the model sees means bumping
 `PROMPT_BUILDER_VERSION` in `backend/agents/llm/prompt.py` (the system prompt
 text is hashed automatically).
@@ -270,15 +270,15 @@ From `backend/`:
 
 ```bash
 # offline smoke (fake LLM, no network): ~1 s per game
-ACQUIRE_TEST_MODE=1 python -m bench run --protocol acquire-bench-v1 \
+GAME_TEST_MODE=1 python -m bench run --protocol bench-v1 \
     --models llm:fake --track vs-baseline --games 4 --out bench_results/smoke --json
 
 # real models (needs ANTHROPIC_API_KEY); both tracks, budget-capped
-python -m bench run --protocol acquire-bench-v1 \
+python -m bench run --protocol bench-v1 \
     --models llm:claude-haiku-5-5,llm:claude-sonnet-5-5 --track both \
     --out bench_results/claude --max-concurrency 6 --max-decisions 20000
 
-python -m bench run --protocol acquire-bench-v1 --models llm:fake \
+python -m bench run --protocol bench-v1 --models llm:fake \
     --ruleset mini --games 4 --out bench_results/mini                # another game variant
 python -m bench leaderboard --out bench_results/claude          # Markdown table
 python -m bench leaderboard --out bench_results/claude --json   # the /bench/leaderboard JSON
@@ -300,7 +300,7 @@ to stderr:
 
 ```jsonc
 {"status": "complete" | "stopped" | "stalled" | "config_error", "exit_code": 0,
- "protocol": "acquire-bench-v1", "prompt_version": "v1-...", "tracks": [...],
+ "protocol": "bench-v1", "prompt_version": "v1-...", "tracks": [...],
  "out": "...", "series": ["<series_id>", ...],
  "games": {"planned", "ran", "skipped", "aborted", "stalled"},
  "stopped_reason": null | "--max-decisions N reached",
@@ -335,7 +335,7 @@ print(res.status, res.exit_code, res.summary()["games"])
 board = compute_leaderboard(load_results("bench_results/mine"), track="vs-baseline")
 ```
 
-* `run_protocol(models, *, out, protocol="acquire-bench-v1", track="both",
+* `run_protocol(models, *, out, protocol="bench-v1", track="both",
   games=None, max_concurrency=4, max_usd=None, max_decisions=None,
   prices=None, fresh=False, transcripts=True, progress=None,
   prompt_version=None, write_outputs=True, ruleset=None) -> ProtocolResult` (async; in a
@@ -368,7 +368,7 @@ standings, winners, turns, end_reason, decisions, seats[...]`) plus
 `protocol`, `track`, `prompt_version`, `series_games`, `seating_index`,
 `lineup`; every record has `ruleset_id` and `ruleset_fingerprint`. Final
 standings use competition ranking (a tie shares the rank; a tie for first is a
-split win and a half-win in the rating). The server serves `ACQUIRE_BENCH_DIR` (default
+split win and a half-win in the rating). The server serves `GAME_BENCH_DIR` (default
 `backend/bench_results/`; one results directory or a parent of several) at
 `GET /bench/leaderboard`, `GET /bench/series/{id}` and `GET /games?source=bench`.
 
@@ -408,7 +408,7 @@ sample-size note).
 
 1. Add a catalog entry: built-in Anthropic entries live in
    `backend/agents/llm/config.py` (`_default_entries`); any other model goes in
-   `ACQUIRE_LLM_CATALOG` (JSON list, e.g.
+   `GAME_LLM_CATALOG` (JSON list, e.g.
    `[{"id": "llm:my-model", "label": "My model", "provider": "openai", "model": "my-model", "base_url": "https://api.example.com/v1", "api_key_env": "MY_KEY"}]`).
 2. `python -m bench list-models` must show it `available`.
 3. Add its prices to `backend/bench/prices.json` (below) if you want costs or
@@ -429,9 +429,9 @@ know (costs then show as unknown, never guessed). Transcript footers
 
 * `.github/workflows/ci.yml` runs an offline smoke (fake LLM, 2 games) after the
   test suite.
-* `.github/workflows/acquire-bench.yml` (manual `workflow_dispatch` only:
+* `.github/workflows/bench.yml` (manual `workflow_dispatch` only:
   models, track, games cap, max USD, max decisions) runs the protocol with the
-  `ANTHROPIC_API_KEY` / `ACQUIRE_LLM_OPENAI_API_KEY` repository secrets and
+  `ANTHROPIC_API_KEY` / `GAME_LLM_OPENAI_API_KEY` repository secrets and
   uploads the results directory as an artifact. It never runs on push or PR.
 
 No real-model results exist in this repository yet: they need an API key and

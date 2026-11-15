@@ -176,9 +176,9 @@ def compute_dense_reward(prev_state, curr_state, player_id):
 Use vectorized environments for faster training:
 
 ```python
-class VectorizedAcquireEnv:
+class VectorizedBuyoutEnv:
     def __init__(self, num_envs, config):
-        self.envs = [AcquireEnv(config) for _ in range(num_envs)]
+        self.envs = [BuyoutEnv(config) for _ in range(num_envs)]
 
     def reset(self):
         return np.stack([env.reset() for env in self.envs])
@@ -210,7 +210,7 @@ def load_checkpoint(path, policy, optimizer):
 ## Logging (TensorBoard)
 
 ```python
-writer = SummaryWriter("runs/acquire_training")
+writer = SummaryWriter("runs/training")
 
 # Log metrics
 writer.add_scalar("train/policy_loss", policy_loss, timestep)

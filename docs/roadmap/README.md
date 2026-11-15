@@ -1,4 +1,4 @@
-# Acquire Product Roadmap
+# Buyout Product Roadmap
 
 > A structured roadmap enabling parallel development by multiple Claude sessions.
 
@@ -12,11 +12,11 @@
    ([Epic 9](epics/09-llm-bot.md)).
 3. **Player-to-player trading stays**, including for LLM seats.
 4. **Complete game transcripts** for every game, live and benchmark, including what each AI seat
-   was shown and what it answered ([Epic 12](epics/12-acquire-bench.md)). Users can browse and
+   was shown and what it answered ([Epic 12](epics/12-bench.md)). Users can browse and
    replay finished games.
-5. **Acquire Bench is a product**: a versioned, standalone-runnable benchmark of models playing
+5. **Buyout Bench is a product**: a versioned, standalone-runnable benchmark of models playing
    each other and the rules-based baseline, with a public leaderboard that links to transcripts
-   ([Epic 12](epics/12-acquire-bench.md)).
+   ([Epic 12](epics/12-bench.md)).
 6. **LLM failures are retried, then visible**: an illegal move goes back to the model (default up
    to 4 retries); only timeout, provider error or exhausted retries hand that decision to the
    rules-based player, and everyone at the table is told. LLM opponents can be picked only when
@@ -51,7 +51,7 @@
 | [LLM Opponents](epics/09-llm-bot.md) | 1/6 (LO-006 harness done; LO-007 superseded) | LO-001..LO-005 partly built; LO-003 needs the 4-retry loop and fallback notice |
 | [Engine Seam](epics/10-engine-seam.md) | 6/6 (ES-001..ES-006) | Complete (fuzz volume: 600 games in the slow tier) |
 | [Test Pyramid](epics/11-test-pyramid.md) | 5/9 (TP-001, TP-004..TP-007) | TP-002, TP-003 partly built; TP-008 workflow written, needs a green PR run; TP-009 (remaining display-state gaps) |
-| [Transcripts & Acquire Bench](epics/12-acquire-bench.md) | 0/9 | AB-001..AB-007 in-progress; AB-008 (blocked: volume), AB-009 (blocked: API key) |
+| [Transcripts & Buyout Bench](epics/12-bench.md) | 0/9 | AB-001..AB-007 in-progress; AB-008 (blocked: volume), AB-009 (blocked: API key) |
 
 Counts checked against the repo on 2026-11-14 (`pytest backend/tests -n auto`: 1,283 passed, 0 xfailed; 1,216 of them in the fast tier).
 A story is counted done only when every acceptance criterion is ticked; the status note at the
@@ -84,11 +84,11 @@ ES-006 test-mode endpoints      LO-006 benchmark harness        TP-004 screen te
                                                                 TP-007 retire old suite
                                                                 TP-008 CI wiring
 
-Track F: TRANSCRIPTS & ACQUIRE BENCH (Epic 12)
+Track F: TRANSCRIPTS & BUYOUT BENCH (Epic 12)
 ──────────────────────────────────────────────
 AB-001 transcript writer  (wants LO-003 attempts data)
    ↓                 ↘
-AB-002 HTTP API       AB-005 protocol acquire-bench-v1
+AB-002 HTTP API       AB-005 protocol bench-v1
    ↓                     ↓
 AB-003 viewer UI      AB-004 standalone eval + CI    AB-006 ratings + leaderboard
                                                         ↓
@@ -113,7 +113,7 @@ C depends on A through ES-003, ES-005 and ES-006.
                                    ↓
         ┌──────────────────────────┴──────────────────────────┐
   Seats / LLM opponents (Epic 9)                 Test pyramid (Epic 11)
-  + Transcripts & Acquire Bench (Epic 12)
+  + Transcripts & Buyout Bench (Epic 12)
         └──────────────────────────┬──────────────────────────┘
                                    ↓
                          Security hardening (Epic 6)
@@ -176,14 +176,14 @@ story needed? If a gap is found, create the story immediately.
 | 9 LLM Opponents | LLM seats: provider adapters, prompt builder, decision loop with validate/retry/fallback (visible), trading, lobby UI, benchmark harness. Observability moved to Epic 12. |
 | 10 Engine Seam | Decisions API, single apply entry point, event log, snapshots, calculator pack, seat driver, test-mode endpoints. |
 | 11 Test Pyramid | Engine, protocol, screen (snapshots), journey (home page) tiers; surface coverage map. |
-| 12 Transcripts & Acquire Bench | Transcript of every game (prompts, answers, retries, fallbacks), redacted HTTP API, replay viewer, standalone versioned benchmark `acquire-bench-v1`, ratings, leaderboard page, persistence, first results. |
+| 12 Transcripts & Buyout Bench | Transcript of every game (prompts, answers, retries, fallbacks), redacted HTTP API, replay viewer, standalone versioned benchmark `bench-v1`, ratings, leaderboard page, persistence, first results. |
 
 ## Reference Documentation
 
 | Document | Purpose |
 |----------|---------|
 | [docs/architecture/seat-contract.md](../architecture/seat-contract.md) | Seat/engine contract (authoritative) |
-| [docs/ai/benchmarking.md](../ai/benchmarking.md) | Acquire Bench: how to run, read and extend it |
+| [docs/ai/benchmarking.md](../ai/benchmarking.md) | Buyout Bench: how to run, read and extend it |
 | [docs/tests/surface-coverage.md](../tests/surface-coverage.md) | Which test covers which user-visible surface |
 | [docs/ui/storyboard.md](../ui/storyboard.md) | Complete UI specification |
 | [docs/ui/design-system.md](../ui/design-system.md) | Colors, typography, spacing |

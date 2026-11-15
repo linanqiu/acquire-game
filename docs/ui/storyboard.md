@@ -1,8 +1,8 @@
-# Acquire Frontend Redesign: Complete Storyboard
+# Buyout Frontend Redesign: Complete Storyboard
 
 ## Overview
 
-Complete storyboard for the Acquire board game frontend redesign. This document defines every screen, user flow, and interaction the new frontend must support.
+Complete storyboard for the Buyout board game frontend redesign. This document defines every screen, user flow, and interaction the new frontend must support.
 
 **Design Reference:** `design-system.md` (Bloomberg terminal aesthetic, dark theme, monospace typography, information-dense)
 
@@ -23,9 +23,9 @@ Complete storyboard for the Acquire board game frontend redesign. This document 
 
 | Tier | Chains | Price at 2 tiles |
 |------|--------|------------------|
-| Cheap | Luxor, Tower | $200 |
-| Medium | American, Festival, Worldwide | $300 |
-| Expensive | Continental, Imperial | $400 |
+| Cheap | Sandpiper, Marlowe | $200 |
+| Medium | Halcyon, Juniper, Meridian | $300 |
+| Expensive | Aurelia, Obsidian | $400 |
 
 ### End Game Conditions
 Game **may** end (player choice) when:
@@ -98,7 +98,7 @@ PHASE 3: BUY STOCKS (Optional)
 |- Purchase 0-3 stock certificates total
 |- Only in active chains (currently on board)
 |- Pay current stock price per share
-|- May split across multiple chains (e.g., 2 American + 1 Luxor)
+|- May split across multiple chains (e.g., 2 Halcyon + 1 Sandpiper)
 
     |
     v
@@ -170,7 +170,7 @@ WHO CAN TRADE:
 WHAT CAN BE TRADED:
 |- Stock certificates (any chains you own)
 |- Cash
-|- Combinations (e.g., "2 Luxor + $500 for 1 American")
+|- Combinations (e.g., "2 Sandpiper + $500 for 1 Halcyon")
 
 CONSTRAINTS:
 |- Trading only happens BEFORE tile placement
@@ -203,7 +203,7 @@ Connection lost -> Show reconnecting spinner
 ### Layout
 ```
 +------------------------------------------+
-|           ACQUIRE                        |
+|           BUYOUT                        |
 |     [Bloomberg-style header]             |
 +------------------------------------------+
 |                                          |
@@ -352,13 +352,13 @@ TURN ENDS --> Next Player
 | +--------+ +--------+ +--------+         |
 +------------------------------------------+
 | YOU OFFER:                               |
-|   Stocks: [LUXOR v] x [2]   [+ ADD]      |
-|           LUXOR x2 (you have 5)          |
+|   Stocks: [SANDPIPER v] x [2]   [+ ADD]      |
+|           SANDPIPER x2 (you have 5)          |
 |   Cash:   [$500_____]                    |
 +------------------------------------------+
 | YOU WANT:                                |
-|   Stocks: [AMERICAN v] x [1] [+ ADD]     |
-|           AMERICAN x1 (they have 3)      |
+|   Stocks: [HALCYON v] x [1] [+ ADD]     |
+|           HALCYON x1 (they have 3)      |
 |   Cash:   [$0_______]                    |
 +------------------------------------------+
 | [CANCEL]              [PROPOSE TRADE]    |
@@ -372,11 +372,11 @@ TURN ENDS --> Next Player
 +------------------------------------------+
 |                                          |
 | BOB OFFERS:                              |
-|   2x LUXOR                               |
+|   2x SANDPIPER                               |
 |   $500 cash                              |
 |                                          |
 | BOB WANTS:                               |
-|   1x AMERICAN (you have 3)               |
+|   1x HALCYON (you have 3)               |
 |                                          |
 +------------------------------------------+
 | [ACCEPT]              [DECLINE]          |
@@ -415,9 +415,9 @@ TURN ENDS --> Next Player
 | +--------------------------------------+ |
 |                                          |
 | o = Selected tile placement preview      |
-| # = Orphan tile   B = AMERICAN           |
+| # = Orphan tile   B = HALCYON           |
 |                                          |
-| PREVIEW: "6D expands AMERICAN to 4"      |
+| PREVIEW: "6D expands HALCYON to 4"      |
 |          "Stock price: $500/share"       |
 +------------------------------------------+
 | SELECT A TILE:                           |
@@ -444,11 +444,11 @@ TURN ENDS --> Next Player
 |---------|--------------|
 | Orphan | "1A - Isolated tile (no chain)" |
 | Found chain | "3C - Creates new chain! Choose name after placement" |
-| Expand | "6D - AMERICAN grows to 4 tiles ($500/share)" |
-| Expand + absorb orphans | "6D - AMERICAN grows to 6 tiles (absorbs 2 orphans)" |
-| Merger | "5C - AMERICAN (5 tiles) absorbs LUXOR (3 tiles)" |
-| Merger (tied) | "5C - TIE! AMERICAN (4) vs LUXOR (4). You choose survivor" |
-| Multi-chain merger | "5C - Triple merger! AMERICAN survives, LUXOR & TOWER defunct" |
+| Expand | "6D - HALCYON grows to 4 tiles ($500/share)" |
+| Expand + absorb orphans | "6D - HALCYON grows to 6 tiles (absorbs 2 orphans)" |
+| Merger | "5C - HALCYON (5 tiles) absorbs SANDPIPER (3 tiles)" |
+| Merger (tied) | "5C - TIE! HALCYON (4) vs SANDPIPER (4). You choose survivor" |
+| Multi-chain merger | "5C - Triple merger! HALCYON survives, SANDPIPER & MARLOWE defunct" |
 
 ### Unplayable Tile Handling
 
@@ -504,19 +504,19 @@ If you have playable tiles, play one normally. At END of turn (after drawing), y
 |                                          |
 | CHEAP TIER (starts at $200/share)        |
 | +------------------+ +------------------+ |
-| | [Y] LUXOR        | | [Br] TOWER       | |
+| | [Y] SANDPIPER        | | [Br] MARLOWE       | |
 | | 25 stock avail   | | 25 stock avail   | |
 | +------------------+ +------------------+ |
 |                                          |
 | MEDIUM TIER (starts at $300/share)       |
 | +-----------+ +-----------+ +-----------+ |
-| |[B]AMERICAN| |[P]FESTIVAL| |[G]WORLDWIDE| |
+| |[B]HALCYON| |[P]JUNIPER| |[G]MERIDIAN| |
 | | 25 avail  | | 25 avail  | | 25 avail  | |
 | +-----------+ +-----------+ +-----------+ |
 |                                          |
 | EXPENSIVE TIER (starts at $400/share)    |
 | +------------------+ +------------------+ |
-| | [R] CONTINENTAL  | | [Bl] IMPERIAL    | |
+| | [R] AURELIA  | | [Bl] OBSIDIAN    | |
 | | 25 stock avail   | | 25 stock avail   | |
 | +------------------+ +------------------+ |
 |                                          |
@@ -535,12 +535,12 @@ If you have playable tiles, play one normally. At END of turn (after drawing), y
 ### Founding Confirmation
 ```
 +------------------------------------------+
-| [ok] AMERICAN FOUNDED!                   |
+| [ok] HALCYON FOUNDED!                   |
 +------------------------------------------+
 | Chain size: 3 tiles                      |
 | Starting stock price: $400/share         |
 |                                          |
-| You received: 1 FREE AMERICAN share      |
+| You received: 1 FREE HALCYON share      |
 |                                          |
 | [CONTINUE TO BUY STOCKS ->]              |
 +------------------------------------------+
@@ -549,12 +549,12 @@ If you have playable tiles, play one normally. At END of turn (after drawing), y
 ### Founding Confirmation (No Stock Available - Rare)
 ```
 +------------------------------------------+
-| [ok] AMERICAN FOUNDED!                   |
+| [ok] HALCYON FOUNDED!                   |
 +------------------------------------------+
 | Chain size: 3 tiles                      |
 | Starting stock price: $400/share         |
 |                                          |
-| All 25 AMERICAN shares already owned.    |
+| All 25 HALCYON shares already owned.    |
 | No founder's bonus awarded.              |
 |                                          |
 | [CONTINUE TO BUY STOCKS ->]              |
@@ -574,7 +574,7 @@ If you have playable tiles, play one normally. At END of turn (after drawing), y
 | As mergemaker, choose which survives:    |
 |                                          |
 | +------------------+ +------------------+ |
-| | [B] AMERICAN     | | [Y] LUXOR        | |
+| | [B] HALCYON     | | [Y] SANDPIPER        | |
 | | 5 tiles          | | 5 tiles          | |
 | | $600/share       | | $500/share       | |
 | |                  | |                  | |
@@ -588,9 +588,9 @@ If you have playable tiles, play one normally. At END of turn (after drawing), y
 ### Step 2: Bonus Payout (Informational)
 ```
 +------------------------------------------+
-| LUXOR ACQUIRED BY AMERICAN               |
+| SANDPIPER ACQUIRED BY HALCYON               |
 +------------------------------------------+
-| LUXOR (5 tiles, Cheap tier) bonuses:    |
+| SANDPIPER (5 tiles, Cheap tier) bonuses:    |
 |                                          |
 | [crown] MAJORITY (6 shares): BOB         |
 |    Bonus: $5,000                         |
@@ -599,7 +599,7 @@ If you have playable tiles, play one normally. At END of turn (after drawing), y
 |    Bonus: $1,300 each (split $2,500)     |
 |                                          |
 | ---------------------------------------- |
-| Your LUXOR shares: 3                     |
+| Your SANDPIPER shares: 3                     |
 | Your bonus received: +$1,300             |
 |                                          |
 | [CONTINUE TO STOCK DISPOSITION ->]       |
@@ -617,11 +617,11 @@ If you have playable tiles, play one normally. At END of turn (after drawing), y
 ### Step 3: Stock Disposition (Your Turn)
 ```
 +------------------------------------------+
-| DISPOSE OF YOUR LUXOR STOCK              |
+| DISPOSE OF YOUR SANDPIPER STOCK              |
 +------------------------------------------+
-| You have: 3 LUXOR shares                 |
-| LUXOR price at merger: $500/share        |
-| AMERICAN (survivor) stock available: 15  |
+| You have: 3 SANDPIPER shares                 |
+| SANDPIPER price at merger: $500/share        |
+| HALCYON (survivor) stock available: 15  |
 |                                          |
 | +--------------------------------------+ |
 | | SELL to bank                         | |
@@ -630,16 +630,16 @@ If you have playable tiles, play one normally. At END of turn (after drawing), y
 | +--------------------------------------+ |
 |                                          |
 | +--------------------------------------+ |
-| | TRADE 2:1 for AMERICAN               | |
+| | TRADE 2:1 for HALCYON               | |
 | | [--*--------------] 0 shares         | |
-| | (Need 2 LUXOR -> Get 1 AMERICAN)     | |
-| | AMERICAN received: 0                 | |
+| | (Need 2 SANDPIPER -> Get 1 HALCYON)     | |
+| | HALCYON received: 0                 | |
 | +--------------------------------------+ |
 |                                          |
 | +--------------------------------------+ |
 | | HOLD (keep for re-founding)          | |
 | | Remaining: 1 share                   | |
-| | (Worth $0 until LUXOR re-founded)    | |
+| | (Worth $0 until SANDPIPER re-founded)    | |
 | +--------------------------------------+ |
 |                                          |
 +------------------------------------------+
@@ -662,7 +662,7 @@ If you have playable tiles, play one normally. At END of turn (after drawing), y
 +------------------------------------------+
 | WAITING FOR STOCK DISPOSITION            |
 +------------------------------------------+
-| Disposing LUXOR stock in order:          |
+| Disposing SANDPIPER stock in order:          |
 |                                          |
 | [ok] ALICE (mergemaker) - done           |
 | [..] BOB - deciding...                   |
@@ -692,11 +692,11 @@ If you have playable tiles, play one normally. At END of turn (after drawing), y
 +------------------------------------------+
 | Your tile connects 3 chains:             |
 |                                          |
-| [B] AMERICAN (6 tiles) -> SURVIVES       |
-| [Y] LUXOR (4 tiles) -> DEFUNCT (1st)     |
-| [R] CONTINENTAL (3 tiles) -> DEFUNCT (2nd)|
+| [B] HALCYON (6 tiles) -> SURVIVES       |
+| [Y] SANDPIPER (4 tiles) -> DEFUNCT (1st)     |
+| [R] AURELIA (3 tiles) -> DEFUNCT (2nd)|
 |                                          |
-| Resolving LUXOR first, then CONTINENTAL  |
+| Resolving SANDPIPER first, then AURELIA  |
 |                                          |
 | [CONTINUE ->]                            |
 +------------------------------------------+
@@ -705,11 +705,11 @@ If you have playable tiles, play one normally. At END of turn (after drawing), y
 **Multi-chain merger flow:**
 1. Show overview of all chains involved
 2. Resolve FIRST defunct chain (largest):
-   - Pay LUXOR bonuses
-   - ALL players dispose LUXOR stock (in order)
+   - Pay SANDPIPER bonuses
+   - ALL players dispose SANDPIPER stock (in order)
 3. Resolve SECOND defunct chain:
-   - Pay CONTINENTAL bonuses
-   - ALL players dispose CONTINENTAL stock (in order)
+   - Pay AURELIA bonuses
+   - ALL players dispose AURELIA stock (in order)
 4. Merger complete
 5. Active player continues to Phase 3
 
@@ -718,9 +718,9 @@ If multiple defunct chains have the same size (including one that tied with the 
 1. The chain that LOST the survivor tie (if applicable)
 2. Then alphabetically by chain name (or let mergemaker choose)
 
-Example: American (5), Luxor (5), Tower (3) merge. Mergemaker picks American to survive.
-- Resolve Luxor first (5 tiles, lost the tie)
-- Resolve Tower second (3 tiles)
+Example: Halcyon (5), Sandpiper (5), Marlowe (3) merge. Mergemaker picks Halcyon to survive.
+- Resolve Sandpiper first (5 tiles, lost the tie)
+- Resolve Marlowe second (3 tiles)
 
 ---
 
@@ -734,7 +734,7 @@ Example: American (5), Luxor (5), Tower (3) merge. Mergemaker picks American to 
 | ACTIVE CHAINS                            |
 |                                          |
 | +--------------------------------------+ |
-| | [B] AMERICAN                         | |
+| | [B] HALCYON                         | |
 | | 8 tiles - $700/share - 15 available  | |
 | | You own: 3                           | |
 | |                                      | |
@@ -742,7 +742,7 @@ Example: American (5), Luxor (5), Tower (3) merge. Mergemaker picks American to 
 | +--------------------------------------+ |
 |                                          |
 | +--------------------------------------+ |
-| | [Y] LUXOR                            | |
+| | [Y] SANDPIPER                            | |
 | | 4 tiles - $400/share - 22 available  | |
 | | You own: 1                           | |
 | |                                      | |
@@ -750,7 +750,7 @@ Example: American (5), Luxor (5), Tower (3) merge. Mergemaker picks American to 
 | +--------------------------------------+ |
 |                                          |
 | +--------------------------------------+ |
-| | [R] CONTINENTAL [SAFE]               | |
+| | [R] AURELIA [SAFE]               | |
 | | 12 tiles - $900/share - 18 avail     | |
 | | You own: 0                           | |
 | |                                      | |
@@ -780,8 +780,8 @@ Example: American (5), Luxor (5), Tower (3) merge. Mergemaker picks American to 
 | [ok] PURCHASE COMPLETE                   |
 +------------------------------------------+
 | You bought:                              |
-|   2x AMERICAN @ $700 = $1,400            |
-|   1x LUXOR @ $400 = $400                 |
+|   2x HALCYON @ $700 = $1,400            |
+|   1x SANDPIPER @ $400 = $400                 |
 |                                          |
 | Total spent: $1,800                      |
 | Remaining cash: $4,000                   |
@@ -801,7 +801,7 @@ When end conditions are met (your turn):
 +------------------------------------------+
 | END GAME AVAILABLE                       |
 +------------------------------------------+
-| CONTINENTAL has reached 41 tiles!        |
+| AURELIA has reached 41 tiles!        |
 |                                          |
 | You may declare the game over now,       |
 | or continue playing for strategic        |
@@ -817,9 +817,9 @@ When end conditions are met (your turn):
 | END GAME AVAILABLE                       |
 +------------------------------------------+
 | All active chains are now SAFE (11+):    |
-|  - AMERICAN: 15 tiles                    |
-|  - CONTINENTAL: 22 tiles                 |
-|  - IMPERIAL: 11 tiles                    |
+|  - HALCYON: 15 tiles                    |
+|  - AURELIA: 22 tiles                 |
+|  - OBSIDIAN: 11 tiles                    |
 |                                          |
 | You may declare the game over now,       |
 | or continue playing.                     |
@@ -839,7 +839,7 @@ If "DECLARE GAME OVER":
 ### Pre-Game (Lobby)
 ```
 +------------------------------------------------------------------+
-| ACQUIRE                                         Room: ABCD       |
+| BUYOUT                                         Room: ABCD       |
 +------------------------------------------------------------------+
 |                                                                  |
 |                    +--------------------+                        |
@@ -865,12 +865,12 @@ If "DECLARE GAME OVER":
 ### In-Game
 ```
 +------------------------------------------------------------------+
-| ACQUIRE    ABCD    ALICE'S TURN - Phase 1: Trading               |
+| BUYOUT    ABCD    ALICE'S TURN - Phase 1: Trading               |
 +----------------------------------+-------------------------------+
 |                                  | CHAINS                        |
 |     1  2  3  4  5  6  7  8  9 10 11 12|                           |
-|  A  .  .  .  #  .  .  .  .  .  .  .  .| [B] AMERICAN  8  $700 [15]|
-|  B  .  .  #  #  #  .  .  .  .  .  .  .| [Y] LUXOR     4  $400 [22]|
+|  A  .  .  .  #  .  .  .  .  .  .  .  .| [B] HALCYON  8  $700 [15]|
+|  B  .  .  #  #  #  .  .  .  .  .  .  .| [Y] SANDPIPER     4  $400 [22]|
 |  C  .  .  .  B  B  .  .  .  .  .  .  .| [R] CONTIN. 12  $900 [P]  |
 |  D  .  .  .  .  B  B  .  .  .  .  .  .|                           |
 |  E  .  .  .  .  B  B  B  .  Y  Y  .  .| Legend:                   |
@@ -942,8 +942,8 @@ If "DECLARE GAME OVER":
 | Stock liquidation: +$12,000              |
 | TOTAL:              $24,800              |
 |                                          |
-| Note: 2 TOWER shares held = $0           |
-| (TOWER was never re-founded)             |
+| Note: 2 MARLOWE shares held = $0           |
+| (MARLOWE was never re-founded)             |
 |                                          |
 | [PLAY AGAIN]      [BACK TO LOBBY]        |
 +------------------------------------------+
@@ -1045,7 +1045,7 @@ When the board changes (due to another player's action), your tile playability m
 | Board state has changed.                 |
 |                                          |
 | Tile 5C is now PERMANENTLY UNPLAYABLE    |
-| (Would merge AMERICAN + IMPERIAL,        |
+| (Would merge HALCYON + OBSIDIAN,        |
 |  both now safe chains)                   |
 |                                          |
 | [DISMISS]                                |
@@ -1058,7 +1058,7 @@ When end conditions are met during someone else's turn:
 +------------------------------------------+
 | END CONDITIONS MET                       |
 +------------------------------------------+
-| AMERICAN has reached 41 tiles!           |
+| HALCYON has reached 41 tiles!           |
 |                                          |
 | The game may now be ended.               |
 | Next player can choose to declare.       |
@@ -1071,11 +1071,11 @@ When end conditions are met during someone else's turn:
 When a chain you held defunct stock in is re-founded:
 ```
 +------------------------------------------+
-| TOWER RE-FOUNDED!                        |
+| MARLOWE RE-FOUNDED!                        |
 +------------------------------------------+
-| Bob has founded TOWER.                   |
+| Bob has founded MARLOWE.                   |
 |                                          |
-| Your 3 held TOWER shares are now         |
+| Your 3 held MARLOWE shares are now         |
 | ACTIVE again! Current value: $600        |
 |                                          |
 | [OK]                                     |
@@ -1085,9 +1085,9 @@ When a chain you held defunct stock in is re-founded:
 ### Stock Availability During Disposition
 As other players trade during merger disposition, available stock updates:
 ```
-Before: "AMERICAN (survivor) stock available: 15"
-After Bob trades 6->3: "AMERICAN (survivor) stock available: 12"
-After Carol trades 4->2: "AMERICAN (survivor) stock available: 10"
+Before: "HALCYON (survivor) stock available: 15"
+After Bob trades 6->3: "HALCYON (survivor) stock available: 12"
+After Carol trades 4->2: "HALCYON (survivor) stock available: 10"
 ```
 If it reaches 0, the TRADE slider becomes disabled for remaining players.
 
@@ -1303,11 +1303,11 @@ Host can remove problematic players from the lobby:
 **All stock of a chain sold out:**
 ```
 +------------------------------------------+
-| AMERICAN SOLD OUT                        |
+| HALCYON SOLD OUT                        |
 +------------------------------------------+
-| All 25 AMERICAN shares are now owned.    |
+| All 25 HALCYON shares are now owned.    |
 |                                          |
-| No more AMERICAN stock can be purchased  |
+| No more HALCYON stock can be purchased  |
 | until shares return to the bank          |
 | (via merger sell-off).                   |
 |                                          |
@@ -1317,7 +1317,7 @@ Host can remove problematic players from the lobby:
 
 In stock buying UI, sold-out chains show:
 ```
-| [B] AMERICAN [SOLD OUT]                 |
+| [B] HALCYON [SOLD OUT]                 |
 | 8 tiles - $700/share - 0 available      |
 | You own: 3                              |
 |                                         |
@@ -1348,7 +1348,7 @@ Rare scenario where a merge frees up a chain, enabling a blocked tile:
 +------------------------------------------+
 | TILE NOW PLAYABLE                        |
 +------------------------------------------+
-| After the LUXOR merger, tile 7G is now   |
+| After the SANDPIPER merger, tile 7G is now   |
 | playable (would found new chain, and     |
 | only 6 chains are now active).           |
 |                                          |
@@ -1374,12 +1374,12 @@ When a tile connects multiple orphans:
 The founding confirmation reflects the actual size:
 ```
 +------------------------------------------+
-| [ok] LUXOR FOUNDED!                      |
+| [ok] SANDPIPER FOUNDED!                      |
 +------------------------------------------+
 | Chain size: 5 tiles                      |
 | Starting stock price: $500/share         |
 |                                          |
-| You received: 1 FREE LUXOR share         |
+| You received: 1 FREE SANDPIPER share         |
 +------------------------------------------+
 ```
 
@@ -1412,7 +1412,7 @@ For irreversible actions, require confirmation:
 | Place tile 5C?                           |
 |                                          |
 | This will trigger a merger:              |
-| AMERICAN absorbs LUXOR                   |
+| HALCYON absorbs SANDPIPER                   |
 |                                          |
 | [CANCEL]              [PLACE TILE]       |
 +------------------------------------------+
@@ -1442,13 +1442,13 @@ Chain identification must not rely solely on color:
 
 | Chain | Color | Symbol | Pattern |
 |-------|-------|--------|---------|
-| Luxor | Gold | L | Solid |
-| Tower | Brown | T | Diagonal stripes |
-| American | Blue | A | Solid |
-| Festival | Purple | F | Dots |
-| Worldwide | Green | W | Horizontal stripes |
-| Continental | Red | C | Solid |
-| Imperial | Navy | I | Crosshatch |
+| Sandpiper | Gold | L | Solid |
+| Marlowe | Brown | T | Diagonal stripes |
+| Halcyon | Blue | A | Solid |
+| Juniper | Purple | F | Dots |
+| Meridian | Green | W | Horizontal stripes |
+| Aurelia | Red | C | Solid |
+| Obsidian | Navy | I | Crosshatch |
 
 Board display with symbols:
 ```
@@ -1473,9 +1473,9 @@ All actions accessible via keyboard:
 ### Screen Reader Support
 
 All UI elements must have proper ARIA labels:
-- Board state announced as "Row A, Column 1, empty" or "Row C, Column 4, American chain"
-- Tile rack: "Tile 1 of 6, position 5C, playable, would expand American"
-- Stock counts: "American, 3 shares, worth $2,100"
+- Board state announced as "Row A, Column 1, empty" or "Row C, Column 4, Halcyon chain"
+- Tile rack: "Tile 1 of 6, position 5C, playable, would expand Halcyon"
+- Stock counts: "Halcyon, 3 shares, worth $2,100"
 - Turn indicator: "Your turn, Phase 2, Place a tile"
 
 ---
@@ -1550,9 +1550,9 @@ The activity log on Host View uses a consistent format:
 | Trade accepted | "[ok] ALICE <-> BOB: traded" |
 | Trade declined | "[x] ALICE -> BOB: declined" |
 | Tile placed | "ALICE placed 5C" |
-| Chain founded | "ALICE founded AMERICAN (3 tiles)" |
-| Chain expanded | "AMERICAN grows to 8 tiles" |
-| Merger started | "MERGER: AMERICAN absorbs LUXOR" |
+| Chain founded | "ALICE founded HALCYON (3 tiles)" |
+| Chain expanded | "HALCYON grows to 8 tiles" |
+| Merger started | "MERGER: HALCYON absorbs SANDPIPER" |
 | Bonus paid | "BOB: +$5,000 (majority)" |
 | Stock sold | "CAROL sold 3xLUX (+$1,500)" |
 | Stock traded | "DAN traded 4xLUX -> 2xAME" |
@@ -1583,7 +1583,7 @@ Expanded view:
 | 14:32:15  ALICE -> BOB: 2xLUX + $500 for 1xAME                   |
 | 14:32:28  [ok] ALICE <-> BOB: traded                             |
 | 14:32:45  ALICE placed 6E                                        |
-| 14:32:45  AMERICAN grows to 8 tiles                              |
+| 14:32:45  HALCYON grows to 8 tiles                              |
 | 14:33:02  ALICE bought 2xAME ($1,400)                            |
 | 14:33:05  ALICE's turn ended                                     |
 | 14:33:05  BOB's turn started                                     |

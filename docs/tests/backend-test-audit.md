@@ -101,15 +101,15 @@ observe:
 |---|---|---|
 | `gameplay/test_mergers.py` | 11 | survivor by size and by tie choice (only the mergemaker, only tied chains); disposition order mergemaker-then-clockwise; sell at the pre-merger price, 2:1 trade, hold; missing disposition keys default to 0 (`decisions._parse_disposition` defaults, 3 survivors); trade limited by survivor bank stock (snapshot `disposition-trade-limited`); merger tile and touching lone tiles join the survivor; multi-chain: defuncts largest first, each at its own size (`_start_merger_process` `reverse=True`, `stock_index = 0` reset: survivors); held shares count again after re-founding; trades of merging stock frozen |
 | `gameplay/test_bonuses.py` | 8 | sole holder, clear majority/minority, third holder gets nothing, majority elsewhere, majority tie (rounded up), three-way tie, minority tie (rounded up); final bonuses for every chain plus final sales |
-| `gameplay/test_founding.py` | 8 | lone tile, founding with every connected lone tile, founder share free, cannot found an active chain, expansion adopts lone tiles and reprices; founder shares from the ruleset (classic 1, mini 2); founder shares the bank lacks paid in cash (`found_chain` `shares > 0` boundary: 2 survivors); 8th-chain tile not offered, its playability as the player sees it |
+| `gameplay/test_founding.py` | 8 | lone tile, founding with every connected lone tile, founder share free, cannot found an active chain, expansion adopts lone tiles and reprices; founder shares from the ruleset (default 1, mini 2); founder shares the bank lacks paid in cash (`found_chain` `shares > 0` boundary: 2 survivors); 8th-chain tile not offered, its playability as the player sees it |
 | `gameplay/test_stock_trading.py` | 9 | mixed purchase at current prices, one purchase per turn, empty purchase, over the limit, never-founded and defunct chains, purchase limit from the ruleset, running out of money, the last bank share |
-| `gameplay/test_end_game.py` | 6 | declaring at exactly the end size (classic 41, mini 25) with an unsafe chain on the board (`check_end_game` `>=` -> `>`, a baseline survivor), every chain safe at exactly the safe size (11 / 8), only the player on turn, not while founding, final scoring with defunct stock worthless, standings and winners |
+| `gameplay/test_end_game.py` | 6 | declaring at exactly the end size (default 41, mini 25) with an unsafe chain on the board (`check_end_game` `>=` -> `>`, a baseline survivor), every chain safe at exactly the safe size (11 / 8), only the player on turn, not while founding, final scoring with defunct stock worthless, standings and winners |
 | `gameplay/test_dead_tiles.py` | 4 | tile between two safe chains not playable and replaced at end of turn (`end_turn` replaced list); one tile short of safe it merges; safe size from the ruleset; an all-unplayable hand replaced at turn start (`handle_all_tiles_unplayable` draws and events: 3 survivors) |
 | `gameplay/test_player_trades.py` | 9 | accepted trade moves shares and cash both ways and never blocks the turn; only recipient answers / only proposer cancels; a stale offer cannot be accepted and stays until rejected; offering what you lack, zero-quantity trades, bad ids; the smallest trade is one share or one dollar one way (`validate_trade` `> 0` boundaries: 3 survivors) |
 | `gameplay/test_turn_flow.py` | 4 | deal and seating order, only the player on turn and only hand tiles, step order, the draw (`drew_tile`), the empty bag, and play to the natural end of tiles (`are_all_tiles_unplayable([])`: a baseline survivor) |
 | `test_game.py` (rewritten) | 56 | seat limits from the ruleset, lobby rules, explicit tile order, seeding; 44 cases of "the engine refuses an illegal call by itself and changes nothing" (`Game` guards that `apply_action` normally shadows: 62 mutants the old suite let live); disposition queue and `can_act` in client state; bot flags |
 | `test_player.py` (3 new) | 3 | holdings never negative or past the cap, refused changes leave holdings untouched (37 survivors/uncovered) |
-| `test_board.py`, `test_hotel.py` | 2 + 3 | tile identity and error texts, empty-cell connectivity; bank bookkeeping and the classic aliases |
+| `test_board.py`, `test_hotel.py` | 2 + 3 | tile identity and error texts, empty-cell connectivity; bank bookkeeping and the default aliases |
 | `test_calculator.py` (4 new) | 4 | on positions reached by play: end-game reason exactly at 41/11, who may declare, buy options in the buy phase, merge scenario order and leftovers, the last bank share, bot flags (16 survivors) |
 | `test_decisions.py` (1 new) | 1 | replacements also dead: placement skipped and the hand never exceeds its size (`draw_tile` `>=` boundary) |
 | `test_driving.py` (new) | 16 | time allowed per seat kind, per-turn action and proposal caps, fallback announcements and categories (17 survivors) |
@@ -259,7 +259,7 @@ test ids before and after and classifying each removed id.
 | Dead path: `Game.execute_bot_turn` (nothing but tests used it) | 33 |
 | Consolidated: merged into fewer tests, every assertion kept | 26 |
 | Dead code: tests of helpers nothing but tests used (helpers removed) | 20 |
-| Duplicate of the frozen classic price table in `test_ruleset.py` | 14 |
+| Duplicate of the frozen default price table in `test_ruleset.py` | 14 |
 | Can never fail: assertion inside a branch, or a bound that holds whatever happens | 10 |
 | Asserts on private attributes / restates the implementation | 7 |
 | "Scenario" that never plays the move it describes | 3 |
@@ -357,9 +357,9 @@ Both were in the old `test_game.py`, used an unseeded `Game()` and a freshly
 shuffled deal, and were removed (their rules are covered deterministically in
 `tests/gameplay`):
 
-- `TestBuyStocks::test_buy_stocks_deducts_money` planted Luxor on 1A-2A by
+- `TestBuyStocks::test_buy_stocks_deducts_money` planted Sandpiper on 1A-2A by
   board surgery, then placed the first hand tile not on 1A/2A. When that tile
-  touched the chain (3A, 1B or 2B) Luxor grew to 3 tiles and cost $300, not
+  touched the chain (3A, 1B or 2B) Sandpiper grew to 3 tiles and cost $300, not
   the asserted $200. Measured: 118 failures in 5,000 runs (2.4 %); it also
   failed once in the very first baseline run of this audit.
 - `TestTurnFlow::test_cannot_play_tile_not_in_hand` assumed 1A and 12I were
@@ -406,7 +406,7 @@ Two behaviours worth knowing (documented in the tests, not changed):
   bind in real play: the cap equals the bank's stock per chain in every
   shipped ruleset.
 - Cosmetic, not fixed: the LLM pre-check's feedback says "you only has $500"
-  / "you holds only 2 Luxor shares" (`agents/llm/schema.py::_check_propose`);
+  / "you holds only 2 Sandpiper shares" (`agents/llm/schema.py::_check_propose`);
   the new tests match the stable part of the text. Left alone so that the
   mutated module stayed identical between the baseline and final runs.
 

@@ -1,6 +1,6 @@
-# Acquire Design System
+# Buyout Design System
 
-> Visual language for the Acquire frontend: colors, typography, spacing, animation, and patterns.
+> Visual language for the Buyout frontend: colors, typography, spacing, animation, and patterns.
 
 ---
 
@@ -61,13 +61,13 @@ Each chain has a distinct, muted color for tiles and UI elements:
 
 | Chain | Hex | CSS Variable | Tier |
 |-------|-----|--------------|------|
-| LUXOR | `#c9a227` | `--chain-luxor` | Budget |
-| TOWER | `#7a5c3d` | `--chain-tower` | Budget |
-| AMERICAN | `#5e7a8a` | `--chain-american` | Standard |
-| FESTIVAL | `#8a5e7a` | `--chain-festival` | Standard |
-| WORLDWIDE | `#5e8a6a` | `--chain-worldwide` | Standard |
-| CONTINENTAL | `#8a3d3d` | `--chain-continental` | Premium |
-| IMPERIAL | `#3d5e8a` | `--chain-imperial` | Premium |
+| SANDPIPER | `#c9a227` | `--chain-sandpiper` | Budget |
+| MARLOWE | `#7a5c3d` | `--chain-marlowe` | Budget |
+| HALCYON | `#5e7a8a` | `--chain-halcyon` | Standard |
+| JUNIPER | `#8a5e7a` | `--chain-juniper` | Standard |
+| MERIDIAN | `#5e8a6a` | `--chain-meridian` | Standard |
+| AURELIA | `#8a3d3d` | `--chain-aurelia` | Premium |
+| OBSIDIAN | `#3d5e8a` | `--chain-obsidian` | Premium |
 
 ### Chain Abbreviations
 
@@ -75,13 +75,13 @@ For compact displays (tiles, logs):
 
 | Chain | 3-Letter | 2-Letter |
 |-------|----------|----------|
-| LUXOR | LUX | LX |
-| TOWER | TWR | TW |
-| AMERICAN | AME | AM |
-| FESTIVAL | FES | FE |
-| WORLDWIDE | WOR | WO |
-| CONTINENTAL | CON | CO |
-| IMPERIAL | IMP | IM |
+| SANDPIPER | LUX | LX |
+| MARLOWE | TWR | TW |
+| HALCYON | AME | AM |
+| JUNIPER | FES | FE |
+| MERIDIAN | WOR | WO |
+| AURELIA | CON | CO |
+| OBSIDIAN | IMP | IM |
 
 ### Chain Pixel Logos (8x8)
 
@@ -89,13 +89,13 @@ Each chain has a tiny pixel icon for visual identification:
 
 | Chain | Icon Shape |
 |-------|------------|
-| LUXOR | Pyramid silhouette |
-| TOWER | Simple tower shape |
-| AMERICAN | Star |
-| FESTIVAL | Flag/banner |
-| WORLDWIDE | Globe outline |
-| CONTINENTAL | Mountain peaks |
-| IMPERIAL | Crown |
+| SANDPIPER | Pyramid silhouette |
+| MARLOWE | Simple marlowe shape |
+| HALCYON | Star |
+| JUNIPER | Flag/banner |
+| MERIDIAN | Globe outline |
+| AURELIA | Mountain peaks |
+| OBSIDIAN | Crown |
 
 ---
 
@@ -437,13 +437,13 @@ All sounds should be:
   --text-positive: #6bff8a;
 
   /* Colors - Chains */
-  --chain-luxor: #c9a227;
-  --chain-tower: #7a5c3d;
-  --chain-american: #5e7a8a;
-  --chain-festival: #8a5e7a;
-  --chain-worldwide: #5e8a6a;
-  --chain-continental: #8a3d3d;
-  --chain-imperial: #3d5e8a;
+  --chain-sandpiper: #c9a227;
+  --chain-marlowe: #7a5c3d;
+  --chain-halcyon: #5e7a8a;
+  --chain-juniper: #8a5e7a;
+  --chain-meridian: #5e8a6a;
+  --chain-aurelia: #8a3d3d;
+  --chain-obsidian: #3d5e8a;
 
   /* Typography */
   --font-primary: "IBM Plex Mono", "Fira Code", "Consolas", monospace;
