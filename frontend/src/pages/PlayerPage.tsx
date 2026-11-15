@@ -11,7 +11,6 @@ import { TileRack, type RackTile } from '../components/game/TileRack'
 import { Standings } from '../components/game/Standings'
 import { ChainTable } from '../components/game/ChainTable'
 import { MergerResult, MergerLog } from '../components/game/MergerResult'
-import { ChatSlot } from '../components/game/ChatSlot'
 import { useMergerResult } from '../hooks/useMergerResult'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { Board } from '../components/game/Board'
@@ -22,6 +21,7 @@ import { TradeOffers } from '../components/game/TradeOffers'
 import { ReconnectionOverlay } from '../components/game/ReconnectionOverlay'
 import { ReconnectedToast } from '../components/game/ReconnectedToast'
 import { GameOver } from '../components/game/GameOver'
+import { ChatPanel } from '../components/game/ChatPanel'
 import { buildFinalScores } from '../lib/finalScores'
 import { roomUnavailable } from '../lib/roomAvailability'
 import { waitingMessage } from '../lib/waiting'
@@ -528,14 +528,13 @@ export function PlayerPage() {
                 </section>
               )}
 
-              {/* CHAT SLOT (reserved for ChatPanel, built on another branch): mount it here with
-                  one line, e.g. <ChatPanel room={room} />. Desktop: last card of this column,
-                  under the players panel. Phones: ChatSlot folds it behind a CHAT button in the
-                  page flow, so it never covers the board or the rack. Renders nothing while empty. */}
-              <ChatSlot>{/* <ChatPanel ... /> */}</ChatSlot>
+              {/* Table chat: last card of the side column; on phones it folds itself to a bar. */}
+              <ChatPanel room={room} />
             </div>
           </div>
         )}
+        {/* Lobby, game over and the waiting screens: chat under the content. */}
+        {!unavailable && outOfGame && <ChatPanel room={room} />}
 
         {trades.builderOpen && (
           <Modal

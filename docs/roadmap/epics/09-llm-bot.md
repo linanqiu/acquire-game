@@ -91,8 +91,9 @@ decision (LO-004).
 | [LO-005](../stories/09-llm-opponents/LO-005.md) | Lobby UI for AI opponents and "thinking" indicator | in-progress | LO-001, ES-005 |
 | [LO-006](../stories/09-llm-opponents/LO-006.md) | Benchmark harness (built as `backend/bench`; see Epic 12) | complete (harness; rest moved to Epic 12) | LO-003 |
 | [LO-007](../stories/09-llm-opponents/LO-007.md) | Observability: per-decision log (replaced by transcripts, AB-001) | superseded by AB-001, AB-002 | LO-003 |
+| [LO-008](../stories/09-llm-opponents/LO-008.md) | Public table chat; LLM seats talk and negotiate (owner decision 2026-11-15) | complete | LO-003, LO-005, AB-001 |
 
-Status as of 2026-11-14, checked against the repo: **1 of 6 active stories complete** (LO-006, the
+Status as of 2026-11-15: **2 of 7 active stories complete** (LO-008 table chat; LO-006, the
 headless harness); LO-001..LO-005 are partly built (see the status note at the bottom of each story);
 LO-007 is superseded. The benchmark as a product (protocol, standalone CLI/API contract, ratings,
 leaderboard, first results) and transcripts moved to [Epic 12](12-bench.md). Changes caused
@@ -105,8 +106,9 @@ These ideas from the July draft are **not** being built now:
 
 - Planner -> adversarial critic -> decide chain, and the criticality gate that escalates to it.
 - Persistent per-bot strategist scratchpad.
-- Room chat / table talk as public events, the cheap chat-router model, off-turn replies, and the
-  rolling summarizer.
+- The cheap chat-router model and the rolling summarizer. (Room chat / table talk and off-turn
+  replies were promoted by owner decision on 2026-11-15 and built as LO-008: seats use their own
+  model, no separate router.)
 - Per-role x per-tier model routing table.
 
 Rule for promotion: Buyout Bench ([Epic 12](12-bench.md)) must show a measured win-rate gain per dollar

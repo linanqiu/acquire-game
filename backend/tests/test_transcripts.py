@@ -359,6 +359,7 @@ def test_totals_of_an_abandoned_game_are_rebuilt_from_its_decision_lines():
         "cache_write_tokens": 0,
         "cost_usd": None,
         "latency_s": 1.75,
+        "reply_calls": 0,
     }
     # a human's thinking time is not agent latency
     assert totals["p2"]["decisions"] == 1 and totals["p2"]["latency_s"] == 0.0

@@ -62,8 +62,8 @@ def types(schema):
 
 def test_envelope_shape_and_field_order():
     s = build_schema(FOUND)
-    assert list(s["properties"]) == ["why", "action", "note"]
-    assert s["required"] == ["why", "action", "note"]
+    assert list(s["properties"]) == ["why", "action", "note", "say"]
+    assert s["required"] == ["why", "action", "note", "say"]
     assert s["additionalProperties"] is False
 
 

@@ -12,9 +12,9 @@ import { Board } from '../components/game/Board'
 import { Standings } from '../components/game/Standings'
 import { ChainTable } from '../components/game/ChainTable'
 import { MergerResult, MergerLog } from '../components/game/MergerResult'
-import { ChatSlot } from '../components/game/ChatSlot'
 import { useMergerResult } from '../hooks/useMergerResult'
 import { GameOver } from '../components/game/GameOver'
+import { ChatPanel } from '../components/game/ChatPanel'
 import { AddAiControl } from '../components/game/AddAiControl'
 import { ReconnectionOverlay } from '../components/game/ReconnectionOverlay'
 import { SeatKindBadge } from '../components/game/SeatKindBadge'
@@ -276,11 +276,8 @@ export function HostPage() {
           </div>
         </Panel>
 
-        {/* CHAT SLOT (reserved for ChatPanel, built on another branch): mount it here with one
-            line, e.g. <ChatPanel room={room} />. Desktop: last card of the side column, under the
-            players and chains; phones/tablets: ChatSlot folds it behind a CHAT button in the page
-            flow, never over the board. Renders nothing while empty. */}
-        <ChatSlot>{/* <ChatPanel ... /> */}</ChatSlot>
+        {/* Table chat (read-only for the host): last card of the side column. */}
+        <ChatPanel room={room} mode="spectator" />
       </div>
     </div>
   )
@@ -344,6 +341,9 @@ export function HostPage() {
   return (
     <RulesetScope ruleset={gameState?.ruleset}>
       {renderPage()}
+      {!unavailable && (phase === 'lobby' || phase === 'game_over') && (
+        <ChatPanel room={room} mode="spectator" />
+      )}
       {hasConnected && connectionStatus !== 'connected' && !unavailable && (
         <ReconnectionOverlay
           connectionStatus={connectionStatus === 'disconnected' ? 'disconnected' : 'reconnecting'}

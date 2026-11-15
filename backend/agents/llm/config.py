@@ -217,7 +217,10 @@ def catalog_entries() -> list[dict]:
 
 def _build_provider(entry: CatalogEntry) -> Provider:
     if entry.provider == "fake":
-        return FakeProvider(model="fake")
+        from agents.llm.talk import fake_talk_responder
+
+        # First legal action; deterministic table talk (see fake_talk_responder).
+        return FakeProvider(fake_talk_responder(), model="fake")
     if entry.provider == "anthropic":
         return AnthropicProvider(
             model=entry.model, api_key=entry.resolved_key(), effort=entry.effort
@@ -247,4 +250,5 @@ def create_agent(agent_id: str, *, name: str) -> LLMAgent:
         timeout=entry.timeout,
         max_tokens=entry.max_tokens,
         max_illegal_retries=entry.max_illegal_retries,
+        table_talk=True,
     )

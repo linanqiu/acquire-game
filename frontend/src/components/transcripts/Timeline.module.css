@@ -123,3 +123,9 @@
 .bot {
   color: #ffaa00;
 }
+
+/* Table-chat lines between the decisions */
+.chat .text {
+  font-style: italic;
+  color: var(--text-secondary);
+}

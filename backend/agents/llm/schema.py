@@ -31,6 +31,8 @@ CHAINS: tuple[str, ...] = tuple(default_ruleset().chain_ids)
 MAX_SHARES: int = default_ruleset().stocks_per_chain
 
 NOTE_MAX_CHARS = 300
+# Table talk posted with a move (``say``) and off-turn replies are cut here.
+SAY_MAX_CHARS = 200
 
 # Stable order of variants in the schema (also the order the "fake LLM" tries).
 ACTION_ORDER = (
@@ -195,6 +197,8 @@ def build_schema(
             "why": {"type": "string"},
             "action": action,
             "note": {"type": "string"},
+            # Table talk posted with the move; "" (the normal case) says nothing.
+            "say": {"type": "string"},
         }
     )
 
@@ -252,6 +256,38 @@ def normalize_action(action: dict) -> dict:
     return out
 
 
+def parse_say(data: Any) -> str:
+    """The answer's ``say`` (table talk with the move), trimmed; "" for none."""
+    if not isinstance(data, dict):
+        return ""
+    say = data.get("say")
+    if not isinstance(say, str):
+        return ""
+    return " ".join(say.split())[:SAY_MAX_CHARS]
+
+
+# Off-turn reply answer. "" means silence (structured outputs need no
+# optional fields or nulls that way); a null is accepted too.
+REPLY_SCHEMA = {
+    "type": "object",
+    "properties": {"reply": {"type": "string"}},
+    "required": ["reply"],
+    "additionalProperties": False,
+}
+
+
+def parse_reply(data: Any) -> str | None:
+    """An off-turn reply answer ``{"reply": str | null}``: the text, or None
+    for silence ("" and null both mean silence)."""
+    if not isinstance(data, dict):
+        return None
+    text = data.get("reply")
+    if not isinstance(text, str):
+        return None
+    text = " ".join(text.split())[:SAY_MAX_CHARS]
+    return text or None
+
+
 def parse_answer(data: dict) -> tuple[dict | None, str, str]:
     """Split a model answer into ``(action | None, note, why)``.
 
@@ -268,7 +304,7 @@ def parse_answer(data: dict) -> tuple[dict | None, str, str]:
             action = None
     elif isinstance(action, str):
         # bare action object: {"action": "place_tile", "tile": "5C"}
-        action = {k: v for k, v in data.items() if k not in ("note", "why")}
+        action = {k: v for k, v in data.items() if k not in ("note", "why", "say")}
     if not isinstance(action, dict):
         return None, "", ""
     note = data.get("note")
