@@ -28,6 +28,13 @@
      "played but in no chain" colour is a token.
      ========================================================================== */
   --chain-orphan: #4a4a5a; /* Orphan/unincorporated tiles */
+  --chain-orphan-fg: #e8e8e8;
+
+  /* Board: empty squares are quiet, playable squares are lit. */
+  --board-square: #182241; /* an empty square, a step up from the board */
+  --board-coord: #4b5478; /* faint coordinate hint on an empty square */
+  --playable-border: rgba(100, 200, 255, 0.65);
+  --playable-glow: rgba(100, 200, 255, 0.3);
   --selection-bg: #3d5e8a; /* Text selection highlight */
   --accent-gold: #c9a227; /* Winner crown / star */
 

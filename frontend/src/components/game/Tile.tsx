@@ -13,6 +13,15 @@ interface TileProps {
   /** `fluid` fills its grid cell (the board sizes it). */
   size?: 'sm' | 'md' | 'lg' | 'fluid'
   showLabel?: boolean
+  /**
+   * Board squares only: the sides joined to a neighbour of the same chain (`"n e s w"` subset,
+   * from lib/boardShapes) so a chain draws as one block.
+   */
+  join?: string
+  /** Board squares only: whether this chain square shows the chain's label (one per group). */
+  anchor?: boolean
+  /** Board squares only: nudge of the anchor's label towards the shape's centre, in squares. */
+  labelShift?: { dx: number; dy: number }
 }
 
 export function Tile({
@@ -23,6 +32,9 @@ export function Tile({
   onClick,
   size = 'md',
   showLabel = true,
+  join,
+  anchor = true,
+  labelShift,
 }: TileProps) {
   const rules = useRules()
   const inChain = !!chain && chain !== 'orphan'
@@ -47,14 +59,25 @@ export function Tile({
   }
 
   // A chain square shows the chain's abbreviation (never colour alone); its coordinate stays in
-  // the tooltip and accessible name.
+  // the tooltip and accessible name. On the board only one square per chain shows it visibly
+  // (the others keep it for screen readers and tests).
   const label = inChain ? rules.abbr(chain) : coordinate
+  const labelClass = `${styles.label} ${inChain && !anchor ? styles.srOnly : ''}`
   const title = inChain ? `${coordinate} · ${rules.name(chain)}` : undefined
 
   return (
     <div
       className={classes}
-      style={inChain ? rules.style(chain) : undefined}
+      style={
+        inChain
+          ? {
+              ...rules.style(chain),
+              ...(labelShift && (labelShift.dx || labelShift.dy)
+                ? { '--label-dx': labelShift.dx, '--label-dy': labelShift.dy }
+                : {}),
+            }
+          : undefined
+      }
       onClick={state !== 'disabled' ? onClick : undefined}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick && state !== 'disabled' ? 0 : undefined}
@@ -62,8 +85,10 @@ export function Tile({
       title={title}
       data-testid={`tile-${coordinate}`}
       data-chain={chain ?? 'empty'}
+      data-join={join || undefined}
+      data-anchor={inChain && join !== undefined ? String(anchor) : undefined}
     >
-      {showLabel && <span className={styles.label}>{label}</span>}
+      {showLabel && <span className={labelClass}>{label}</span>}
       {state === 'merger' && <span className={styles.indicator}>!!</span>}
       {state === 'disabled' && <span className={styles.indicator}>🔒</span>}
       {state === 'dead' && <span className={styles.indicator}>✕</span>}
