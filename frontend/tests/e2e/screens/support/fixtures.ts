@@ -7,7 +7,7 @@ import * as path from 'path'
 import { fileURLToPath } from 'url'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-export const SNAPSHOT_DIR = path.resolve(here, '../../fixtures/snapshots')
+const SNAPSHOT_DIR = path.resolve(here, '../../fixtures/snapshots')
 
 export interface ExpectedChain {
   available: number
@@ -73,11 +73,6 @@ export interface Fixture {
 
 export function loadFixture(name: string): Fixture {
   return JSON.parse(fs.readFileSync(path.join(SNAPSHOT_DIR, `${name}.json`), 'utf8')) as Fixture
-}
-
-/** Chains in the order the buy form lists them (the hotel's chain order is not the alphabet). */
-export function activeChainNames(fx: Fixture): string[] {
-  return Object.keys(fx.expect.active_chains)
 }
 
 export function dollars(n: number): string {

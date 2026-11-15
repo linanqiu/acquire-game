@@ -7,12 +7,9 @@ for game flow without requiring a browser.
 import pytest
 from unittest.mock import AsyncMock, patch
 
-from main import (
-    session_manager,
-    initialize_game,
-    handle_player_action,
-    broadcast_game_state,
-)
+from app_state import session_manager
+from broadcast import broadcast_game_state
+from lifecycle import handle_player_action, initialize_game
 from game.game import GamePhase
 
 
@@ -33,7 +30,7 @@ class TestBotTurnAutoExecution:
         assert game is not None
         assert len(game.turn_order) == 3  # 3 players
         assert game.phase == GamePhase.PLAYING
-        assert game.turn_phase == "place_tile"
+        assert game.get_public_state()["phase"] == "place_tile"
 
     @pytest.mark.asyncio
     async def test_game_state_includes_all_required_fields(
@@ -70,7 +67,7 @@ class TestTurnAdvancesAfterHumanAction:
         room = clean_session_manager.get_room(game_room)
         game = room.game
 
-        initial_turn_index = game.current_turn_index
+        initial_turn_index = game.current_player_index
         current_player_id = game.get_current_player_id()
         player = game.get_player(current_player_id)
         tile = player.hand[0]
@@ -88,7 +85,7 @@ class TestTurnAdvancesAfterHumanAction:
                     )
 
                     # If in buy_stocks phase, proceed to end turn
-                    if game.turn_phase == "buy_stocks":
+                    if game.get_public_state()["phase"] == "buy_stocks":
                         await handle_player_action(
                             game_room,
                             current_player_id,
@@ -96,7 +93,7 @@ class TestTurnAdvancesAfterHumanAction:
                         )
 
         # Turn should have advanced
-        new_turn_index = game.current_turn_index
+        new_turn_index = game.current_player_index
         assert new_turn_index != initial_turn_index, (
             f"Turn index should have changed from {initial_turn_index}"
         )
@@ -109,7 +106,7 @@ class TestTurnAdvancesAfterHumanAction:
 
         # Set to last player
         num_players = len(game.turn_order)
-        game.current_turn_index = num_players - 1
+        game.current_player_index = num_players - 1
 
         last_player_id = game.turn_order[num_players - 1]
         player = game.get_player(last_player_id)
@@ -126,7 +123,7 @@ class TestTurnAdvancesAfterHumanAction:
                         {"action": "place_tile", "tile": str(tile)},
                     )
 
-                    if game.turn_phase == "buy_stocks":
+                    if game.get_public_state()["phase"] == "buy_stocks":
                         await handle_player_action(
                             game_room,
                             last_player_id,
@@ -134,7 +131,7 @@ class TestTurnAdvancesAfterHumanAction:
                         )
 
         # Should wrap to first player
-        assert game.current_turn_index == 0
+        assert game.current_player_index == 0
 
 
 class TestWebSocketMessageBroadcasting:
@@ -318,55 +315,6 @@ class TestWebSocketExceptionHandling:
         assert mock_websocket.sent_messages[0]["type"] == "error"
 
     @pytest.mark.asyncio
-    async def test_error_message_sent_to_player(
-        self, game_room, clean_session_manager, mock_websocket
-    ):
-        """When action fails, error message should be sent to player."""
-        room = clean_session_manager.get_room(game_room)
-
-        # Connect a mock websocket to the player
-        current_player_id = room.game.get_current_player_id()
-        room.players[current_player_id].websockets.append(mock_websocket)
-
-        # Send error message
-        await session_manager.send_to_player(
-            game_room,
-            current_player_id,
-            {"type": "error", "message": "Test error message"},
-        )
-
-        # Verify error was sent
-        assert len(mock_websocket.sent_messages) == 1
-        assert mock_websocket.sent_messages[0]["type"] == "error"
-        assert "Test error message" in mock_websocket.sent_messages[0]["message"]
-
-    @pytest.mark.asyncio
-    async def test_game_continues_after_exception(
-        self, game_room, clean_session_manager
-    ):
-        """Game state should remain valid after an exception is raised."""
-        room = clean_session_manager.get_room(game_room)
-        game = room.game
-
-        initial_phase = game.turn_phase
-        initial_player = game.get_current_player_id()
-
-        # Try an invalid action (will raise exception)
-        try:
-            await handle_player_action(
-                game_room,
-                initial_player,
-                {"action": "invalid_action"},
-            )
-        except Exception:
-            pass  # Exception is expected
-
-        # Game state should be unchanged
-        assert game.turn_phase == initial_phase
-        assert game.get_current_player_id() == initial_player
-        assert room.game is not None  # Game still exists
-
-    @pytest.mark.asyncio
     async def test_multiple_errors_dont_corrupt_state(
         self, game_room, clean_session_manager
     ):
@@ -388,7 +336,7 @@ class TestWebSocketExceptionHandling:
                 pass  # Expected
 
         # Game should still be in valid state
-        assert game.turn_phase == "place_tile"
+        assert game.get_public_state()["phase"] == "place_tile"
         assert game.get_current_player_id() == current_player_id
 
         # Valid action should still work
@@ -407,4 +355,7 @@ class TestWebSocketExceptionHandling:
                     )
 
         # Action should have been processed
-        assert game.turn_phase != "place_tile" or game.current_turn_index != 0
+        assert (
+            game.get_public_state()["phase"] != "place_tile"
+            or game.current_player_index != 0
+        )

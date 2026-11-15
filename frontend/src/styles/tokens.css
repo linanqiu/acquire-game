@@ -1,6 +1,6 @@
 /**
  * Buyout Design Tokens
- * CSS custom properties derived from docs/ui/design-system.md
+ * CSS custom properties (see docs/ui/README.md)
  */
 
 :root {
@@ -41,7 +41,6 @@
      Typography
      ========================================================================== */
   --font-primary: 'IBM Plex Mono', 'Fira Code', 'Consolas', monospace;
-  --font-pixel: 'Press Start 2P', monospace;
 
   /* Type Scale */
   --text-xl: 24px; /* Phase announcements, winner declaration */
@@ -58,7 +57,6 @@
   /* Line Heights */
   --line-height-tight: 1.2;
   --line-height-normal: 1.5;
-  --line-height-relaxed: 1.75;
 
   /* ==========================================================================
      Spacing
@@ -71,7 +69,6 @@
   --space-5: 20px;
   --space-6: 24px;
   --space-8: 32px;
-  --space-10: 40px;
   --space-12: 48px;
 
   /* ==========================================================================
@@ -84,7 +81,6 @@
   /* Border Radius */
   --radius-sm: 2px; /* buttons, inputs */
   --radius-md: 4px; /* cards, modals */
-  --radius-lg: 8px; /* large containers */
   --radius-full: 9999px; /* pills, badges */
 
   /* ==========================================================================
@@ -93,30 +89,17 @@
      ========================================================================== */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.5);
 
   /* ==========================================================================
      Animation
      ========================================================================== */
   /* Timing Functions */
   --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-in: cubic-bezier(0.4, 0, 1, 1);
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
-  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* Duration Scale */
   --duration-fast: 100ms; /* micro-interactions */
   --duration-normal: 200ms; /* state changes */
-  --duration-slow: 400ms; /* emphasis animations */
-  --duration-dramatic: 800ms; /* merger effects */
-
-  /* ==========================================================================
-     Responsive Breakpoints
-     ========================================================================== */
-  --breakpoint-sm: 375px; /* small phones */
-  --breakpoint-md: 768px; /* tablets */
-  --breakpoint-lg: 1024px; /* laptops */
-  --breakpoint-xl: 1280px; /* desktops/TVs */
 
   /* ==========================================================================
      Component Tokens

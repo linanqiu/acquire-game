@@ -22,7 +22,7 @@ export interface TilePlayabilityInfo {
 // Seats (humans and AI opponents) - see docs/architecture/seat-contract.md
 // =============================================================================
 
-/** What sits in a seat. Older backends omit this and only send `is_bot`. */
+/** What sits in a seat. (`is_bot` is still sent too; transcripts written before `kind` existed only have that.) */
 export type SeatKind = 'human' | 'bot' | 'llm' | 'scripted'
 
 /** The decision the engine is currently waiting on (public, informational). */
@@ -109,24 +109,24 @@ export interface GameStateMessage {
       is_bot?: boolean
       kind?: SeatKind
       agent_label?: string | null
-      /** Rules-based-bot takeovers for this seat (absent on older backends). */
+      /** Rules-based-bot takeovers for this seat. */
       fallbacks?: SeatFallbacks
     }
   >
   tiles_remaining: number
-  /** Transcript id (see /games/:gameId); absent on older backends. */
+  /** Transcript id (see /games/:gameId). */
   game_id?: string | null
   your_hand?: string[] // Only sent to the owning player
   tile_playability?: Record<string, TilePlayabilityInfo> // Only sent to the owning player
   end_game_available?: boolean // True when current player can declare end game
-  awaiting?: AwaitingDecision | null // Who the engine is waiting on (absent on older backends)
-  /** Pending offers addressed to the receiving player (per-player; absent on older backends). */
+  awaiting?: AwaitingDecision | null // Who the engine is waiting on
+  /** Pending offers addressed to the receiving player (player sockets only). */
   incoming_trades?: TradeOffer[]
-  /** Pending offers the receiving player has made (per-player; absent on older backends). */
+  /** Pending offers the receiving player has made (player sockets only). */
   outgoing_trades?: TradeOffer[]
-  /** All pending offers, public (absent on older backends). */
+  /** All pending offers, public. */
   pending_trades?: TradeOffer[]
-  /** The game's ruleset (absent on older backends: the server's configured one applies). */
+  /** The game's ruleset (until it arrives, the server's configured one applies). */
   ruleset?: Ruleset
 }
 
@@ -166,7 +166,7 @@ export interface GameOverMessage {
   scores: Record<string, { name: string; money: number; bonuses?: number; stock_sales?: number }>
   winner: string | null
   declared_by?: string
-  /** Transcript id (see /games/:gameId); absent on older backends. */
+  /** Transcript id (see /games/:gameId). */
   game_id?: string | null
 }
 
@@ -330,38 +330,10 @@ export type GameAction =
 // HTTP API Types
 // =============================================================================
 
-export interface CreateRoomResponse {
-  room_code: string
-  player_id: string
-  is_host: boolean
-}
-
-export interface JoinRoomResponse {
-  room_code: string
-  player_id: string
-}
-
-export interface AddBotResponse {
-  bot_id: string
-}
-
-export interface AddSeatRequest {
-  agent_id: string
-  name?: string
-}
-
 export interface AddSeatResponse {
   player_id: string
   name: string
   kind: SeatKind
-}
-
-export interface RoomStateResponse {
-  room_code: string
-  started: boolean
-  players: LobbySeat[]
-  min_players: number
-  max_players: number
 }
 
 // =============================================================================

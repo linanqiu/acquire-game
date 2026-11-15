@@ -1,4 +1,4 @@
-"""AI player for Buyout board game."""
+"""Scoring rules of the heuristic bot (driven by ``agents/heuristic.py``)."""
 
 import random
 from typing import Optional
@@ -9,7 +9,8 @@ from game.player import Player
 
 
 class Bot:
-    """AI player for Buyout."""
+    """Heuristic scoring for one seat. ``HeuristicAgent`` restricts every
+    choice to the engine's legal options; ``Game.bots`` marks bot seats."""
 
     def __init__(
         self,
@@ -29,70 +30,6 @@ class Bot:
         self.rng = rng if rng is not None else random.Random()
         if difficulty not in ("easy", "medium", "hard"):
             raise ValueError(f"Invalid difficulty: {difficulty}")
-
-    def choose_tile_to_play(self, board: Board, hotel: Hotel) -> Optional[Tile]:
-        """Select which tile to play from hand.
-
-        Strategy:
-        1. Prefer tiles that found new chains
-        2. Then tiles that expand chains we have stock in
-        3. Then tiles that trigger profitable mergers
-        4. Otherwise random valid tile
-
-        Args:
-            board: Current game board
-            hotel: Hotel chain manager
-
-        Returns:
-            Tile to play, or None if no valid tiles
-        """
-        valid_tiles = self._get_playable_tiles(board, hotel)
-        if not valid_tiles:
-            return None
-
-        if self.difficulty == "easy":
-            return self.rng.choice(valid_tiles)
-
-        # Score each tile
-        scored_tiles = []
-        for tile in valid_tiles:
-            score = self._score_tile(tile, board, hotel)
-            scored_tiles.append((score, tile))
-
-        # Sort by score descending
-        scored_tiles.sort(key=lambda x: x[0], reverse=True)
-
-        if self.difficulty == "medium":
-            # Medium: pick from top 3 with some randomness
-            top_tiles = scored_tiles[:3]
-            return self.rng.choice(top_tiles)[1]
-        else:
-            # Hard: always pick the best
-            return scored_tiles[0][1]
-
-    def _get_playable_tiles(self, board: Board, hotel: Hotel) -> list[Tile]:
-        """Get tiles from hand that can be legally played.
-
-        A tile is unplayable if it would merge two or more safe chains.
-        """
-        playable = []
-        for tile in self.player.hand:
-            if board.is_tile_played(tile):
-                continue
-
-            # Check for illegal merge (two or more safe chains)
-            adjacent_chains = board.get_adjacent_chains(tile)
-            if len(adjacent_chains) >= 2:
-                safe_chains = [
-                    c
-                    for c in adjacent_chains
-                    if hotel.is_chain_safe(c, board.get_chain_size(c))
-                ]
-                if len(safe_chains) >= 2:
-                    continue  # Illegal - would merge safe chains
-
-            playable.append(tile)
-        return playable
 
     def _score_tile(self, tile: Tile, board: Board, hotel: Hotel) -> float:
         """Score a tile based on strategic value."""

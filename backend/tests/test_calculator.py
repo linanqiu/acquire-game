@@ -268,7 +268,7 @@ class TestTileEffects:
 
     def test_eighth_chain(self):
         game = make_game()
-        for i, name in enumerate(Hotel.get_all_chain_names()):
+        for i, name in enumerate(Hotel().get_all_chain_names()):
             add_chain(game, name, [f"{12 - i}A", f"{12 - i}B"][:2])
         game.board.place_tile(Tile.from_string("1I"))
         hand(game, "p1", "2I")
@@ -543,7 +543,7 @@ def test_json_serialisable_and_stable_keys():
         "bank",
         "buy_options",
     }
-    assert set(pack["chains"]) == set(Hotel.get_all_chain_names())
+    assert set(pack["chains"]) == set(Hotel().get_all_chain_names())
 
 
 def test_unknown_viewer():

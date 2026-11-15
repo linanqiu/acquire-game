@@ -30,7 +30,7 @@ export class Shots {
   }
 }
 
-export class ErrorGuard {
+class ErrorGuard {
   readonly errors: string[] = []
   private readonly allowed: RegExp[] = []
   /** Declare an error this test provokes on purpose (e.g. a failure toast test). */

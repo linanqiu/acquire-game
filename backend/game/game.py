@@ -1,109 +1,40 @@
-"""Main game orchestration for Buyout board game."""
+"""Main game orchestration for Buyout (turn flow, tiles, founding, buying, end).
 
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import Optional, Dict, List
+Mergers live in ``game/merger.py`` and player trades in ``game/trading.py``
+(mixed into ``Game``); phases in ``game/phase.py``.
+"""
+
+from typing import Optional, Dict
 import random
 
 from game.board import Board, Tile, TileState
+from game.merger import MergerMixin, MergerState
+from game.phase import PHASE_NAMES, GamePhase
+from game.trading import TradingMixin
 from game.action import TradeOffer
 from game.hotel import Hotel
 from game.player import Player
 from game.rules import Rules, PlacementResult
 from game.ranking import competition_ranks
-from game.ruleset import Ruleset, default_ruleset, resolve
+from game.ruleset import Ruleset, resolve
 from game.bot import Bot
 from game.responses import (
     PlayTileResult,
     FoundChainResult,
-    ChooseMergerSurvivorResult,
-    StockDispositionResult,
     BuyStocksResult,
     StockPurchase,
     EndTurnResult,
     EndGameResult,
     PlayerStanding,
-    ProposeTradeResult,
-    AcceptTradeResult,
-    RejectTradeResult,
-    CancelTradeResult,
     DeclareEndGameResult,
 )
 
 
-@dataclass
-class MergerState:
-    """Encapsulates all state related to an in-progress merger.
-
-    This consolidates what was previously 6 separate attributes on the Game class,
-    making merger state management clearer and easier to reset.
-    """
-
-    chains: list[str] = field(default_factory=list)  # All chains involved in merger
-    survivor: Optional[str] = None  # The surviving chain
-    defunct_queue: list[str] = field(default_factory=list)  # Defunct chains to process
-    current_defunct: Optional[str] = None  # Currently processing defunct chain
-    stock_players: list[str] = field(
-        default_factory=list
-    )  # Players handling disposition
-    stock_index: int = 0  # Current player index in disposition queue
-    tile: Optional[Tile] = None  # The tile that triggered the merger
-
-    def reset(self) -> None:
-        """Reset all merger state after completion."""
-        self.chains = []
-        self.survivor = None
-        self.defunct_queue = []
-        self.current_defunct = None
-        self.stock_players = []
-        self.stock_index = 0
-        self.tile = None
-
-
-class GamePhase(Enum):
-    """Game phases that control what actions are valid."""
-
-    LOBBY = "lobby"
-    PLAYING = "playing"
-    TILE_PLAYED = "tile_played"
-    FOUNDING_CHAIN = "founding_chain"
-    MERGING = "merging"
-    BUYING_STOCKS = "buying_stocks"
-    GAME_OVER = "game_over"
-
-
-# Phase string mapping - single source of truth for bidirectional conversion
-_PHASE_TO_STRING = {
-    GamePhase.LOBBY: "lobby",
-    GamePhase.PLAYING: "place_tile",
-    GamePhase.FOUNDING_CHAIN: "found_chain",
-    GamePhase.MERGING: "merger",
-    GamePhase.BUYING_STOCKS: "buy_stocks",
-    GamePhase.GAME_OVER: "game_over",
-}
-_STRING_TO_PHASE = {v: k for k, v in _PHASE_TO_STRING.items()}
-
-
-def trade_multiple_error(ratio: int) -> str:
-    """Error for a merger trade count that is not a multiple of the ratio."""
-    if ratio == 2:
-        return "Trade count must be even"
-    return f"Trade count must be a multiple of {ratio}"
-
-
-class Game:
+class Game(MergerMixin, TradingMixin):
     """Main game class that orchestrates the full Buyout game.
 
-    All parameters come from ``self.ruleset`` (passed explicitly; default
-    default). The class constants below are aliases of the default ruleset
-    kept for older callers and tests; the engine never reads them.
+    All parameters come from ``self.ruleset`` (default: the default ruleset).
     """
-
-    MIN_PLAYERS = default_ruleset().min_players
-    MAX_PLAYERS = default_ruleset().max_players
-    STARTING_TILES = default_ruleset().hand_size
-    MAX_STOCKS_PER_TURN = default_ruleset().max_stock_purchases_per_turn
-    MAX_PENDING_TRADES_PER_PLAYER = default_ruleset().max_pending_trades_per_player
 
     def __init__(
         self,
@@ -179,37 +110,10 @@ class Game:
         """Get current board sizes for a list of chains."""
         return {c: self.board.get_chain_size(c) for c in chains}
 
-    # Convenience properties for backward compatibility with WebSocket handlers
-
     @property
     def turn_order(self) -> list[str]:
         """Get list of player IDs in turn order."""
         return [p.player_id for p in self.players]
-
-    @property
-    def current_turn_index(self) -> int:
-        """Get current turn index (alias for current_player_index)."""
-        return self.current_player_index
-
-    @current_turn_index.setter
-    def current_turn_index(self, value: int) -> None:
-        """Set current turn index."""
-        self.current_player_index = value
-
-    @property
-    def turn_phase(self) -> str:
-        """Get the current turn phase as a string for WebSocket compatibility."""
-        # Check pending_action for stock_disposition
-        if self.phase == GamePhase.MERGING and self.pending_action:
-            if self.pending_action.get("type") == "stock_disposition":
-                return "stock_disposition"
-        return _PHASE_TO_STRING.get(self.phase, "unknown")
-
-    @turn_phase.setter
-    def turn_phase(self, value: str) -> None:
-        """Set turn phase from string (for test compatibility)."""
-        if value in _STRING_TO_PHASE:
-            self.phase = _STRING_TO_PHASE[value]
 
     def add_player(
         self,
@@ -247,28 +151,6 @@ class Game:
             self.bots[player_id] = Bot(player, bot_difficulty, rng=self.rng)
 
         return player
-
-    def remove_player(self, player_id: str) -> bool:
-        """Remove a player from the game.
-
-        Args:
-            player_id: ID of player to remove
-
-        Returns:
-            True if player was removed, False if not found
-
-        Raises:
-            ValueError: If game is not in lobby
-        """
-        if self.phase != GamePhase.LOBBY:
-            raise ValueError("Cannot remove players after game has started")
-
-        for i, player in enumerate(self.players):
-            if player.player_id == player_id:
-                self.players.pop(i)
-                self.bots.pop(player_id, None)
-                return True
-        return False
 
     def start_game(self):
         """Start the game by shuffling tiles and dealing to players.
@@ -507,7 +389,6 @@ class Game:
         # In most phases, only current player can act
         if self.phase in (
             GamePhase.PLAYING,
-            GamePhase.TILE_PLAYED,
             GamePhase.FOUNDING_CHAIN,
             GamePhase.BUYING_STOCKS,
         ):
@@ -762,289 +643,6 @@ class Game:
             next_action="buy_stocks",
         )
 
-    def _start_merger_process(
-        self, tile: Tile, survivor: str, defunct_chains: list[str]
-    ):
-        """Start processing a merger."""
-        self.phase = GamePhase.MERGING
-        self._merger.survivor = survivor
-        self._merger.tile = tile  # Store tile for finalization
-        self._merger.defunct_queue = sorted(
-            defunct_chains, key=lambda c: self.board.get_chain_size(c), reverse=True
-        )
-        self._emit(
-            "merger_started",
-            self.get_current_player().player_id,
-            tile=str(tile) if tile else None,
-            survivor=survivor,
-            defunct=list(self._merger.defunct_queue),
-            sizes=self._chain_sizes([survivor] + self._merger.defunct_queue),
-        )
-
-        self._process_next_defunct_chain()
-
-    def _process_next_defunct_chain(self):
-        """Process the next defunct chain in the queue."""
-        if not self._merger.defunct_queue:
-            # All defunct chains processed, finalize merger
-            self._finalize_merger()
-            return
-
-        defunct = self._merger.defunct_queue.pop(0)
-        self._merger.current_defunct = defunct
-
-        # Pay bonuses
-        chain_size = self.board.get_chain_size(defunct)
-        bonuses = Rules.calculate_bonuses(self.players, defunct, chain_size, self.hotel)
-
-        for player_id, bonus in bonuses.items():
-            player = self.get_player(player_id)
-            if player:
-                total = bonus.get("majority", 0) + bonus.get("minority", 0)
-                player.add_money(total)
-        self._emit(
-            "bonuses_paid",
-            chain=defunct,
-            chain_size=chain_size,
-            final=False,
-            bonuses={pid: dict(b) for pid, b in bonuses.items()},
-        )
-        # Find players who need to handle stock disposition
-        stockholders = []
-        current_idx = self.current_player_index
-        for i in range(len(self.players)):
-            idx = (current_idx + i) % len(self.players)
-            p = self.players[idx]
-            if p.get_stock_count(defunct) > 0:
-                stockholders.append(p.player_id)
-
-        if stockholders:
-            self._merger.stock_players = stockholders
-            self._merger.stock_index = 0
-            self._prompt_next_stock_disposition()
-        else:
-            # No stockholders, continue to next defunct chain
-            self._process_next_defunct_chain()
-
-    def _prompt_next_stock_disposition(self):
-        """Prompt the next player for stock disposition."""
-        if self._merger.stock_index >= len(self._merger.stock_players):
-            # All players handled, process next defunct chain
-            self._process_next_defunct_chain()
-            return
-
-        player_id = self._merger.stock_players[self._merger.stock_index]
-        player = self.get_player(player_id)
-        defunct = self._merger.current_defunct
-        count = player.get_stock_count(defunct)
-
-        self.pending_action = {
-            "type": "stock_disposition",
-            "player_id": player_id,
-            "defunct_chain": defunct,
-            "surviving_chain": self._merger.survivor,
-            "stock_count": count,
-            "available_to_trade": self.hotel.get_available_stocks(
-                self._merger.survivor
-            ),
-        }
-
-    def choose_merger_survivor(
-        self, player_id: str, chain_name: str
-    ) -> ChooseMergerSurvivorResult:
-        """Choose which chain survives a tied merger.
-
-        Args:
-            player_id: ID of player making the choice
-            chain_name: Name of chain that should survive
-
-        Returns:
-            ChooseMergerSurvivorResult with result
-        """
-        if self.phase != GamePhase.MERGING:
-            return ChooseMergerSurvivorResult(
-                success=False, error="Not in merging phase"
-            )
-
-        if (
-            not self.pending_action
-            or self.pending_action.get("type") != "choose_survivor"
-        ):
-            return ChooseMergerSurvivorResult(
-                success=False, error="No pending survivor choice"
-            )
-
-        player = self.get_player(player_id)
-        if not player or player.player_id != self.get_current_player().player_id:
-            return ChooseMergerSurvivorResult(success=False, error="Not your turn")
-
-        tied_chains = self.pending_action.get("tied_chains", [])
-        if chain_name not in tied_chains:
-            return ChooseMergerSurvivorResult(
-                success=False, error=f"Chain {chain_name} not in tied chains"
-            )
-
-        tile = self.pending_action.get("tile")
-        defunct = [c for c in self._merger.chains if c != chain_name]
-
-        self._merger.survivor = chain_name
-        self.pending_action = None
-        self._emit(
-            "survivor_chosen",
-            player_id,
-            survivor=chain_name,
-            tied_chains=list(tied_chains),
-        )
-
-        self._start_merger_process(tile, chain_name, defunct)
-
-        return ChooseMergerSurvivorResult(
-            success=True,
-            survivor=chain_name,
-            defunct=defunct,
-            next_action=self.pending_action.get("type")
-            if self.pending_action
-            else "buy_stocks",
-        )
-
-    def handle_stock_disposition(
-        self, player_id: str, sell: int, trade: int, keep: int
-    ) -> StockDispositionResult:
-        """Handle a player's decision on defunct stock.
-
-        Args:
-            player_id: ID of player making the decision
-            sell: Number of shares to sell
-            trade: Number of shares to trade (must be even)
-            keep: Number of shares to keep
-
-        Returns:
-            StockDispositionResult with result
-        """
-        if self.phase != GamePhase.MERGING:
-            return StockDispositionResult(success=False, error="Not in merging phase")
-
-        if (
-            not self.pending_action
-            or self.pending_action.get("type") != "stock_disposition"
-        ):
-            return StockDispositionResult(
-                success=False, error="No pending stock disposition"
-            )
-
-        if player_id != self.pending_action.get("player_id"):
-            return StockDispositionResult(
-                success=False, error="Not your turn to handle stocks"
-            )
-
-        player = self.get_player(player_id)
-        defunct = self.pending_action.get("defunct_chain")
-        survivor = self.pending_action.get("surviving_chain")
-        total_stock = self.pending_action.get("stock_count")
-
-        # Validate
-        if sell < 0 or trade < 0 or keep < 0:
-            return StockDispositionResult(
-                success=False, error="Stock counts must be non-negative"
-            )
-
-        if sell + trade + keep != total_stock:
-            return StockDispositionResult(
-                success=False, error="Stock counts don't add up"
-            )
-
-        ratio = self.ruleset.merger_trade_ratio
-        if trade % ratio != 0:
-            return StockDispositionResult(
-                success=False, error=trade_multiple_error(ratio)
-            )
-
-        trade_for = trade // ratio
-        available = self.hotel.get_available_stocks(survivor)
-        if trade_for > available:
-            return StockDispositionResult(
-                success=False, error="Not enough survivor stock available to trade"
-            )
-
-        # Execute sell
-        sale_proceeds = 0
-        if sell > 0:
-            defunct_size = self.board.get_chain_size(defunct)
-            sell_price = self.hotel.get_stock_price(defunct, defunct_size)
-            player.sell_stock(defunct, sell, sell_price)
-            self.hotel.return_stock(defunct, sell)
-            sale_proceeds = sell * sell_price
-
-        # Execute trade
-        if trade > 0:
-            player.remove_stocks(defunct, trade)
-            player.add_stocks(survivor, trade_for)
-            self.hotel.return_stock(defunct, trade)
-            self.hotel.buy_stock(survivor, trade_for)
-
-        # Keep is automatic (just don't do anything with them)
-
-        self._emit(
-            "stock_disposition",
-            player_id,
-            defunct_chain=defunct,
-            surviving_chain=survivor,
-            sell=sell,
-            trade=trade,
-            hold=keep,
-            sale_proceeds=sale_proceeds,
-            survivor_shares_received=trade_for,
-        )
-
-        # Move to next player or next defunct chain
-        self._merger.stock_index += 1
-        self._prompt_next_stock_disposition()
-
-        return StockDispositionResult(
-            success=True,
-            sold=sell,
-            traded=trade,
-            kept=keep,
-            next_action=self.pending_action.get("type")
-            if self.pending_action
-            else "buy_stocks",
-        )
-
-    def _finalize_merger(self):
-        """Finalize the merger by merging all defunct chains into survivor."""
-        survivor = self._merger.survivor
-        tile = self._merger.tile
-
-        defunct_chains = [c for c in self._merger.chains if c != survivor]
-
-        # Merge all defunct chains into survivor on the board
-        for defunct in self._merger.chains:
-            if defunct != survivor:
-                self.board.merge_chains(survivor, defunct)
-                self.hotel.deactivate_chain(defunct)
-
-        # Absorb the triggering tile and any connected lone tiles
-        if tile:
-            connected = self.board.get_connected_tiles(tile)
-            for t in connected:
-                cell = self.board.get_cell(t.column, t.row)
-                if cell.chain is None:
-                    self.board.set_chain(t, survivor)
-
-        self._emit(
-            "merger_completed",
-            self.get_current_player().player_id,
-            survivor=survivor,
-            defunct=defunct_chains,
-            survivor_size=self.board.get_chain_size(survivor),
-        )
-
-        # Reset merger state
-        self._merger.reset()
-
-        self.phase = GamePhase.BUYING_STOCKS
-        self.pending_action = None
-
     def buy_stocks(self, player_id: str, purchases: list[str]) -> BuyStocksResult:
         """Buy stocks for the current player.
 
@@ -1228,22 +826,7 @@ class Game:
 
         # Pay final bonuses for all active chains
         for chain_name in self.hotel.get_active_chains():
-            chain_size = self.board.get_chain_size(chain_name)
-            bonuses = Rules.calculate_bonuses(
-                self.players, chain_name, chain_size, self.hotel
-            )
-            for player_id, bonus in bonuses.items():
-                player = self.get_player(player_id)
-                if player:
-                    total = bonus.get("majority", 0) + bonus.get("minority", 0)
-                    player.add_money(total)
-            self._emit(
-                "bonuses_paid",
-                chain=chain_name,
-                chain_size=chain_size,
-                final=True,
-                bonuses={pid: dict(b) for pid, b in bonuses.items()},
-            )
+            self._pay_bonuses(chain_name, final=True)
 
         # Sell all stocks at current prices
         final_sales: dict[str, int] = {}
@@ -1377,280 +960,6 @@ class Game:
             winners=end_result.winners,
         )
 
-    # =========================================================================
-    # Player-to-Player Trading Methods
-    # =========================================================================
-
-    def _count_pending_trades_for_player(self, player_id: str) -> int:
-        """Count the number of pending trades initiated by a player.
-
-        Args:
-            player_id: ID of the player to count trades for
-
-        Returns:
-            Number of pending trades where this player is the proposer
-        """
-        count = 0
-        for trade in self.pending_trades.values():
-            if trade.from_player_id == player_id:
-                count += 1
-        return count
-
-    def propose_trade(self, trade: TradeOffer) -> ProposeTradeResult:
-        """Propose a trade to another player.
-
-        Players can propose trades at any time during the game (not just their turn).
-        The trade will be validated and added to pending trades if valid.
-
-        Args:
-            trade: The TradeOffer containing the trade details
-
-        Returns:
-            ProposeTradeResult with result
-        """
-        # Check game is in progress
-        if self.phase == GamePhase.LOBBY:
-            return ProposeTradeResult(success=False, error="Game has not started yet")
-
-        if self.phase == GamePhase.GAME_OVER:
-            return ProposeTradeResult(success=False, error="Game is already over")
-
-        # Check pending trade limit for the proposer
-        current_count = self._count_pending_trades_for_player(trade.from_player_id)
-        max_pending = self.ruleset.max_pending_trades_per_player
-        if current_count >= max_pending:
-            return ProposeTradeResult(
-                success=False,
-                error=f"Maximum of {max_pending} pending trades per player",
-            )
-
-        # Validate the trade
-        is_valid, error_msg = Rules.validate_trade(self, trade)
-        if not is_valid:
-            return ProposeTradeResult(success=False, error=error_msg)
-
-        # Add to pending trades
-        self.pending_trades[trade.trade_id] = trade
-        self._emit("trade_proposed", trade.from_player_id, trade=trade.to_dict())
-
-        return ProposeTradeResult(
-            success=True,
-            trade_id=trade.trade_id,
-            from_player=trade.from_player_id,
-            to_player=trade.to_player_id,
-        )
-
-    def accept_trade(self, player_id: str, trade_id: str) -> AcceptTradeResult:
-        """Accept a pending trade offer.
-
-        Only the recipient of the trade can accept it. The trade will be
-        re-validated before execution to ensure both players still have
-        the required resources.
-
-        Args:
-            player_id: ID of the player accepting the trade
-            trade_id: Unique ID of the trade to accept
-
-        Returns:
-            AcceptTradeResult with result
-        """
-        # Check that the trade exists
-        if trade_id not in self.pending_trades:
-            return AcceptTradeResult(success=False, error="Trade not found")
-
-        trade = self.pending_trades[trade_id]
-
-        # Check that the accepting player is the recipient
-        if trade.to_player_id != player_id:
-            return AcceptTradeResult(
-                success=False, error="Only the trade recipient can accept"
-            )
-
-        # Re-validate the trade (resources may have changed)
-        is_valid, error_msg = Rules.validate_trade(self, trade)
-        if not is_valid:
-            # Trade is no longer valid, remove it
-            del self.pending_trades[trade_id]
-            self._emit(
-                "trade_cancelled",
-                player_id,
-                trade_id=trade_id,
-                reason="no_longer_valid",
-            )
-            return AcceptTradeResult(
-                success=False, error=f"Trade is no longer valid: {error_msg}"
-            )
-
-        # Get the players
-        from_player = self.get_player(trade.from_player_id)
-        to_player = self.get_player(trade.to_player_id)
-
-        # Execute the trade atomically
-        # First, remove resources from both players
-        from_player.execute_trade_give(trade.offering_stocks, trade.offering_money)
-        to_player.execute_trade_give(trade.requesting_stocks, trade.requesting_money)
-
-        # Then, add resources to both players
-        to_player.execute_trade_receive(trade.offering_stocks, trade.offering_money)
-        from_player.execute_trade_receive(
-            trade.requesting_stocks, trade.requesting_money
-        )
-
-        # Remove the trade from pending
-        del self.pending_trades[trade_id]
-        self._emit("trade_accepted", player_id, trade=trade.to_dict())
-
-        return AcceptTradeResult(
-            success=True,
-            trade_id=trade_id,
-            from_player=trade.from_player_id,
-            to_player=trade.to_player_id,
-            offered_stocks=dict(trade.offering_stocks),
-            offered_money=trade.offering_money,
-            requested_stocks=dict(trade.requesting_stocks),
-            requested_money=trade.requesting_money,
-        )
-
-    def reject_trade(self, player_id: str, trade_id: str) -> RejectTradeResult:
-        """Reject a pending trade offer.
-
-        Only the recipient of the trade can reject it.
-
-        Args:
-            player_id: ID of the player rejecting the trade
-            trade_id: Unique ID of the trade to reject
-
-        Returns:
-            RejectTradeResult with result
-        """
-        # Check that the trade exists
-        if trade_id not in self.pending_trades:
-            return RejectTradeResult(success=False, error="Trade not found")
-
-        trade = self.pending_trades[trade_id]
-
-        # Check that the rejecting player is the recipient
-        if trade.to_player_id != player_id:
-            return RejectTradeResult(
-                success=False, error="Only the trade recipient can reject"
-            )
-
-        # Remove the trade
-        del self.pending_trades[trade_id]
-        self._emit("trade_rejected", player_id, trade_id=trade_id)
-
-        return RejectTradeResult(success=True, trade_id=trade_id, rejected_by=player_id)
-
-    def cancel_trade(self, player_id: str, trade_id: str) -> CancelTradeResult:
-        """Cancel a pending trade offer.
-
-        Only the proposer of the trade can cancel it.
-
-        Args:
-            player_id: ID of the player canceling the trade
-            trade_id: Unique ID of the trade to cancel
-
-        Returns:
-            CancelTradeResult with result
-        """
-        # Check that the trade exists
-        if trade_id not in self.pending_trades:
-            return CancelTradeResult(success=False, error="Trade not found")
-
-        trade = self.pending_trades[trade_id]
-
-        # Check that the canceling player is the proposer
-        if trade.from_player_id != player_id:
-            return CancelTradeResult(
-                success=False, error="Only the trade proposer can cancel"
-            )
-
-        # Remove the trade
-        del self.pending_trades[trade_id]
-        self._emit("trade_cancelled", player_id, trade_id=trade_id, reason="cancelled")
-
-        return CancelTradeResult(success=True, trade_id=trade_id, canceled_by=player_id)
-
-    def get_incoming_trades_for_player(self, player_id: str) -> List[TradeOffer]:
-        """Get pending trades where the player is the recipient.
-
-        Args:
-            player_id: ID of the player to get incoming trades for
-
-        Returns:
-            List of TradeOffer objects where this player is the recipient
-        """
-        return [
-            trade
-            for trade in self.pending_trades.values()
-            if trade.to_player_id == player_id
-        ]
-
-    def get_outgoing_trades_for_player(self, player_id: str) -> List[TradeOffer]:
-        """Get pending trades where the player is the proposer.
-
-        Args:
-            player_id: ID of the player to get outgoing trades for
-
-        Returns:
-            List of TradeOffer objects where this player is the proposer
-        """
-        return [
-            trade
-            for trade in self.pending_trades.values()
-            if trade.from_player_id == player_id
-        ]
-
-    def _get_merger_state(self) -> dict | None:
-        """Get current merger state for broadcasting.
-
-        Returns merger disposition queue information during STOCK_DISPOSITION phase,
-        or None if not in an active merger with stock disposition.
-        """
-        # Only return merger state during active stock disposition
-        if self.phase != GamePhase.MERGING:
-            return None
-
-        if (
-            not self.pending_action
-            or self.pending_action.get("type") != "stock_disposition"
-        ):
-            return None
-
-        survivor = self._merger.survivor
-        current_defunct = self._merger.current_defunct
-
-        if not survivor or not current_defunct:
-            return None
-
-        # Build queue with status
-        queue = []
-        for i, player_id in enumerate(self._merger.stock_players):
-            player = self.get_player(player_id)
-            if not player:
-                continue
-
-            if i < self._merger.stock_index:
-                status = "completed"
-            elif i == self._merger.stock_index:
-                status = "current"
-            else:
-                status = "waiting"
-
-            queue.append(
-                {
-                    "player_id": player_id,
-                    "name": player.name,
-                    "status": status,
-                }
-            )
-
-        return {
-            "survivor": survivor,
-            "defunct": current_defunct,
-            "disposition_queue": queue,
-        }
-
     def get_public_state(self) -> dict:
         """Get public game state visible to everyone.
 
@@ -1692,7 +1001,7 @@ class Game:
         merger_state = self._get_merger_state()
 
         state = {
-            "phase": _PHASE_TO_STRING.get(self.phase, self.phase.value),
+            "phase": PHASE_NAMES.get(self.phase, self.phase.value),
             "current_player": self.get_current_player().player_id
             if self.players
             else None,

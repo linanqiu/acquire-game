@@ -19,7 +19,7 @@ interface SeatLike {
   agent_label?: string | null
 }
 
-/** Resolve a seat's kind, deriving it from `is_bot` for older backends. */
+/** A seat's kind; from `is_bot` when `kind` is missing (transcripts written before it existed). */
 export function resolveSeatKind(seat: SeatLike): SeatKind {
   if (seat.kind) return seat.kind
   return seat.is_bot ? 'bot' : 'human'

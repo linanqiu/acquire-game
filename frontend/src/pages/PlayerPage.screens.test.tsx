@@ -27,8 +27,6 @@ vi.mock('../hooks/useWebSocket', () => ({
     ...((socket.onError = opts.onError), {}),
     sendAction,
     reconnect: vi.fn(() => Promise.resolve(true)),
-    disconnect: vi.fn(),
-    isConnected: true,
   }),
 }))
 
@@ -124,15 +122,17 @@ describe('which screen each real game state shows', () => {
 })
 
 describe('placing a tile', () => {
-  it('lists the real hand; picking a tile enables PLACE TILE, which sends that tile', () => {
+  it('lists the real hand; the picked tile is named, and PLACE TILE sends it and clears the pick', () => {
     const view = loadSnapshotAsPlayer('opening-place-tile')
     renderPage()
     for (const coord of view.expect.human.hand) expect(rackTile(coord)).toBeInTheDocument()
     expect(screen.queryByTestId('place-tile-button')).not.toBeInTheDocument()
     const pick = view.expect.human.hand[0]
     fireEvent.click(rackTile(pick))
+    expect(screen.getByText(pick, { selector: 'strong' })).toBeInTheDocument()
     fireEvent.click(screen.getByTestId('place-tile-button'))
     expect(lastAction()).toEqual({ action: 'place_tile', tile: pick })
+    expect(screen.queryByText(pick, { selector: 'strong' })).not.toBeInTheDocument()
   })
 
   it('a tile the engine calls dead cannot be picked, and the rack says why', () => {

@@ -53,10 +53,3 @@ export async function captureStep(
 export function resetStepCounter(): void {
   stepCounter = 0
 }
-
-/**
- * Get the current step counter value.
- */
-export function getStepCounter(): number {
-  return stepCounter
-}

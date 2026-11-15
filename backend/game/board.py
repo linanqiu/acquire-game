@@ -7,23 +7,6 @@ from dataclasses import InitVar, dataclass
 from game.ruleset import BoardSpec, Ruleset, default_ruleset, resolve
 
 
-class hybridmethod:
-    """Method callable on the class (default ruleset) or an instance (its own)."""
-
-    def __init__(self, func):
-        self.func = func
-        self.__doc__ = func.__doc__
-
-    def __get__(self, obj, cls):
-        target = obj if obj is not None else cls
-
-        def bound(*args, **kwargs):
-            return self.func(target, *args, **kwargs)
-
-        bound.__doc__ = self.func.__doc__
-        return bound
-
-
 class TileState(Enum):
     """State of a tile on the board."""
 
@@ -85,15 +68,7 @@ class BoardCell:
 
 
 class Board:
-    """The game board; its size comes from the ruleset.
-
-    ``Board.COLUMNS`` / ``Board.ROWS`` are aliases of the default ruleset's
-    board kept for older callers; an instance uses ``columns`` / ``row_letters``.
-    """
-
-    ruleset: Ruleset = default_ruleset()
-    COLUMNS = default_ruleset().board.columns
-    ROWS = default_ruleset().board.row_letters
+    """The game board; its size comes from the ruleset."""
 
     def __init__(self, ruleset: Optional[Ruleset] = None):
         self.ruleset = resolve(ruleset)
@@ -225,10 +200,9 @@ class Board:
                 cells[f"{col}{row}"] = {"state": cell.state.value, "chain": cell.chain}
         return {"cells": cells}
 
-    @hybridmethod
-    def all_tiles(target) -> list[Tile]:
-        """Every tile of the board (``Board.all_tiles()``: the default board)."""
-        spec = target.ruleset.board
+    def all_tiles(self) -> list[Tile]:
+        """Every tile of the board."""
+        spec = self.ruleset.board
         return [
             Tile(col, row, spec)
             for col in range(1, spec.columns + 1)

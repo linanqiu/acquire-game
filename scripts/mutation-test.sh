@@ -14,7 +14,7 @@ cd "$(dirname "$0")/.."
 
 modules=("$@")
 if [ ${#modules[@]} -eq 0 ]; then
-  modules=(game/rules.py game/hotel.py game/game.py game/decisions.py game/player.py
+  modules=(game/rules.py game/hotel.py game/game.py game/merger.py game/trading.py game/decisions.py game/player.py
            game/board.py game/ranking.py game/calculator.py)
 fi
 out="${OUT:-/tmp/game-mutation/result.json}"

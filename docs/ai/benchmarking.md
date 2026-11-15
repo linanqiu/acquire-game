@@ -1,15 +1,15 @@
 # Benchmarking seats
 
-> **Buyout Bench** (owner decision 2026-11-14): this harness is the engine of a product, not just
-> a dev tool. See the next section for the framing and what is still planned, and
-> [Epic 12](../roadmap/epics/12-bench.md) for the stories. Everything below the "Running"
-> heading describes what exists today.
+> **Buyout Bench**: the harness in `backend/bench/` is the engine of a product, not just a dev tool.
+> Epic: [Epic 12](../roadmap/epics/12-bench.md). The protocol, standalone CLI, Python API, ratings and
+> leaderboard are built (sections "Current harness" onwards describe them); published results and
+> persistence on a server volume are not (AB-008, AB-009).
 
 ## Buyout Bench
 
 Putting LLMs in seats gives a benchmark as a byproduct: models of different strength play full
-games of Buyout against each other and against the rules-based baseline (the heuristic bot). The
-owner wants it to be a first-class part of the product, with these properties:
+games of Buyout against each other and against the rules-based baseline (the heuristic bot).
+Properties:
 
 1. **Runs on its own.** A standalone command and a Python API, with machine-readable output and
    meaningful exit codes. No server, no browser, no WebSocket. Usable from CI or from a script that
@@ -21,37 +21,31 @@ owner wants it to be a first-class part of the product, with these properties:
    the transcripts behind it. Format: seat contract, "Game transcripts and Buyout Bench".
 4. **Honest about sample size and cost.** Intervals, not point estimates; rows with too few games
    are marked and not ranked; cost per game is `unknown` unless every price is known.
-5. **Visible in the product.** A leaderboard page in the app.
+5. **Visible in the product.** A leaderboard page at `/bench`.
 
-### Protocol `bench-v1` (planned, AB-005)
-
-Fixed seed list, 4 seats, full seat rotation (a game count that is a multiple of 4), fixed prompt
-version, retry limit and timeouts pinned. Two tracks: **vs-baseline** (one model against three
-rules-based bots) and **head-to-head** (models of different strength in the same game). A
-`bot,bot,bot,bot` control run is part of the protocol so chance level is visible. Changing any pinned
-element means a new protocol id.
+Protocol `bench-v1` (defined in `backend/bench/protocols.py`, details below) has two tracks:
+**vs-baseline** (one model against three rules-based bots) and **head-to-head** (models of
+different strength in the same game). Changing any pinned element means a new protocol id.
 
 ### Retries and fallbacks are part of the score
 
 In the server an illegal move is sent back to the model with the reason and it tries again (default
 up to 4 retries, inside the decision's time budget); only a timeout, a provider error or exhausted
-retries hand that one decision to the rules-based player (owner decision 2026-11-14). The
-benchmark reports **retries** and **fallbacks** separately: a model that needs many retries, or
-that falls back often, is worse at this game than its win rate alone shows, and a fallback-heavy
-model is partly a heuristic bot. The built harness already reports fallback rate by reason and repair
-rate; the 4-retry loop is planned (LO-003) and the harness must follow it (see "Known limits").
+retries hand that one decision to the rules-based player. The benchmark reports **retries** and
+**fallbacks** separately: a model that needs many retries, or that falls back often, is worse at
+this game than its win rate alone shows, and a fallback-heavy model is partly a heuristic bot.
 
-### Standalone run requirement
+### What exists and what does not
 
-| Piece | Requirement | State |
-|---|---|---|
-| Command | A documented command that runs a protocol for chosen models and writes a results directory (results, transcripts, report). | `python -m bench --matchup ...` exists (free-form matchups, below). Protocol mode, e.g. `python -m bench run --protocol bench-v1 --model llm:<id>`, is **planned** (AB-004, AB-005); final syntax set there. |
-| Python API | A synchronous function callable from a plain script, returning the report as a dict; custom agents injectable. | `bench.run_game` / `bench.run_series` exist but are async and take internal arguments (`from bench import run_series`). A synchronous `bench.run(...)` is **planned** (AB-004). |
-| Output | A versioned JSON report (schema checked in), a Markdown summary, resumable per-game results, one transcript per game; `--json` prints only JSON on stdout. | Report JSON, Markdown and resumable JSONL exist. Schema file, `--json`, and transcripts are **planned** (AB-001, AB-004). |
-| Exit codes | `0` all games finished; `1` stopped early (budget) or a game stalled; `2` configuration error; `3` internal error. | `0`, `1`, `2` exist (see below). `3` is **planned**. |
-| CI | A workflow that runs the protocol with the fake provider and fails on a non-zero exit; a manual run for real models. | **Planned** (`.github/workflows/bench.yml`, AB-004). The fake-provider tests in `backend/tests/test_bench.py` already run in the normal CI pytest job. |
-| Leaderboard | Ratings from finishing orders, served as `GET /bench/leaderboard`, shown at `/bench`. | **Planned** (AB-006, AB-007). |
-| Published results | A first real run, committed with commands, prices and spend. | **None exist.** Blocked on an API key and on filling `bench/prices.json` (AB-009). Nothing in this repo reports measured model results. |
+| Piece | State |
+|---|---|
+| Command | `python -m bench` subcommands `run`, `leaderboard`, `list-models`, and the older `python -m bench --matchup ...` form (below). |
+| Python API | `bench.run_protocol`, `run_series`, `run_game`, `load_results`, `compute_leaderboard` (async runners; see "Python API"). |
+| Output | JSON report, Markdown summary, resumable per-game `results.jsonl`, one transcript per game; `--json` prints only JSON on stdout. |
+| Exit codes | `0` all games finished; `1` stopped early (budget) or a game stalled; `2` configuration error. |
+| CI | `.github/workflows/bench.yml` runs the protocol with the fake provider; the fake-provider tests in `backend/tests/test_bench.py` run in the normal pytest job. |
+| Leaderboard | Ratings from finishing orders, served as `GET /bench/leaderboard`, shown at `/bench`. |
+| Published results | **None exist.** Blocked on an API key and on filling `bench/prices.json` (AB-009). Nothing in this repo reports measured model results. |
 
 ## Current harness
 

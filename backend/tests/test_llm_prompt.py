@@ -47,7 +47,7 @@ def test_system_prompt_states_the_implemented_rules():
         "legal options",
     ):
         assert needle in s, needle
-    for chain in Hotel.get_all_chain_names():
+    for chain in Hotel().get_all_chain_names():
         assert chain in s
     # price table is generated from the engine's own table
     assert "$1,200" in s and "$200" in s
@@ -65,7 +65,7 @@ def test_user_prompt_has_legal_options_hand_notes_and_board(game):
         ln for ln in render_board(ctx.state).splitlines() if re.match(r"^  [A-I] ", ln)
     ]
     assert len(grid) == 9
-    for chain in Hotel.get_all_chain_names():
+    for chain in Hotel().get_all_chain_names():
         assert chain in p
 
 

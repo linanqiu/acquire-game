@@ -73,13 +73,11 @@ function player(extra = {}) {
 
 describe('player socket', () => {
   it('connects to the player route with its id (no token: the server uses none), and is "connected" once the socket opens', () => {
-    const { result } = player()
+    player()
     expect(latest().url).toMatch(/^wss?:\/\/.+\/ws\/player\/ABCD\/p1$/)
     expect(status()).toBe('connecting')
-    expect(result.current.isConnected).toBe(false)
     act(() => latest().open())
     expect(status()).toBe('connected')
-    expect(result.current.isConnected).toBe(true)
   })
 
   it('a browser without credentials still connects (the server answers "Player not found")', () => {
@@ -288,17 +286,6 @@ describe('player socket', () => {
     expect(status()).toBe('disconnected')
   })
 
-  it('a configured WebSocket address (VITE_WS_URL) is used as it is, for players and spectators', () => {
-    vi.stubEnv('VITE_WS_URL', 'ws://game.example:9000')
-    renderHook(() => useWebSocket({ roomCode: 'ABCD', playerId: 'p1' }))
-    expect(latest().url).toBe('ws://game.example:9000/ws/player/ABCD/p1')
-    renderHook(() => useWebSocket({ roomCode: 'ABCD', playerId: '' }))
-    expect(latest().url).toBe('ws://game.example:9000/ws/player/ABCD/-')
-    renderHook(() => useHostWebSocket({ roomCode: 'WXYZ' }))
-    expect(latest().url).toBe('ws://game.example:9000/ws/host/WXYZ')
-    vi.unstubAllEnvs()
-  })
-
   it('reconnect() while the connection is fine does not open a second socket', () => {
     const { result } = player()
     act(() => latest().open())
@@ -321,20 +308,6 @@ describe('player socket', () => {
     act(() => latest().open())
     act(() => vi.advanceTimersByTime(60_000))
     expect(sockets()).toHaveLength(2)
-  })
-
-  it('after disconnect() a manual reconnect() works and the connection recovers from drops again', () => {
-    const { result } = player()
-    act(() => latest().open())
-    act(() => result.current.disconnect())
-    act(() => {
-      void result.current.reconnect()
-    })
-    expect(sockets()).toHaveLength(2)
-    act(() => latest().open())
-    act(() => latest().drop())
-    act(() => vi.advanceTimersByTime(2001))
-    expect(sockets()).toHaveLength(3)
   })
 
   it('going online in the middle of a back-off connects now, and the pending timer does not add a socket', () => {
@@ -360,35 +333,11 @@ describe('player socket', () => {
     expect(status()).toBe('disconnected')
   })
 
-  it('a refused room is final: a later "online" does not retry the same refusal', () => {
-    player()
-    act(() => latest().drop(true, 4004, 'Room not found'))
-    expect(sockets()).toHaveLength(1)
-  })
-
   it('a back-off that is still pending when the page is left never fires', () => {
     const { unmount } = player()
     act(() => latest().open())
     act(() => latest().drop())
     unmount()
-    act(() => vi.advanceTimersByTime(60_000))
-    expect(sockets()).toHaveLength(1)
-  })
-
-  it('disconnect() cancels a pending back-off as well as closing the socket', () => {
-    const { result } = player()
-    act(() => latest().open())
-    act(() => latest().drop())
-    act(() => result.current.disconnect())
-    act(() => vi.advanceTimersByTime(60_000))
-    expect(sockets()).toHaveLength(1)
-  })
-
-  it('disconnect() closes the socket for good', () => {
-    const { result } = player()
-    act(() => latest().open())
-    act(() => result.current.disconnect())
-    expect(status()).toBe('disconnected')
     act(() => vi.advanceTimersByTime(60_000))
     expect(sockets()).toHaveLength(1)
   })
@@ -412,56 +361,6 @@ describe('host (spectator) socket', () => {
     expect(useGameStore.getState().publicTrades).toEqual(view.host.pending_trades)
   })
 
-  it('answers pings and hands server errors to the page', () => {
-    const { onError } = host()
-    act(() => latest().open())
-    act(() => latest().receive({ type: 'ping' }))
-    expect(latest().sent).toEqual([JSON.stringify({ type: 'pong' })])
-    act(() => latest().receive({ type: 'error', message: 'Not enough players' }))
-    expect(onError).toHaveBeenCalledWith('Not enough players')
-  })
-
-  it('reconnects after a drop with the same doubling delay, and stops for a refused room', () => {
-    host()
-    act(() => latest().open())
-    act(() => latest().drop())
-    act(() => vi.advanceTimersByTime(2000))
-    expect(sockets()).toHaveLength(2)
-    act(() => latest().drop(true, 4004, 'Room not found'))
-    expect(useGameStore.getState().connectionError).toBe('Room not found')
-    act(() => vi.advanceTimersByTime(60_000))
-    expect(sockets()).toHaveLength(2)
-  })
-
-  it('gives up after five failed attempts and tells the page; a clean close is final', () => {
-    const { onError } = host()
-    act(() => latest().drop())
-    for (let i = 0; i < 5; i++) {
-      act(() => vi.advanceTimersByTime(60_000))
-      act(() => latest().drop())
-    }
-    expect(status()).toBe('disconnected')
-    expect(onError).toHaveBeenCalledWith('Connection failed after multiple attempts')
-    const n = sockets().length
-    act(() => vi.advanceTimersByTime(120_000))
-    expect(sockets()).toHaveLength(n)
-  })
-
-  it('a clean close ends the session without retrying, and unmounting closes the socket', () => {
-    const view = host()
-    act(() => latest().open())
-    act(() => latest().drop(true, 1000))
-    expect(status()).toBe('disconnected')
-    act(() => vi.advanceTimersByTime(60_000))
-    expect(sockets()).toHaveLength(1)
-    const again = renderHook(() => useHostWebSocket({ roomCode: 'WXYZ' }))
-    act(() => latest().open())
-    const open = latest()
-    again.unmount()
-    expect(open.readyState).toBe(FakeWebSocket.CLOSED)
-    view.unmount()
-  })
-
   it('reconnect() opens a new socket and resolves true once connected', async () => {
     const { result } = host()
     act(() => latest().open())
@@ -476,20 +375,5 @@ describe('host (spectator) socket', () => {
       await vi.advanceTimersByTimeAsync(200)
     })
     expect(resolved).toBe(true)
-    act(() => result.current.disconnect())
-    expect(status()).toBe('disconnected')
-  })
-
-  it('goes offline and back like the player socket', () => {
-    host()
-    act(() => latest().open())
-    act(() => {
-      window.dispatchEvent(new Event('offline'))
-    })
-    expect(status()).toBe('connecting')
-    act(() => {
-      window.dispatchEvent(new Event('online'))
-    })
-    expect(sockets()).toHaveLength(2)
   })
 })

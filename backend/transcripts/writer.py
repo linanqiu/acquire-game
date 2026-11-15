@@ -36,7 +36,6 @@ logger = logging.getLogger(__name__)
 
 TRANSCRIPT_VERSION = 1
 SUMMARY_SUFFIX = ".summary.json"
-FOOTER_REASONS = ("declared", "no_playable_tiles", "forced", "abandoned")
 # engine ``game_ended.reason`` -> footer reason
 _END_REASON = {"declared": "declared", "no_playable_tiles": "no_playable_tiles"}
 _LLM_KEYS = ("model", "system_prompt_id", "user_prompt", "attempts", "why", "note")

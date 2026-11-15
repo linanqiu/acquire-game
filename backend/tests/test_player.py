@@ -248,47 +248,6 @@ class TestStockValueCalculation:
         assert player.get_net_worth(prices) == 9000
 
 
-class TestStateSerialization:
-    """Tests for get_state and from_state methods."""
-
-    def test_get_state_with_data(self):
-        """Should serialize player state with tiles and stocks."""
-        player = Player("p1", "Alice")
-        player.add_tile(Tile(1, "A"))
-        player.add_tile(Tile(5, "C"))
-        player._stocks["sandpiper"] = 5
-        player._stocks["halcyon"] = 3
-        player._money = 4500
-
-        state = player.get_state()
-        assert state["money"] == 4500
-        assert "1A" in state["hand"]
-        assert "5C" in state["hand"]
-        assert state["stocks"]["sandpiper"] == 5
-        assert state["stocks"]["halcyon"] == 3
-
-    def test_from_state_roundtrip(self):
-        """Should recreate player from serialized state."""
-        original = Player("p1", "Alice")
-        original.add_tile(Tile(1, "A"))
-        original.add_tile(Tile(5, "C"))
-        original._stocks["sandpiper"] = 5
-        original._stocks["halcyon"] = 3
-        original._money = 4500
-
-        state = original.get_state()
-        restored = Player.from_state(state)
-
-        assert restored.player_id == original.player_id
-        assert restored.name == original.name
-        assert restored.money == original.money
-        assert restored.hand_size == original.hand_size
-        assert restored.has_tile(Tile(1, "A"))
-        assert restored.has_tile(Tile(5, "C"))
-        assert restored.get_stock_count("sandpiper") == 5
-        assert restored.get_stock_count("halcyon") == 3
-
-
 class TestHoldingsGuards:
     """A player's share holdings never go negative, never pass the per-chain
     limit, and a refused change leaves them untouched (the engine relies on

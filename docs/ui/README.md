@@ -1,77 +1,19 @@
-# Buyout UI Documentation
+# Buyout UI
 
-> Complete design documentation for the Buyout board game frontend.
+The visual language lives in code: design tokens in `frontend/src/styles/tokens.css` (colours,
+spacing, radii), chain colours in `frontend/src/styles/colors.css`, type in
+`frontend/src/styles/typography.css`. Chain names and colours come from the ruleset
+(`backend/rulesets/*.json`), not from the frontend. There is no separate UI spec; the screens
+are covered, one by one, in [surface-coverage.md](../tests/surface-coverage.md).
 
-## Overview
+Look: dark, muted, monospace, information-dense ("terminal meets pixel art"), no CRT effects.
 
-This directory contains everything needed to implement the Buyout frontend:
+## Routes (`frontend/src/App.tsx`)
 
-| Document | Purpose |
-|----------|---------|
-| [design-system.md](./design-system.md) | Visual language: colors, typography, spacing, animation |
-| [storyboard.md](./storyboard.md) | All screens, wireframes, states, and user flows |
-| [components.md](./components.md) | Reusable UI component specifications |
-
-## Design Philosophy
-
-**"Bloomberg terminal meets modern pixel art"**
-
-- Dark, muted, easy on the eyes
-- Monospace typography throughout
-- Information-dense, no wasted space
-- Data is the decoration
-- Clean pixel aesthetic (no CRT effects)
-
-## Target Devices
-
-| View | Device | Optimized For |
-|------|--------|---------------|
-| Player View | Mobile phone | Touch, private info, quick decisions |
-| Host View | TV / Laptop | 10ft viewing, public scoreboard, spectators |
-
-## Quick Reference
-
-### Pages
-
-| Page | URL | Description |
-|------|-----|-------------|
-| Lobby | `/` | Create or join a game |
-| Player View | `/play/{room}` | Private player terminal |
-| Host View | `/host/{room}` | Shared TV display |
-
-### Color Palette (Chain Colors)
-
-```
-SANDPIPER:       #c9a227  (muted gold)      - Budget
-MARLOWE:       #7a5c3d  (brown/bronze)    - Budget
-HALCYON:    #5e7a8a  (slate blue)      - Standard
-JUNIPER:    #8a5e7a  (dusty mauve)     - Standard
-MERIDIAN:   #5e8a6a  (sage green)      - Standard
-AURELIA: #8a3d3d  (burgundy)        - Premium
-OBSIDIAN:    #3d5e8a  (deep blue)       - Premium
-```
-
-### Game Flow Summary
-
-```
-Player Turn:
-  1. TRADE (optional) - propose trades with other players
-  2. PLACE TILE (mandatory) - play one tile from hand
-  3. BUY STOCKS (optional) - purchase 0-3 shares
-  4. DRAW TILE (automatic) - replenish hand to 6
-```
-
-## Implementation Status
-
-- [ ] Design System CSS variables
-- [ ] Lobby page
-- [ ] Player View shell
-- [ ] Host View shell
-- [ ] Trading interface
-- [ ] Tile placement
-- [ ] Chain founding modal
-- [ ] Merger resolution flow
-- [ ] Stock buying cart
-- [ ] End game screens
-- [ ] Reconnection handling
-- [ ] Error states
+| Route | Page | Use |
+|-------|------|-----|
+| `/` | `LobbyPage` | Create or join a game, watch bots play, links to games and bench |
+| `/play/:room` | `PlayerPage` | Private player terminal (phone-first) |
+| `/host/:room` | `HostPage` | Shared board for a TV or laptop |
+| `/games`, `/games/:gameId` | `GamesPage`, `TranscriptPage` | Finished-game list and transcript replay |
+| `/bench`, `/bench/series/:seriesId` | `BenchPage`, `BenchSeriesPage` | Buyout Bench leaderboard and series |
