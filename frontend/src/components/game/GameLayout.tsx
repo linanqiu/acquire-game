@@ -116,7 +116,11 @@ export function GameLayout({
       testId={wide ? 'tab-list' : 'tab-bar'}
     />
   )
-  const bannerBox = banner ? <div className={styles.banner}>{banner}</div> : null
+  const bannerBox = banner ? (
+    <div className={styles.banner} data-testid="merger-banner">
+      {banner}
+    </div>
+  ) : null
 
   if (!wide) {
     return (

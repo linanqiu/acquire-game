@@ -73,6 +73,8 @@ export interface GameStoreState {
 
   /** Public table chat, oldest first (deduplicated by id, at most CHAT_KEEP). */
   chatMessages: ChatMessage[]
+  /** Highest id of the chat history received on connect (0 before any): already said. */
+  chatHistoryId: number
 
   /** The final `game_over` message (scores with their breakdown), once the game ended. */
   gameOver: GameOverMessage | null
@@ -134,6 +136,7 @@ const initialState = {
   gameOver: null as GameOverMessage | null,
   lastFallbackEvent: null as FallbackEvent | null,
   chatMessages: [] as ChatMessage[],
+  chatHistoryId: 0,
   pendingChainChoice: null,
   pendingMergerChoice: null,
   pendingStockDisposition: null,
@@ -300,7 +303,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         break
 
       case 'chat_history':
-        set({ chatMessages: mergeChat(store.chatMessages, message.messages ?? []) })
+        set({
+          chatMessages: mergeChat(store.chatMessages, message.messages ?? []),
+          chatHistoryId: Math.max(
+            store.chatHistoryId,
+            ...(message.messages ?? []).map((m: ChatMessage) => m.id)
+          ),
+        })
         break
 
       case 'tiles_replaced':

@@ -80,10 +80,15 @@ export function useGameTabs({
   const messages = useGameStore((s) => s.chatMessages)
   const lastId = messages[messages.length - 1]?.id ?? 0
   const seenKey = `chat-seen:${scope}:${room}`
-  const [seenId, setSeenId] = useState(() => readNumber(seenKey) ?? 0)
+  // A first visit counts the history sent on connect as read; a reload keeps its own mark (so
+  // lines said while the page was away count).
+  const historyId = useGameStore((s) => s.chatHistoryId)
+  const [stored] = useState(() => readNumber(seenKey))
+  const [seenId, setSeenId] = useState(stored ?? 0)
+  const floor = stored === null ? Math.max(seenId, historyId) : seenId
   if (selected === 'chat' && seenId < lastId) setSeenId(lastId)
-  useEffect(() => writeTab(seenKey, String(seenId)), [seenKey, seenId])
-  const chatUnread = selected === 'chat' ? 0 : unreadCount(messages, seenId, myId)
+  useEffect(() => writeTab(seenKey, String(floor)), [seenKey, floor])
+  const chatUnread = selected === 'chat' ? 0 : unreadCount(messages, floor, myId)
 
   // A merger result arrived that the viewer has not looked at in the log yet. Mergers that
   // were there when the page first opened count as seen.

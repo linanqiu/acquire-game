@@ -154,6 +154,16 @@ describe('useGameTabs', () => {
     expect(hook.result.current.chatUnread).toBe(1)
   })
 
+  it('a first visit counts the chat history sent on connect as read; later lines are unread', () => {
+    const { hook } = setup()
+    act(() =>
+      useGameStore.getState().handleMessage({ type: 'chat_history', messages: [msg(1), msg(2)] })
+    )
+    expect(hook.result.current.chatUnread).toBe(0)
+    act(() => useGameStore.getState().handleMessage({ type: 'chat_message', message: msg(3) }))
+    expect(hook.result.current.chatUnread).toBe(1)
+  })
+
   it('dots the log tab for a merger that arrives while the page is open, until the log is opened', () => {
     const { hook, props } = setup({ mergers: [merger(5)] })
     expect(hook.result.current.newMerger).toBe(false) // already there on load
