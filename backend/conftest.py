@@ -16,6 +16,10 @@ if os.environ.get("PYTEST_XDIST_WORKER") or "GAME_TRANSCRIPT_DIR" not in os.envi
     )
 if os.environ.get("PYTEST_XDIST_WORKER") or "GAME_BENCH_DIR" not in os.environ:
     os.environ["GAME_BENCH_DIR"] = tempfile.mkdtemp(prefix="game-test-bench-")
+# A local ``frontend/dist`` (after ``npm run build``) must not change what the
+# suite sees: without this the SPA fallback answers unknown bare paths with
+# index.html. Static serving is tested with an explicit dist directory.
+os.environ["FRONTEND_DIST"] = os.path.join(tempfile.gettempdir(), "no-frontend-dist")
 from fastapi.testclient import TestClient
 
 from main import app, session_manager
