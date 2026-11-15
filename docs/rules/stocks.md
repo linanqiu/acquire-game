@@ -1,6 +1,6 @@
 # Stock Purchasing
 
-This document covers all rules related to buying, holding, and managing stock in Acquire, including purchase limits, availability, and pricing.
+This document covers all rules related to buying, holding, and managing stock in Buyout, including purchase limits, availability, and pricing.
 
 ---
 
@@ -53,10 +53,10 @@ Players may only purchase stock in **active chains**:
 ### Purchase Examples
 
 **Valid purchases (assuming stock available):**
-- 3 American shares
-- 2 Tower + 1 Continental
-- 1 Luxor + 1 Festival + 1 Imperial
-- 1 Worldwide (choosing to buy fewer than 3)
+- 3 Halcyon shares
+- 2 Marlowe + 1 Aurelia
+- 1 Sandpiper + 1 Juniper + 1 Obsidian
+- 1 Meridian (choosing to buy fewer than 3)
 - 0 shares (declining to purchase)
 
 **Invalid purchases:**
@@ -90,11 +90,11 @@ Stock price is found by:
 | 41+ tiles | $1,000 | $1,100 | $1,200 |
 
 **Chain Tiers:**
-- **Cheap**: Luxor, Tower
-- **Medium**: American, Festival, Worldwide
-- **Expensive**: Continental, Imperial
+- **Cheap**: Sandpiper, Marlowe
+- **Medium**: Halcyon, Juniper, Meridian
+- **Expensive**: Aurelia, Obsidian
 
-See [Pricing Reference](pricing.md) for the complete official table.
+See [Pricing Reference](pricing.md) for the complete table.
 
 ### Price Changes
 
@@ -170,10 +170,10 @@ When a chain becomes defunct, stockholders may:
 - Only possible if surviving chain has available stock
 
 **Example:**
-- American (surviving) acquires Tower (defunct)
-- You have 7 Tower shares
-- Trade 6 Tower shares for 3 American shares
-- Hold or sell the remaining 1 Tower share
+- Halcyon (surviving) acquires Marlowe (defunct)
+- You have 7 Marlowe shares
+- Trade 6 Marlowe shares for 3 Halcyon shares
+- Hold or sell the remaining 1 Marlowe share
 
 ### Stock Scarcity Strategy
 
@@ -205,9 +205,9 @@ Player-to-player trading can **only** occur during **Phase 1** of the active pla
 
 ### Valid Trade Examples
 
-- **Stock for stock**: 2 Tower shares for 1 Continental share
-- **Stock for cash**: 3 Luxor shares for $1,500
-- **Combination**: 1 American share + $500 for 2 Festival shares
+- **Stock for stock**: 2 Marlowe shares for 1 Aurelia share
+- **Stock for cash**: 3 Sandpiper shares for $1,500
+- **Combination**: 1 Halcyon share + $500 for 2 Juniper shares
 - **Multi-party**: Active player may trade with different players in sequence
 
 ### Trade Strategies

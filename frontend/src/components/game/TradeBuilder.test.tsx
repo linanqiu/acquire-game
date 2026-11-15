@@ -1,298 +1,176 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { TradeBuilder, TradeBuilderProps } from './TradeBuilder'
-import type { ChainName } from '../../types/api'
+import { render, screen, fireEvent, within } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { TradeBuilder } from './TradeBuilder'
+import { snapshot, playerState } from '../../../tests/unit/fixtures/wire'
 
-const mockPlayers = [
-  {
-    id: 'player-2',
-    name: 'Bob',
-    cash: 5000,
-    stocks: { Luxor: 3, Tower: 2 } as Partial<Record<ChainName, number>>,
-  },
-  {
-    id: 'player-3',
-    name: 'Carol',
-    cash: 8000,
-    stocks: { American: 5, Festival: 1 } as Partial<Record<ChainName, number>>,
-  },
-]
-
-const mockMyHoldings = [
-  { chain: 'Luxor' as ChainName, quantity: 4 },
-  { chain: 'Continental' as ChainName, quantity: 2 },
-]
-
-const defaultProps: TradeBuilderProps = {
-  players: mockPlayers,
-  myHoldings: mockMyHoldings,
-  myCash: 3000,
-  onPropose: vi.fn(),
-  onCancel: vi.fn(),
+/** The props the player page builds from a real server state (same shape as PlayerPage). */
+function propsFrom(name = 'buy-phase-multi-chain') {
+  const view = snapshot(name)
+  const state = playerState(name)
+  const me = state.players[view.human]
+  const players = Object.entries(state.players)
+    .filter(([id]) => id !== view.human)
+    .map(([id, p]) => ({
+      id,
+      name: p.name,
+      cash: p.money,
+      stocks: p.stocks,
+      isBot: p.is_bot,
+      kind: p.kind,
+      agentLabel: p.agent_label,
+    }))
+  const myHoldings = Object.entries(me.stocks)
+    .filter(([, q]) => q > 0)
+    .map(([chain, quantity]) => ({ chain, quantity }))
+  return { players, myHoldings, myCash: me.money }
 }
 
+function mount(extra = {}) {
+  const props = propsFrom()
+  const onPropose = vi.fn()
+  const onCancel = vi.fn()
+  render(<TradeBuilder {...props} onPropose={onPropose} onCancel={onCancel} {...extra} />)
+  const partner = props.players.find((p) => p.cash >= 5000)
+  return { ...props, onPropose, onCancel, partner }
+}
+
+const pick = (p) => fireEvent.click(screen.getByTestId(`player-select-${p.id}`))
+const offerRow = (chain) => within(screen.getByTestId(`offer-stock-${chain}`))
+const wantRow = (chain) => within(screen.getByTestId(`want-stock-${chain}`))
+const click = (el, n = 1) => {
+  for (let i = 0; i < n; i++) fireEvent.click(el)
+}
+const error = () => screen.getByTestId('trade-error').textContent
+
 describe('TradeBuilder', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
+  it('lists the other players with their cash; a partner is needed before anything can be requested', () => {
+    const { players } = mount()
+    for (const p of players) {
+      const button = screen.getByTestId(`player-select-${p.id}`)
+      expect(button).toHaveTextContent(p.name)
+      expect(button).toHaveTextContent(`$${p.cash.toLocaleString('en-US')}`)
+    }
+    expect(screen.queryByTestId('want-cash-input')).not.toBeInTheDocument()
+    expect(screen.getByText(/Select a trade partner/)).toBeInTheDocument()
   })
 
-  describe('rendering', () => {
-    it('renders trade builder form', () => {
-      render(<TradeBuilder {...defaultProps} />)
-
-      expect(screen.getByTestId('trade-builder')).toBeInTheDocument()
-      expect(screen.getByText('NEW TRADE')).toBeInTheDocument()
-      expect(screen.getByText('TRADE WITH:')).toBeInTheDocument()
-      expect(screen.getByText('YOU OFFER:')).toBeInTheDocument()
-    })
-
-    it('shows all available players to trade with', () => {
-      render(<TradeBuilder {...defaultProps} />)
-
-      expect(screen.getByText('Bob')).toBeInTheDocument()
-      expect(screen.getByText('$5,000')).toBeInTheDocument()
-      expect(screen.getByText('Carol')).toBeInTheDocument()
-      expect(screen.getByText('$8,000')).toBeInTheDocument()
-    })
-
-    it('shows my holdings in offer section', () => {
-      render(<TradeBuilder {...defaultProps} />)
-
-      expect(screen.getByText('(you have 4)')).toBeInTheDocument()
-      expect(screen.getByText('(you have 2)')).toBeInTheDocument()
-    })
-
-    it('shows cash input with max value', () => {
-      render(<TradeBuilder {...defaultProps} />)
-
-      expect(screen.getByTestId('offer-cash-input')).toBeInTheDocument()
-      expect(screen.getByText('(max $3,000)')).toBeInTheDocument()
-    })
-
-    it('shows hint when no partner selected', () => {
-      render(<TradeBuilder {...defaultProps} />)
-
-      expect(screen.getByText('Select a trade partner to see their holdings')).toBeInTheDocument()
-    })
+  it('refuses a proposal step by step: partner, then something offered, then something requested', () => {
+    const { partner, onPropose } = mount()
+    const propose = () => fireEvent.click(screen.getByTestId('propose-trade'))
+    propose()
+    expect(error()).toBe('Select a trade partner')
+    pick(partner)
+    propose()
+    expect(error()).toBe('You must offer something')
+    fireEvent.change(screen.getByTestId('offer-cash-input'), { target: { value: '100' } })
+    propose()
+    expect(error()).toBe('You must request something')
+    expect(onPropose).not.toHaveBeenCalled()
   })
 
-  describe('player selection', () => {
-    it('selects a trade partner when clicked', () => {
-      render(<TradeBuilder {...defaultProps} />)
-
-      const bobButton = screen.getByTestId('player-select-player-2')
-      fireEvent.click(bobButton)
-
-      expect(bobButton).toHaveAttribute('aria-pressed', 'true')
-      expect(screen.getByText('YOU WANT FROM BOB:')).toBeInTheDocument()
-    })
-
-    it('shows partner holdings after selection', () => {
-      render(<TradeBuilder {...defaultProps} />)
-
-      fireEvent.click(screen.getByTestId('player-select-player-2'))
-
-      expect(screen.getByText('(they have 3)')).toBeInTheDocument()
-      expect(screen.getByText('(they have 2)')).toBeInTheDocument()
-    })
-
-    it('resets want section when switching partners', () => {
-      const onPropose = vi.fn()
-      render(<TradeBuilder {...defaultProps} onPropose={onPropose} />)
-
-      // Select Bob and set some want values
-      fireEvent.click(screen.getByTestId('player-select-player-2'))
-
-      // Switch to Carol
-      fireEvent.click(screen.getByTestId('player-select-player-3'))
-
-      // Carol's holdings should be shown
-      expect(screen.getByText('YOU WANT FROM CAROL:')).toBeInTheDocument()
-      expect(screen.getByText('(they have 5)')).toBeInTheDocument()
-    })
+  it('the stock steppers stop at what I hold and at what the partner holds', () => {
+    const { myHoldings, partner } = mount()
+    pick(partner)
+    const mine = myHoldings[0]
+    click(offerRow(mine.chain).getByTestId('stepper-increment'), mine.quantity + 3)
+    expect(offerRow(mine.chain).getByTestId('stepper-value')).toHaveTextContent(
+      String(mine.quantity)
+    )
+    expect(offerRow(mine.chain).getByTestId('stepper-increment')).toBeDisabled()
+    const [chain, theirs] = Object.entries(partner.stocks).find(([, q]) => q > 0)
+    click(wantRow(chain).getByTestId('stepper-increment'), theirs + 3)
+    expect(wantRow(chain).getByTestId('stepper-value')).toHaveTextContent(String(theirs))
   })
 
-  describe('offer stock controls', () => {
-    it('allows incrementing offer stock', () => {
-      render(<TradeBuilder {...defaultProps} />)
-
-      const incrementButtons = screen.getAllByTestId('stepper-increment')
-      fireEvent.click(incrementButtons[0]) // First stepper for Luxor
-
-      const values = screen.getAllByTestId('stepper-value')
-      expect(values[0]).toHaveTextContent('1')
-    })
-
-    it('respects maximum holding limit', () => {
-      render(<TradeBuilder {...defaultProps} />)
-
-      const incrementButtons = screen.getAllByTestId('stepper-increment')
-
-      // Try to increment Luxor 5 times (max is 4)
-      for (let i = 0; i < 5; i++) {
-        fireEvent.click(incrementButtons[0])
-      }
-
-      const values = screen.getAllByTestId('stepper-value')
-      expect(values[0]).toHaveTextContent('4')
-    })
-  })
-
-  describe('offer cash input', () => {
-    it('accepts cash amount input', () => {
-      render(<TradeBuilder {...defaultProps} />)
-
-      const cashInput = screen.getByTestId('offer-cash-input')
-      fireEvent.change(cashInput, { target: { value: '1000' } })
-
-      expect(cashInput).toHaveValue(1000)
-    })
-
-    it('clamps cash to max available', () => {
-      render(<TradeBuilder {...defaultProps} />)
-
-      const cashInput = screen.getByTestId('offer-cash-input')
-      fireEvent.change(cashInput, { target: { value: '5000' } }) // More than myCash (3000)
-
-      // The internal state is clamped, though input shows what user typed
-      // Validation will catch over-limit values
-    })
-  })
-
-  describe('validation', () => {
-    it('shows error when no partner selected', () => {
-      render(<TradeBuilder {...defaultProps} />)
-
+  it('a negative or non-numeric cash amount counts as nothing offered', () => {
+    const { partner, onPropose } = mount()
+    pick(partner)
+    for (const typed of ['-40', 'abc']) {
+      fireEvent.change(screen.getByTestId('offer-cash-input'), { target: { value: typed } })
       fireEvent.click(screen.getByTestId('propose-trade'))
-
-      expect(screen.getByTestId('trade-error')).toHaveTextContent('Select a trade partner')
-    })
-
-    it('shows error when nothing offered', () => {
-      render(<TradeBuilder {...defaultProps} />)
-
-      fireEvent.click(screen.getByTestId('player-select-player-2'))
-      fireEvent.click(screen.getByTestId('propose-trade'))
-
-      expect(screen.getByTestId('trade-error')).toHaveTextContent('You must offer something')
-    })
-
-    it('shows error when nothing requested', () => {
-      render(<TradeBuilder {...defaultProps} />)
-
-      // Select partner
-      fireEvent.click(screen.getByTestId('player-select-player-2'))
-
-      // Offer something
-      const incrementButtons = screen.getAllByTestId('stepper-increment')
-      fireEvent.click(incrementButtons[0])
-
-      fireEvent.click(screen.getByTestId('propose-trade'))
-
-      expect(screen.getByTestId('trade-error')).toHaveTextContent('You must request something')
-    })
-
-    it('clears error when making changes', () => {
-      render(<TradeBuilder {...defaultProps} />)
-
-      // Trigger an error
-      fireEvent.click(screen.getByTestId('propose-trade'))
-      expect(screen.getByTestId('trade-error')).toBeInTheDocument()
-
-      // Select a partner - should clear error
-      fireEvent.click(screen.getByTestId('player-select-player-2'))
-      expect(screen.queryByTestId('trade-error')).not.toBeInTheDocument()
-    })
+      expect(error()).toBe('You must offer something')
+    }
+    expect(onPropose).not.toHaveBeenCalled()
   })
 
-  describe('submit and cancel', () => {
-    it('calls onPropose with correct data on valid submission', () => {
-      const onPropose = vi.fn()
-      render(<TradeBuilder {...defaultProps} onPropose={onPropose} />)
-
-      // Select partner - this will render the want section
-      fireEvent.click(screen.getByTestId('player-select-player-2'))
-
-      // Now get all steppers after partner is selected
-      // Structure: 2 offer steppers (Luxor, Continental) + 2 want steppers (Bob's Luxor, Tower)
-      const allIncrements = screen.getAllByTestId('stepper-increment')
-      expect(allIncrements.length).toBe(4)
-
-      // Offer 2 Luxor (first offer stepper at index 0)
-      fireEvent.click(allIncrements[0])
-      fireEvent.click(allIncrements[0])
-
-      // Want 1 of partner's first stock (index 2)
-      fireEvent.click(allIncrements[2])
-
-      fireEvent.click(screen.getByTestId('propose-trade'))
-
-      expect(onPropose).toHaveBeenCalledTimes(1)
-      const callArgs = onPropose.mock.calls[0]
-      expect(callArgs[0]).toBe('player-2')
-      // Check that we offered something and want something
-      expect(callArgs[1].stocks.length).toBe(1)
-      expect(callArgs[1].stocks[0].quantity).toBe(2)
-      expect(callArgs[2].stocks.length).toBe(1)
-      expect(callArgs[2].stocks[0].quantity).toBe(1)
-    })
-
-    it('calls onCancel when cancel button clicked', () => {
-      const onCancel = vi.fn()
-      render(<TradeBuilder {...defaultProps} onCancel={onCancel} />)
-
-      fireEvent.click(screen.getByTestId('cancel-trade'))
-
-      expect(onCancel).toHaveBeenCalled()
-    })
-
-    it('calls onCancel when close button clicked', () => {
-      const onCancel = vi.fn()
-      render(<TradeBuilder {...defaultProps} onCancel={onCancel} />)
-
-      fireEvent.click(screen.getByLabelText('Close'))
-
-      expect(onCancel).toHaveBeenCalled()
-    })
+  it('a proposal carries the partner, the stocks and the cash of both sides', () => {
+    const { myHoldings, partner, onPropose } = mount()
+    pick(partner)
+    const mine = myHoldings[0]
+    click(offerRow(mine.chain).getByTestId('stepper-increment'), 2)
+    const [chain] = Object.entries(partner.stocks).find(([, q]) => q > 0)
+    click(wantRow(chain).getByTestId('stepper-increment'))
+    fireEvent.change(screen.getByTestId('offer-cash-input'), { target: { value: '300' } })
+    fireEvent.change(screen.getByTestId('want-cash-input'), { target: { value: '100' } })
+    fireEvent.click(screen.getByTestId('propose-trade'))
+    expect(onPropose).toHaveBeenCalledWith(
+      partner.id,
+      { stocks: [{ chain: mine.chain, quantity: 2 }], cash: 300 },
+      { stocks: [{ chain, quantity: 1 }], cash: 100 }
+    )
   })
 
-  describe('edge cases', () => {
-    it('handles player with no stocks', () => {
-      const playersWithNoStocks = [{ id: 'player-2', name: 'Bob', cash: 5000, stocks: {} }]
-      render(<TradeBuilder {...defaultProps} players={playersWithNoStocks} />)
-
-      fireEvent.click(screen.getByTestId('player-select-player-2'))
-
-      expect(screen.getByText('Bob has no stocks')).toBeInTheDocument()
+  it('cash for cash is a valid trade, and amounts above what each side has are clamped to it', () => {
+    const { myCash, partner, onPropose } = mount()
+    pick(partner)
+    fireEvent.change(screen.getByTestId('offer-cash-input'), {
+      target: { value: String(myCash + 999) },
     })
-
-    it('handles user with no stocks', () => {
-      render(<TradeBuilder {...defaultProps} myHoldings={[]} />)
-
-      expect(screen.getByText('You have no stocks to offer')).toBeInTheDocument()
+    fireEvent.change(screen.getByTestId('want-cash-input'), {
+      target: { value: String(partner.cash + 999) },
     })
+    fireEvent.click(screen.getByTestId('propose-trade'))
+    expect(onPropose).toHaveBeenCalledWith(
+      partner.id,
+      { stocks: [], cash: myCash },
+      { stocks: [], cash: partner.cash }
+    )
+  })
 
-    it('allows cash-only trades', () => {
-      const onPropose = vi.fn()
-      render(<TradeBuilder {...defaultProps} onPropose={onPropose} />)
+  it('choosing another partner clears what I had asked the first one for', () => {
+    const { players, partner } = mount()
+    pick(partner)
+    const [chain] = Object.entries(partner.stocks).find(([, q]) => q > 0)
+    click(wantRow(chain).getByTestId('stepper-increment'))
+    expect(wantRow(chain).getByTestId('stepper-value')).toHaveTextContent('1')
+    pick(players.find((p) => p !== partner))
+    for (const v of screen.getAllByTestId('stepper-value')) {
+      if (v.closest('[data-testid^="want-stock-"]')) expect(v).toHaveTextContent('0')
+    }
+  })
 
-      // Select partner
-      fireEvent.click(screen.getByTestId('player-select-player-2'))
+  it('a change after an error clears the message', () => {
+    const { partner } = mount()
+    fireEvent.click(screen.getByTestId('propose-trade'))
+    expect(error()).toBeTruthy()
+    pick(partner)
+    expect(screen.queryByTestId('trade-error')).not.toBeInTheDocument()
+  })
 
-      // Offer cash only
-      const offerCashInput = screen.getByTestId('offer-cash-input')
-      fireEvent.change(offerCashInput, { target: { value: '500' } })
+  it('a player with no shares is said to have none; so am I', () => {
+    const view = propsFrom('trade-incoming')
+    const poor = view.players.find((p) => Object.values(p.stocks).every((q) => q === 0))
+    render(<TradeBuilder {...view} onPropose={() => {}} onCancel={() => {}} />)
+    expect(screen.getByText('You have no shares to offer')).toBeInTheDocument()
+    pick(poor)
+    expect(screen.getByText(`${poor.name} has no shares`)).toBeInTheDocument()
+  })
 
-      // Want cash only
-      const wantCashInput = screen.getByTestId('want-cash-input')
-      fireEvent.change(wantCashInput, { target: { value: '1000' } })
-
-      fireEvent.click(screen.getByTestId('propose-trade'))
-
-      expect(onPropose).toHaveBeenCalledWith(
-        'player-2',
-        { stocks: [], cash: 500 },
-        { stocks: [], cash: 1000 }
-      )
+  it("shows the server's refusal and the notice, and cannot be submitted while a proposal is in flight", () => {
+    mount({
+      serverError: 'Cannot trade Sandpiper stock during its merger',
+      notice: 'A merger is on',
+      submitting: true,
     })
+    expect(error()).toBe('Cannot trade Sandpiper stock during its merger')
+    expect(screen.getByText('A merger is on')).toBeInTheDocument()
+    expect(screen.getByTestId('propose-trade')).toBeDisabled()
+  })
+
+  it('CANCEL and the close button both leave the builder', () => {
+    const { onCancel } = mount()
+    fireEvent.click(screen.getByTestId('cancel-trade'))
+    fireEvent.click(screen.getByLabelText('Close'))
+    expect(onCancel).toHaveBeenCalledTimes(2)
   })
 })

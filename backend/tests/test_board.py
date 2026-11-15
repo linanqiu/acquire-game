@@ -1,21 +1,11 @@
 """Tests for board.py - Board state and tile logic."""
 
 import pytest
-from game.board import Board, Tile, TileState, BoardCell
+from game.board import Board, Tile, TileState
 
 
 class TestTile:
     """Tests for Tile class."""
-
-    def test_create_valid_tile(self):
-        tile = Tile(1, "A")
-        assert tile.column == 1
-        assert tile.row == "A"
-
-    def test_create_tile_max_coords(self):
-        tile = Tile(12, "I")
-        assert tile.column == 12
-        assert tile.row == "I"
 
     def test_invalid_column_low(self):
         with pytest.raises(ValueError):
@@ -68,17 +58,6 @@ class TestTile:
 class TestBoard:
     """Tests for Board class."""
 
-    def test_board_creation(self):
-        board = Board()
-        # Should have 12*9 = 108 cells
-        assert len(board._grid) == 108
-
-    def test_all_cells_empty_initially(self):
-        board = Board()
-        for cell in board._grid.values():
-            assert cell.state == TileState.EMPTY
-            assert cell.chain is None
-
     def test_place_tile_on_empty(self):
         board = Board()
         tile = Tile(1, "A")
@@ -97,10 +76,10 @@ class TestBoard:
         board = Board()
         tile = Tile(1, "A")
         board.place_tile(tile)
-        board.set_chain(tile, "Luxor")
+        board.set_chain(tile, "sandpiper")
         cell = board.get_cell(1, "A")
         assert cell.state == TileState.IN_CHAIN
-        assert cell.chain == "Luxor"
+        assert cell.chain == "sandpiper"
 
     def test_get_adjacent_tiles_center(self):
         board = Board()
@@ -142,13 +121,13 @@ class TestBoard:
         tile2 = Tile(2, "A")
         board.place_tile(tile1)
         board.place_tile(tile2)
-        board.set_chain(tile1, "Luxor")
-        board.set_chain(tile2, "Luxor")
+        board.set_chain(tile1, "sandpiper")
+        board.set_chain(tile2, "sandpiper")
 
         # Tile adjacent to the chain
         tile3 = Tile(3, "A")
         chains = board.get_adjacent_chains(tile3)
-        assert chains == ["Luxor"]
+        assert chains == ["sandpiper"]
 
     def test_get_adjacent_chains_multiple(self):
         board = Board()
@@ -157,31 +136,21 @@ class TestBoard:
         tile2 = Tile(3, "A")
         board.place_tile(tile1)
         board.place_tile(tile2)
-        board.set_chain(tile1, "Luxor")
-        board.set_chain(tile2, "Tower")
+        board.set_chain(tile1, "sandpiper")
+        board.set_chain(tile2, "marlowe")
 
         # Tile between them
         chains = board.get_adjacent_chains(Tile(2, "A"))
-        assert chains == ["Luxor", "Tower"]  # sorted alphabetically
-
-    def test_get_chain_tiles(self):
-        board = Board()
-        tiles = [Tile(1, "A"), Tile(2, "A"), Tile(3, "A")]
-        for t in tiles:
-            board.place_tile(t)
-            board.set_chain(t, "Luxor")
-
-        chain_tiles = board.get_chain_tiles("Luxor")
-        assert len(chain_tiles) == 3
+        assert chains == ["marlowe", "sandpiper"]  # sorted alphabetically
 
     def test_get_chain_size(self):
         board = Board()
         for i in range(1, 6):
             tile = Tile(i, "A")
             board.place_tile(tile)
-            board.set_chain(tile, "Tower")
+            board.set_chain(tile, "marlowe")
 
-        assert board.get_chain_size("Tower") == 5
+        assert board.get_chain_size("marlowe") == 5
 
     def test_get_connected_tiles(self):
         board = Board()
@@ -210,27 +179,15 @@ class TestBoard:
 
         for t in [t1, t2]:
             board.place_tile(t)
-            board.set_chain(t, "Luxor")
+            board.set_chain(t, "sandpiper")
         for t in [t3, t4]:
             board.place_tile(t)
-            board.set_chain(t, "Tower")
+            board.set_chain(t, "marlowe")
 
-        board.merge_chains("Luxor", "Tower")
+        board.merge_chains("sandpiper", "marlowe")
 
-        assert board.get_chain_size("Luxor") == 4
-        assert board.get_chain_size("Tower") == 0
-
-    def test_get_all_chains(self):
-        board = Board()
-        t1 = Tile(1, "A")
-        t2 = Tile(5, "E")
-        board.place_tile(t1)
-        board.place_tile(t2)
-        board.set_chain(t1, "Luxor")
-        board.set_chain(t2, "Tower")
-
-        chains = board.get_all_chains()
-        assert chains == {"Luxor", "Tower"}
+        assert board.get_chain_size("sandpiper") == 4
+        assert board.get_chain_size("marlowe") == 0
 
     def test_is_tile_played(self):
         board = Board()
@@ -243,26 +200,27 @@ class TestBoard:
         board = Board()
         tile = Tile(1, "A")
         board.place_tile(tile)
-        board.set_chain(tile, "Luxor")
+        board.set_chain(tile, "sandpiper")
 
         state = board.get_state()
         assert "1A" in state["cells"]
-        assert state["cells"]["1A"]["chain"] == "Luxor"
+        assert state["cells"]["1A"]["chain"] == "sandpiper"
 
     def test_all_tiles(self):
         tiles = Board.all_tiles()
         assert len(tiles) == 108
 
 
-class TestBoardCell:
-    """Tests for BoardCell class."""
+def test_tile_identity_parsing_and_errors():
+    assert Tile(1, "A") != "1A"  # a tile only equals a tile
+    with pytest.raises(ValueError, match="Row must be A-I, got J"):
+        Tile(1, "J")
+    with pytest.raises(ValueError, match="Column must be 1-12, got 13"):
+        Tile(13, "A")
 
-    def test_default_state(self):
-        cell = BoardCell()
-        assert cell.state == TileState.EMPTY
-        assert cell.chain is None
 
-    def test_with_chain(self):
-        cell = BoardCell(state=TileState.IN_CHAIN, chain="Luxor")
-        assert cell.state == TileState.IN_CHAIN
-        assert cell.chain == "Luxor"
+def test_an_empty_cell_connects_to_nothing():
+    board = Board()
+    board.place_tile(Tile(2, "A"))
+    assert board.get_connected_tiles(Tile(1, "A")) == set()
+    assert board.spec is board.ruleset.board

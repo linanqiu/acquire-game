@@ -1,7 +1,7 @@
-"""Game rules and validation logic for Acquire."""
+"""Game rules and validation logic for Buyout."""
 
 from enum import Enum
-from typing import Union, List, Tuple, TYPE_CHECKING
+from typing import Union, Tuple, TYPE_CHECKING
 from game.board import Board, Tile, TileState
 from game.hotel import Hotel
 from game.action import TradeOffer
@@ -47,15 +47,15 @@ class PlacementResult:
 
 
 class Rules:
-    """Game rules and validation for Acquire."""
+    """Game rules and validation for Buyout.
 
-    MAX_CHAINS = 7
-    SAFE_SIZE = 11
-    END_GAME_SIZE = 41
+    Every threshold (safe size, end-game size, number of chains, bonus
+    rounding, trade ratio) is read from ``board.ruleset`` / ``hotel.ruleset``.
+    """
 
     @classmethod
     def _count_safe_chains(cls, board: Board, chains: list[str]) -> int:
-        """Count how many chains in the list are safe (11+ tiles).
+        """Count how many chains in the list are safe (ruleset safe size).
 
         Args:
             board: The game board
@@ -64,11 +64,12 @@ class Rules:
         Returns:
             Number of safe chains
         """
-        return sum(1 for c in chains if board.get_chain_size(c) >= cls.SAFE_SIZE)
+        safe = board.ruleset.safe_chain_size
+        return sum(1 for c in chains if board.get_chain_size(c) >= safe)
 
     @classmethod
     def _are_all_chains_safe(cls, board: Board, chains: list[str]) -> bool:
-        """Check if all chains in the list are safe (11+ tiles).
+        """Check if all chains in the list are safe.
 
         Args:
             board: The game board
@@ -77,7 +78,8 @@ class Rules:
         Returns:
             True if all chains are safe
         """
-        return all(board.get_chain_size(c) >= cls.SAFE_SIZE for c in chains)
+        safe = board.ruleset.safe_chain_size
+        return all(board.get_chain_size(c) >= safe for c in chains)
 
     @classmethod
     def can_place_tile(cls, board: Board, tile: Tile, hotel: Hotel = None) -> bool:
@@ -85,8 +87,8 @@ class Rules:
 
         A tile cannot be placed if:
         - The cell is already occupied
-        - It would merge two or more safe chains (11+ tiles)
-        - It would create an 8th chain when all 7 exist
+        - It would merge two or more safe chains
+        - It would found a new chain while every chain is already active
 
         Args:
             board: The game board
@@ -117,8 +119,8 @@ class Rules:
                 adjacent_played = board.get_adjacent_played_tiles(tile)
                 if len(adjacent_played) > 0:
                     # This would create a new chain
-                    if len(hotel.get_active_chains()) >= cls.MAX_CHAINS:
-                        # All 7 chains are active, can't create new one
+                    if len(hotel.get_active_chains()) >= len(board.ruleset.chains):
+                        # Every chain is active, can't create a new one
                         return False
 
         return True
@@ -161,7 +163,7 @@ class Rules:
         """Determine which chain survives a merger.
 
         Rules for survivor determination (in priority order):
-        1. If exactly one chain is safe (11+ tiles), it survives regardless of size
+        1. If exactly one chain is safe, it survives regardless of size
         2. Otherwise, the largest chain survives
         3. If there's a tie for largest, returns a list of tied chains for player choice
 
@@ -185,9 +187,8 @@ class Rules:
             chain_sizes[chain_name] = board.get_chain_size(chain_name)
 
         # Check for safe chains - a safe chain always survives
-        safe_chains = [
-            name for name, size in chain_sizes.items() if size >= cls.SAFE_SIZE
-        ]
+        safe_size = board.ruleset.safe_chain_size
+        safe_chains = [name for name, size in chain_sizes.items() if size >= safe_size]
 
         # If exactly one chain is safe, it survives regardless of size
         if len(safe_chains) == 1:
@@ -216,10 +217,11 @@ class Rules:
         """Calculate majority and minority stockholder bonuses.
 
         Rules:
-        - Majority holder gets majority bonus (10x stock price)
-        - Minority holder gets minority bonus (5x stock price)
-        - If tied for majority, split majority + minority, round up to $100
-        - If tied for minority, split minority bonus, round up to $100
+        - Majority holder gets majority bonus (multiplier x stock price)
+        - Minority holder gets minority bonus (multiplier x stock price)
+        - If tied for majority, split majority + minority, rounded up to the
+          ruleset's step ($100 in default)
+        - If tied for minority, split minority bonus, rounded up likewise
         - If only one stockholder, they get both bonuses
 
         Args:
@@ -266,7 +268,7 @@ class Rules:
         if len(majority_holders) > 1:
             # Tie for majority - split majority + minority among them
             total_bonus = majority_bonus + minority_bonus
-            split_bonus = cls._round_up_to_hundred(total_bonus / len(majority_holders))
+            split_bonus = hotel.ruleset.round_split(total_bonus / len(majority_holders))
 
             for player_id in majority_holders:
                 bonuses[player_id] = {"majority": split_bonus, "minority": 0}
@@ -289,7 +291,7 @@ class Rules:
 
             if len(minority_holders) > 1:
                 # Tie for minority - split minority bonus
-                split_bonus = cls._round_up_to_hundred(
+                split_bonus = hotel.ruleset.round_split(
                     minority_bonus / len(minority_holders)
                 )
                 for player_id in minority_holders:
@@ -304,27 +306,12 @@ class Rules:
         return bonuses
 
     @classmethod
-    def _round_up_to_hundred(cls, amount: float) -> int:
-        """Round up to the nearest $100.
-
-        Args:
-            amount: The amount to round
-
-        Returns:
-            Amount rounded up to nearest 100
-        """
-        import math
-
-        return int(math.ceil(amount / 100) * 100)
-
-    @classmethod
     def check_end_game(cls, board: Board, hotel: Hotel) -> bool:
         """Check if the game can be ended.
 
         Game can end if:
-        - Any chain has 41+ tiles
-        - All active chains are safe (11+ tiles)
-        - All 7 chains are active and no legal mergers are possible
+        - Any chain has reached the ruleset's end-game size
+        - All active chains are safe
 
         Args:
             board: The game board
@@ -338,12 +325,13 @@ class Rules:
         if not active_chains:
             return False
 
-        # Check if any chain >= 41 tiles
+        # Check if any chain reached the end-game size
+        end_size = board.ruleset.end_game_chain_size
         for chain_name in active_chains:
-            if board.get_chain_size(chain_name) >= cls.END_GAME_SIZE:
+            if board.get_chain_size(chain_name) >= end_size:
                 return True
 
-        # Check if all active chains are safe (11+ tiles)
+        # Check if all active chains are safe
         # Note: If all chains are safe, mergers are impossible, so game can end
         return cls._are_all_chains_safe(board, active_chains)
 
@@ -393,28 +381,12 @@ class Rules:
         return [tile for tile in tiles if cls.can_place_tile(board, tile, hotel)]
 
     @classmethod
-    def get_unplayable_tiles(
-        cls, board: Board, tiles: list[Tile], hotel: Hotel
-    ) -> list[Tile]:
-        """Get list of tiles that cannot be legally played.
-
-        Args:
-            board: The game board
-            tiles: List of tiles to check (e.g., player's hand)
-            hotel: Hotel manager
-
-        Returns:
-            List of tiles that cannot be legally played
-        """
-        return [tile for tile in tiles if not cls.can_place_tile(board, tile, hotel)]
-
-    @classmethod
     def are_all_tiles_unplayable(
         cls, board: Board, tiles: list[Tile], hotel: Hotel
     ) -> bool:
         """Check if all tiles in a hand are unplayable.
 
-        According to Acquire rules, if a player has no playable tiles at the
+        According to Buyout rules, if a player has no playable tiles at the
         start of their turn, they must reveal their hand, remove all unplayable
         tiles from the game, and draw new tiles.
 
@@ -477,17 +449,17 @@ class Rules:
                     "would_trigger_merger": True,
                 }
 
-        # Check if this would create an 8th chain
+        # Check if this would found one chain too many
         if len(adjacent_chains) == 0:
             adjacent_played = board.get_adjacent_played_tiles(tile)
             if len(adjacent_played) > 0:
                 # This would create a new chain
                 active_chains = hotel.get_active_chains()
-                if len(active_chains) >= cls.MAX_CHAINS:
+                if len(active_chains) >= len(board.ruleset.chains):
                     return {
                         "playable": False,
                         "reason": UnplayableReason.EIGHTH_CHAIN.value,
-                        "permanent": True,  # Can never be played while all 7 chains exist
+                        "permanent": True,  # Unplayable while every chain exists
                         "would_trigger_merger": False,
                     }
 
@@ -515,58 +487,6 @@ class Rules:
         return {
             str(tile): cls.get_tile_playability(board, tile, hotel) for tile in tiles
         }
-
-    @classmethod
-    def get_legal_tile_plays(cls, game: "Game", player_id: str) -> List[Tile]:
-        """Get all tiles the player can legally play.
-
-        This is a convenience method that retrieves the player's hand and
-        filters it to only playable tiles.
-
-        Args:
-            game: The current game instance
-            player_id: ID of the player
-
-        Returns:
-            List of Tile objects that can be legally played
-        """
-        player = game.get_player(player_id)
-        if not player:
-            return []
-        return cls.get_playable_tiles(game.board, player.hand, game.hotel)
-
-    @classmethod
-    def get_valid_disposition_combinations(
-        cls, defunct_count: int, available_to_trade: int = 25
-    ) -> List[Tuple[int, int, int]]:
-        """Generate all valid sell/trade/keep splits for defunct stock.
-
-        In Acquire, when a chain is acquired in a merger, stockholders must
-        decide what to do with their shares:
-        - Sell: Sell shares back to the bank at current price
-        - Trade: Exchange 2 defunct shares for 1 survivor share
-        - Keep: Hold shares hoping the chain will reform
-
-        Args:
-            defunct_count: Number of defunct stocks the player owns
-            available_to_trade: Maximum survivor stocks available for trade (default 25)
-
-        Returns:
-            List of (sell, trade, keep) tuples representing all valid combinations.
-            Trade values are always even (2:1 exchange ratio).
-        """
-        combinations = []
-
-        for sell in range(defunct_count + 1):
-            remaining = defunct_count - sell
-            # Trade must be even (2:1 ratio) and limited by available survivor stock
-            max_trade = min(remaining, available_to_trade * 2)
-            for trade in range(0, max_trade + 1, 2):
-                keep = remaining - trade
-                if keep >= 0:
-                    combinations.append((sell, trade, keep))
-
-        return combinations
 
     @classmethod
     def validate_trade(cls, game: "Game", trade: TradeOffer) -> Tuple[bool, str]:
@@ -632,6 +552,20 @@ class Rules:
         if not has_offering and not has_requesting:
             return False, "Trade must include at least one item to exchange"
 
+        # Stock of chains in an in-progress merger is frozen: bonuses were paid
+        # on current holdings and pending dispositions rely on the stock counts.
+        merger = getattr(game, "_merger", None)
+        if merger is not None and merger.chains:
+            for chain_name in merger.chains:
+                if (
+                    trade.offering_stocks.get(chain_name, 0) > 0
+                    or trade.requesting_stocks.get(chain_name, 0) > 0
+                ):
+                    return (
+                        False,
+                        f"Cannot trade {chain_name} stock during its merger",
+                    )
+
         # Check that offering player has the resources they're offering
         if not from_player.can_afford_trade(
             trade.offering_stocks, trade.offering_money
@@ -645,12 +579,11 @@ class Rules:
             return False, "Receiving player does not have the requested stocks or money"
 
         # Check that receiving stocks won't exceed max for the receiver
-        from game.player import Player
-
+        max_held = game.ruleset.stocks_per_chain
         for chain_name, quantity in trade.offering_stocks.items():
             if quantity > 0:
                 current = to_player.get_stock_count(chain_name)
-                if current + quantity > Player.MAX_STOCKS_PER_CHAIN:
+                if current + quantity > max_held:
                     return (
                         False,
                         f"Trade would exceed max stocks for {chain_name} for receiving player",
@@ -660,7 +593,7 @@ class Rules:
         for chain_name, quantity in trade.requesting_stocks.items():
             if quantity > 0:
                 current = from_player.get_stock_count(chain_name)
-                if current + quantity > Player.MAX_STOCKS_PER_CHAIN:
+                if current + quantity > max_held:
                     return (
                         False,
                         f"Trade would exceed max stocks for {chain_name} for offering player",

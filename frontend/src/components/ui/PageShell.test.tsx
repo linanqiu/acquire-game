@@ -3,55 +3,37 @@ import { render, screen } from '@testing-library/react'
 import { PageShell } from './PageShell'
 
 describe('PageShell', () => {
-  it('renders children', () => {
-    render(<PageShell>Page content</PageShell>)
-    expect(screen.getByText('Page content')).toBeInTheDocument()
-  })
-
-  it('renders header with logo by default', () => {
-    render(<PageShell>Content</PageShell>)
-    expect(screen.getByText('ACQUIRE')).toBeInTheDocument()
-  })
-
-  it('renders phase when provided', () => {
-    render(<PageShell phase="Place Tile">Content</PageShell>)
-    expect(screen.getByText('Place Tile')).toBeInTheDocument()
-  })
-
-  it('does not render phase when not provided', () => {
-    render(<PageShell>Content</PageShell>)
-    const phaseElement = screen.queryByText('Place Tile')
-    expect(phaseElement).not.toBeInTheDocument()
-  })
-
-  it('renders footer when provided', () => {
-    render(<PageShell footer={<button>Footer Action</button>}>Content</PageShell>)
-    expect(screen.getByText('Footer Action')).toBeInTheDocument()
-  })
-
-  it('does not render footer when not provided', () => {
-    render(<PageShell>Content</PageShell>)
-    expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument()
-  })
-
-  it('passes header props to Header component', () => {
+  it('announces the phase banner politely to screen readers, and passes the header facts through', () => {
     render(
-      <PageShell roomCode="ABCD" cash={6000}>
-        Content
+      <PageShell phase="PLACE A TILE" roomCode="ABCD" cash={6000} playerName="Alice" tilePool={80}>
+        <p>board</p>
       </PageShell>
     )
-    expect(screen.getByText(/ABCD/)).toBeInTheDocument()
-    expect(screen.getByText('$6,000')).toBeInTheDocument()
+    const banner = screen.getByRole('status')
+    expect(banner).toHaveTextContent('PLACE A TILE')
+    expect(banner).toHaveAttribute('aria-live', 'polite')
+    expect(screen.getByTestId('header-room')).toHaveTextContent('ABCD')
+    expect(screen.getByTestId('header-cash')).toHaveTextContent('$6,000')
+    expect(screen.getByTestId('header-tile-pool')).toHaveTextContent('[80]')
   })
 
-  it('renders custom header when provided', () => {
-    render(<PageShell header={<header>Custom Header</header>}>Content</PageShell>)
-    expect(screen.getByText('Custom Header')).toBeInTheDocument()
-    expect(screen.queryByText('ACQUIRE')).not.toBeInTheDocument()
-  })
-
-  it('renders null header when header is null', () => {
-    render(<PageShell header={null}>Content</PageShell>)
-    expect(screen.queryByText('ACQUIRE')).not.toBeInTheDocument()
+  it('a page can bring its own header, or none; the banner and footer only show when given', () => {
+    const { rerender } = render(
+      <PageShell header={<header>Host header</header>} footer={<button>RACK</button>}>
+        <p>content</p>
+      </PageShell>
+    )
+    expect(screen.getByText('Host header')).toBeInTheDocument()
+    expect(screen.queryByTestId('header-title')).not.toBeInTheDocument()
+    expect(screen.getByRole('contentinfo')).toHaveTextContent('RACK')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    rerender(
+      <PageShell header={null}>
+        <p>content</p>
+      </PageShell>
+    )
+    expect(screen.queryByTestId('header-title')).not.toBeInTheDocument()
+    expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument()
+    expect(screen.getByText('content')).toBeInTheDocument()
   })
 })

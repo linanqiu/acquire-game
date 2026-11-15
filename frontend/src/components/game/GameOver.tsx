@@ -1,14 +1,19 @@
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { Card } from '../ui/Card'
 import { Button } from '../ui/Button'
 import styles from './GameOver.module.css'
+import { useRules } from '../../ruleset/useRules'
 
 export interface FinalScore {
   playerId: string
   name: string
+  /** Cash before the end-of-game payouts (equals `total` when the breakdown is unknown). */
   cash: number
-  bonuses: number
-  stockSales: number
+  /** Omit both when the server only reports final cash (bonuses and stock sales are then
+   *  already included in `cash`/`total` and no breakdown is shown). */
+  bonuses?: number
+  stockSales?: number
   total: number
 }
 
@@ -18,6 +23,8 @@ export interface GameOverProps {
   onPlayAgain: () => void
   onBackToLobby: () => void
   variant?: 'player' | 'host'
+  /** Transcript id; when present a "View full transcript" link is shown. */
+  gameId?: string | null
 }
 
 function calculateRanks(scores: FinalScore[]): Map<string, number> {
@@ -41,7 +48,9 @@ export function GameOver({
   onPlayAgain,
   onBackToLobby,
   variant = 'player',
+  gameId,
 }: GameOverProps) {
+  const rules = useRules()
   const ranks = useMemo(() => calculateRanks(scores), [scores])
   const sortedScores = useMemo(() => [...scores].sort((a, b) => b.total - a.total), [scores])
 
@@ -52,6 +61,7 @@ export function GameOver({
 
   const isTie = winners.length > 1
   const myScore = myPlayerId ? scores.find((s) => s.playerId === myPlayerId) : undefined
+  const hasBreakdown = scores.every((s) => s.bonuses !== undefined && s.stockSales !== undefined)
 
   return (
     <Card title="GAME OVER">
@@ -61,13 +71,13 @@ export function GameOver({
             <>
               <span className={styles.crown}>TIE GAME!</span>
               <p className={styles.winnerNames}>{winners.map((w) => w.name).join(' & ')}</p>
-              <p className={styles.winnerTotal}>${winners[0].total.toLocaleString()} each</p>
+              <p className={styles.winnerTotal}>{rules.money(winners[0].total)} each</p>
             </>
           ) : (
             <>
               <span className={styles.crown}>WINNER</span>
               <p className={styles.winnerNames}>{winners[0].name}</p>
-              <p className={styles.winnerTotal}>${winners[0].total.toLocaleString()}</p>
+              <p className={styles.winnerTotal}>{rules.money(winners[0].total)}</p>
             </>
           )}
         </div>
@@ -83,7 +93,7 @@ export function GameOver({
               return (
                 <div
                   key={score.playerId}
-                  className={`${styles.rankRow} ${isMe ? styles.you : ''} ${isWinner ? styles.winner : ''}`}
+                  className={`${styles.rankRow} ${isMe ? styles.you : ''} ${isWinner ? styles.rankWinner : ''}`}
                   data-testid={`rank-${score.playerId}`}
                 >
                   <span className={styles.rank}>
@@ -95,7 +105,7 @@ export function GameOver({
                     {rank}.
                   </span>
                   <span className={styles.name}>{score.name}</span>
-                  <span className={styles.total}>${score.total.toLocaleString()}</span>
+                  <span className={styles.total}>{rules.money(score.total)}</span>
                 </div>
               )
             })}
@@ -107,21 +117,34 @@ export function GameOver({
             <h3 className={styles.sectionTitle}>YOUR BREAKDOWN</h3>
             <table className={styles.breakdownTable}>
               <tbody>
-                <tr>
-                  <td>Cash on hand:</td>
-                  <td className={styles.amount}>${myScore.cash.toLocaleString()}</td>
-                </tr>
-                <tr>
-                  <td>Final bonuses:</td>
-                  <td className={styles.amount}>+${myScore.bonuses.toLocaleString()}</td>
-                </tr>
-                <tr>
-                  <td>Stock liquidation:</td>
-                  <td className={styles.amount}>+${myScore.stockSales.toLocaleString()}</td>
-                </tr>
+                {hasBreakdown ? (
+                  <>
+                    <tr>
+                      <td>Cash on hand:</td>
+                      <td className={styles.amount}>{rules.money(myScore.cash)}</td>
+                    </tr>
+                    <tr>
+                      <td>Final bonuses:</td>
+                      <td className={styles.amount} data-testid="breakdown-bonuses">
+                        +{rules.money(myScore.bonuses ?? 0)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>{rules.theme.stock_label} sold:</td>
+                      <td className={styles.amount} data-testid="breakdown-stock-sales">
+                        +{rules.money(myScore.stockSales ?? 0)}
+                      </td>
+                    </tr>
+                  </>
+                ) : (
+                  <tr>
+                    <td>Final cash (bonuses and {rules.theme.share_noun} sales included):</td>
+                    <td className={styles.amount}>{rules.money(myScore.cash)}</td>
+                  </tr>
+                )}
                 <tr className={styles.totalRow}>
                   <td>TOTAL:</td>
-                  <td className={styles.amount}>${myScore.total.toLocaleString()}</td>
+                  <td className={styles.amount}>{rules.money(myScore.total)}</td>
                 </tr>
               </tbody>
             </table>
@@ -136,8 +159,8 @@ export function GameOver({
                 <tr>
                   <th>Player</th>
                   <th>Cash</th>
-                  <th>Bonuses</th>
-                  <th>Stock Sales</th>
+                  {hasBreakdown && <th>Bonuses</th>}
+                  {hasBreakdown && <th>{rules.theme.stock_label} sold</th>}
                   <th>Total</th>
                 </tr>
               </thead>
@@ -149,19 +172,30 @@ export function GameOver({
                   return (
                     <tr key={score.playerId} className={isWinner ? styles.winnerRow : ''}>
                       <td>{score.name}</td>
-                      <td>${score.cash.toLocaleString()}</td>
-                      <td>+${score.bonuses.toLocaleString()}</td>
-                      <td>+${score.stockSales.toLocaleString()}</td>
-                      <td className={styles.totalCell}>${score.total.toLocaleString()}</td>
+                      <td>{rules.money(score.cash)}</td>
+                      {hasBreakdown && <td>+{rules.money(score.bonuses ?? 0)}</td>}
+                      {hasBreakdown && <td>+{rules.money(score.stockSales ?? 0)}</td>}
+                      <td className={styles.totalCell}>{rules.money(score.total)}</td>
                     </tr>
                   )
                 })}
               </tbody>
             </table>
             <p className={styles.note}>
-              * Defunct stocks worth $0 - only active chains were liquidated
+              * Shares of defunct {rules.theme.chain_noun_plural} are worth {rules.money(0)}: only
+              active {rules.theme.chain_noun_plural} were liquidated
             </p>
           </div>
+        )}
+
+        {gameId && (
+          <Link
+            to={`/games/${encodeURIComponent(gameId)}`}
+            className={styles.transcriptLink}
+            data-testid="view-transcript-link"
+          >
+            View full transcript
+          </Link>
         )}
 
         <div className={styles.actions}>

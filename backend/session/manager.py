@@ -1,15 +1,19 @@
-"""Session manager for Acquire board game multiplayer rooms."""
+"""Session manager for Buyout board game multiplayer rooms."""
 
 import random
 import string
 import uuid
 from dataclasses import dataclass, field
-from typing import Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
 from fastapi import WebSocket
 
 if TYPE_CHECKING:
     from game.game import Game
+
+# Seat kinds (see docs/architecture/seat-contract.md)
+HUMAN = "human"
+SEAT_KINDS = ("human", "bot", "llm", "scripted")
 
 
 @dataclass
@@ -19,8 +23,17 @@ class PlayerConnection:
     player_id: str
     name: str
     websockets: list[WebSocket] = field(default_factory=list)
-    is_bot: bool = False
+    is_bot: bool = False  # True for every non-human seat (compatibility)
     is_host: bool = False
+    kind: str = HUMAN  # human | bot | llm | scripted
+    agent_id: Optional[str] = None  # catalog id for AI seats
+    agent_label: Optional[str] = None  # catalog label for AI seats
+    agent: Any = None  # agents.base.Agent instance driving this seat (None = human)
+
+    @property
+    def is_agent(self) -> bool:
+        """True when the seat is driven by an Agent (not a human)."""
+        return self.kind != HUMAN
 
 
 @dataclass
@@ -36,6 +49,16 @@ class GameRoom:
     min_players: int = 2
     seed: Optional[int] = None
     tile_order: Optional[list[str]] = None
+    # game.ruleset.Ruleset the room's game is created with (None: default).
+    # Set from the server configuration by SessionManager.create_room.
+    ruleset: Any = None
+    # Per-room driver state (lock, driver task, fallback counters); created
+    # lazily by seats.get_runtime().
+    runtime: Any = None
+    # Id of the current game (transcripts, ``/games/{game_id}``) and its
+    # transcripts.TranscriptWriter (None when transcripts are disabled).
+    game_id: Optional[str] = None
+    transcript: Any = None
 
 
 class SessionManager:
@@ -52,9 +75,14 @@ class SessionManager:
                 return code
 
     def create_room(self) -> str:
-        """Create new room, return room code."""
+        """Create new room on the configured ruleset, return room code."""
+        from config import get_ruleset
+
+        ruleset = get_ruleset()
         code = self.generate_room_code()
-        self._rooms[code] = GameRoom(room_code=code)
+        self._rooms[code] = GameRoom(
+            room_code=code, ruleset=ruleset, max_players=ruleset.max_players
+        )
         return code
 
     def get_room(self, room_code: str) -> Optional[GameRoom]:
@@ -116,25 +144,79 @@ class SessionManager:
             self.delete_room(room_code)
 
     def add_bot(self, room_code: str) -> Optional[str]:
-        """Add a bot player, return bot's player_id."""
+        """Add a heuristic bot seat, return its player_id (None if not allowed)."""
+        from agents.registry import create
+
         room = self.get_room(room_code)
-        if room is None:
+        if room is None or room.started or len(room.players) >= room.max_players:
             return None
-        if room.started:
-            return None
-        if len(room.players) >= room.max_players:
-            return None
-
-        bot_id = f"bot_{uuid.uuid4().hex[:8]}"
-        bot_number = sum(1 for p in room.players.values() if p.is_bot) + 1
-        bot_name = f"Bot {bot_number}"
-
-        room.players[bot_id] = PlayerConnection(
-            player_id=bot_id,
-            name=bot_name,
-            is_bot=True,
+        name = self.next_seat_name(room_code, "Bot", numbered=True)
+        return self.add_seat(
+            room_code,
+            kind="bot",
+            name=name,
+            agent_id="bot",
+            agent_label=None,
+            agent=create("bot", name=name),
         )
-        return bot_id
+
+    def next_seat_name(self, room_code: str, base: str, numbered: bool) -> str:
+        """Pick a free seat name: "Bot 1" style when ``numbered``, else ``base``
+        followed by " 2", " 3"... only when ``base`` is already taken."""
+        room = self.get_room(room_code)
+        taken = {p.name.lower() for p in room.players.values()} if room else set()
+        n = 1
+        while True:
+            if numbered or n > 1:
+                name = f"{base} {n}"
+            else:
+                name = base
+            if name.lower() not in taken:
+                return name
+            n += 1
+
+    def add_seat(
+        self,
+        room_code: str,
+        *,
+        kind: str,
+        name: str,
+        agent_id: str,
+        agent_label: Optional[str],
+        agent: Any,
+    ) -> Optional[str]:
+        """Add an AI seat driven by ``agent``; return its player_id.
+
+        Returns None if the room is missing, started, full, or the name is taken.
+        """
+        room = self.get_room(room_code)
+        if room is None or room.started or len(room.players) >= room.max_players:
+            return None
+        if any(p.name.lower() == name.lower() for p in room.players.values()):
+            return None
+        prefix = "bot" if kind == "bot" else kind
+        seat_id = f"{prefix}_{uuid.uuid4().hex[:8]}"
+        room.players[seat_id] = PlayerConnection(
+            player_id=seat_id,
+            name=name,
+            is_bot=True,
+            kind=kind,
+            agent_id=agent_id,
+            agent_label=agent_label,
+            agent=agent,
+        )
+        return seat_id
+
+    def remove_seat(self, room_code: str, player_id: str) -> bool:
+        """Remove an AI seat from a room in the lobby. Humans cannot be removed."""
+        room = self.get_room(room_code)
+        if room is None or room.started:
+            return False
+        seat = room.players.get(player_id)
+        if seat is None or not seat.is_agent:
+            return False
+        del room.players[player_id]
+        return True
 
     def connect_player(self, room_code: str, player_id: str, websocket: WebSocket):
         """Associate websocket with player (supports multiple connections)."""
@@ -191,7 +273,7 @@ class SessionManager:
             return
 
         for player in room.players.values():
-            if player.is_bot:
+            if player.is_bot or player.is_agent:
                 continue
             await self._send_to_websockets(player, message)
 

@@ -1,0 +1,28 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  min-width: 0;
+}
+
+.name {
+  font-weight: var(--font-medium);
+  overflow-wrap: anywhere;
+}
+
+.model {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+.winner .name {
+  color: var(--text-positive);
+}
+
+.crown {
+  color: var(--accent-gold);
+}

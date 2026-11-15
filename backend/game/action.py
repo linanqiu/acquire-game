@@ -1,4 +1,4 @@
-"""Trade offer representation for Acquire game."""
+"""Trade offer representation for Buyout game."""
 
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any

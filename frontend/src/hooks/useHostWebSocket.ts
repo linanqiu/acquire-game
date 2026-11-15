@@ -6,6 +6,8 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useGameStore } from '../store'
 import type { WebSocketMessage } from '../types/api'
+import { abandonSocket, watchNetwork } from '../lib/network'
+import { NOT_FOUND_CLOSE_CODE, ROOM_NOT_FOUND } from '../lib/roomAvailability'
 
 // Helper to build WebSocket URL for host mode
 function getHostWebSocketUrl(roomCode: string): string {
@@ -25,10 +27,9 @@ interface UseHostWebSocketOptions {
 }
 
 interface UseHostWebSocketReturn {
-  addBot: () => void
-  startGame: () => void
-  endGame: () => void
   disconnect: () => void
+  /** Manually re-open the socket (resets the retry budget). Resolves true once connected. */
+  reconnect: () => Promise<boolean>
   isConnected: boolean
 }
 
@@ -42,6 +43,7 @@ export function useHostWebSocket({
   const reconnectAttemptsRef = useRef(0)
   const intentionalCloseRef = useRef(false)
   const maxReconnectAttempts = 5
+  const connectRef = useRef<(() => void) | null>(null)
 
   const { connectionStatus, setConnectionStatus, handleMessage } = useGameStore()
 
@@ -57,30 +59,33 @@ export function useHostWebSocket({
     setConnectionStatus('disconnected')
   }, [setConnectionStatus])
 
-  const sendMessage = useCallback((message: Record<string, unknown>) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(message))
-    } else {
-      console.error('Host WebSocket is not connected')
+  const reconnect = useCallback((): Promise<boolean> => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current)
+      reconnectTimeoutRef.current = null
     }
+    reconnectAttemptsRef.current = 0
+    intentionalCloseRef.current = false
+    connectRef.current?.()
+    return new Promise((resolve) => {
+      const started = Date.now()
+      const poll = () => {
+        const status = useGameStore.getState().connectionStatus
+        if (status === 'connected') resolve(true)
+        else if (Date.now() - started > 4000) resolve(false)
+        else setTimeout(poll, 100)
+      }
+      poll()
+    })
   }, [])
-
-  const addBot = useCallback(() => {
-    sendMessage({ action: 'add_bot' })
-  }, [sendMessage])
-
-  const startGame = useCallback(() => {
-    sendMessage({ action: 'start_game' })
-  }, [sendMessage])
-
-  const endGame = useCallback(() => {
-    sendMessage({ action: 'end_game' })
-  }, [sendMessage])
 
   // Connect on mount, reconnect with exponential backoff
   useEffect(() => {
     const connect = () => {
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
+      if (
+        wsRef.current?.readyState === WebSocket.OPEN ||
+        wsRef.current?.readyState === WebSocket.CONNECTING
+      ) {
         return
       }
 
@@ -102,6 +107,11 @@ export function useHostWebSocket({
             ws.send(JSON.stringify({ type: 'pong' }))
             return
           }
+          // Server refusals (illegal action, bad trade, ...) arrive as {type:'error'}.
+          if (message.type === 'error') {
+            onError?.(message.message)
+            return
+          }
           handleMessage(message)
         } catch (error) {
           console.error('Failed to parse WebSocket message:', error)
@@ -114,6 +124,14 @@ export function useHostWebSocket({
 
       ws.onclose = (event) => {
         wsRef.current = null
+
+        // The server says the room does not exist: retrying cannot help.
+        if (event.code === NOT_FOUND_CLOSE_CODE) {
+          intentionalCloseRef.current = true
+          setConnectionStatus('error', event.reason || ROOM_NOT_FOUND)
+          onClose?.()
+          return
+        }
 
         if (
           intentionalCloseRef.current ||
@@ -143,9 +161,37 @@ export function useHostWebSocket({
       wsRef.current = ws
     }
 
+    connectRef.current = connect
     connect()
 
+    // Network lost: the socket may still look open for minutes, so drop it now (the
+    // page shows the reconnection overlay) and reconnect as soon as we are back online.
+    const stopWatchingNetwork = watchNetwork(
+      () => {
+        const ws = wsRef.current
+        if (!ws) return
+        wsRef.current = null
+        abandonSocket(ws)
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current)
+          reconnectTimeoutRef.current = null
+        }
+        setConnectionStatus('connecting')
+      },
+      () => {
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current)
+          reconnectTimeoutRef.current = null
+        }
+        reconnectAttemptsRef.current = 0
+        intentionalCloseRef.current = false
+        connect()
+      }
+    )
+
     return () => {
+      stopWatchingNetwork()
+      connectRef.current = null
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)
       }
@@ -156,10 +202,8 @@ export function useHostWebSocket({
   }, [roomCode, setConnectionStatus, handleMessage, onError, onClose])
 
   return {
-    addBot,
-    startGame,
-    endGame,
     disconnect,
+    reconnect,
     isConnected: connectionStatus === 'connected',
   }
 }

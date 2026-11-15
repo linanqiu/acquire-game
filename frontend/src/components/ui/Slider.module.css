@@ -31,7 +31,18 @@
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
+  /* The input is the touch target (thin 8px inputs were hard to hit on phones);
+     the visible track is drawn by the track pseudo-elements below. */
+  height: 32px;
+  margin: 0;
+  background: transparent;
+  outline: none;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-runnable-track {
   height: 8px;
+  border-radius: var(--radius-full);
   background: linear-gradient(
     to right,
     var(--text-accent) 0%,
@@ -39,13 +50,29 @@
     var(--bg-tertiary) var(--slider-percentage),
     var(--bg-tertiary) 100%
   );
+}
+
+.slider::-moz-range-track {
+  height: 8px;
   border-radius: var(--radius-full);
-  outline: none;
-  cursor: pointer;
+  background: linear-gradient(
+    to right,
+    var(--text-accent) 0%,
+    var(--text-accent) var(--slider-percentage),
+    var(--bg-tertiary) var(--slider-percentage),
+    var(--bg-tertiary) 100%
+  );
 }
 
 .slider:disabled {
   cursor: not-allowed;
+}
+
+.slider:disabled::-webkit-slider-runnable-track {
+  background: var(--bg-tertiary);
+}
+
+.slider:disabled::-moz-range-track {
   background: var(--bg-tertiary);
 }
 
@@ -66,6 +93,7 @@
   border-radius: 50%;
   cursor: pointer;
   transition: transform var(--duration-fast) var(--ease-default);
+  margin-top: -6px; /* centre the 20px thumb on the 8px track */
 }
 
 .slider::-webkit-slider-thumb:hover {

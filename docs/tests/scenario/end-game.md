@@ -1,6 +1,8 @@
+> **Historical.** This catalogue described the retired browser scenario suite. Current coverage is by surface: [surface-coverage.md](../surface-coverage.md); what happened to each old test: [legacy-suite-retirement.md](../legacy-suite-retirement.md).
+
 # End Game Scenarios
 
-Scenarios covering end game conditions, declaration, final scoring, and winner determination in Acquire.
+Scenarios covering end game conditions, declaration, final scoring, and winner determination in Buyout.
 
 ---
 
@@ -9,17 +11,17 @@ Scenarios covering end game conditions, declaration, final scoring, and winner d
 ### Scenario 7.1: Chain Reaches 41 Tiles
 
 **Initial State:**
-- Continental chain: 40 tiles
+- Aurelia chain: 40 tiles
 - Player A is active player
-- Player A has tile that will expand Continental
+- Player A has tile that will expand Aurelia
 
 **Actions:**
-1. Player A places tile, Continental grows to 41 tiles
+1. Player A places tile, Aurelia grows to 41 tiles
 2. End game condition met
 3. Player A may declare game over
 
 **Expected Outcomes:**
-- Continental size: 41 tiles
+- Aurelia size: 41 tiles
 - End game condition: true (41+ tiles)
 - Player A has option to declare game over
 
@@ -34,25 +36,25 @@ Scenarios covering end game conditions, declaration, final scoring, and winner d
 
 **Initial State:**
 - Three chains on board:
-  - American: 15 tiles (safe)
-  - Continental: 12 tiles (safe)
-  - Tower: 10 tiles (not safe)
-- Player A expands Tower to 11 tiles
+  - Halcyon: 15 tiles (safe)
+  - Aurelia: 12 tiles (safe)
+  - Marlowe: 10 tiles (not safe)
+- Player A expands Marlowe to 11 tiles
 
 **Actions:**
-1. Player A places tile, Tower grows to 11 tiles
+1. Player A places tile, Marlowe grows to 11 tiles
 2. All chains now safe
 3. End game condition met
 
 **Expected Outcomes:**
-- Tower size: 11 tiles (now safe)
+- Marlowe size: 11 tiles (now safe)
 - All active chains are safe
 - End game condition: true
 
 **Key Assertions:**
-- American safe: true
-- Continental safe: true
-- Tower safe: true
+- Halcyon safe: true
+- Aurelia safe: true
+- Marlowe safe: true
 - All chains safe condition met
 
 ---
@@ -61,9 +63,9 @@ Scenarios covering end game conditions, declaration, final scoring, and winner d
 
 **Initial State:**
 - Three chains on board:
-  - American: 20 tiles (safe)
-  - Imperial: 15 tiles (safe)
-  - Luxor: 8 tiles (NOT safe)
+  - Halcyon: 20 tiles (safe)
+  - Obsidian: 15 tiles (safe)
+  - Sandpiper: 8 tiles (NOT safe)
 - No chain has 41+ tiles
 
 **Actions:**
@@ -72,12 +74,12 @@ Scenarios covering end game conditions, declaration, final scoring, and winner d
 **Expected Outcomes:**
 - Declaration rejected
 - Error: "End conditions not met"
-- Luxor is unsafe, blocking "all safe" condition
+- Sandpiper is unsafe, blocking "all safe" condition
 - No chain has 41+ tiles
 
 **Key Assertions:**
 - End condition met: false
-- Luxor safe: false
+- Sandpiper safe: false
 - Game continues
 
 ---
@@ -87,7 +89,7 @@ Scenarios covering end game conditions, declaration, final scoring, and winner d
 ### Scenario 7.4: End Game Declaration is Optional
 
 **Initial State:**
-- Continental chain: 42 tiles (end condition met)
+- Aurelia chain: 42 tiles (end condition met)
 - Player A is active player
 - Player A is behind in score, wants to continue
 
@@ -177,15 +179,15 @@ Scenarios covering end game conditions, declaration, final scoring, and winner d
 
 **Initial State:**
 - Game declared over
-- Only one chain exists: American (18 tiles, Medium tier)
+- Only one chain exists: Halcyon (18 tiles, Medium tier)
 - Stock holdings:
   - Player A: 8 shares (majority)
   - Player B: 5 shares (minority)
   - Player C: 2 shares
-- American 11-20 tile Medium bonus: Majority $8,000, Minority $4,000
+- Halcyon 11-20 tile Medium bonus: Majority $8,000, Minority $4,000
 
 **Actions:**
-1. Calculate final bonuses for American
+1. Calculate final bonuses for Halcyon
 
 **Expected Outcomes:**
 - Player A receives $8,000 (majority)
@@ -203,17 +205,17 @@ Scenarios covering end game conditions, declaration, final scoring, and winner d
 **Initial State:**
 - Game declared over
 - Three chains exist:
-  - American (15 tiles): Player A majority, Player B minority
-  - Continental (20 tiles): Player B majority, Player C minority
-  - Tower (12 tiles): Player C majority, Player A minority
+  - Halcyon (15 tiles): Player A majority, Player B minority
+  - Aurelia (20 tiles): Player B majority, Player C minority
+  - Marlowe (12 tiles): Player C majority, Player A minority
 
 **Actions:**
 1. Calculate bonuses for each chain
 
 **Expected Outcomes:**
-- American bonuses paid
-- Continental bonuses paid
-- Tower bonuses paid
+- Halcyon bonuses paid
+- Aurelia bonuses paid
+- Marlowe bonuses paid
 - Each chain calculated independently
 
 **Key Assertions:**
@@ -227,21 +229,21 @@ Scenarios covering end game conditions, declaration, final scoring, and winner d
 
 **Initial State:**
 - Game declared over
-- Player A holds 5 Luxor stock
-- Luxor was acquired earlier and never re-founded (defunct)
-- Luxor chain not on board
+- Player A holds 5 Sandpiper stock
+- Sandpiper was acquired earlier and never re-founded (defunct)
+- Sandpiper chain not on board
 
 **Actions:**
 1. Final scoring
 
 **Expected Outcomes:**
-- Player A's 5 Luxor shares worth $0
-- No bonus from Luxor (not active)
+- Player A's 5 Sandpiper shares worth $0
+- No bonus from Sandpiper (not active)
 - Defunct stock has no value at game end
 
 **Key Assertions:**
-- Luxor stock value: $0
-- No Luxor bonuses paid
+- Sandpiper stock value: $0
+- No Sandpiper bonuses paid
 - Player A loses value of held defunct stock
 
 ---
@@ -300,17 +302,17 @@ Scenarios covering end game conditions, declaration, final scoring, and winner d
 **Initial State:**
 - Game declared over
 - Player A has:
-  - 5 American stock (chain is 18 tiles, Medium tier)
-  - 3 Continental stock (chain is 25 tiles, Expensive tier)
-- American price (11-20 tiles, Medium): $800
-- Continental price (21-30 tiles, Expensive): $1,000
+  - 5 Halcyon stock (chain is 18 tiles, Medium tier)
+  - 3 Aurelia stock (chain is 25 tiles, Expensive tier)
+- Halcyon price (11-20 tiles, Medium): $800
+- Aurelia price (21-30 tiles, Expensive): $1,000
 
 **Actions:**
 1. Sell all stock at current prices
 
 **Expected Outcomes:**
-- American: 5 x $800 = $4,000
-- Continental: 3 x $1,000 = $3,000
+- Halcyon: 5 x $800 = $4,000
+- Aurelia: 3 x $1,000 = $3,000
 - Total from stock: $7,000
 
 **Key Assertions:**
@@ -325,25 +327,25 @@ Scenarios covering end game conditions, declaration, final scoring, and winner d
 ### Scenario 7.14: Full End Game Walkthrough
 
 **Initial State:**
-- Player A declares game over (Continental has 41 tiles)
+- Player A declares game over (Aurelia has 41 tiles)
 - Active chains:
-  - Continental: 41 tiles (Expensive)
-  - American: 15 tiles (Medium)
+  - Aurelia: 41 tiles (Expensive)
+  - Halcyon: 15 tiles (Medium)
 - Stock holdings:
-  - Player A: 6 Continental, 4 American, $3,000 cash
-  - Player B: 3 Continental, 7 American, $2,500 cash
-  - Player C: 4 Continental, 2 American, $4,000 cash
+  - Player A: 6 Aurelia, 4 Halcyon, $3,000 cash
+  - Player B: 3 Aurelia, 7 Halcyon, $2,500 cash
+  - Player C: 4 Aurelia, 2 Halcyon, $4,000 cash
 
 **Actions:**
-1. Pay Continental bonuses:
+1. Pay Aurelia bonuses:
    - Majority (Player A, 6 shares): $12,000
    - Minority (Player C, 4 shares): $6,000
-2. Pay American bonuses:
+2. Pay Halcyon bonuses:
    - Majority (Player B, 7 shares): $8,000
    - Minority (Player A, 4 shares): $4,000
 3. Sell all stock:
-   - Continental (41 tiles): $1,200/share
-   - American (15 tiles): $800/share
+   - Aurelia (41 tiles): $1,200/share
+   - Halcyon (15 tiles): $800/share
 
 **Expected Outcomes:**
 - Player A: $3,000 + $12,000 + $4,000 + (6×$1,200) + (4×$800) = $29,400

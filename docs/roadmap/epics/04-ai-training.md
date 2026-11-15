@@ -1,11 +1,9 @@
 # Epic 4: AI Training
 
-> **⚠️ SUPERSEDED (2026-07-13)** — This epic is scrapped in favor of [Epic 9: LLM Bot](09-llm-bot.md).
-> Rationale: training an RL/MCTS+neural pipeline is not worth the effort versus using a strong
-> general LLM agentically. The replacement approach feeds an LLM the public event log plus a
-> deterministic "calculator pack" of exact figures derivable from public info, and lets it apply
-> judgment to pick a move. All AI-00x stories below are marked `superseded` and will not be
-> implemented. This document is kept for historical context.
+> **SUPERSEDED (2026-07-13), and mechanistic RL dropped for good (owner decision 2026-11-14).**
+> This epic is scrapped. LLM opponents are a first-class seat type; see
+> [Epic 9: LLM Opponents](09-llm-bot.md). All AI-00x stories are `superseded` and will not be
+> implemented. This document is kept for historical context only.
 
 ## Overview
 

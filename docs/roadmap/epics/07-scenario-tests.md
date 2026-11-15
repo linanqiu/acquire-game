@@ -1,5 +1,13 @@
 # Epic 7: Scenario Test Automation
 
+> **Strategy replaced 2026-11-14 (owner decision).** The suite built here (62 tests, about 9,300
+> lines) did not finish in 10 minutes because tests play 20-40 turns through the browser to reach
+> the screen under test. The "no seeding" rule below is relaxed with guard rails; testing is now a
+> four-tier pyramid. See [Epic 11: Test Pyramid](11-test-pyramid.md). ST-010 is superseded by
+> [TP-006](../stories/11-test-pyramid/TP-006.md). The sections below are kept as history; the
+> still-valid parts (never hide bugs, screenshots, console checks, seeding, same code path for bots
+> and humans, logging) are restated in `CLAUDE.md`.
+
 ## Overview
 
 Full E2E scenario testing using Playwright with screenshots as test artifacts. These tests exercise the complete stack: Browser → Frontend → WebSocket → Backend → Game Engine.
@@ -180,14 +188,14 @@ For turn-based tests, capture:
 
 #### 5. Determinism Through Seeding
 
-Use `ACQUIRE_GAME_SEED` environment variable for reproducible tests:
+Use `GAME_SEED` environment variable for reproducible tests:
 
 ```typescript
 // playwright.config.ts
 webServer: [{
   command: 'python3 -m uvicorn main:app --host 127.0.0.1 --port 8000',
   env: {
-    ACQUIRE_GAME_SEED: '2',  // Same seed = same tile distribution
+    GAME_SEED: '2',  // Same seed = same tile distribution
   },
 }]
 ```

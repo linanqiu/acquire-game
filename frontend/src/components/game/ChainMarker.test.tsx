@@ -1,132 +1,93 @@
 import { render, screen } from '@testing-library/react'
 import { describe, it, expect } from 'vitest'
 import { ChainMarker } from './ChainMarker'
-import type { ChainName } from '../../types/api'
+import { RulesetScope } from '../../ruleset/RulesetScope'
+import { readableText } from '../../lib/ruleset'
+import { ALL_RULESETS, DEFAULT_RS, VALLEY } from '../../../tests/unit/fixtures/rulesets'
+import type { Ruleset } from '../../types/ruleset'
+
+function renderIn(rs: Ruleset, ui: React.ReactElement) {
+  return render(<RulesetScope ruleset={rs}>{ui}</RulesetScope>)
+}
 
 describe('ChainMarker', () => {
   describe('icon variant', () => {
-    it('renders 16x16 colored square with first letter', () => {
-      render(<ChainMarker chain="Luxor" variant="icon" />)
-      const marker = screen.getByTestId('chain-marker-luxor')
-      expect(marker).toBeInTheDocument()
-      expect(marker).toHaveTextContent('L')
-      expect(marker.className).toContain('luxor')
+    it('shows the abbreviation on the chain colour with a readable foreground', () => {
+      renderIn(DEFAULT_RS, <ChainMarker chain="sandpiper" variant="icon" />)
+      const marker = screen.getByTestId('chain-marker-sandpiper')
+      expect(marker).toHaveTextContent('SP')
+      expect(marker.style.getPropertyValue('--chain-bg')).toBe('#E3B448')
+      expect(marker.style.getPropertyValue('--chain-fg')).toBe(readableText('#E3B448'))
     })
 
-    it('shows full name as title attribute', () => {
-      render(<ChainMarker chain="American" variant="icon" />)
-      const marker = screen.getByTestId('chain-marker-american')
-      expect(marker).toHaveAttribute('title', 'AMERICAN')
+    it('names the chain in its title and accessible name', () => {
+      renderIn(VALLEY, <ChainMarker chain="hallucinate" variant="icon" />)
+      const marker = screen.getByTestId('chain-marker-hallucinate')
+      expect(marker).toHaveAttribute('title', 'Hallucinate.ai')
+      expect(screen.getByRole('img', { name: 'Hallucinate.ai' })).toBe(marker)
+      expect(marker).toHaveTextContent('HA')
     })
   })
 
   describe('compact variant (default)', () => {
-    it('renders icon + abbreviation', () => {
-      render(<ChainMarker chain="American" />)
-      const marker = screen.getByTestId('chain-marker-american')
-      expect(marker).toBeInTheDocument()
-      expect(screen.getByText('AME')).toBeInTheDocument()
-      expect(screen.getByText('A')).toBeInTheDocument()
+    it('renders swatch + display name', () => {
+      renderIn(VALLEY, <ChainMarker chain="gradient" />)
+      const marker = screen.getByTestId('chain-marker-gradient')
+      expect(marker).toHaveTextContent('GF')
+      expect(marker).toHaveTextContent('Gradientfold')
     })
 
-    it('shows SAFE badge when safe is true', () => {
-      render(<ChainMarker chain="Tower" safe />)
-      expect(screen.getByText('SAFE')).toBeInTheDocument()
+    it("shows the ruleset's safe phrase when safe", () => {
+      renderIn(VALLEY, <ChainMarker chain="latent" safe />)
+      expect(screen.getByText(VALLEY.theme.safe_phrase)).toBeInTheDocument()
     })
 
-    it('does not show SAFE badge when safe is false', () => {
-      render(<ChainMarker chain="Tower" safe={false} />)
-      expect(screen.queryByText('SAFE')).not.toBeInTheDocument()
+    it('shows no safe badge when not safe', () => {
+      renderIn(DEFAULT_RS, <ChainMarker chain="marlowe" />)
+      expect(screen.queryByText('safe')).not.toBeInTheDocument()
     })
   })
 
   describe('full variant', () => {
-    it('renders icon + full name', () => {
-      render(<ChainMarker chain="Continental" variant="full" />)
-      expect(screen.getByText('CONTINENTAL')).toBeInTheDocument()
-      expect(screen.getByText('C')).toBeInTheDocument()
-    })
-
-    it('shows size when provided', () => {
-      render(<ChainMarker chain="Luxor" variant="full" size={5} />)
-      expect(screen.getByText('5 tiles')).toBeInTheDocument()
-    })
-
-    it('shows price when provided', () => {
-      render(<ChainMarker chain="Luxor" variant="full" price={300} />)
-      expect(screen.getByText('$300/share')).toBeInTheDocument()
-    })
-
-    it('formats large prices with commas', () => {
-      render(<ChainMarker chain="Imperial" variant="full" price={1200} />)
-      expect(screen.getByText('$1,200/share')).toBeInTheDocument()
-    })
-
-    it('shows available stocks count', () => {
-      render(<ChainMarker chain="Festival" variant="full" available={15} />)
-      expect(screen.getByText('[15]')).toBeInTheDocument()
-    })
-
-    it('shows SAFE badge when safe is true', () => {
-      render(<ChainMarker chain="Worldwide" variant="full" size={12} safe />)
-      expect(screen.getByText('SAFE')).toBeInTheDocument()
-    })
-
-    it('shows all info together', () => {
-      render(
-        <ChainMarker
-          chain="American"
-          variant="full"
-          size={8}
-          price={700}
-          available={20}
-          safe={false}
-        />
+    it('shows name, size, price (ruleset currency) and stock left', () => {
+      renderIn(
+        DEFAULT_RS,
+        <ChainMarker chain="aurelia" variant="full" size={12} price={1200} available={8} safe />
       )
-      expect(screen.getByText('AMERICAN')).toBeInTheDocument()
-      expect(screen.getByText('8 tiles')).toBeInTheDocument()
-      expect(screen.getByText('$700/share')).toBeInTheDocument()
-      expect(screen.getByText('[20]')).toBeInTheDocument()
+      const marker = screen.getByTestId('chain-marker-aurelia')
+      expect(marker).toHaveTextContent('Aurelia')
+      expect(marker).toHaveTextContent('12 tiles')
+      expect(marker).toHaveTextContent('$1,200')
+      expect(marker).toHaveTextContent('[8]')
+      expect(marker).toHaveTextContent('safe')
+    })
+
+    it('omits what is not provided', () => {
+      renderIn(DEFAULT_RS, <ChainMarker chain="obsidian" variant="full" />)
+      const marker = screen.getByTestId('chain-marker-obsidian')
+      expect(marker).not.toHaveTextContent('tiles')
+      expect(marker).not.toHaveTextContent('$')
     })
   })
 
-  describe('chain colors', () => {
-    const chains: ChainName[] = [
-      'Luxor',
-      'Tower',
-      'American',
-      'Festival',
-      'Worldwide',
-      'Continental',
-      'Imperial',
-    ]
-
-    chains.forEach((chain) => {
-      it(`applies correct color class for ${chain}`, () => {
-        const cssClass = chain.toLowerCase()
-        render(<ChainMarker chain={chain} variant="icon" />)
-        const marker = screen.getByTestId(`chain-marker-${cssClass}`)
-        expect(marker.className).toContain(cssClass)
+  describe('every chain of every shipped ruleset', () => {
+    for (const [name, rs] of Object.entries(ALL_RULESETS)) {
+      it(`${name}: name, abbreviation and colour come from the ruleset`, () => {
+        for (const c of rs.chains) {
+          const { unmount } = renderIn(rs, <ChainMarker chain={c.id} variant="compact" />)
+          const marker = screen.getByTestId(`chain-marker-${c.id.toLowerCase()}`)
+          expect(marker).toHaveTextContent(c.name)
+          expect(marker).toHaveTextContent(c.abbreviation)
+          const swatch = marker.firstElementChild as HTMLElement
+          expect(swatch.style.getPropertyValue('--chain-bg')).toBe(c.color)
+          unmount()
+        }
       })
-    })
-  })
-
-  describe('abbreviations', () => {
-    const expectedAbbreviations: Record<ChainName, string> = {
-      Luxor: 'LUX',
-      Tower: 'TWR',
-      American: 'AME',
-      Festival: 'FES',
-      Worldwide: 'WOR',
-      Continental: 'CON',
-      Imperial: 'IMP',
     }
+  })
 
-    Object.entries(expectedAbbreviations).forEach(([chain, abbrev]) => {
-      it(`shows ${abbrev} for ${chain}`, () => {
-        render(<ChainMarker chain={chain as ChainName} variant="compact" />)
-        expect(screen.getByText(abbrev)).toBeInTheDocument()
-      })
-    })
+  it('still renders an id the ruleset does not know (its id is its name)', () => {
+    renderIn(VALLEY, <ChainMarker chain="Mystery" />)
+    expect(screen.getByTestId('chain-marker-mystery')).toHaveTextContent('Mystery')
   })
 })

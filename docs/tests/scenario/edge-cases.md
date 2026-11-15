@@ -1,6 +1,8 @@
+> **Historical.** This catalogue described the retired browser scenario suite. Current coverage is by surface: [surface-coverage.md](../surface-coverage.md); what happened to each old test: [legacy-suite-retirement.md](../legacy-suite-retirement.md).
+
 # Edge Cases Scenarios
 
-Scenarios covering boundary conditions, error handling, and unusual game states in Acquire.
+Scenarios covering boundary conditions, error handling, and unusual game states in Buyout.
 
 ---
 
@@ -202,7 +204,7 @@ Scenarios covering boundary conditions, error handling, and unusual game states 
 ### Scenario 8.10: Stock Limit Per Chain (25)
 
 **Initial State:**
-- American chain active
+- Halcyon chain active
 - Stock distribution:
   - Player A: 10 shares
   - Player B: 8 shares
@@ -210,14 +212,14 @@ Scenarios covering boundary conditions, error handling, and unusual game states 
   - Pool: 2 shares
 
 **Actions:**
-1. Player D tries to buy 3 American shares
+1. Player D tries to buy 3 Halcyon shares
 
 **Expected Outcomes:**
 - Only 2 available
 - Player D can buy at most 2
 
 **Key Assertions:**
-- Total American stock: 25
+- Total Halcyon stock: 25
 - Pool has exactly 2 remaining
 - Cannot exceed 25 total
 

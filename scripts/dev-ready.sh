@@ -20,7 +20,8 @@ echo "✓ Playwright browser: OK"
 # Start backend if not running
 if ! curl -s http://127.0.0.1:8000/docs > /dev/null 2>&1; then
   echo "Starting backend..."
-  cd backend && python3 -m uvicorn main:app --host 127.0.0.1 --port 8000 &
+  # Test mode + fixed seed: what the Playwright screens/journeys projects expect.
+  cd backend && GAME_TEST_MODE=1 GAME_SEED=2 python3 -m uvicorn main:app --host 127.0.0.1 --port 8000 &
   cd "$PROJECT_ROOT"
   sleep 2
 fi
@@ -52,3 +53,4 @@ fi
 
 echo ""
 echo "Dev environment ready!"
+echo "Browser tests: cd frontend && npm run e2e:screens | e2e:journeys | e2e:transcripts | e2e"

@@ -1,10 +1,13 @@
 import { ChainMarker } from './ChainMarker'
 import { Badge } from '../ui/Badge'
+import { SeatKindBadge } from './SeatKindBadge'
+import { AiThinking } from './AiThinking'
 import styles from './PlayerCard.module.css'
-import type { ChainName } from '../../types/api'
+import { useRules } from '../../ruleset/useRules'
+import type { ChainId, SeatFallbacks, SeatKind } from '../../types/api'
 
 export interface StockHolding {
-  chain: ChainName
+  chain: ChainId
   quantity: number
 }
 
@@ -15,6 +18,13 @@ export interface PlayerCardProps {
   isCurrentTurn?: boolean
   isHost?: boolean
   isBot?: boolean
+  playerId?: string
+  kind?: SeatKind
+  agentLabel?: string | null
+  /** Rules-based-bot takeovers for this seat; a marker shows when `count > 0`. */
+  fallbacks?: SeatFallbacks
+  /** True while the engine is waiting on this (AI) seat. */
+  thinking?: boolean
   variant?: 'full' | 'compact'
 }
 
@@ -25,15 +35,21 @@ export function PlayerCard({
   isCurrentTurn = false,
   isHost = false,
   isBot = false,
+  playerId = 'unknown',
+  kind,
+  agentLabel,
+  fallbacks,
+  thinking = false,
   variant = 'full',
 }: PlayerCardProps) {
+  const rules = useRules()
   const stocksWithQuantity = stocks.filter((s) => s.quantity > 0)
 
   if (variant === 'compact') {
     return (
       <div className={styles.compact} data-testid="player-card-compact">
         <span className={styles.compactName}>{name}</span>
-        <span className={styles.compactCash}>${cash.toLocaleString()}</span>
+        <span className={styles.compactCash}>{rules.money(cash)}</span>
         {stocksWithQuantity.length > 0 && (
           <div className={styles.compactStocks}>
             {stocksWithQuantity.map((s) => (
@@ -60,19 +76,27 @@ export function PlayerCard({
           </span>
         )}
         <span className={styles.name}>{name}</span>
+        {thinking && <AiThinking />}
         <div className={styles.badges}>
           {isHost && <Badge label="HOST" variant="info" />}
-          {isBot && <Badge label="BOT" variant="warning" />}
+          <SeatKindBadge
+            playerId={playerId}
+            kind={kind}
+            isBot={isBot}
+            agentLabel={agentLabel}
+            fallbacks={fallbacks}
+          />
         </div>
         <span className={styles.cash} data-testid="player-cash">
-          ${cash.toLocaleString()}
+          {rules.money(cash)}
         </span>
       </div>
       {stocksWithQuantity.length > 0 && (
         <div className={styles.stocks} data-testid="player-stocks">
           {stocksWithQuantity.map((s) => (
             <span key={s.chain} className={styles.stock}>
-              <ChainMarker chain={s.chain} variant="compact" />:{s.quantity}
+              <ChainMarker chain={s.chain} variant="icon" />
+              <span className={styles.qty}>{s.quantity}</span>
             </span>
           ))}
         </div>

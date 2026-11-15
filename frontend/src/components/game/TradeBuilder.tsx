@@ -1,21 +1,26 @@
 import { useState, useMemo } from 'react'
 import { ChainMarker } from './ChainMarker'
+import { SeatKindBadge } from './SeatKindBadge'
 import { StockStepper } from './StockStepper'
 import { TextInput } from '../ui/TextInput'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import styles from './TradeBuilder.module.css'
-import type { ChainName } from '../../types/api'
+import type { ChainId, SeatKind } from '../../types/api'
+import { useRules } from '../../ruleset/useRules'
 
 interface PlayerInfo {
   id: string
   name: string
   cash: number
-  stocks: Partial<Record<ChainName, number>>
+  stocks: Partial<Record<ChainId, number>>
+  isBot?: boolean
+  kind?: SeatKind
+  agentLabel?: string | null
 }
 
 interface StockOffer {
-  chain: ChainName
+  chain: ChainId
   quantity: number
 }
 
@@ -30,6 +35,12 @@ export interface TradeBuilderProps {
   myCash: number
   onPropose: (partnerId: string, offer: TradeOffer, want: TradeOffer) => void
   onCancel: () => void
+  /** Error returned by the server for the last proposal (shown inline, builder stays open). */
+  serverError?: string
+  /** True while a proposal is in flight. */
+  submitting?: boolean
+  /** Shown as a hint, e.g. while a merger freezes some chains. */
+  notice?: string
 }
 
 export function TradeBuilder({
@@ -38,7 +49,12 @@ export function TradeBuilder({
   myCash,
   onPropose,
   onCancel,
+  serverError,
+  submitting = false,
+  notice,
 }: TradeBuilderProps) {
+  const rules = useRules()
+  const shareWord = rules.theme.share_noun_plural
   const [partnerId, setPartnerId] = useState<string>('')
   const [offer, setOffer] = useState<TradeOffer>({ stocks: [], cash: 0 })
   const [want, setWant] = useState<TradeOffer>({ stocks: [], cash: 0 })
@@ -52,17 +68,17 @@ export function TradeBuilder({
     if (!partner) return []
     return Object.entries(partner.stocks)
       .filter(([, qty]) => qty && qty > 0)
-      .map(([chain, qty]) => ({ chain: chain as ChainName, quantity: qty! }))
+      .map(([chain, qty]) => ({ chain: chain as ChainId, quantity: qty! }))
   }, [partner])
 
-  const updateOfferStock = (chain: ChainName, qty: number) => {
+  const updateOfferStock = (chain: ChainId, qty: number) => {
     const stocks = [...offer.stocks.filter((s) => s.chain !== chain)]
     if (qty > 0) stocks.push({ chain, quantity: qty })
     setOffer({ ...offer, stocks })
     setError('')
   }
 
-  const updateWantStock = (chain: ChainName, qty: number) => {
+  const updateWantStock = (chain: ChainId, qty: number) => {
     const stocks = [...want.stocks.filter((s) => s.chain !== chain)]
     if (qty > 0) stocks.push({ chain, quantity: qty })
     setWant({ ...want, stocks })
@@ -110,7 +126,7 @@ export function TradeBuilder({
     for (const s of offer.stocks) {
       const holding = myHoldings.find((h) => h.chain === s.chain)
       if (!holding || s.quantity > holding.quantity) {
-        return `You don't have enough ${s.chain} stock`
+        return `You don't have enough ${rules.name(s.chain)} ${shareWord}`
       }
     }
     if (offer.cash > myCash) {
@@ -121,7 +137,7 @@ export function TradeBuilder({
       for (const s of want.stocks) {
         const partnerQty = partner.stocks[s.chain] ?? 0
         if (s.quantity > partnerQty) {
-          return `${partner.name} doesn't have enough ${s.chain} stock`
+          return `${partner.name} doesn't have enough ${rules.name(s.chain)} ${shareWord}`
         }
       }
       if (want.cash > partner.cash) {
@@ -155,9 +171,10 @@ export function TradeBuilder({
   return (
     <Card title="NEW TRADE" onClose={handleCancel}>
       <div className={styles.container} data-testid="trade-builder">
-        {error && (
+        {notice && <p className={styles.hint}>{notice}</p>}
+        {(error || serverError) && (
           <p className={styles.error} role="alert" data-testid="trade-error">
-            {error}
+            {error || serverError}
           </p>
         )}
 
@@ -173,8 +190,16 @@ export function TradeBuilder({
                 aria-pressed={partnerId === p.id}
                 data-testid={`player-select-${p.id}`}
               >
-                <span className={styles.playerName}>{p.name}</span>
-                <span className={styles.playerCash}>${p.cash.toLocaleString()}</span>
+                <span className={styles.playerName}>
+                  {p.name}{' '}
+                  <SeatKindBadge
+                    playerId={p.id}
+                    kind={p.kind}
+                    isBot={p.isBot}
+                    agentLabel={p.agentLabel}
+                  />
+                </span>
+                <span className={styles.playerCash}>{rules.money(p.cash)}</span>
               </button>
             ))}
           </div>
@@ -185,7 +210,11 @@ export function TradeBuilder({
           {myHoldingsWithStock.length > 0 ? (
             <div className={styles.stockList}>
               {myHoldingsWithStock.map((h) => (
-                <div key={h.chain} className={styles.stockRow}>
+                <div
+                  key={h.chain}
+                  className={styles.stockRow}
+                  data-testid={`offer-stock-${h.chain}`}
+                >
                   <ChainMarker chain={h.chain} variant="compact" />
                   <StockStepper
                     value={offer.stocks.find((s) => s.chain === h.chain)?.quantity || 0}
@@ -197,7 +226,7 @@ export function TradeBuilder({
               ))}
             </div>
           ) : (
-            <p className={styles.noStocks}>You have no stocks to offer</p>
+            <p className={styles.noStocks}>You have no {shareWord} to offer</p>
           )}
           <div className={styles.cashRow}>
             <label htmlFor="offer-cash">Cash:</label>
@@ -211,7 +240,7 @@ export function TradeBuilder({
               placeholder="0"
               data-testid="offer-cash-input"
             />
-            <span className={styles.available}>(max ${myCash.toLocaleString()})</span>
+            <span className={styles.available}>(max {rules.money(myCash)})</span>
           </div>
         </div>
 
@@ -223,7 +252,11 @@ export function TradeBuilder({
             {partnerHoldings.length > 0 ? (
               <div className={styles.stockList}>
                 {partnerHoldings.map((h) => (
-                  <div key={h.chain} className={styles.stockRow}>
+                  <div
+                    key={h.chain}
+                    className={styles.stockRow}
+                    data-testid={`want-stock-${h.chain}`}
+                  >
                     <ChainMarker chain={h.chain} variant="compact" />
                     <StockStepper
                       value={want.stocks.find((s) => s.chain === h.chain)?.quantity || 0}
@@ -235,7 +268,9 @@ export function TradeBuilder({
                 ))}
               </div>
             ) : (
-              <p className={styles.noStocks}>{partner.name} has no stocks</p>
+              <p className={styles.noStocks}>
+                {partner.name} has no {shareWord}
+              </p>
             )}
             <div className={styles.cashRow}>
               <label htmlFor="want-cash">Cash:</label>
@@ -249,7 +284,7 @@ export function TradeBuilder({
                 placeholder="0"
                 data-testid="want-cash-input"
               />
-              <span className={styles.available}>(max ${partner.cash.toLocaleString()})</span>
+              <span className={styles.available}>(max {rules.money(partner.cash)})</span>
             </div>
           </div>
         )}
@@ -264,7 +299,7 @@ export function TradeBuilder({
           <Button variant="secondary" onClick={handleCancel} data-testid="cancel-trade">
             CANCEL
           </Button>
-          <Button onClick={handleSubmit} data-testid="propose-trade">
+          <Button onClick={handleSubmit} disabled={submitting} data-testid="propose-trade">
             PROPOSE TRADE
           </Button>
         </div>

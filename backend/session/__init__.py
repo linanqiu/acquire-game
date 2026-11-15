@@ -1,4 +1,4 @@
-"""Session management for Acquire multiplayer games."""
+"""Session management for Buyout multiplayer games."""
 
 from .manager import GameRoom, PlayerConnection, SessionManager
 

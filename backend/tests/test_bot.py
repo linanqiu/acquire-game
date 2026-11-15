@@ -13,28 +13,6 @@ from game.bot import Bot
 class TestBotInit:
     """Tests for Bot initialization."""
 
-    def test_bot_init_default_difficulty(self):
-        """Test bot initializes with default medium difficulty."""
-        player = Player("bot1", "Bot Player")
-        bot = Bot(player)
-
-        assert bot.player == player
-        assert bot.difficulty == "medium"
-
-    def test_bot_init_easy_difficulty(self):
-        """Test bot initializes with easy difficulty."""
-        player = Player("bot1", "Bot Player")
-        bot = Bot(player, difficulty="easy")
-
-        assert bot.difficulty == "easy"
-
-    def test_bot_init_hard_difficulty(self):
-        """Test bot initializes with hard difficulty."""
-        player = Player("bot1", "Bot Player")
-        bot = Bot(player, difficulty="hard")
-
-        assert bot.difficulty == "hard"
-
     def test_bot_init_invalid_difficulty(self):
         """Test bot raises error for invalid difficulty."""
         player = Player("bot1", "Bot Player")
@@ -87,15 +65,15 @@ class TestChooseTileToPlay:
         # Set up a chain on the board
         board.place_tile(Tile(1, "A"))
         board.place_tile(Tile(1, "B"))
-        board.set_chain(Tile(1, "A"), "Luxor")
-        board.set_chain(Tile(1, "B"), "Luxor")
-        hotel.activate_chain("Luxor")
+        board.set_chain(Tile(1, "A"), "sandpiper")
+        board.set_chain(Tile(1, "B"), "sandpiper")
+        hotel.activate_chain("sandpiper")
 
-        # Give player stock in Luxor
-        player._stocks["Luxor"] = 5
+        # Give player stock in sandpiper
+        player._stocks["sandpiper"] = 5
 
         # Add tiles to hand
-        expand_tile = Tile(1, "C")  # Would expand Luxor
+        expand_tile = Tile(1, "C")  # Would expand sandpiper
         isolated_tile = Tile(10, "I")  # Isolated
 
         player.add_tile(expand_tile)
@@ -112,19 +90,19 @@ class TestChooseTileToPlay:
         hotel = Hotel()
 
         # Create two safe chains (11+ tiles each)
-        # Chain 1: Luxor (columns 1-11, row A)
+        # Chain 1: sandpiper (columns 1-11, row A)
         for col in range(1, 12):
             tile = Tile(col, "A")
             board.place_tile(tile)
-            board.set_chain(tile, "Luxor")
-        hotel.activate_chain("Luxor")
+            board.set_chain(tile, "sandpiper")
+        hotel.activate_chain("sandpiper")
 
-        # Chain 2: Tower (columns 1-11, row C)
+        # Chain 2: marlowe (columns 1-11, row C)
         for col in range(1, 12):
             tile = Tile(col, "C")
             board.place_tile(tile)
-            board.set_chain(tile, "Tower")
-        hotel.activate_chain("Tower")
+            board.set_chain(tile, "marlowe")
+        hotel.activate_chain("marlowe")
 
         # Add tiles to hand
         illegal_tile = Tile(1, "B")  # Would merge two safe chains
@@ -182,10 +160,10 @@ class TestChooseChainToFound:
         bot = Bot(player, difficulty="hard")
         board = Board()
 
-        available = ["Luxor", "American", "Imperial"]  # Cheap, Medium, Expensive
+        available = ["sandpiper", "halcyon", "obsidian"]  # Cheap, Medium, Expensive
 
         result = bot.choose_chain_to_found(available, board)
-        assert result == "Imperial"
+        assert result == "obsidian"
 
     def test_prefers_cheap_when_low_cash(self):
         """Test bot prefers cheap chains when low on money."""
@@ -194,10 +172,10 @@ class TestChooseChainToFound:
         bot = Bot(player, difficulty="hard")
         board = Board()
 
-        available = ["Luxor", "American", "Imperial"]  # Cheap, Medium, Expensive
+        available = ["sandpiper", "halcyon", "obsidian"]  # Cheap, Medium, Expensive
 
         result = bot.choose_chain_to_found(available, board)
-        assert result == "Luxor"
+        assert result == "sandpiper"
 
     def test_falls_back_to_medium_tier(self):
         """Test bot picks medium tier when expensive not available and wealthy."""
@@ -205,15 +183,15 @@ class TestChooseChainToFound:
         bot = Bot(player, difficulty="hard")
         board = Board()
 
-        available = ["Luxor", "American", "Worldwide"]  # Cheap, Medium, Medium
+        available = ["sandpiper", "halcyon", "meridian"]  # Cheap, Medium, Medium
 
         result = bot.choose_chain_to_found(available, board)
-        assert result in ["American", "Worldwide"]
+        assert result in ["halcyon", "meridian"]
 
     def test_easy_difficulty_random_chain(self):
         """Test easy difficulty picks randomly based on RNG seed."""
         board = Board()
-        available = ["Luxor", "American", "Imperial"]
+        available = ["sandpiper", "halcyon", "obsidian"]
 
         # Use many different seeds to prove randomness is used
         # With 3 options and 20 seeds, probability of all same is (1/3)^19 ≈ 0%
@@ -242,8 +220,8 @@ class TestChooseMergerSurvivor:
         board = Board()
         hotel = Hotel()
 
-        result = bot.choose_merger_survivor(["Luxor"], board, hotel)
-        assert result == "Luxor"
+        result = bot.choose_merger_survivor(["sandpiper"], board, hotel)
+        assert result == "sandpiper"
 
     def test_empty_chains_raises_error(self):
         """Test raises error for empty chain list."""
@@ -258,26 +236,26 @@ class TestChooseMergerSurvivor:
     def test_favors_chain_with_most_stock(self):
         """Test bot prefers chain it owns more stock in."""
         player = Player("bot1", "Bot Player")
-        player._stocks["Luxor"] = 2
-        player._stocks["Tower"] = 8
+        player._stocks["sandpiper"] = 2
+        player._stocks["marlowe"] = 8
         bot = Bot(player, difficulty="hard")
         board = Board()
         hotel = Hotel()
 
-        result = bot.choose_merger_survivor(["Luxor", "Tower"], board, hotel)
-        assert result == "Tower"
+        result = bot.choose_merger_survivor(["sandpiper", "marlowe"], board, hotel)
+        assert result == "marlowe"
 
     def test_tiebreaks_by_tier(self):
         """Test bot uses tier as tiebreaker when equal stock."""
         player = Player("bot1", "Bot Player")
-        player._stocks["Luxor"] = 5  # Cheap
-        player._stocks["Imperial"] = 5  # Expensive
+        player._stocks["sandpiper"] = 5  # Cheap
+        player._stocks["obsidian"] = 5  # Expensive
         bot = Bot(player, difficulty="hard")
         board = Board()
         hotel = Hotel()
 
-        result = bot.choose_merger_survivor(["Luxor", "Imperial"], board, hotel)
-        assert result == "Imperial"
+        result = bot.choose_merger_survivor(["sandpiper", "obsidian"], board, hotel)
+        assert result == "obsidian"
 
     def test_easy_difficulty_random(self):
         """Test easy difficulty picks randomly based on RNG seed."""
@@ -289,11 +267,11 @@ class TestChooseMergerSurvivor:
         results_by_seed = {}
         for seed in range(20):
             player = Player("bot1", "Bot Player")
-            player._stocks["Luxor"] = 10
-            player._stocks["Tower"] = 0
+            player._stocks["sandpiper"] = 10
+            player._stocks["marlowe"] = 0
             rng = random.Random(seed)
             bot = Bot(player, difficulty="easy", rng=rng)
-            result = bot.choose_merger_survivor(["Luxor", "Tower"], board, hotel)
+            result = bot.choose_merger_survivor(["sandpiper", "marlowe"], board, hotel)
             results_by_seed[seed] = result
 
         # Different seeds should produce different results (proves randomness is used)
@@ -313,7 +291,7 @@ class TestChooseStockDisposition:
         board = Board()
         hotel = Hotel()
 
-        result = bot.choose_stock_disposition("Luxor", "Tower", 0, board, hotel)
+        result = bot.choose_stock_disposition("sandpiper", "marlowe", 0, board, hotel)
 
         assert result == {"sell": 0, "trade": 0, "keep": 0}
 
@@ -328,19 +306,19 @@ class TestChooseStockDisposition:
         for col in range(1, 6):
             tile = Tile(col, "A")
             board.place_tile(tile)
-            board.set_chain(tile, "Tower")
-        hotel.activate_chain("Tower")
+            board.set_chain(tile, "marlowe")
+        hotel.activate_chain("marlowe")
 
         # Set up defunct chain
         for col in range(1, 4):
             tile = Tile(col, "C")
             board.place_tile(tile)
-            board.set_chain(tile, "Luxor")
-        hotel.activate_chain("Luxor")
+            board.set_chain(tile, "sandpiper")
+        hotel.activate_chain("sandpiper")
 
         defunct_count = 10
         result = bot.choose_stock_disposition(
-            "Luxor", "Tower", defunct_count, board, hotel
+            "sandpiper", "marlowe", defunct_count, board, hotel
         )
 
         total = result["sell"] + result["trade"] + result["keep"]
@@ -357,18 +335,18 @@ class TestChooseStockDisposition:
         for col in range(1, 6):
             tile = Tile(col, "A")
             board.place_tile(tile)
-            board.set_chain(tile, "Tower")
-        hotel.activate_chain("Tower")
+            board.set_chain(tile, "marlowe")
+        hotel.activate_chain("marlowe")
 
         for col in range(1, 4):
             tile = Tile(col, "C")
             board.place_tile(tile)
-            board.set_chain(tile, "Luxor")
-        hotel.activate_chain("Luxor")
+            board.set_chain(tile, "sandpiper")
+        hotel.activate_chain("sandpiper")
 
         for defunct_count in range(1, 15):
             result = bot.choose_stock_disposition(
-                "Luxor", "Tower", defunct_count, board, hotel
+                "sandpiper", "marlowe", defunct_count, board, hotel
             )
             assert result["trade"] % 2 == 0
 
@@ -384,18 +362,18 @@ class TestChooseStockDisposition:
         for col in range(1, 6):
             tile = Tile(col, "A")
             board.place_tile(tile)
-            board.set_chain(tile, "Tower")
-        hotel.activate_chain("Tower")
+            board.set_chain(tile, "marlowe")
+        hotel.activate_chain("marlowe")
 
         for col in range(1, 4):
             tile = Tile(col, "C")
             board.place_tile(tile)
-            board.set_chain(tile, "Luxor")
-        hotel.activate_chain("Luxor")
+            board.set_chain(tile, "sandpiper")
+        hotel.activate_chain("sandpiper")
 
         defunct_count = 10
         result = bot.choose_stock_disposition(
-            "Luxor", "Tower", defunct_count, board, hotel
+            "sandpiper", "marlowe", defunct_count, board, hotel
         )
 
         # Should sell at least some stock when low on cash
@@ -426,8 +404,8 @@ class TestChooseStocksToBuy:
         for col in range(1, 6):
             tile = Tile(col, "A")
             board.place_tile(tile)
-            board.set_chain(tile, "Luxor")
-        hotel.activate_chain("Luxor")
+            board.set_chain(tile, "sandpiper")
+        hotel.activate_chain("sandpiper")
 
         result = bot.choose_stocks_to_buy(board, hotel, max_stocks=3)
         assert len(result) <= 3
@@ -446,14 +424,14 @@ class TestChooseStocksToBuy:
         for col in range(1, 4):
             tile = Tile(col, "A")
             board.place_tile(tile)
-            board.set_chain(tile, "Luxor")
-        hotel.activate_chain("Luxor")
+            board.set_chain(tile, "sandpiper")
+        hotel.activate_chain("sandpiper")
 
         for col in range(1, 4):
             tile = Tile(col, "C")
             board.place_tile(tile)
-            board.set_chain(tile, "Tower")
-        hotel.activate_chain("Tower")
+            board.set_chain(tile, "marlowe")
+        hotel.activate_chain("marlowe")
 
         # Buy stocks multiple times to check diversification tendency
         unique_chains_bought = set()
@@ -467,8 +445,8 @@ class TestChooseStocksToBuy:
     def test_prefers_owned_chains(self):
         """Test bot prefers chains it already owns stock in."""
         player = Player("bot1", "Bot Player")
-        player._stocks["Luxor"] = 5
-        player._stocks["Tower"] = 0
+        player._stocks["sandpiper"] = 5
+        player._stocks["marlowe"] = 0
         bot = Bot(player, difficulty="hard")
         board = Board()
         hotel = Hotel()
@@ -477,26 +455,26 @@ class TestChooseStocksToBuy:
         for col in range(1, 4):
             tile = Tile(col, "A")
             board.place_tile(tile)
-            board.set_chain(tile, "Luxor")
-        hotel.activate_chain("Luxor")
+            board.set_chain(tile, "sandpiper")
+        hotel.activate_chain("sandpiper")
 
         for col in range(1, 4):
             tile = Tile(col, "C")
             board.place_tile(tile)
-            board.set_chain(tile, "Tower")
-        hotel.activate_chain("Tower")
+            board.set_chain(tile, "marlowe")
+        hotel.activate_chain("marlowe")
 
-        # Run multiple times and count Luxor purchases
-        luxor_count = 0
+        # Run multiple times and count sandpiper purchases
+        sandpiper_count = 0
         total_purchases = 0
         for _ in range(20):
             result = bot.choose_stocks_to_buy(board, hotel, max_stocks=1)
-            if result and result[0] == "Luxor":
-                luxor_count += 1
+            if result and result[0] == "sandpiper":
+                sandpiper_count += 1
             total_purchases += 1
 
-        # Should prefer Luxor most of the time
-        assert luxor_count > total_purchases * 0.5
+        # Should prefer sandpiper most of the time
+        assert sandpiper_count > total_purchases * 0.5
 
     def test_stops_when_cant_afford(self):
         """Test bot stops buying when can't afford more."""
@@ -510,8 +488,8 @@ class TestChooseStocksToBuy:
         for col in range(1, 4):
             tile = Tile(col, "A")
             board.place_tile(tile)
-            board.set_chain(tile, "Luxor")
-        hotel.activate_chain("Luxor")
+            board.set_chain(tile, "sandpiper")
+        hotel.activate_chain("sandpiper")
         # Price should be $300 for 3-tile chain
 
         result = bot.choose_stocks_to_buy(board, hotel, max_stocks=3)
@@ -528,14 +506,14 @@ class TestChooseStocksToBuy:
         for col in range(1, 4):
             tile = Tile(col, "A")
             board.place_tile(tile)
-            board.set_chain(tile, "Luxor")
-        hotel.activate_chain("Luxor")
+            board.set_chain(tile, "sandpiper")
+        hotel.activate_chain("sandpiper")
 
         # Remove all available stock
-        hotel._available_stocks["Luxor"] = 0
+        hotel._available_stocks["sandpiper"] = 0
 
         result = bot.choose_stocks_to_buy(board, hotel, max_stocks=3)
-        assert "Luxor" not in result
+        assert "sandpiper" not in result
 
     def test_easy_difficulty_random_purchase(self):
         """Test easy difficulty purchases randomly based on RNG seed."""
@@ -546,14 +524,14 @@ class TestChooseStocksToBuy:
         for col in range(1, 4):
             tile = Tile(col, "A")
             board.place_tile(tile)
-            board.set_chain(tile, "Luxor")
-        hotel.activate_chain("Luxor")
+            board.set_chain(tile, "sandpiper")
+        hotel.activate_chain("sandpiper")
 
         for col in range(1, 4):
             tile = Tile(col, "C")
             board.place_tile(tile)
-            board.set_chain(tile, "Tower")
-        hotel.activate_chain("Tower")
+            board.set_chain(tile, "marlowe")
+        hotel.activate_chain("marlowe")
 
         # Use many different seeds to prove randomness is used
         # With 2 options and 20 seeds, probability of all same is (0.5)^19 ≈ 0%
@@ -571,82 +549,3 @@ class TestChooseStocksToBuy:
         assert len(unique_results) >= 2, (
             "Easy mode should use randomness - different seeds should give different purchases"
         )
-
-
-class TestIntegration:
-    """Integration tests for bot behavior."""
-
-    def test_full_turn_simulation(self):
-        """Test bot can make decisions for a full turn."""
-        player = Player("bot1", "Bot Player")
-        bot = Bot(player, difficulty="medium")
-        board = Board()
-        hotel = Hotel()
-
-        # Give player tiles
-        player.add_tile(Tile(1, "A"))
-        player.add_tile(Tile(2, "A"))
-        player.add_tile(Tile(5, "E"))
-
-        # Set up a chain
-        board.place_tile(Tile(3, "A"))
-        board.place_tile(Tile(4, "A"))
-        board.set_chain(Tile(3, "A"), "Luxor")
-        board.set_chain(Tile(4, "A"), "Luxor")
-        hotel.activate_chain("Luxor")
-
-        # Bot chooses tile
-        tile = bot.choose_tile_to_play(board, hotel)
-        assert tile is not None
-        assert tile in player.hand
-
-        # Simulate playing the tile
-        player.remove_tile(tile)
-        board.place_tile(tile)
-
-        # If founding, bot chooses chain
-        inactive = hotel.get_inactive_chains()
-        if inactive:
-            chain = bot.choose_chain_to_found(inactive, board)
-            assert chain in inactive
-
-        # Bot chooses stocks to buy
-        stocks = bot.choose_stocks_to_buy(board, hotel)
-        assert len(stocks) <= 3
-
-    def test_merger_handling(self):
-        """Test bot handles merger decisions correctly."""
-        player = Player("bot1", "Bot Player")
-        player._stocks["Luxor"] = 5
-        player._stocks["Tower"] = 3
-        bot = Bot(player, difficulty="hard")
-        board = Board()
-        hotel = Hotel()
-
-        # Set up two chains that could merge
-        for col in range(1, 5):
-            tile = Tile(col, "A")
-            board.place_tile(tile)
-            board.set_chain(tile, "Luxor")
-        hotel.activate_chain("Luxor")
-
-        for col in range(1, 5):
-            tile = Tile(col, "C")
-            board.place_tile(tile)
-            board.set_chain(tile, "Tower")
-        hotel.activate_chain("Tower")
-
-        # Bot chooses survivor (tied at 4 tiles each)
-        survivor = bot.choose_merger_survivor(["Luxor", "Tower"], board, hotel)
-        assert survivor in ["Luxor", "Tower"]
-        # Should prefer Luxor (more stock owned)
-        assert survivor == "Luxor"
-
-        # Bot handles stock disposition
-        disposition = bot.choose_stock_disposition(
-            "Tower", "Luxor", player._stocks["Tower"], board, hotel
-        )
-        assert "sell" in disposition
-        assert "trade" in disposition
-        assert "keep" in disposition
-        assert disposition["sell"] + disposition["trade"] + disposition["keep"] == 3

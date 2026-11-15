@@ -1,77 +1,86 @@
 import { render, screen } from '@testing-library/react'
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { MemoryRouter, Routes, Route } from 'react-router-dom'
+import { describe, it, expect, afterEach, vi } from 'vitest'
+import type { Ruleset } from './types/ruleset'
+import { DEFAULT_RS, VALLEY, defaultLeaks } from '../tests/unit/fixtures/rulesets'
 import { App } from './App'
-import { LobbyPage, PlayerPage, HostPage, NotFoundPage } from './pages'
-import { ToastProvider } from './components/ui/ToastProvider'
 import { useGameStore } from './store/gameStore'
 
-// Mock useWebSocket to prevent it from changing connectionStatus during tests
+// The socket is not under test here; keep it from changing the connection status.
 vi.mock('./hooks/useWebSocket', () => ({
   useWebSocket: () => ({
     sendAction: vi.fn(),
     disconnect: vi.fn(),
+    reconnect: vi.fn(),
     isConnected: true,
   }),
 }))
+vi.mock('./hooks/useHostWebSocket', () => ({
+  useHostWebSocket: () => ({ disconnect: vi.fn(), reconnect: vi.fn(), isConnected: true }),
+}))
 
-// Helper to render App with specific route using MemoryRouter
-function renderWithRoute(route: string) {
-  return render(
-    <MemoryRouter initialEntries={[route]}>
-      <ToastProvider>
-        <Routes>
-          <Route path="/" element={<LobbyPage />} />
-          <Route path="/play/:room" element={<PlayerPage />} />
-          <Route path="/host/:room" element={<HostPage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-      </ToastProvider>
-    </MemoryRouter>
+function serveRuleset(rs: Ruleset) {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: RequestInfo | URL) =>
+      String(url).includes('/api/config/game')
+        ? new Response(JSON.stringify(rs), { status: 200 })
+        : new Response('{}', { status: 200 })
+    )
   )
 }
 
-describe('App Routing', () => {
-  beforeEach(() => {
-    // Reset the store and set connected state before each test
-    useGameStore.getState().reset()
-    useGameStore.setState({ connectionStatus: 'connected' })
-  })
-
-  it('renders lobby page at /', () => {
-    renderWithRoute('/')
-    expect(screen.getByRole('heading', { name: /ACQUIRE/i })).toBeInTheDocument()
-  })
-
-  it('renders player view at /play/:room', () => {
-    renderWithRoute('/play/ABCD')
-    // Player page shows "WAITING FOR PLAYERS" in lobby state and room code
-    expect(screen.getByText(/WAITING FOR PLAYERS/i)).toBeInTheDocument()
-    expect(screen.getByText('ABCD')).toBeInTheDocument()
-  })
-
-  it('renders host view at /host/:room', () => {
-    renderWithRoute('/host/WXYZ')
-    // Host page shows ACQUIRE title and room code in lobby state
-    expect(screen.getByText('ACQUIRE')).toBeInTheDocument()
-    expect(screen.getByText('WXYZ')).toBeInTheDocument()
-  })
-
-  it('renders 404 for unknown routes', () => {
-    renderWithRoute('/unknown/path')
-    expect(screen.getByText(/404/i)).toBeInTheDocument()
-  })
-
-  it('extracts room code from URL in uppercase', () => {
-    renderWithRoute('/play/abcd')
-    // Room code should be uppercased - check the specific room code element
-    expect(screen.getByText('ABCD')).toBeInTheDocument()
-  })
+afterEach(() => {
+  vi.unstubAllGlobals()
+  window.history.pushState({}, '', '/')
 })
 
 describe('App', () => {
-  it('renders app with BrowserRouter', () => {
+  it("loads the server's ruleset first, then renders the home page with its title", async () => {
+    serveRuleset(DEFAULT_RS)
     render(<App />)
-    expect(screen.getByRole('heading', { name: /acquire/i })).toBeInTheDocument()
+    expect(screen.getByTestId('ruleset-loading')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'BUYOUT' })).toBeInTheDocument()
+    expect(document.title).toBe('Buyout')
+  })
+
+  it("shows another ruleset's theme under the brand, never the default theme", async () => {
+    serveRuleset(VALLEY)
+    render(<App />)
+    expect(await screen.findByRole('heading', { name: 'BUYOUT' })).toBeInTheDocument()
+    expect(screen.getByTestId('home-theme')).toHaveTextContent('Acquihire')
+    expect(document.title).toBe('Buyout')
+    expect(defaultLeaks(document.body.textContent ?? '')).toEqual([])
+  })
+
+  it('offers a retry when the configuration cannot be loaded', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('nope', { status: 404 }))
+    )
+    render(<App />)
+    expect(await screen.findByTestId('ruleset-error')).toBeInTheDocument()
+    expect(screen.getByTestId('ruleset-retry')).toBeInTheDocument()
+  })
+
+  it('the real routes: a typed room code opens that room upper-cased, host and unknown URLs have pages', async () => {
+    serveRuleset(DEFAULT_RS)
+    useGameStore.setState({ connectionStatus: 'connected' })
+    window.history.pushState({}, '', '/play/abcd')
+    const { unmount } = render(<App />)
+    expect(await screen.findByText('WAITING FOR PLAYERS')).toBeInTheDocument()
+    expect(screen.getByText('ABCD')).toBeInTheDocument()
+    unmount()
+
+    useGameStore.setState({ connectionStatus: 'connected' })
+    window.history.pushState({}, '', '/host/wxyz')
+    const host = render(<App />)
+    expect(await screen.findByTestId('host-title')).toBeInTheDocument()
+    expect(screen.getByText('WXYZ')).toBeInTheDocument()
+    host.unmount()
+
+    window.history.pushState({}, '', '/no/such/page')
+    render(<App />)
+    expect(await screen.findByText('404')).toBeInTheDocument()
+    expect(screen.getByText('Back to Lobby')).toBeInTheDocument()
   })
 })

@@ -1,6 +1,6 @@
-# Alternative Approaches to PPO for Acquire AI
+# Alternative Approaches to PPO for Buyout AI
 
-This document evaluates whether PPO is the best approach for training Acquire bots and explores simpler and more modern alternatives based on RL advancements from 2024-2026.
+This document evaluates whether PPO is the best approach for training Buyout bots and explores simpler and more modern alternatives based on RL advancements from 2024-2026.
 
 ## Table of Contents
 
@@ -14,16 +14,16 @@ This document evaluates whether PPO is the best approach for training Acquire bo
 
 ## 1. Is PPO the Best Choice?
 
-### PPO Strengths for Acquire
+### PPO Strengths for Buyout
 
 | Strength | Relevance |
 |----------|-----------|
 | Stable training | Important for sparse rewards |
-| Works with discrete actions | Acquire has discrete action space |
+| Works with discrete actions | Buyout has discrete action space |
 | Well-documented | Extensive tutorials and implementations |
 | Sample efficient (vs REINFORCE) | Helps with long games |
 
-### PPO Weaknesses for Acquire
+### PPO Weaknesses for Buyout
 
 | Weakness | Impact |
 |----------|--------|
@@ -35,7 +35,7 @@ This document evaluates whether PPO is the best approach for training Acquire bo
 
 ### Verdict
 
-PPO is a **reasonable but not optimal** choice for Acquire. It's a general-purpose algorithm that works, but there are approaches better suited to:
+PPO is a **reasonable but not optimal** choice for Buyout. It's a general-purpose algorithm that works, but there are approaches better suited to:
 - Turn-based board games (MCTS-based methods)
 - Leveraging existing bot games (offline RL)
 - Reducing implementation complexity (imitation learning)
@@ -80,7 +80,7 @@ PPO is a **reasonable but not optimal** choice for Acquire. It's a general-purpo
 - Doesn't learn from experience
 - Hidden information (opponent tiles) problematic
 
-**Acquire Suitability**: **High** - Turn-based game with cloneable state
+**Buyout Suitability**: **High** - Turn-based game with cloneable state
 
 **Implementation Estimate**: 200-300 lines of Python
 
@@ -145,7 +145,7 @@ def mcts_choose_action(game, player_id, simulations=1000):
 - May not generalize to unseen positions
 - Distribution shift at deployment
 
-**Acquire Suitability**: **Very High** - Already have strong heuristic bot to learn from
+**Buyout Suitability**: **Very High** - Already have strong heuristic bot to learn from
 
 **When to Use**: As a first milestone before attempting RL
 
@@ -178,7 +178,7 @@ The current hard bot uses relatively simple scoring:
 - Diminishing returns on heuristic tuning
 - May miss non-obvious strategies
 
-**Acquire Suitability**: **High** - Chess engines show heuristics can be very strong
+**Buyout Suitability**: **High** - Chess engines show heuristics can be very strong
 
 ---
 
@@ -218,14 +218,14 @@ Output: Next action that leads to return R
 - May struggle with out-of-distribution states
 - Transformer inference slower than MLP
 
-**Acquire Suitability**: **High**
+**Buyout Suitability**: **High**
 - Can condition on "R=1.0" (winning) to get strong play
 - Game trajectories are natural sequences
 - Can bootstrap from bot games
 
 **Example Architecture**:
 ```python
-class AcquireDecisionTransformer(nn.Module):
+class BuyoutDecisionTransformer(nn.Module):
     def __init__(self):
         self.state_encoder = StateEncoder()  # Existing design
         self.transformer = GPT2(
@@ -255,7 +255,7 @@ class AcquireDecisionTransformer(nn.Module):
 - **IQL (Implicit Q-Learning)**: Avoids querying out-of-distribution actions
 - **TD3+BC**: Combines TD3 with behavioral cloning regularization
 
-**Why Relevant for Acquire**:
+**Why Relevant for Buyout**:
 - Can train on games played by existing bots
 - Can incorporate human games if logged
 - No need for environment interaction during training
@@ -293,7 +293,7 @@ class AcquireDecisionTransformer(nn.Module):
 - Hyperparameter sensitive
 - May be conservative in novel situations
 
-**Acquire Suitability**: **Very High**
+**Buyout Suitability**: **Very High**
 - Can easily generate millions of bot games
 - Avoids sparse reward exploration problem
 - Simpler infrastructure than PPO
@@ -335,7 +335,7 @@ class AcquireDecisionTransformer(nn.Module):
 - Significant compute requirements
 - Harder to debug than simpler methods
 
-**Acquire Suitability**: **Medium-High**
+**Buyout Suitability**: **Medium-High**
 - Powerful but perhaps overkill
 - Justified if aiming for superhuman play
 - Already have perfect simulator, so world model less critical
@@ -350,18 +350,18 @@ class AcquireDecisionTransformer(nn.Module):
 
 ```
 Prompt:
-"You are playing Acquire. Current state:
+"You are playing Buyout. Current state:
 - Your money: $4,500
-- Your stocks: Tower(3), Luxor(2)
-- Active chains: Tower(8 tiles), Luxor(5 tiles)
+- Your stocks: Marlowe(3), Sandpiper(2)
+- Active chains: Marlowe(8 tiles), Sandpiper(5 tiles)
 - Your tiles: 3A, 7B, 9C, 11D, 2E, 5F
 
-Legal actions: Play 3A (founds American), Play 7B (expands Tower), ...
+Legal actions: Play 3A (founds Halcyon), Play 7B (expands Marlowe), ...
 
 What's your move and why?"
 
 Response:
-"I'll play 7B to expand Tower because I have majority stockholding..."
+"I'll play 7B to expand Marlowe because I have majority stockholding..."
 ```
 
 **Implementation Complexity**: Very Low (API) to Medium (fine-tuning)
@@ -379,7 +379,7 @@ Response:
 - May make illegal moves (need validation)
 - Not optimal for pure performance
 
-**Acquire Suitability**: **High for hybrid approach**
+**Buyout Suitability**: **High for hybrid approach**
 - Already planned for trading negotiations
 - Could handle strategic reasoning while simple policy handles execution
 - Great for explainability ("Why did you make that move?")
@@ -415,7 +415,7 @@ class HybridBot:
 | **MuZero** | Very High | Days-Weeks | Very High | Complex system |
 | **LLM-Based** | Very Low | None | Medium-High | API access |
 
-### Cost-Benefit Analysis for Acquire
+### Cost-Benefit Analysis for Buyout
 
 Given:
 - Already have strong heuristic bot
@@ -484,7 +484,7 @@ Add LLM for:
 
 **PPO as first approach**: Too complex for the potential payoff. The infrastructure burden (parallel environments, GAE, hyperparameter tuning, curriculum design) is high when simpler methods can achieve similar results.
 
-**MuZero**: Overkill for Acquire. The game isn't complex enough to justify the implementation cost. Reserve for Chess/Go level challenges.
+**MuZero**: Overkill for Buyout. The game isn't complex enough to justify the implementation cost. Reserve for Chess/Go level challenges.
 
 ---
 
@@ -572,7 +572,7 @@ def generate_imitation_data(num_games: int) -> List[Transition]:
 import torch
 import torch.nn as nn
 
-class AcquireDecisionTransformer(nn.Module):
+class BuyoutDecisionTransformer(nn.Module):
     def __init__(self, state_dim=750, action_dim=200, hidden=256):
         super().__init__()
 

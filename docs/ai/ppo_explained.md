@@ -1,6 +1,6 @@
-# PPO Explained: Teaching an AI to Play Acquire
+# PPO Explained: Teaching an AI to Play Buyout
 
-This document explains Proximal Policy Optimization (PPO) through the lens of training an AI agent to play the board game Acquire.
+This document explains Proximal Policy Optimization (PPO) through the lens of training an AI agent to play the board game Buyout.
 
 ## Table of Contents
 
@@ -11,7 +11,7 @@ This document explains Proximal Policy Optimization (PPO) through the lens of tr
 5. [Actor-Critic Architecture](#5-actor-critic-architecture)
 6. [GAE: Better Advantage Estimates](#6-gae-better-advantage-estimates)
 7. [Putting It Together: Training Loop](#7-putting-it-together-training-loop)
-8. [Acquire-Specific Considerations](#8-acquire-specific-considerations)
+8. [Game-Specific Considerations](#8-game-specific-considerations)
 
 ---
 
@@ -19,9 +19,9 @@ This document explains Proximal Policy Optimization (PPO) through the lens of tr
 
 Reinforcement Learning (RL) is learning through trial and error. An **agent** interacts with an **environment**, observes **states**, takes **actions**, and receives **rewards**.
 
-### The RL Framework Applied to Acquire
+### The RL Framework Applied to Buyout
 
-| RL Concept | Acquire Equivalent |
+| RL Concept | Buyout Equivalent |
 |------------|-------------------|
 | **Agent** | The AI player |
 | **Environment** | The game (board, tiles, other players) |
@@ -31,7 +31,7 @@ Reinforcement Learning (RL) is learning through trial and error. An **agent** in
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    ACQUIRE GAME                         │
+│                    BUYOUT GAME                         │
 │  ┌─────────────────────────────────────────────────┐   │
 │  │  Board State: Tiles placed, chains formed       │   │
 │  │  Player Info: Money, stocks, hand tiles         │   │
@@ -48,7 +48,7 @@ Reinforcement Learning (RL) is learning through trial and error. An **agent** in
 │                       action                            │
 │                         ▼                               │
 │  ┌─────────────────────────────────────────────────┐   │
-│  │  Execute: Play tile 5A, buy 2 Tower stocks      │   │
+│  │  Execute: Play tile 5A, buy 2 Marlowe stocks      │   │
 │  └─────────────────────────────────────────────────┘   │
 │                         │                               │
 │                       reward                            │
@@ -67,7 +67,7 @@ Learn a **policy** $\pi(a|s)$ — a function that maps states to actions — tha
 
 ### Why Not Supervised Learning?
 
-In supervised learning, we need labeled examples: "In this position, the correct move is X." But in Acquire:
+In supervised learning, we need labeled examples: "In this position, the correct move is X." But in Buyout:
 - We don't have expert labels for every position
 - Many moves might be "good enough"
 - The best move depends on opponent behavior
@@ -84,15 +84,15 @@ In plain English:
 - If an action led to a **high reward** → increase its probability
 - If an action led to a **low reward** → decrease its probability
 
-### Acquire Example
+### Buyout Example
 
 Imagine the agent plays a game and:
-1. Played tile 7B, founding Tower chain → eventually won
-2. Bought 3 Continental stocks instead of Luxor → eventually lost
+1. Played tile 7B, founding Marlowe chain → eventually won
+2. Bought 3 Aurelia stocks instead of Sandpiper → eventually lost
 
 After these games, the policy update will:
-- **Increase** probability of founding Tower in similar positions
-- **Decrease** probability of buying Continental over Luxor in similar positions
+- **Increase** probability of founding Marlowe in similar positions
+- **Decrease** probability of buying Aurelia over Sandpiper in similar positions
 
 ---
 
@@ -119,7 +119,7 @@ After:  "Always buy 3 stocks of any chain" (terrible policy)
 After 1 million games, still plays randomly
 ```
 
-### Acquire Illustration
+### Buyout Illustration
 
 Suppose the agent discovers that founding chains early is good. With vanilla PG:
 - It might overcorrect: "ALWAYS found chains, never join existing ones"
@@ -163,7 +163,7 @@ $$L_{\text{CLIP}} = \min\left(r(\theta) \cdot A, \text{clip}(r(\theta), 1-\epsil
             per update      per update
 ```
 
-### Acquire Example: Founding vs. Joining
+### Buyout Example: Founding vs. Joining
 
 Suppose the old policy had:
 - 30% chance to found a new chain
@@ -231,9 +231,9 @@ The critic helps reduce variance in policy updates. Instead of asking "did I win
 
 $$A(s,a) = R - V(s)$$
 
-### Acquire Example
+### Buyout Example
 
-Position: You have majority in Tower (safe, 15 tiles). Critic estimates $V(s) = 0.8$ (80% win chance).
+Position: You have majority in Marlowe (safe, 15 tiles). Critic estimates $V(s) = 0.8$ (80% win chance).
 
 | Outcome | Advantage | Update Direction |
 |---------|-----------|------------------|
@@ -277,11 +277,11 @@ $$\delta_t = r_t + \gamma V(s_{t+1}) - V(s_t)$$
 - $\lambda = 1$: Pure Monte Carlo, high variance, low bias
 - $\lambda = 0.95$: Good balance (typical default)
 
-### Acquire Example
+### Buyout Example
 
-Turn 15: You buy 3 Tower stocks.
+Turn 15: You buy 3 Marlowe stocks.
 Turn 16: Opponent triggers a merger, you get majority bonus.
-Turn 17: You use bonus to dominate Continental.
+Turn 17: You use bonus to dominate Aurelia.
 Turn 45: You win the game.
 
 **Without GAE:** The stock purchase on turn 15 gets credit for the win 30 turns later (noisy signal).
@@ -331,7 +331,7 @@ for iteration in range(num_iterations):
     └─────────────────────────────────────────────────────┘
 ```
 
-### Typical Hyperparameters for Acquire
+### Typical Hyperparameters for Buyout
 
 ```python
 config = {
@@ -347,11 +347,11 @@ config = {
 
 ---
 
-## 8. Acquire-Specific Considerations
+## 8. Game-Specific Considerations
 
 ### Action Masking
 
-Acquire has **illegal moves** (can't play a tile that merges safe chains). We mask these:
+Buyout has **illegal moves** (can't play a tile that merges safe chains). We mask these:
 
 ```python
 def get_action(state, legal_actions):
@@ -368,7 +368,7 @@ def get_action(state, legal_actions):
 
 ### Sparse Rewards
 
-Acquire only gives reward at game end (win/loss). This creates a **credit assignment problem**: which of 50+ moves led to victory?
+Buyout only gives reward at game end (win/loss). This creates a **credit assignment problem**: which of 50+ moves led to victory?
 
 **Solutions:**
 1. **Dense reward shaping:** Small rewards for net worth increases
@@ -377,14 +377,14 @@ Acquire only gives reward at game end (win/loss). This creates a **credit assign
 
 ### Multi-Agent Environment
 
-Acquire is multiplayer. The agent must handle:
+Buyout is multiplayer. The agent must handle:
 - **Variable opponents:** Sometimes easy bots, sometimes hard bots, sometimes self-play
 - **Non-stationarity:** Opponents improve during training
 - **Partial observability:** Can't see opponent's tiles
 
 ### Variable Player Counts
 
-Acquire supports 2-6 players. The observation space is fixed (6 player slots), with inactive players zeroed out:
+Buyout supports 2-6 players. The observation space is fixed (6 player slots), with inactive players zeroed out:
 
 ```
 3-player game observation:
@@ -402,7 +402,7 @@ The network learns to ignore inactive slots during training.
 
 ## Summary
 
-PPO trains an Acquire agent by:
+PPO trains a Buyout agent by:
 
 1. **Playing many games** and observing outcomes
 2. **Computing advantages:** "Was this action better than expected?"

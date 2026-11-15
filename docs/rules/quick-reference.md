@@ -1,4 +1,4 @@
-# Acquire Quick Reference
+# Buyout Quick Reference
 
 ## Key Numbers
 
@@ -18,9 +18,9 @@
 
 | Tier | Corporations |
 |------|--------------|
-| Cheap | Luxor, Tower |
-| Medium | American, Worldwide, Festival |
-| Expensive | Imperial, Continental |
+| Cheap | Sandpiper, Marlowe |
+| Medium | Halcyon, Meridian, Juniper |
+| Expensive | Obsidian, Aurelia |
 
 ## Stock Price Table
 

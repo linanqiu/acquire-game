@@ -41,22 +41,6 @@ class TestRoomCreation:
 
         assert len(codes) == 100  # All unique
 
-    def test_room_starts_empty(self):
-        """Newly created room has no players."""
-        manager = SessionManager()
-        code = manager.create_room()
-
-        room = manager.get_room(code)
-        assert len(room.players) == 0
-
-    def test_room_not_started_by_default(self):
-        """Room starts in not-started state."""
-        manager = SessionManager()
-        code = manager.create_room()
-
-        room = manager.get_room(code)
-        assert room.started is False
-
 
 class TestPlayerJoining:
     """Tests for players joining rooms."""

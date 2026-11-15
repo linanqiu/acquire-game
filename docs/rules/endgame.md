@@ -1,6 +1,6 @@
 # End Game
 
-This document covers the end game conditions, declaration rules, final bonus calculations, stock liquidation, and determining the winner in Acquire.
+This document covers the end game conditions, declaration rules, final bonus calculations, stock liquidation, and determining the winner in Buyout.
 
 ---
 
@@ -13,7 +13,7 @@ The game can end when **either** of the following conditions is true:
 Any single hotel chain has grown to **41 or more tiles**.
 
 ```
-Example: Continental has grown to 42 tiles
+Example: Aurelia has grown to 42 tiles
 → Game may be declared over
 ```
 
@@ -23,9 +23,9 @@ Example: Continental has grown to 42 tiles
 
 ```
 Example: Three chains remain on the board:
-- American: 15 tiles (safe)
-- Continental: 22 tiles (safe)
-- Imperial: 11 tiles (safe)
+- Halcyon: 15 tiles (safe)
+- Aurelia: 22 tiles (safe)
+- Obsidian: 11 tiles (safe)
 → Game may be declared over
 ```
 
@@ -61,7 +61,7 @@ A player may declare at the **beginning** of their turn, after observing the boa
 
 ```
 Turn sequence:
-1. Player observes board: Continental has 42 tiles
+1. Player observes board: Aurelia has 42 tiles
 2. Player may declare: "The game is over" (optional)
 3. If declared: Proceed to final scoring
 4. If not declared: Play continues normally
@@ -115,7 +115,7 @@ The player with the **most total money** wins.
 ### Tie for Winner
 
 If two or more players have exactly equal money:
-- **Official rule**: The game is a tie
+- **Rule**: The game is a tie
 - **House rule variant**: May use secondary criteria (most stock certificates, etc.)
 
 ---
@@ -125,13 +125,13 @@ If two or more players have exactly equal money:
 ### Game State at Declaration
 
 **Board state:**
-- American: 18 tiles (Medium tier)
-- Continental: 43 tiles (Expensive tier)
-- Imperial: 12 tiles (Expensive tier)
+- Halcyon: 18 tiles (Medium tier)
+- Aurelia: 43 tiles (Expensive tier)
+- Obsidian: 12 tiles (Expensive tier)
 
 **Stock holdings:**
 
-| Player | American | Continental | Imperial | Cash |
+| Player | Halcyon | Aurelia | Obsidian | Cash |
 |--------|----------|-------------|----------|------|
 | Alice | 8 | 3 | 4 | $4,500 |
 | Bob | 5 | 6 | 2 | $3,200 |
@@ -139,21 +139,21 @@ If two or more players have exactly equal money:
 
 ### Step 1: Final Bonuses
 
-**American (18 tiles, Medium tier):**
+**Halcyon (18 tiles, Medium tier):**
 - Majority: Alice (8 shares) - $8,000
 - Minority: Bob (5 shares) - $4,000
 
-**Continental (43 tiles, Expensive tier):**
+**Aurelia (43 tiles, Expensive tier):**
 - Majority: Bob (6 shares) - $12,000
 - Minority: Carol (4 shares) - $6,000
 
-**Imperial (12 tiles, Expensive tier):**
+**Obsidian (12 tiles, Expensive tier):**
 - Majority: Carol (5 shares) - $9,000
 - Minority: Alice (4 shares) - $4,500
 
 **Bonus Summary:**
 
-| Player | American | Continental | Imperial | Total Bonus |
+| Player | Halcyon | Aurelia | Obsidian | Total Bonus |
 |--------|----------|-------------|----------|-------------|
 | Alice | $8,000 | - | $4,500 | $12,500 |
 | Bob | $4,000 | $12,000 | - | $16,000 |
@@ -162,11 +162,11 @@ If two or more players have exactly equal money:
 ### Step 2: Stock Sales
 
 **Stock prices:**
-- American (18 tiles, Medium): $800/share
-- Continental (43 tiles, Expensive): $1,200/share
-- Imperial (12 tiles, Expensive): $900/share
+- Halcyon (18 tiles, Medium): $800/share
+- Aurelia (43 tiles, Expensive): $1,200/share
+- Obsidian (12 tiles, Expensive): $900/share
 
-| Player | American | Continental | Imperial | Stock Value |
+| Player | Halcyon | Aurelia | Obsidian | Stock Value |
 |--------|----------|-------------|----------|-------------|
 | Alice | 8 x $800 = $6,400 | 3 x $1,200 = $3,600 | 4 x $900 = $3,600 | $13,600 |
 | Bob | 5 x $800 = $4,000 | 6 x $1,200 = $7,200 | 2 x $900 = $1,800 | $13,000 |
@@ -197,12 +197,12 @@ If you held stock from a defunct chain (hoping for re-founding), and the game en
 
 ```
 During the game:
-- Tower was acquired by American
-- You held 5 Tower shares (didn't sell or trade)
-- Tower was never re-founded
+- Marlowe was acquired by Halcyon
+- You held 5 Marlowe shares (didn't sell or trade)
+- Marlowe was never re-founded
 
 At game end:
-- Your 5 Tower shares = $0
+- Your 5 Marlowe shares = $0
 - You cannot sell them
 - They do not count for bonuses
 ```

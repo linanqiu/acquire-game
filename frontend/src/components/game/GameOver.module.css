@@ -15,7 +15,7 @@
   display: block;
   font-size: var(--text-xl);
   font-weight: var(--font-bold);
-  color: var(--chain-luxor);
+  color: var(--accent-gold);
   letter-spacing: 0.1em;
 }
 
@@ -64,8 +64,9 @@
   border: 1px solid var(--text-accent);
 }
 
-.rankRow.winner .rank {
-  color: var(--chain-luxor);
+/* Not `.winner`: that class is the centred announcement box above. */
+.rankRow.rankWinner .rank {
+  color: var(--accent-gold);
 }
 
 .rank {
@@ -168,4 +169,16 @@
   justify-content: center;
   gap: var(--space-3);
   padding-top: var(--space-2);
+}
+
+.transcriptLink {
+  align-self: center;
+  font-size: var(--text-base, 1rem);
+  color: var(--text-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.transcriptLink:hover {
+  color: var(--text-primary);
 }

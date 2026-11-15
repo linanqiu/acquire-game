@@ -4,11 +4,12 @@ import { Slider } from '../ui/Slider'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import styles from './MergerDisposition.module.css'
-import type { ChainName } from '../../types/api'
+import type { ChainId } from '../../types/ruleset'
+import { useRules } from '../../ruleset/useRules'
 
 export interface MergerDispositionProps {
-  defunctChain: ChainName
-  survivorChain: ChainName
+  defunctChain: ChainId
+  survivorChain: ChainId
   sharesOwned: number
   defunctPrice: number
   survivorStockAvailable: number
@@ -23,19 +24,24 @@ export function MergerDisposition({
   survivorStockAvailable,
   onConfirm,
 }: MergerDispositionProps) {
+  const rules = useRules()
+  const { theme } = rules
+  // Defunct shares per survivor share (the ruleset's merger_trade_ratio; 2 in default).
+  const ratio = Math.max(1, rules.rs.merger_trade_ratio)
+  const defunctName = rules.name(defunctChain)
+  const survivorName = rules.name(survivorChain)
   const [sellCount, setSellCount] = useState(0)
   const [tradeCount, setTradeCount] = useState(0)
 
-  // Calculate maximum tradeable shares (limited by survivor stock and remaining shares)
-  // Must be even number for 2:1 trade ratio
-  const maxTradeByStock = survivorStockAvailable * 2 // 2:1 ratio
-  const maxTradeRaw = Math.min(sharesOwned - sellCount, maxTradeByStock)
-  const maxTrade = Math.floor(maxTradeRaw / 2) * 2 // Round down to even
+  // Maximum tradeable shares: limited by survivor stock in the bank and the shares not sold,
+  // and always a multiple of the trade ratio (only whole survivor shares are handed out).
+  const maxTradeByStock = survivorStockAvailable * ratio
+  const maxTrade = Math.floor(Math.min(sharesOwned - sellCount, maxTradeByStock) / ratio) * ratio
 
   // Calculate hold count and derived values
   const holdCount = sharesOwned - sellCount - tradeCount
   const cashFromSell = sellCount * defunctPrice
-  const sharesFromTrade = Math.floor(tradeCount / 2)
+  const sharesFromTrade = Math.floor(tradeCount / ratio)
 
   const handleSellChange = useCallback(
     (value: number) => {
@@ -43,17 +49,16 @@ export function MergerDisposition({
       // Adjust trade if it would exceed remaining shares
       const remainingAfterSell = sharesOwned - value
       if (tradeCount > remainingAfterSell) {
-        // Round down to even number
-        setTradeCount(Math.floor(remainingAfterSell / 2) * 2)
+        setTradeCount(Math.floor(remainingAfterSell / ratio) * ratio)
       }
     },
-    [sharesOwned, tradeCount]
+    [sharesOwned, tradeCount, ratio]
   )
 
-  const handleTradeChange = useCallback((value: number) => {
-    // Ensure even number for 2:1 trade
-    setTradeCount(Math.floor(value / 2) * 2)
-  }, [])
+  const handleTradeChange = useCallback(
+    (value: number) => setTradeCount(Math.floor(value / ratio) * ratio),
+    [ratio]
+  )
 
   const handleConfirm = () => {
     onConfirm(sellCount, tradeCount, holdCount)
@@ -62,19 +67,22 @@ export function MergerDisposition({
   const canTrade = survivorStockAvailable > 0
 
   return (
-    <Card title={`DISPOSE OF YOUR ${defunctChain.toUpperCase()} STOCK`}>
+    <Card
+      title={`DISPOSE OF YOUR ${defunctName.toUpperCase()} ${theme.share_noun_plural.toUpperCase()}`}
+    >
       <div className={styles.container} data-testid="merger-disposition">
         <div className={styles.info}>
           <p className={styles.infoRow}>
             You have: <strong>{sharesOwned}</strong>{' '}
-            <ChainMarker chain={defunctChain} variant="compact" /> shares
+            <ChainMarker chain={defunctChain} variant="compact" /> {theme.share_noun_plural}
           </p>
           <p className={styles.infoRow}>
-            Price at merger: <strong>${defunctPrice.toLocaleString()}</strong>/share
+            Price at {theme.merger_noun}: <strong>{rules.money(defunctPrice)}</strong>/
+            {theme.share_noun}
           </p>
           <p className={styles.infoRow}>
-            <ChainMarker chain={survivorChain} variant="compact" /> stock available:{' '}
-            <strong>{survivorStockAvailable}</strong>
+            <ChainMarker chain={survivorChain} variant="compact" /> {theme.share_noun_plural} left
+            in the bank: <strong>{survivorStockAvailable}</strong>
           </p>
         </div>
 
@@ -86,31 +94,31 @@ export function MergerDisposition({
             max={sharesOwned}
             step={1}
             onChange={handleSellChange}
-            displayValue={`${sellCount} shares → $${cashFromSell.toLocaleString()}`}
+            displayValue={`${rules.shares(sellCount)} → ${rules.money(cashFromSell)}`}
           />
 
           <Slider
-            label={`TRADE 2:1 for ${survivorChain.toUpperCase()}`}
+            label={`TRADE ${ratio}:1 for ${survivorName.toUpperCase()}`}
             value={tradeCount}
             min={0}
             max={maxTrade}
-            step={2}
+            step={ratio}
             onChange={handleTradeChange}
-            displayValue={`${tradeCount} shares → ${sharesFromTrade} ${survivorChain.toUpperCase()}`}
+            displayValue={`${rules.shares(tradeCount)} → ${sharesFromTrade} ${survivorName.toUpperCase()}`}
             disabled={!canTrade}
           />
 
           <div className={styles.hold} data-testid="hold-display">
             <span className={styles.holdLabel}>HOLD (keep for re-founding)</span>
             <span className={styles.holdValue}>
-              {holdCount} share{holdCount !== 1 ? 's' : ''} (worth $0 until re-founded)
+              {rules.shares(holdCount)} (worth {rules.money(0)} until re-founded)
             </span>
           </div>
         </div>
 
         <div className={styles.summary} data-testid="disposition-summary">
-          <strong>SUMMARY:</strong> SELL {sellCount} (+${cashFromSell.toLocaleString()}) | TRADE{' '}
-          {tradeCount} (+{sharesFromTrade} {survivorChain.toUpperCase()}) | HOLD {holdCount}
+          <strong>SUMMARY:</strong> SELL {sellCount} (+{rules.money(cashFromSell)}) | TRADE{' '}
+          {tradeCount} (+{sharesFromTrade} {survivorName.toUpperCase()}) | HOLD {holdCount}
         </div>
 
         <Button fullWidth onClick={handleConfirm} data-testid="confirm-disposition">

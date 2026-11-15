@@ -1,6 +1,8 @@
+> **Historical.** This catalogue described the retired browser scenario suite. Current coverage is by surface: [surface-coverage.md](../surface-coverage.md); what happened to each old test: [legacy-suite-retirement.md](../legacy-suite-retirement.md).
+
 # Turn Flow Scenarios
 
-Scenarios covering complete turn sequences in Acquire. A turn consists of four phases: Trade (optional), Place Tile (mandatory), Buy Stock (optional), Draw Tile (mandatory).
+Scenarios covering complete turn sequences in Buyout. A turn consists of four phases: Trade (optional), Place Tile (mandatory), Buy Stock (optional), Draw Tile (mandatory).
 
 ---
 
@@ -13,25 +15,25 @@ Scenarios covering complete turn sequences in Acquire. A turn consists of four p
 - Player A is the active player
 - Player A has $6,000 and tile "5D" in hand
 - Board has no tiles adjacent to 5D
-- American chain exists (3 tiles), stock price $400
-- American has stock available
+- Halcyon chain exists (3 tiles), stock price $400
+- Halcyon has stock available
 
 **Actions:**
 1. Skip trading phase (no trades proposed)
 2. Player A places tile 5D
-3. Player A buys 2 American stock ($800 total)
+3. Player A buys 2 Halcyon stock ($800 total)
 4. Player A draws a tile
 
 **Expected Outcomes:**
 - Tile 5D appears on board as orphan (no chain)
 - Player A's money reduced by $800 (now $5,200)
-- Player A has 2 American stock
+- Player A has 2 Halcyon stock
 - Player A's hand still has 6 tiles
 - Turn advances to Player B
 
 **Key Assertions:**
 - Player A money: $5,200
-- Player A American stock: 2
+- Player A Halcyon stock: 2
 - Tile 5D on board, not part of any chain
 - Current player: Player B
 - Game phase: awaiting tile placement
@@ -52,21 +54,21 @@ Scenarios covering complete turn sequences in Acquire. A turn consists of four p
 1. Skip trading phase
 2. Player A places tile 6D (adjacent to 6C)
 3. Game prompts for chain selection
-4. Player A selects "Continental" (Expensive tier)
+4. Player A selects "Aurelia" (Expensive tier)
 5. Player A receives founder's bonus stock
-6. Player A buys 1 additional Continental stock ($400)
+6. Player A buys 1 additional Aurelia stock ($400)
 7. Player A draws a tile
 
 **Expected Outcomes:**
-- Continental chain founded with 2 tiles (6C, 6D)
-- Player A receives 1 free Continental stock (founder's bonus)
+- Aurelia chain founded with 2 tiles (6C, 6D)
+- Player A receives 1 free Aurelia stock (founder's bonus)
 - Player A pays $400 for additional stock
-- Player A has 2 Continental stock total
+- Player A has 2 Aurelia stock total
 
 **Key Assertions:**
-- Continental chain size: 2 tiles
-- Continental chain active: true
-- Player A Continental stock: 2
+- Aurelia chain size: 2 tiles
+- Aurelia chain active: true
+- Player A Aurelia stock: 2
 - Player A money: $5,600
 - Founder's bonus awarded (not charged)
 
@@ -78,25 +80,25 @@ Scenarios covering complete turn sequences in Acquire. A turn consists of four p
 - 3-player game in progress
 - Player A is the active player
 - Player A has $5,000 and tile "7D" in hand
-- Tower chain exists: tiles at 6C, 6D (2 tiles, Cheap tier, $200/share)
+- Marlowe chain exists: tiles at 6C, 6D (2 tiles, Cheap tier, $200/share)
 - Tile 7D is adjacent to 6D
 
 **Actions:**
 1. Skip trading phase
-2. Player A places tile 7D (adjacent to Tower chain)
-3. Player A buys 3 Tower stock ($900 total at $300/share for 3 tiles)
+2. Player A places tile 7D (adjacent to Marlowe chain)
+3. Player A buys 3 Marlowe stock ($900 total at $300/share for 3 tiles)
 4. Player A draws a tile
 
 **Expected Outcomes:**
-- Tower chain expands to 3 tiles
+- Marlowe chain expands to 3 tiles
 - Stock price increases from $200 to $300
 - Player A pays $900 for 3 stocks
 
 **Key Assertions:**
-- Tower chain size: 3 tiles
-- Tower stock price: $300
+- Marlowe chain size: 3 tiles
+- Marlowe stock price: $300
 - Player A money: $4,100
-- Player A Tower stock: 3
+- Player A Marlowe stock: 3
 
 ---
 
@@ -146,23 +148,23 @@ Scenarios covering complete turn sequences in Acquire. A turn consists of four p
 
 **Actions:**
 1. Player A: places tile, skips buy, draws tile
-2. Player B: places tile (founds Luxor), buys 1 Luxor, draws tile
-3. Player C: places tile, buys 2 Luxor, draws tile
+2. Player B: places tile (founds Sandpiper), buys 1 Sandpiper, draws tile
+3. Player C: places tile, buys 2 Sandpiper, draws tile
 4. Player A's turn begins again
 
 **Expected Outcomes:**
 - All three players complete one full turn
 - Turn order is A -> B -> C -> A (clockwise)
-- Luxor chain exists after Player B's turn
-- Player B has 2 Luxor (1 founder + 1 bought)
-- Player C has 2 Luxor
+- Sandpiper chain exists after Player B's turn
+- Player B has 2 Sandpiper (1 founder + 1 bought)
+- Player C has 2 Sandpiper
 
 **Key Assertions:**
 - Current player after round: Player A
-- Luxor chain exists: true
-- Luxor chain size: 2 tiles
-- Player B Luxor stock: 2
-- Player C Luxor stock: 2
+- Sandpiper chain exists: true
+- Sandpiper chain size: 2 tiles
+- Player B Sandpiper stock: 2
+- Player C Sandpiper stock: 2
 - Player B money: $5,800 (spent $200)
 - Player C money: $5,600 (spent $400)
 
@@ -197,10 +199,10 @@ Scenarios covering complete turn sequences in Acquire. A turn consists of four p
 **Initial State:**
 - Player A is active player
 - Player A has not yet placed a tile
-- American chain exists with stock available
+- Halcyon chain exists with stock available
 
 **Actions:**
-1. Player A attempts to buy American stock before placing tile
+1. Player A attempts to buy Halcyon stock before placing tile
 
 **Expected Outcomes:**
 - Purchase is rejected/not allowed
@@ -209,7 +211,7 @@ Scenarios covering complete turn sequences in Acquire. A turn consists of four p
 **Key Assertions:**
 - Purchase rejected: true
 - Game phase: tile placement (or trade)
-- Player A American stock unchanged
+- Player A Halcyon stock unchanged
 
 ---
 
@@ -245,39 +247,39 @@ Scenarios covering complete turn sequences in Acquire. A turn consists of four p
 - Player A is active player with $5,000
 - Player A has tile "6D" in hand
 - Board state:
-  - American chain: 5 tiles (includes 6C)
-  - Tower chain: 3 tiles (includes 5D)
-  - Tile 6D connects American and Tower
-- Player A has 3 Tower stock
-- Player B has 5 Tower stock (majority)
-- Player C has 2 Tower stock
+  - Halcyon chain: 5 tiles (includes 6C)
+  - Marlowe chain: 3 tiles (includes 5D)
+  - Tile 6D connects Halcyon and Marlowe
+- Player A has 3 Marlowe stock
+- Player B has 5 Marlowe stock (majority)
+- Player C has 2 Marlowe stock
 
 **Actions:**
 1. Skip trading phase
 2. Player A places tile 6D (triggers merger)
-3. American (5 tiles) acquires Tower (3 tiles)
+3. Halcyon (5 tiles) acquires Marlowe (3 tiles)
 4. Bonuses paid:
    - Player B (majority): $3,000
    - Player C (minority): $1,500
 5. Stock disposition (starting with Player A):
-   - Player A: sells 3 Tower for $900
-   - Player B: trades 4 Tower for 2 American, sells 1
-   - Player C: holds 2 Tower
+   - Player A: sells 3 Marlowe for $900
+   - Player B: trades 4 Marlowe for 2 Halcyon, sells 1
+   - Player C: holds 2 Marlowe
 6. Player A buys stock
 7. Player A draws tile
 
 **Expected Outcomes:**
-- Tower chain defunct
-- American chain now has 9 tiles (5 + 3 + merger tile)
+- Marlowe chain defunct
+- Halcyon chain now has 9 tiles (5 + 3 + merger tile)
 - Bonuses distributed correctly
 - Stock disposed per player choice
 
 **Key Assertions:**
-- American chain size: 9 tiles
-- Tower chain active: false
+- Halcyon chain size: 9 tiles
+- Marlowe chain active: false
 - Player B received $3,000 bonus
 - Player C received $1,500 bonus
-- Player A sold Tower stock for $300/share (3 tiles price)
+- Player A sold Marlowe stock for $300/share (3 tiles price)
 - Turn completes normally after merger
 
 ---
@@ -288,21 +290,21 @@ Scenarios covering complete turn sequences in Acquire. A turn consists of four p
 
 **Initial State:**
 - Player A is active player
-- Player A has 5 American stock, $4,000
-- Player B has 3 Continental stock
-- Player C has 4 Tower stock
+- Player A has 5 Halcyon stock, $4,000
+- Player B has 3 Aurelia stock
+- Player C has 4 Marlowe stock
 
 **Actions:**
-1. Player A proposes trade to Player B: 2 American for 1 Continental
+1. Player A proposes trade to Player B: 2 Halcyon for 1 Aurelia
 2. Player B accepts
-3. Player A proposes trade to Player C: 1 American + $500 for 2 Tower
+3. Player A proposes trade to Player C: 1 Halcyon + $500 for 2 Marlowe
 4. Player C accepts
 5. Player A places tile
 
 **Expected Outcomes:**
-- Player A: 2 American, 1 Continental, 2 Tower, $3,500
-- Player B: 2 American, 2 Continental
-- Player C: 2 Tower, 1 American, $500 extra
+- Player A: 2 Halcyon, 1 Aurelia, 2 Marlowe, $3,500
+- Player B: 2 Halcyon, 2 Aurelia
+- Player C: 2 Marlowe, 1 Halcyon, $500 extra
 
 **Key Assertions:**
 - Multiple trades allowed in single trade phase

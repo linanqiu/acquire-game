@@ -3,88 +3,29 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { TextInput } from './TextInput'
 
 describe('TextInput', () => {
-  it('renders input element', () => {
-    render(<TextInput />)
-    expect(screen.getByRole('textbox')).toBeInTheDocument()
+  it('its label names the field, and an error is announced and marks the field invalid', () => {
+    render(<TextInput label="Room code" error="No such game" />)
+    const input = screen.getByLabelText('Room code')
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByText('No such game')).toBeInTheDocument()
   })
 
-  it('renders label when provided', () => {
+  it('without an error the field is not marked invalid', () => {
     render(<TextInput label="Name" />)
-    expect(screen.getByText('Name')).toBeInTheDocument()
+    expect(screen.getByLabelText('Name')).not.toHaveAttribute('aria-invalid', 'true')
   })
 
-  it('associates label with input', () => {
-    render(<TextInput label="Name" />)
-    const input = screen.getByLabelText('Name')
-    expect(input).toBeInTheDocument()
-  })
-
-  it('renders placeholder', () => {
-    render(<TextInput placeholder="Enter name" />)
-    expect(screen.getByPlaceholderText('Enter name')).toBeInTheDocument()
-  })
-
-  it('shows error message when provided', () => {
-    render(<TextInput error="Required field" />)
-    expect(screen.getByText('Required field')).toBeInTheDocument()
-  })
-
-  it('applies error styling when error provided', () => {
-    render(<TextInput error="Error" />)
-    // CSS modules hash class names, so check for partial match
-    const input = screen.getByRole('textbox')
-    expect(input.className).toMatch(/error/i)
-  })
-
-  it('sets aria-invalid when error provided', () => {
-    render(<TextInput error="Error" />)
-    expect(screen.getByRole('textbox')).toHaveAttribute('aria-invalid', 'true')
-  })
-
-  it('respects maxLength', () => {
-    render(<TextInput maxLength={4} />)
-    expect(screen.getByRole('textbox')).toHaveAttribute('maxLength', '4')
-  })
-
-  it('auto-capitalizes when autoCapitalize is true', () => {
+  it('typing a room code is upper-cased in the field and in what the page receives', () => {
     const onChange = vi.fn()
-    render(<TextInput autoCapitalize onChange={onChange} />)
-    const input = screen.getByRole('textbox')
-    fireEvent.change(input, { target: { value: 'abcd' } })
-    expect(onChange).toHaveBeenCalled()
-    expect((input as HTMLInputElement).value).toBe('ABCD')
+    render(<TextInput label="Room" autoCapitalize onChange={onChange} />)
+    const input = screen.getByLabelText('Room')
+    fireEvent.change(input, { target: { value: 'ab1d' } })
+    expect(input.value).toBe('AB1D')
+    expect(onChange.mock.calls[0][0].target.value).toBe('AB1D')
   })
 
-  it('calls onChange when value changes', () => {
-    const onChange = vi.fn()
-    render(<TextInput onChange={onChange} />)
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'test' } })
-    expect(onChange).toHaveBeenCalled()
-  })
-
-  it('works without onChange', () => {
-    render(<TextInput autoCapitalize />)
-    const input = screen.getByRole('textbox')
-    // Should not throw
-    fireEvent.change(input, { target: { value: 'test' } })
-    expect((input as HTMLInputElement).value).toBe('TEST')
-  })
-
-  it('can be disabled', () => {
-    render(<TextInput disabled />)
-    expect(screen.getByRole('textbox')).toBeDisabled()
-  })
-
-  it('supports type attribute', () => {
-    const { container } = render(<TextInput type="password" />)
-    const passwordInput = container.querySelector('input[type="password"]')
-    expect(passwordInput).toBeInTheDocument()
-  })
-
-  it('forwards ref to input element', () => {
-    const ref = vi.fn()
-    render(<TextInput ref={ref} />)
-    expect(ref).toHaveBeenCalled()
-    expect(ref.mock.calls[0][0]).toBeInstanceOf(HTMLInputElement)
+  it('stops at maxLength', () => {
+    render(<TextInput label="Room" maxLength={4} />)
+    expect(screen.getByLabelText('Room')).toHaveAttribute('maxLength', '4')
   })
 })

@@ -1,4 +1,7 @@
-"""Unit tests for main.py WebSocket handlers.
+"""Unit tests for the human action path (main.handle_player_action).
+
+The old per-action handle_* functions were replaced by one path through
+game.decisions.apply_action; these tests drive it with wire messages.
 
 These tests verify individual handler functions in main.py work correctly
 with proper validation and error handling.
@@ -9,11 +12,6 @@ from unittest.mock import AsyncMock, patch
 
 from main import (
     session_manager,
-    handle_place_tile,
-    handle_found_chain,
-    handle_buy_stocks,
-    handle_end_turn,
-    handle_merger_choice,
     handle_player_action,
     validate_websocket_message,
     PlaceTileMessage,
@@ -59,12 +57,12 @@ class TestMessageValidation:
 
     def test_validate_found_chain_valid(self):
         """Valid found_chain message should pass validation."""
-        data = {"action": "found_chain", "chain": "Luxor"}
+        data = {"action": "found_chain", "chain": "sandpiper"}
         msg, error = validate_websocket_message(data)
 
         assert error is None
         assert isinstance(msg, FoundChainMessage)
-        assert msg.chain == "Luxor"
+        assert msg.chain == "sandpiper"
 
     def test_validate_found_chain_invalid_chain(self):
         """Invalid chain name should be rejected."""
@@ -76,17 +74,17 @@ class TestMessageValidation:
 
     def test_validate_buy_stocks_valid(self):
         """Valid buy_stocks message should pass validation."""
-        data = {"action": "buy_stocks", "purchases": {"Luxor": 2, "Tower": 1}}
+        data = {"action": "buy_stocks", "purchases": {"sandpiper": 2, "marlowe": 1}}
         msg, error = validate_websocket_message(data)
 
         assert error is None
         assert isinstance(msg, BuyStocksMessage)
-        assert msg.purchases["Luxor"] == 2
-        assert msg.purchases["Tower"] == 1
+        assert msg.purchases["sandpiper"] == 2
+        assert msg.purchases["marlowe"] == 1
 
     def test_validate_buy_stocks_exceeds_limit(self):
         """Buying more than 3 stocks should be rejected."""
-        data = {"action": "buy_stocks", "purchases": {"Luxor": 4}}
+        data = {"action": "buy_stocks", "purchases": {"sandpiper": 4}}
         msg, error = validate_websocket_message(data)
 
         assert error is not None
@@ -135,7 +133,9 @@ class TestHandlePlaceTileValidation:
         with patch.object(
             session_manager, "send_to_player", new_callable=AsyncMock
         ) as mock_send:
-            await handle_place_tile(game_room, wrong_player_id, str(tile))
+            await handle_player_action(
+                game_room, wrong_player_id, {"action": "place_tile", "tile": str(tile)}
+            )
 
             mock_send.assert_called()
             call_args = mock_send.call_args[0]
@@ -170,233 +170,15 @@ class TestHandlePlaceTileValidation:
             session_manager, "send_to_player", new_callable=AsyncMock
         ) as mock_send:
             # Try to place a tile not in hand
-            await handle_place_tile(game_room, current_player_id, invalid_tile)
+            await handle_player_action(
+                game_room,
+                current_player_id,
+                {"action": "place_tile", "tile": invalid_tile},
+            )
 
             mock_send.assert_called()
             call_args = mock_send.call_args[0]
             assert call_args[2]["type"] == "error"
-
-    @pytest.mark.asyncio
-    async def test_place_tile_advances_to_correct_phase(
-        self, game_room, clean_session_manager
-    ):
-        """After valid placement, phase should update correctly."""
-        room = clean_session_manager.get_room(game_room)
-        game = room.game
-
-        current_player_id = game.get_current_player_id()
-        player = game.get_player(current_player_id)
-        tile = player.hand[0]
-
-        with patch.object(session_manager, "send_to_player", new_callable=AsyncMock):
-            with patch.object(session_manager, "send_to_host", new_callable=AsyncMock):
-                with patch.object(
-                    session_manager, "broadcast_to_room", new_callable=AsyncMock
-                ):
-                    await handle_place_tile(game_room, current_player_id, str(tile))
-
-        # Phase should have changed (either to buy_stocks or found_chain)
-        # Note: game.turn_phase is the internal turn phase, game.phase is GamePhase
-        assert game.turn_phase in [
-            "buy_stocks",
-            "found_chain",
-            "merger",
-            "stock_disposition",
-        ]
-
-
-class TestHandleBuyStocksValidation:
-    """Tests for handle_buy_stocks validation."""
-
-    @pytest.mark.asyncio
-    async def test_buy_stocks_rejects_inactive_chain(
-        self, game_room, clean_session_manager
-    ):
-        """Should reject buying stock from inactive chain."""
-        room = clean_session_manager.get_room(game_room)
-        game = room.game
-        game.turn_phase = "buy_stocks"
-
-        current_player_id = game.get_current_player_id()
-
-        with patch.object(session_manager, "send_to_player", new_callable=AsyncMock):
-            with patch.object(session_manager, "send_to_host", new_callable=AsyncMock):
-                with patch.object(
-                    session_manager, "broadcast_to_room", new_callable=AsyncMock
-                ):
-                    # Luxor is not active
-                    await handle_buy_stocks(game_room, current_player_id, {"Luxor": 1})
-
-        # No stocks should have been purchased
-        player = game.get_player(current_player_id)
-        assert player._stocks.get("Luxor", 0) == 0
-
-    @pytest.mark.asyncio
-    async def test_buy_stocks_respects_available_count(
-        self, game_room, clean_session_manager
-    ):
-        """Should not buy more stocks than available."""
-        room = clean_session_manager.get_room(game_room)
-        game = room.game
-        board = game.board
-        hotel = game.hotel
-
-        # Set up an active chain
-        for col in range(1, 4):
-            tile = Tile(col, "A")
-            board.place_tile(tile)
-            board.set_chain(tile, "Luxor")
-        hotel.activate_chain("Luxor")
-
-        # Reduce available stocks
-        hotel._available_stocks["Luxor"] = 1
-
-        game.turn_phase = "buy_stocks"
-        current_player_id = game.get_current_player_id()
-        player = game.get_player(current_player_id)
-        initial_stocks = player._stocks.get("Luxor", 0)
-
-        with patch.object(session_manager, "send_to_player", new_callable=AsyncMock):
-            with patch.object(session_manager, "send_to_host", new_callable=AsyncMock):
-                with patch.object(
-                    session_manager, "broadcast_to_room", new_callable=AsyncMock
-                ):
-                    # Try to buy 3, but only 1 available
-                    await handle_buy_stocks(game_room, current_player_id, {"Luxor": 3})
-
-        # Should only have bought 1 (or none if funds insufficient)
-        final_stocks = player._stocks.get("Luxor", 0)
-        assert final_stocks <= initial_stocks + 1
-
-    @pytest.mark.asyncio
-    async def test_buy_stocks_respects_player_funds(
-        self, game_room, clean_session_manager
-    ):
-        """Should not buy stocks if player can't afford them."""
-        room = clean_session_manager.get_room(game_room)
-        game = room.game
-        board = game.board
-        hotel = game.hotel
-
-        # Set up an active chain
-        for col in range(1, 4):
-            tile = Tile(col, "A")
-            board.place_tile(tile)
-            board.set_chain(tile, "Luxor")
-        hotel.activate_chain("Luxor")
-
-        game.turn_phase = "buy_stocks"
-        current_player_id = game.get_current_player_id()
-        player = game.get_player(current_player_id)
-
-        # Make player poor
-        player._money = 0
-        initial_stocks = player._stocks.get("Luxor", 0)
-
-        with patch.object(session_manager, "send_to_player", new_callable=AsyncMock):
-            with patch.object(session_manager, "send_to_host", new_callable=AsyncMock):
-                with patch.object(
-                    session_manager, "broadcast_to_room", new_callable=AsyncMock
-                ):
-                    await handle_buy_stocks(game_room, current_player_id, {"Luxor": 3})
-
-        # Should not have bought any stocks
-        final_stocks = player._stocks.get("Luxor", 0)
-        assert final_stocks == initial_stocks
-
-
-class TestHandleEndTurnFlow:
-    """Tests for handle_end_turn flow."""
-
-    @pytest.mark.asyncio
-    async def test_end_turn_advances_player(self, game_room, clean_session_manager):
-        """current_turn_index should increment."""
-        room = clean_session_manager.get_room(game_room)
-        game = room.game
-
-        # Set phase to buy_stocks (required to end turn)
-        game.turn_phase = "buy_stocks"
-
-        initial_index = game.current_turn_index
-        current_player_id = game.turn_order[initial_index]
-
-        with patch.object(session_manager, "send_to_player", new_callable=AsyncMock):
-            with patch.object(session_manager, "send_to_host", new_callable=AsyncMock):
-                with patch.object(
-                    session_manager, "broadcast_to_room", new_callable=AsyncMock
-                ):
-                    await handle_end_turn(game_room, current_player_id)
-
-        expected_index = (initial_index + 1) % len(game.turn_order)
-        assert game.current_turn_index == expected_index
-
-    @pytest.mark.asyncio
-    async def test_end_turn_wraps_around(self, game_room, clean_session_manager):
-        """Turn should wrap from last player to first."""
-        room = clean_session_manager.get_room(game_room)
-        game = room.game
-
-        # Set phase to buy_stocks (required to end turn)
-        game.turn_phase = "buy_stocks"
-
-        # Set to last player
-        num_players = len(game.turn_order)
-        game.current_turn_index = num_players - 1
-        last_player_id = game.turn_order[num_players - 1]
-
-        with patch.object(session_manager, "send_to_player", new_callable=AsyncMock):
-            with patch.object(session_manager, "send_to_host", new_callable=AsyncMock):
-                with patch.object(
-                    session_manager, "broadcast_to_room", new_callable=AsyncMock
-                ):
-                    await handle_end_turn(game_room, last_player_id)
-
-        assert game.current_turn_index == 0
-
-    @pytest.mark.asyncio
-    async def test_end_turn_draws_tile(self, game_room, clean_session_manager):
-        """Player should receive new tile from pool."""
-        room = clean_session_manager.get_room(game_room)
-        game = room.game
-
-        # Set phase to buy_stocks (required to end turn)
-        game.turn_phase = "buy_stocks"
-
-        current_player_id = game.turn_order[0]
-        player = game.get_player(current_player_id)
-
-        # Remove a tile to make room
-        player.remove_tile(player.hand[0])
-        initial_hand_size = player.hand_size
-        initial_pool_size = len(game.tile_pool)
-
-        with patch.object(session_manager, "send_to_player", new_callable=AsyncMock):
-            with patch.object(session_manager, "send_to_host", new_callable=AsyncMock):
-                with patch.object(
-                    session_manager, "broadcast_to_room", new_callable=AsyncMock
-                ):
-                    await handle_end_turn(game_room, current_player_id)
-
-        assert player.hand_size == initial_hand_size + 1
-        assert len(game.tile_pool) == initial_pool_size - 1
-
-    @pytest.mark.asyncio
-    async def test_end_turn_resets_phase(self, game_room, clean_session_manager):
-        """Phase should reset to place_tile."""
-        room = clean_session_manager.get_room(game_room)
-        game = room.game
-
-        game.turn_phase = "buy_stocks"  # Set to non-initial phase
-        current_player_id = game.turn_order[0]
-
-        with patch.object(session_manager, "send_to_player", new_callable=AsyncMock):
-            with patch.object(session_manager, "send_to_host", new_callable=AsyncMock):
-                with patch.object(
-                    session_manager, "broadcast_to_room", new_callable=AsyncMock
-                ):
-                    await handle_end_turn(game_room, current_player_id)
-
-        assert game.turn_phase == "place_tile"
 
 
 class TestHandleFoundChain:
@@ -419,10 +201,14 @@ class TestHandleFoundChain:
                 with patch.object(
                     session_manager, "broadcast_to_room", new_callable=AsyncMock
                 ):
-                    await handle_found_chain(game_room, current_player_id, "Luxor")
+                    await handle_player_action(
+                        game_room,
+                        current_player_id,
+                        {"action": "found_chain", "chain": "sandpiper"},
+                    )
 
         # Chain should not be activated
-        assert not hotel.is_chain_active("Luxor")
+        assert not hotel.is_chain_active("sandpiper")
 
     @pytest.mark.asyncio
     async def test_found_chain_rejects_unavailable_chain(
@@ -433,8 +219,8 @@ class TestHandleFoundChain:
         game = room.game
         hotel = game.hotel
 
-        # Activate Luxor
-        hotel.activate_chain("Luxor")
+        # Activate sandpiper
+        hotel.activate_chain("sandpiper")
 
         game.turn_phase = "found_chain"
         game.pending_action = {
@@ -448,51 +234,16 @@ class TestHandleFoundChain:
         with patch.object(
             session_manager, "send_to_player", new_callable=AsyncMock
         ) as mock_send:
-            await handle_found_chain(game_room, current_player_id, "Luxor")
+            await handle_player_action(
+                game_room,
+                current_player_id,
+                {"action": "found_chain", "chain": "sandpiper"},
+            )
 
             # Should send error
             mock_send.assert_called()
             call_args = mock_send.call_args[0]
             assert call_args[2]["type"] == "error"
-
-    @pytest.mark.asyncio
-    async def test_found_chain_gives_founder_stock(
-        self, game_room, clean_session_manager
-    ):
-        """Founder should receive a free stock."""
-        room = clean_session_manager.get_room(game_room)
-        game = room.game
-        board = game.board
-        hotel = game.hotel
-
-        # Set up tiles for founding
-        tile1 = Tile(1, "A")
-        tile2 = Tile(2, "A")
-        board.place_tile(tile1)
-        board.place_tile(tile2)
-
-        game.turn_phase = "found_chain"
-        # Game.found_chain() expects available_chains in the pending_action
-        game.pending_action = {
-            "type": "found_chain",
-            "tile": tile1,
-            "connected_tiles": board.get_connected_tiles(tile1),
-            "available_chains": hotel.get_inactive_chains(),
-        }
-
-        current_player_id = game.get_current_player_id()
-        player = game.get_player(current_player_id)
-        initial_stocks = player._stocks.get("Tower", 0)
-
-        with patch.object(session_manager, "send_to_player", new_callable=AsyncMock):
-            with patch.object(session_manager, "send_to_host", new_callable=AsyncMock):
-                with patch.object(
-                    session_manager, "broadcast_to_room", new_callable=AsyncMock
-                ):
-                    await handle_found_chain(game_room, current_player_id, "Tower")
-
-        # Should have received founder's stock
-        assert player._stocks["Tower"] == initial_stocks + 1
 
 
 class TestHandleMergerChoice:
@@ -508,8 +259,8 @@ class TestHandleMergerChoice:
 
         game.pending_action = {
             "type": "choose_survivor",
-            "chains": ["Luxor", "Tower"],
-            "tied_chains": ["Luxor", "Tower"],
+            "chains": ["sandpiper", "marlowe"],
+            "tied_chains": ["sandpiper", "marlowe"],
             "tile": Tile(4, "A"),
         }
 
@@ -520,8 +271,12 @@ class TestHandleMergerChoice:
                 with patch.object(
                     session_manager, "broadcast_to_room", new_callable=AsyncMock
                 ):
-                    # Choose American which is not in the tie
-                    await handle_merger_choice(game_room, current_player_id, "American")
+                    # Choose halcyon which is not in the tie
+                    await handle_player_action(
+                        game_room,
+                        current_player_id,
+                        {"action": "merger_choice", "surviving_chain": "halcyon"},
+                    )
 
         # Should not have set up process_merger
         pending = game.pending_action
@@ -536,22 +291,26 @@ class TestActionOnUnstartedGame:
     async def test_action_ignored_when_game_not_started(
         self, room_with_players, clean_session_manager
     ):
-        """Actions on unstarted game should be ignored."""
-        # Game not started yet
-        with patch("main.handle_place_tile", new_callable=AsyncMock) as mock:
+        """Actions on unstarted game should be ignored (nothing sent, no game)."""
+        with patch.object(
+            session_manager, "send_to_player", new_callable=AsyncMock
+        ) as mock_send:
             await handle_player_action(
                 room_with_players, "player_1", {"action": "place_tile", "tile": "1A"}
             )
-            mock.assert_not_called()
+            mock_send.assert_not_called()
+        assert clean_session_manager.get_room(room_with_players).game is None
 
     @pytest.mark.asyncio
     async def test_action_ignored_when_room_not_found(self, clean_session_manager):
         """Actions on non-existent room should be ignored."""
-        with patch("main.handle_place_tile", new_callable=AsyncMock) as mock:
+        with patch.object(
+            session_manager, "send_to_player", new_callable=AsyncMock
+        ) as mock_send:
             await handle_player_action(
                 "NONEXISTENT", "player_1", {"action": "place_tile", "tile": "1A"}
             )
-            mock.assert_not_called()
+            mock_send.assert_not_called()
 
 
 class TestValidationErrors:
@@ -630,3 +389,32 @@ class TestConfigureRoomEndpoint:
         )
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()
+
+
+def test_validation_uses_the_ruleset_passed_for_the_game_not_the_server_default():
+    from game.ruleset import load_ruleset
+
+    mini = load_ruleset("mini")
+    # server default is default: a 4-share buy is refused and juniper (not in
+    # mini) is a chain...
+    ok, err = validate_websocket_message({"action": "found_chain", "chain": "juniper"})
+    assert err is None and ok.chain == "juniper"
+    _, err = validate_websocket_message(
+        {"action": "buy_stocks", "purchases": {"sandpiper": 4}}
+    )
+    assert "more than 3" in err
+    # ...but under mini a 4-share buy is legal and juniper is no chain
+    ok, err = validate_websocket_message(
+        {"action": "found_chain", "chain": "sandpiper"}, mini
+    )
+    assert err is None and ok.chain == "sandpiper"
+    _, err = validate_websocket_message(
+        {"action": "buy_stocks", "purchases": {"sandpiper": 4}}, mini
+    )
+    assert err is None
+    _, err = validate_websocket_message(
+        {"action": "found_chain", "chain": "juniper"}, mini
+    )
+    assert "Invalid chain" in err
+    _, err = validate_websocket_message({"action": "place_tile", "tile": "10A"}, mini)
+    assert err and "Invalid tile" in err

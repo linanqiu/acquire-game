@@ -1,6 +1,31 @@
-# Acquire Product Roadmap
+# Buyout Product Roadmap
 
 > A structured roadmap enabling parallel development by multiple Claude sessions.
+
+## Direction (owner decisions, 2026-11-14)
+
+1. **No rebuild.** Keep the rules engine (backend suite: 1,090 tests, 12 s without the `slow` ones, about 2 min with them). Rebuild the seam between the engine
+   and everything that drives it ([Epic 10](epics/10-engine-seam.md)). Contract:
+   [docs/architecture/seat-contract.md](../architecture/seat-contract.md).
+2. **A seat is a human, an LLM, a heuristic bot, or a scripted player.** The engine cannot tell
+   which. Mechanistic RL is dropped for good; LLM opponents are first-class
+   ([Epic 9](epics/09-llm-bot.md)).
+3. **Player-to-player trading stays**, including for LLM seats.
+4. **Complete game transcripts** for every game, live and benchmark, including what each AI seat
+   was shown and what it answered ([Epic 12](epics/12-bench.md)). Users can browse and
+   replay finished games.
+5. **Buyout Bench is a product**: a versioned, standalone-runnable benchmark of models playing
+   each other and the rules-based baseline, with a public leaderboard that links to transcripts
+   ([Epic 12](epics/12-bench.md)).
+6. **LLM failures are retried, then visible**: an illegal move goes back to the model (default up
+   to 4 retries); only timeout, provider error or exhausted retries hand that decision to the
+   rules-based player, and everyone at the table is told. LLM opponents can be picked only when
+   their API key is configured.
+7. **One Railway service**, single replica; transcripts need a persistent volume to survive
+   redeploys (open item, AB-008).
+8. **Four-tier test pyramid** ([Epic 11](epics/11-test-pyramid.md)). Measured problem: backend tests
+   take 2 s; the Playwright scenario suite (62 tests, about 9,300 lines) did not finish in 10
+   minutes because tests play 20-40 turns through the browser to reach the screen under test.
 
 ## Quick Start for Agents
 
@@ -14,16 +39,23 @@
 
 | Epic | Progress | Available Stories |
 |------|----------|-------------------|
-| [Backend Hardening](epics/00-backend-hardening.md) | 13/13 ✅ | Complete |
-| [Frontend Foundation](epics/01-frontend-foundation.md) | 11/11 ✅ | Complete |
-| [Game UI](epics/02-game-ui.md) | 16/16 ✅ | Complete |
-| [Real-time Integration](epics/03-realtime-integration.md) | 5/6 | RT-004 (optional enhancement) |
-| [AI Training](epics/04-ai-training.md) | superseded | — (scrapped in favor of Epic 9) |
-| [Deployment](epics/05-deployment.md) | 5/5 ✅ | Complete |
-| [Security Hardening](epics/06-security-hardening.md) | 0/5 | SH-002, SH-003, SH-004, SH-005 (after E2E: SH-001) |
-| [Scenario Tests](epics/07-scenario-tests.md) | 9/10 | ST-010 |
-| [Backlog](epics/08-backlog.md) | 4/6 | BL-004, BL-005 |
-| [LLM Bot](epics/09-llm-bot.md) | planning | Stories pending planning report |
+| [Backend Hardening](epics/00-backend-hardening.md) | 13/13 done | Complete |
+| [Frontend Foundation](epics/01-frontend-foundation.md) | 11/11 done | Complete |
+| [Game UI](epics/02-game-ui.md) | 16/16 done | Complete |
+| [Real-time Integration](epics/03-realtime-integration.md) | 5/6 | RT-004 (optional) |
+| [AI Training](epics/04-ai-training.md) | superseded | Dropped; see Epic 9 |
+| [Deployment](epics/05-deployment.md) | 5/5 done | Complete |
+| [Security Hardening](epics/06-security-hardening.md) | 0/5 | SH-002..SH-005 (SH-001 after test pyramid) |
+| [Scenario Tests](epics/07-scenario-tests.md) | 9/10, ST-010 superseded | Strategy replaced by Epic 11; ST-011 flaky-test work is subsumed by TP-007 |
+| [Backlog](epics/08-backlog.md) | 4/6, BL-004 superseded | BL-005 |
+| [LLM Opponents](epics/09-llm-bot.md) | 1/6 (LO-006 harness done; LO-007 superseded) | LO-001..LO-005 partly built; LO-003 needs the 4-retry loop and fallback notice |
+| [Engine Seam](epics/10-engine-seam.md) | 6/6 (ES-001..ES-006) | Complete (fuzz volume: 600 games in the slow tier) |
+| [Test Pyramid](epics/11-test-pyramid.md) | 5/9 (TP-001, TP-004..TP-007) | TP-002, TP-003 partly built; TP-008 workflow written, needs a green PR run; TP-009 (remaining display-state gaps) |
+| [Transcripts & Buyout Bench](epics/12-bench.md) | 0/9 | AB-001..AB-007 in-progress; AB-008 (blocked: volume), AB-009 (blocked: API key) |
+
+Counts checked against the repo on 2026-11-14 (`pytest backend/tests -n auto`: 1,283 passed, 0 xfailed; 1,216 of them in the fast tier).
+A story is counted done only when every acceptance criterion is ticked; the status note at the
+bottom of each in-progress story says what is open.
 
 ## Story Status Key
 
@@ -33,234 +65,128 @@
 | `in-progress` | Being worked on |
 | `blocked` | Waiting on dependencies |
 | `complete` | Done and verified |
-| `superseded` | Scrapped by a pivot; kept for history, do not implement |
+| `superseded` | Scrapped or replaced; kept for history, do not implement |
 
 ## Parallelization Guide
 
-### Independent Tracks (Run Simultaneously)
+```
+Track A: ENGINE SEAM            Track B: SEATS / LLM            Track C: TEST PYRAMID
+────────────────────            ────────────────────            ─────────────────────
+ES-001 decisions + apply        LO-001 providers + catalog      TP-006 coverage map
+   ↓                               (interface only: ES-001)        (skeleton; can start now)
+ES-002 event log                    ↓                           TP-001 snapshot generator
+ES-004 calculator pack          LO-002 prompt builder              (after ES-003)
+ES-003 snapshot/restore         LO-003 decision loop            TP-002 scripted seats
+   ↓                            LO-004 trade responses             (after ES-005, ES-006)
+ES-005 driver + lock            LO-005 lobby UI + thinking      TP-003 protocol suite
+ES-006 test-mode endpoints      LO-006 benchmark harness        TP-004 screen tests
+                                LO-007 observability            TP-005 journeys
+                                                                TP-007 retire old suite
+                                                                TP-008 CI wiring
 
+Track F: TRANSCRIPTS & BUYOUT BENCH (Epic 12)
+──────────────────────────────────────────────
+AB-001 transcript writer  (wants LO-003 attempts data)
+   ↓                 ↘
+AB-002 HTTP API       AB-005 protocol bench-v1
+   ↓                     ↓
+AB-003 viewer UI      AB-004 standalone eval + CI    AB-006 ratings + leaderboard
+                                                        ↓
+                                                     AB-007 leaderboard UI
+AB-008 persistence (blocked: Railway volume)    AB-009 first results (blocked: API key)
+
+Track D: SECURITY (SH-002..005 can start any time; SH-001 after the test pyramid)
+Track E: DEPLOYMENT (done; production deploy waits for security)
 ```
-Track 1: BACKEND → FRONTEND    Track 2: LLM BOT           Track 3: DEPLOYMENT
-───────────────────────────    ─────────────────────      ──────────────────
-BH-001 (Unify State)           Epic 9 (planning) —        DP-001 (Railway)
-BH-007,009,010 (Tests)         supersedes AI-001..009         ↓
-    ↓                          (RL/MCTS scrapped)        DP-002, DP-004
-BH-002,003,004,005,006             ↓                         ↓
-BH-008,011,012 (Tests)         stories TBD from          DP-003, DP-005
-    ↓                          planning report
-FF-001 (Project Setup) ✓
-FF-002 (Design Tokens) ✓
-FF-003 (Typography) ✓
-FF-004 (Colors) ✓
-FF-005 (Layout) ✓
-FF-006 (Button) ✓
-FF-010 (Routing) ✓
-FF-011 (E2E Infrastructure) ✓
-FF-007 (Inputs) ✓
-FF-008 (Modal) ✓
-FF-009 (Toast) ✓
-    ↓
-GU-001, GU-002, GU-003 ✓
-    ↓
-GU-004, GU-005 ✓
-    ↓
-GU-006, GU-008 ✓
-    ↓
-GU-007, GU-009, GU-010 ✓
-    ↓
-GU-011, GU-014, GU-015 ✓
-    ↓
-GU-012, GU-013 ✓ (with placeholder handlers)
-    ↓
-GU-016 (E2E Infrastructure Validation) ✓
-    ↓
-RT-001, RT-002, RT-003, RT-005 (WebSocket core) ✓
-    ↓
-ST-001 (Scenario Test Infrastructure) ✓
-    ↓
-ST-002 to ST-008 (Core Scenario Tests - parallel) ← NEXT
-    ↓
-ST-009 (Edge Cases) → ST-010 (Coverage Report)
-    ↓
-SH-001 ──────────────────────  Track 4: SECURITY (after E2E)
-SH-002, SH-003, SH-004, SH-005 ← can start anytime
-    ↓
-Production Deploy
-```
+
+Tracks A, B, C and F run at the same time (F's AB-001 wants the LO-003 retry loop for the
+`attempts` data; the rest can start from the contract). Within each, follow the dependency column in the epic
+table. B depends on A only through ES-001 (interface), ES-002/004 (prompt inputs), ES-005 (driver).
+C depends on A through ES-003, ES-005 and ES-006.
 
 ### Critical Path
 
 ```
-[DONE] Backend Hardening → [DONE] Frontend Foundation → [DONE] Game UI (GU-001 to GU-016)
-                                                                    ↓
-                                                  [DONE] RT-001/RT-002/RT-003/RT-005 (WebSocket core)
-                                                                    ↓
-                                                  [DONE] ST-001 (Scenario Test Infrastructure)
-                                                                    ↓
-                                                  ST-002 to ST-010 (Scenario Tests) ← YOU ARE HERE
-                                                                    ↓
-                                                  Security → Deploy
+[DONE] Backend Hardening → Frontend Foundation → Game UI → WebSocket core
+                                   ↓
+             Engine seam (Epic 10)  ← mostly built (3/6 complete; others have a few open criteria)
+                                   ↓
+        ┌──────────────────────────┴──────────────────────────┐
+  Seats / LLM opponents (Epic 9)                 Test pyramid (Epic 11)
+  + Transcripts & Buyout Bench (Epic 12)
+        └──────────────────────────┬──────────────────────────┘
+                                   ↓
+                         Security hardening (Epic 6)
+                                   ↓
+                              Production deploy
+                  (AB-008 volume and AB-009 first real benchmark run need the
+                   owner: a Railway volume and an API key)
 ```
-
-> **Note**: GU-012/GU-013 are complete but use placeholder action handlers. They become fully functional after RT-002 integration.
->
-> **E2E Testing Strategy**: Epic 07 (Scenario Tests) provides comprehensive E2E testing after WebSocket integration. ST-001 sets up infrastructure, ST-002-008 test core gameplay scenarios in parallel, ST-009 covers edge cases, and ST-010 generates coverage reports.
 
 ## How to Claim a Story
 
-### Before Starting
-1. Check the story's `Dependencies` - all must be `complete`
-2. Verify no other agent has it `in-progress`
-3. Read the full story file including Implementation Notes
-4. **Important**: Verify actual codebase APIs match story examples (they may be outdated)
+1. Check the story's `Dependencies`; verify no other agent has it `in-progress` (stories of
+   Epics 9-12 are `in-progress` as of 2026-11-14 because they are being implemented now; check the
+   branch/PR before starting one).
+2. Read the story file and the relevant section of the seat contract.
+3. **Verify actual codebase APIs match story examples** (they may be outdated).
+4. Set status to `in-progress`, commit `claim: <STORY-ID> - <title>`.
+5. On completion: tick acceptance criteria, set status `complete`, update the progress table above,
+   commit `<STORY-ID>: <what was implemented>`.
 
-### Claiming Process
-```bash
-# 1. Update story status
-# Edit the story file: change Status from `not-started` to `in-progress`
+### Post-Completion Review
 
-# 2. Commit to claim
-git add docs/roadmap/stories/<epic>/<story>.md
-git commit -m "claim: <STORY-ID> - <title>"
-git push
-```
-
-### Completing a Story
-```bash
-# 1. Verify acceptance criteria are met
-# 2. Run verification commands in story file
-
-# 3. Update story status to complete
-# Edit the story file: change Status to `complete`
-
-# 4. Commit your work
-git add .
-git commit -m "<STORY-ID>: <description of what was implemented>"
-git push
-```
-
-### Post-Completion Review (IMPORTANT)
-
-After completing each story, perform a brief review to identify gaps:
-
-1. **Code Review**: Does the implementation actually meet the spirit of the requirements, not just the letter?
-2. **Integration Gaps**: Will this work with the real backend/frontend? Are types aligned?
-3. **Testing Gaps**: Are there realistic E2E scenarios that weren't covered? Can we test with bots?
-4. **Future Work**: Should a follow-up story be created to address identified gaps?
-
-**Example**: FF-001 set up Playwright but didn't configure it to start the backend, making real E2E tests impossible. This led to creating FF-011 (E2E Testing Infrastructure) to address the gap.
-
-> **Rule**: If a gap is found, create a new story immediately rather than letting technical debt accumulate.
+After each story, check: does it meet the spirit of the requirements; will it work with the real
+backend/frontend; are there testing gaps (real user scenarios, not just code paths); is a follow-up
+story needed? If a gap is found, create the story immediately.
 
 ## Story File Structure
-
-Each story follows this template:
 
 ```markdown
 # [STORY-ID]: [Title]
 
 ## Metadata
 - **Epic**: [Epic Name]
-- **Status**: `not-started` | `in-progress` | `complete`
+- **Status**: `not-started` | `in-progress` | `complete` | `superseded`
 - **Priority**: `critical` | `high` | `medium` | `low`
 - **Effort**: `XS` (<30m) | `S` (30-60m) | `M` (1-2h) | `L` (2-4h)
 - **Dependencies**: [List of story IDs or "None"]
 
 ## Context
-[Why this story exists and how it fits]
-
 ## Requirements
-[What must be built]
-
 ## Acceptance Criteria
 - [ ] [Testable criterion]
-
 ## Implementation Notes
-[Suggested approach, files to create/modify]
-
 ## Verification
-[Commands to verify completion]
 ```
-
-## Effort Estimates
-
-| Effort | Time | Typical Scope |
-|--------|------|---------------|
-| XS | <30 min | Single file change, config update |
-| S | 30-60 min | Single component, simple feature |
-| M | 1-2 hours | Multi-file feature, moderate complexity |
-| L | 2-4 hours | Complex feature, multiple components |
 
 ## Epic Overview
 
-### Epic 0: Backend Hardening (13 stories) ✅ COMPLETE
-Fixed critical architecture issues and added comprehensive tests.
-- **Tech**: Python, pytest, FastAPI
-- **Result**: 645 tests (up from 365), unified state management, frontend-ready APIs
-- **Next**: Frontend Foundation is now unblocked
-
-### Epic 1: Frontend Foundation (11 stories) ✅ COMPLETE
-Setup React + TypeScript project with design system components.
-- **Tech**: Vite, React 18, TypeScript, CSS Variables
-- **Result**: Complete design system with typography, colors, layout components, forms, modals, toasts
-- **Next**: Game UI is now unblocked
-
-### Epic 2: Game UI (16 stories) ✅ COMPLETE
-Build all game-specific UI components and pages.
-- **Tech**: React components, game state integration, Playwright E2E tests
-- **Complete**: GU-001 (Lobby Page), GU-002 (Board), GU-003 (Tile), GU-004 (Tile Rack), GU-005 (Chain Marker), GU-006 (Player Card), GU-007 (Portfolio Display), GU-008 (Stock Stepper), GU-009 (Chain Selector), GU-010 (Merger Disposition), GU-011 (Trade Builder), GU-012 (Player View Shell), GU-013 (Host View Layout), GU-014 (Game Over Screen), GU-015 (Reconnection UI), GU-016 (E2E Infrastructure Validation)
-- **Next**: Epic 7 (Scenario Tests) provides comprehensive E2E testing
-
-### Epic 3: Real-time Integration (6 stories)
-WebSocket client and state synchronization.
-- **Tech**: WebSocket, Zustand, message handlers
-- **Start**: RT-001, RT-002 (after FF-001)
-
-### Epic 4: AI Training (superseded)
-Neural network bots and training pipeline. **Scrapped 2026-07-13** — training an RL/MCTS
-pipeline isn't worth it versus prompting a strong general LLM. See Epic 9.
-- **Superseded by**: [Epic 9: LLM Bot](epics/09-llm-bot.md)
-
-### Epic 5: Deployment (5 stories)
-Production deployment and monitoring.
-- **Tech**: Railway, Docker, logging
-- **Start**: DP-001 (fully independent)
-
-### Epic 6: Security Hardening (5 stories)
-Harden API security before production.
-- **Tech**: CORS, rate limiting, input validation, session tokens
-- **Start**: SH-002, SH-003, SH-004, SH-005 (independent); SH-001 after E2E
-- **Note**: Must complete before production deployment
-
-### Epic 7: Scenario Test Automation (10 stories)
-Full E2E scenario testing with screenshots as proof.
-- **Tech**: Playwright, screenshot capture, real server testing
-- **Philosophy**: "If there's no screenshot, it didn't happen."
-- **Start**: ST-001 after RT-001/RT-002 (WebSocket integration required)
-- **Parallel**: ST-002 to ST-008 can run simultaneously after ST-001
-- **Coverage**: All 124 documented game scenarios
-
-### Epic 8: Backlog
-Feature ideas and improvements discovered during app use.
-- **Purpose**: Capture ideas that emerge during gameplay or development
-- **Prefix**: BL-XXX
-- **Priority**: Items start as `low`, promote when ready to implement
-
-### Epic 9: LLM Bot (planning)
-LLM-agent bot replacing the RL/MCTS plan: prompt a strong model with the public event log,
-a deterministic "calculator pack" of exact figures derivable from public info, and the legal
-moves; the model applies judgment and returns a structured move. Swappable between Claude Opus,
-Claude Fable, and GLM-5.2, with fallback to the existing simple bot so games never stall.
-- **Tech**: Python, provider adapter (Anthropic + OpenAI-compatible), structured outputs
-- **Prefix**: LB-XXX
-- **Start**: stories pending planning report; BL-004 (event log) is a natural prerequisite
+| Epic | Summary |
+|------|---------|
+| 0 Backend Hardening | Unified state, 645 tests, frontend-ready APIs. Done. |
+| 1 Frontend Foundation | Vite, React 18, TypeScript, design system. Done. |
+| 2 Game UI | All game components and pages. Done. |
+| 3 Real-time Integration | WebSocket client and state sync. RT-004 optional. |
+| 4 AI Training | RL/MCTS pipeline. Superseded; dropped for good. |
+| 5 Deployment | Railway, Docker, logging. Done. |
+| 6 Security Hardening | CORS, rate limiting, validation, session tokens. Must finish before production deploy. |
+| 7 Scenario Tests | Browser suite from the first strategy. Replaced by Epic 11; ST-001..009 kept as history and for reusable helpers. |
+| 8 Backlog | Ideas discovered in use (BL-XXX). |
+| 9 LLM Opponents | LLM seats: provider adapters, prompt builder, decision loop with validate/retry/fallback (visible), trading, lobby UI, benchmark harness. Observability moved to Epic 12. |
+| 10 Engine Seam | Decisions API, single apply entry point, event log, snapshots, calculator pack, seat driver, test-mode endpoints. |
+| 11 Test Pyramid | Engine, protocol, screen (snapshots), journey (home page) tiers; surface coverage map. |
+| 12 Transcripts & Buyout Bench | Transcript of every game (prompts, answers, retries, fallbacks), redacted HTTP API, replay viewer, standalone versioned benchmark `bench-v1`, ratings, leaderboard page, persistence, first results. |
 
 ## Reference Documentation
 
 | Document | Purpose |
 |----------|---------|
+| [docs/architecture/seat-contract.md](../architecture/seat-contract.md) | Seat/engine contract (authoritative) |
+| [docs/ai/benchmarking.md](../ai/benchmarking.md) | Buyout Bench: how to run, read and extend it |
+| [docs/tests/surface-coverage.md](../tests/surface-coverage.md) | Which test covers which user-visible surface |
 | [docs/ui/storyboard.md](../ui/storyboard.md) | Complete UI specification |
 | [docs/ui/design-system.md](../ui/design-system.md) | Colors, typography, spacing |
 | [docs/ui/components.md](../ui/components.md) | Component props and structure |
-| [docs/ai/ROADMAP.md](../ai/ROADMAP.md) | AI training phases |
 | [docs/rules/](../rules/) | Game rules reference |
+| [docs/ai/ROADMAP.md](../ai/ROADMAP.md) | Historical (RL phases, superseded) |

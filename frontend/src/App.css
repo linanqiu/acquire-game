@@ -1,7 +1,14 @@
 #root {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1rem 2rem;
+}
+
+/* Phones: every pixel of width goes to the board and controls */
+@media (max-width: 600px) {
+  #root {
+    padding: 0;
+  }
 }
 
 .page {

@@ -1,6 +1,6 @@
-# Acquire UI Components
+# Buyout UI Components
 
-> Reusable component specifications for the Acquire frontend.
+> Reusable component specifications for the Buyout frontend.
 
 ---
 
@@ -239,7 +239,7 @@ Visual indicator for a hotel chain.
 
 **Structure (Full):**
 ```
-[B] AMERICAN  8 tiles  $700/share  [15]
+[B] HALCYON  8 tiles  $700/share  [15]
 ```
 
 **Props:**
@@ -683,7 +683,7 @@ Grid for selecting a chain (founding, survivor choice).
 ## Shared Types
 
 ```typescript
-type ChainName = 'luxor' | 'tower' | 'american' | 'festival' | 'worldwide' | 'continental' | 'imperial';
+type ChainName = 'sandpiper' | 'marlowe' | 'halcyon' | 'juniper' | 'meridian' | 'aurelia' | 'obsidian';
 
 type Coordinate = string; // "1A" through "12I"
 

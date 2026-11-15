@@ -1,18 +1,50 @@
-.board {
-  display: inline-block;
-  background-color: var(--bg-tertiary);
-  padding: var(--space-2);
-  border-radius: var(--radius-md);
-}
-
-.header,
-.row {
+/*
+ * Board geometry is data: `--cols` / `--rows` come from the ruleset (set inline by Board.tsx).
+ * The frame is a size container; each square is as large as the frame's width allows
+ * (and `--board-max-height`, which pages may set), clamped to [--cell-min, --cell-max].
+ */
+.frame {
+  container-type: inline-size;
+  width: 100%;
+  min-width: 0;
   display: flex;
-  gap: 2px;
+  justify-content: center;
 }
 
-.header {
-  margin-bottom: 2px;
+.sm {
+  --cell-min: 10px;
+  --cell-max: 22px;
+}
+
+.md {
+  --cell-min: 14px;
+  --cell-max: 44px;
+}
+
+.lg {
+  --cell-min: 16px;
+  --cell-max: 64px;
+}
+
+.board {
+  --label: 1.1rem;
+  --gap: 2px;
+  --pad: var(--space-2);
+  --fit-w: calc((100cqw - var(--label) - 2 * var(--pad) - var(--gap) * var(--cols)) / var(--cols));
+  --fit-h: calc(
+    (var(--board-max-height, 400vh) - var(--label) - 2 * var(--pad) - var(--gap) * var(--rows)) /
+      var(--rows)
+  );
+  --cell: max(var(--cell-min), min(var(--cell-max), var(--fit-w), var(--fit-h)));
+
+  display: grid;
+  grid-template-columns: var(--label) repeat(var(--cols), var(--cell));
+  grid-template-rows: var(--label) repeat(var(--rows), var(--cell));
+  gap: var(--gap);
+  padding: var(--pad);
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  box-sizing: border-box;
 }
 
 .corner,
@@ -23,61 +55,15 @@
   justify-content: center;
   color: var(--text-secondary);
   font-family: var(--font-primary);
-  flex-shrink: 0;
+  font-size: clamp(8px, calc(var(--cell) * 0.32), var(--text-sm));
+  line-height: 1;
+  min-width: 0;
 }
 
-/* Size variants for labels */
-.sm .corner,
-.sm .rowLabel {
-  width: 16px;
-  height: 20px;
-  font-size: var(--text-xs);
-}
-
-.sm .colLabel {
-  width: 20px;
-  height: 16px;
-  font-size: var(--text-xs);
-}
-
-.sm .row {
-  gap: 2px;
-}
-
-.md .corner,
-.md .rowLabel {
-  width: 20px;
-  height: 28px;
-  font-size: var(--text-xs);
-}
-
-.md .colLabel {
-  width: 28px;
-  height: 20px;
-  font-size: var(--text-xs);
-}
-
-.lg .corner,
-.lg .rowLabel {
-  width: 28px;
-  height: 40px;
-  font-size: var(--text-sm);
-}
-
-.lg .colLabel {
-  width: 40px;
-  height: 28px;
-  font-size: var(--text-sm);
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
+@media (max-width: 480px) {
   .board {
-    padding: var(--space-1);
-  }
-
-  .header,
-  .row {
-    gap: 1px;
+    --gap: 1px;
+    --pad: var(--space-1);
+    --label: 0.9rem;
   }
 }

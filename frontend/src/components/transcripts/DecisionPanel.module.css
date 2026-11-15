@@ -1,0 +1,118 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-secondary);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-md);
+  letter-spacing: 0.1em;
+  color: var(--text-accent);
+}
+
+.of,
+.turn {
+  color: var(--text-secondary);
+  font-weight: var(--font-normal);
+}
+
+.who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+.kind {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.latency {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin-left: auto;
+}
+
+.h4 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+}
+
+.muted {
+  margin: 0 0 var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--line-height-normal);
+}
+
+.chosenLine {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  color: var(--text-positive);
+  overflow-wrap: anywhere;
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.option {
+  font-size: var(--text-xs);
+  padding: 2px var(--space-2);
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.chosen {
+  color: var(--text-positive);
+  border-color: var(--text-positive);
+  font-weight: var(--font-bold);
+}
+
+.fallback {
+  padding: var(--space-3);
+  border: 2px solid var(--text-negative);
+  border-radius: var(--radius-md);
+  background: rgba(255, 107, 107, 0.12);
+  color: var(--text-primary);
+  font-size: var(--text-md);
+  line-height: var(--line-height-normal);
+}
+
+.fallback strong {
+  color: var(--text-negative);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.reason {
+  color: var(--text-negative);
+  font-weight: var(--font-bold);
+}
+
+.fbMessage {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
