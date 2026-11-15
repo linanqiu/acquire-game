@@ -244,6 +244,9 @@ export function PlayerPage() {
   const seenTradeSeq = useRef(lastTradeEvent?.seq ?? 0)
   useEffect(() => {
     if (!lastTradeEvent || lastTradeEvent.seq <= seenTradeSeq.current) return
+    // A trade can resolve before the first game state arrives (an AI seat
+    // answers at once). Wait for the state so the toast can name the player.
+    if (!gameState) return
     seenTradeSeq.current = lastTradeEvent.seq
     if (!myPlayerId) return
     const nameOf = (id?: string) => (id && gameState?.players[id]?.name) || 'Someone'
