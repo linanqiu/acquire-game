@@ -195,3 +195,45 @@
   outline: 2px solid var(--text-accent);
   outline-offset: 2px;
 }
+
+/*
+ * Motion (Tile.tsx sets data-anim): a placed tile settles in; a square changing chain sweeps
+ * from its old colour (--chain-prev) to the new one, left to right across the board. Under
+ * 300 ms each, and none at all under prefers-reduced-motion.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .tile[data-anim='place'] {
+    animation: settle 220ms var(--ease-out);
+  }
+
+  .tile[data-anim='sweep']::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-color: var(--chain-prev);
+    pointer-events: none;
+    animation: sweep 200ms var(--ease-default) both;
+    animation-delay: calc(var(--sweep-col, 0) * 6ms);
+  }
+}
+
+@keyframes settle {
+  from {
+    transform: scale(0.7);
+    opacity: 0.3;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes sweep {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 100%);
+  }
+}

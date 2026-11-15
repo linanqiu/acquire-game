@@ -113,3 +113,41 @@ video {
   background-color: var(--selection-bg);
   color: var(--text-accent);
 }
+
+/* ==========================================================================
+   Motion
+   Short, explanatory, and none at all under prefers-reduced-motion.
+   ========================================================================== */
+
+/* A number that changed (cash, net worth; hooks/useChangeFlash). */
+@media (prefers-reduced-motion: no-preference) {
+  [data-flash='up'] {
+    animation: flash-up 280ms var(--ease-out);
+  }
+
+  [data-flash='down'] {
+    animation: flash-down 280ms var(--ease-out);
+  }
+}
+
+@keyframes flash-up {
+  from {
+    background-color: var(--flash-up);
+  }
+}
+
+@keyframes flash-down {
+  from {
+    background-color: var(--flash-down);
+  }
+}
+
+/* Transitions shrink to nothing for people who ask for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

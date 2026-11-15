@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import styles from './Tile.module.css'
 import type { ChainId } from '../../types/ruleset'
 import type { Coordinate, TileVisualState } from '../../types/game'
@@ -38,6 +39,33 @@ export function Tile({
 }: TileProps) {
   const rules = useRules()
   const inChain = !!chain && chain !== 'orphan'
+  const bg = inChain ? rules.chain(chain).color : chain === 'orphan' ? 'orphan' : null
+
+  // Motion that explains (CSS keyframes in Tile.module.css, only without prefers-reduced-motion):
+  // a tile placed on an empty square settles in; a square whose chain changes (a merger, or an
+  // orphan joining a chain) sweeps from its old colour to the new one, column by column.
+  // Imperative on purpose: a data attribute, no re-render, and nothing on the first paint.
+  const ref = useRef<HTMLDivElement>(null)
+  const prevBg = useRef<string | null | undefined>(undefined)
+  useEffect(() => {
+    const el = ref.current
+    const before = prevBg.current
+    prevBg.current = bg
+    if (!el || before === undefined || before === bg || bg === null) return
+    const kind = before === null ? 'place' : 'sweep'
+    if (kind === 'sweep') {
+      el.style.setProperty('--chain-prev', before === 'orphan' ? 'var(--chain-orphan)' : before)
+      el.style.setProperty('--sweep-col', String(parseInt(coordinate, 10) || 0))
+    }
+    el.removeAttribute('data-anim')
+    void el.offsetWidth // restart the animation if one is still running
+    el.setAttribute('data-anim', kind)
+    const done = (e: AnimationEvent) => {
+      if (e.target === el) el.removeAttribute('data-anim')
+    }
+    el.addEventListener('animationend', done, { once: true })
+    return () => el.removeEventListener('animationend', done)
+  }, [bg, coordinate])
   const chainClass = chain ? (chain === 'orphan' ? styles.orphan : styles.chain) : styles.empty
 
   const classes = [
@@ -67,6 +95,7 @@ export function Tile({
 
   return (
     <div
+      ref={ref}
       className={classes}
       style={
         inChain

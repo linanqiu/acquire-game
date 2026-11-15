@@ -37,6 +37,9 @@
   --turn-accent: #5cc8ff;
   --turn-tint: #183a5c;
   --turn-card: #1a2d52;
+  /* A number that just went up / down (cash, net worth). */
+  --flash-up: rgba(107, 255, 138, 0.35);
+  --flash-down: rgba(255, 107, 107, 0.35);
   --playable-border: rgba(100, 200, 255, 0.65);
   --playable-glow: rgba(100, 200, 255, 0.3);
   --selection-bg: #3d5e8a; /* Text selection highlight */
