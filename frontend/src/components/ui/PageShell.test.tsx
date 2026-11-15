@@ -34,4 +34,25 @@ describe('PageShell', () => {
     expect(screen.queryByTestId('header-title')).not.toBeInTheDocument()
     expect(screen.getByText('content')).toBeInTheDocument()
   })
+
+  it('marks whose move the phase line announces, and nothing outside a turn', () => {
+    const { rerender } = render(
+      <PageShell phase="PLACE A TILE" turn="mine">
+        <p>x</p>
+      </PageShell>
+    )
+    expect(screen.getByRole('status')).toHaveAttribute('data-turn', 'mine')
+    rerender(
+      <PageShell phase="BOB'S TURN" turn="other">
+        <p>x</p>
+      </PageShell>
+    )
+    expect(screen.getByRole('status')).toHaveAttribute('data-turn', 'other')
+    rerender(
+      <PageShell phase="GAME OVER">
+        <p>x</p>
+      </PageShell>
+    )
+    expect(screen.getByRole('status')).not.toHaveAttribute('data-turn')
+  })
 })

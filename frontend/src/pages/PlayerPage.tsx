@@ -417,6 +417,7 @@ export function PlayerPage() {
                 ? dispositionPhaseText(ruleset)
                 : playerPhaseText(ruleset, phase, isMyTurn, currentPlayerName)
         }
+        turn={unavailable || !inGame ? undefined : myDecision ? 'mine' : 'other'}
         roomCode={room}
         cash={myPlayerData?.money}
         netWorth={inGame ? myPlayerData?.net_worth : undefined}

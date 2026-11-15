@@ -348,6 +348,7 @@ export function HostPage() {
       <PageShell
         header={<HostHeader roomCode={room} />}
         phase={hostPhaseText(ruleset, phase, currentPlayerName)}
+        turn="other"
         fill
       >
         {renderGameView()}

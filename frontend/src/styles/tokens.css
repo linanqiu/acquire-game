@@ -33,6 +33,10 @@
   /* Board: empty squares are quiet, playable squares are lit. */
   --board-square: #182241; /* an empty square, a step up from the board */
   --board-coord: #4b5478; /* faint coordinate hint on an empty square */
+  /* "Your turn": the phase bar and the action card when the table waits on the viewer. */
+  --turn-accent: #5cc8ff;
+  --turn-tint: #183a5c;
+  --turn-card: #1a2d52;
   --playable-border: rgba(100, 200, 255, 0.65);
   --playable-glow: rgba(100, 200, 255, 0.3);
   --selection-bg: #3d5e8a; /* Text selection highlight */
