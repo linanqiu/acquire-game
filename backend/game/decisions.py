@@ -55,14 +55,6 @@ ACTION_TYPES = (
     "cancel_trade",
 )
 
-# Actions any player may send regardless of whose decision is pending.
-OUT_OF_TURN_ACTIONS = (
-    "propose_trade",
-    "accept_trade",
-    "reject_trade",
-    "cancel_trade",
-)
-
 
 @dataclass(frozen=True)
 class Decision:
