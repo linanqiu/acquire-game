@@ -87,6 +87,7 @@ def create_app(frontend_dist: str | Path | None = None) -> FastAPI:
     )
     application.add_middleware(RequestLoggingMiddleware)
     application.include_router(health_router)
+    application.include_router(health_router, prefix="/api")
     application.include_router(rooms_router)
     application.include_router(rooms_router, prefix="/api")
     application.include_router(games_router)
