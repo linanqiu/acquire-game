@@ -16,4 +16,6 @@ backend/.env
 docs
 *.md
 backend/tests
-backend/bench
+# Local data written by the app and bench runs (not source code).
+backend/bench_results
+backend/data
