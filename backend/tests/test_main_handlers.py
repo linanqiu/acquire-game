@@ -10,14 +10,14 @@ with proper validation and error handling.
 import pytest
 from unittest.mock import AsyncMock, patch
 
-from main import (
-    session_manager,
-    handle_player_action,
-    validate_websocket_message,
-    PlaceTileMessage,
-    FoundChainMessage,
+from app_state import session_manager
+from lifecycle import handle_player_action
+from protocol import (
     BuyStocksMessage,
     EndTurnMessage,
+    FoundChainMessage,
+    PlaceTileMessage,
+    validate_websocket_message,
 )
 from game.board import Tile
 

@@ -7,12 +7,9 @@ for game flow without requiring a browser.
 import pytest
 from unittest.mock import AsyncMock, patch
 
-from main import (
-    session_manager,
-    initialize_game,
-    handle_player_action,
-    broadcast_game_state,
-)
+from app_state import session_manager
+from broadcast import broadcast_game_state
+from lifecycle import handle_player_action, initialize_game
 from game.game import GamePhase
 
 

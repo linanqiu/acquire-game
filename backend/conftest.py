@@ -22,7 +22,8 @@ if os.environ.get("PYTEST_XDIST_WORKER") or "GAME_BENCH_DIR" not in os.environ:
 os.environ["FRONTEND_DIST"] = os.path.join(tempfile.gettempdir(), "no-frontend-dist")
 from fastapi.testclient import TestClient
 
-from main import app, session_manager
+from app_state import session_manager
+from main import app
 from game.game import Game
 
 
