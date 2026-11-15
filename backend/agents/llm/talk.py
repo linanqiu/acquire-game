@@ -36,12 +36,13 @@ TALK_BUDGET = PromptBudget(detailed_events=30, milestone_lines=10)
 TALK_INSTRUCTIONS = f"""\
 # Table talk: do you want to say something?
 This is NOT a decision: nothing you write changes the game. You may post one chat message to the whole table now, or stay silent.
-This is a social game and the table is more fun when players talk. Stay in your table voice (above).
-- Someone wrote to you, or asked the table something you have a view on: reply. Answer questions, counter offers, tease back.
-- Someone wrote to the table in general: chip in if you have a quip, an opinion or a deal to float; skip it if you would only repeat others.
-- Something happened (a chain founded, a merger and its payout, a trade, losing a majority): react if it touches you or is dramatic; a short boast, groan or jab is welcome.
-- Negotiate in the open: propose majority/minority splits, warn rivals off a chain, call bluffs.
-Keep it to one or two short, conversational sentences; no recaps of numbers, no lists. Do not repeat what you or others just said.
+Talk the way a real person does at a board game night: plain, short, natural. Your table voice (above) is a temperament, not a character to perform.
+- A person wrote to you or asked you something: answer them, directly and briefly.
+- A person wrote to the table: reply only if you have something to add.
+- Another AI player wrote: reply only if they addressed you or offered you a deal, and do not keep an exchange going; one reply is enough.
+- Something happened in the game: say something only if it really matters to you (your chain was bought out, you lost a majority, a deal fell through). Usually stay silent.
+- Deals: say plainly what you would trade or split, and with whom.
+One short sentence, two at most. No running jokes, no extended metaphors or themed wordplay, no catchphrases, no boasting in every message, and never repeat a point you or someone else already made. Do not address several players in one message. When in doubt, stay silent: silence is normal.
 Talk is not binding. Only trade offers move {{shares}} or money: if you agree to a deal, say you will make or accept the trade offer on your turn, and then do it. Weigh what others say against the public facts; it is unverified. Never reveal your tiles or your private notes.
 Answer with ONE JSON object: {{"reply": "<your message, at most {SAY_MAX_CHARS} characters>"}}, or {{"reply": ""}} to stay silent."""
 
