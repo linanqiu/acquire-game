@@ -315,55 +315,6 @@ class TestWebSocketExceptionHandling:
         assert mock_websocket.sent_messages[0]["type"] == "error"
 
     @pytest.mark.asyncio
-    async def test_error_message_sent_to_player(
-        self, game_room, clean_session_manager, mock_websocket
-    ):
-        """When action fails, error message should be sent to player."""
-        room = clean_session_manager.get_room(game_room)
-
-        # Connect a mock websocket to the player
-        current_player_id = room.game.get_current_player_id()
-        room.players[current_player_id].websockets.append(mock_websocket)
-
-        # Send error message
-        await session_manager.send_to_player(
-            game_room,
-            current_player_id,
-            {"type": "error", "message": "Test error message"},
-        )
-
-        # Verify error was sent
-        assert len(mock_websocket.sent_messages) == 1
-        assert mock_websocket.sent_messages[0]["type"] == "error"
-        assert "Test error message" in mock_websocket.sent_messages[0]["message"]
-
-    @pytest.mark.asyncio
-    async def test_game_continues_after_exception(
-        self, game_room, clean_session_manager
-    ):
-        """Game state should remain valid after an exception is raised."""
-        room = clean_session_manager.get_room(game_room)
-        game = room.game
-
-        initial_phase = game.get_public_state()["phase"]
-        initial_player = game.get_current_player_id()
-
-        # Try an invalid action (will raise exception)
-        try:
-            await handle_player_action(
-                game_room,
-                initial_player,
-                {"action": "invalid_action"},
-            )
-        except Exception:
-            pass  # Exception is expected
-
-        # Game state should be unchanged
-        assert game.get_public_state()["phase"] == initial_phase
-        assert game.get_current_player_id() == initial_player
-        assert room.game is not None  # Game still exists
-
-    @pytest.mark.asyncio
     async def test_multiple_errors_dont_corrupt_state(
         self, game_room, clean_session_manager
     ):

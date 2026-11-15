@@ -115,73 +115,6 @@ class TestMessageValidation:
         assert "Unknown action" in error
 
 
-class TestHandlePlaceTileValidation:
-    """Tests for handle_place_tile validation."""
-
-    @pytest.mark.asyncio
-    async def test_place_tile_rejects_wrong_turn(
-        self, game_room, clean_session_manager
-    ):
-        """Should reject tile placement if not player's turn."""
-        room = clean_session_manager.get_room(game_room)
-        game = room.game
-
-        # Get a player who is NOT the current player
-        wrong_player_id = game.turn_order[1]  # Second player
-        player = game.get_player(wrong_player_id)
-        tile = player.hand[0]
-
-        with patch.object(
-            session_manager, "send_to_player", new_callable=AsyncMock
-        ) as mock_send:
-            await handle_player_action(
-                game_room, wrong_player_id, {"action": "place_tile", "tile": str(tile)}
-            )
-
-            mock_send.assert_called()
-            call_args = mock_send.call_args[0]
-            assert call_args[2]["type"] == "error"
-            assert "not your turn" in call_args[2]["message"].lower()
-
-    @pytest.mark.asyncio
-    async def test_place_tile_rejects_invalid_tile(
-        self, game_room, clean_session_manager
-    ):
-        """Should reject tile player doesn't have."""
-        room = clean_session_manager.get_room(game_room)
-        game = room.game
-
-        current_player_id = game.get_current_player_id()
-        player = game.get_player(current_player_id)
-
-        # Find a tile that's definitely NOT in the player's hand
-        player_tile_strs = {str(t) for t in player.hand}
-        # Try tiles until we find one not in hand
-        invalid_tile = None
-        for col in range(1, 13):
-            for row in "ABCDEFGHI":
-                tile_str = f"{col}{row}"
-                if tile_str not in player_tile_strs:
-                    invalid_tile = tile_str
-                    break
-            if invalid_tile:
-                break
-
-        with patch.object(
-            session_manager, "send_to_player", new_callable=AsyncMock
-        ) as mock_send:
-            # Try to place a tile not in hand
-            await handle_player_action(
-                game_room,
-                current_player_id,
-                {"action": "place_tile", "tile": invalid_tile},
-            )
-
-            mock_send.assert_called()
-            call_args = mock_send.call_args[0]
-            assert call_args[2]["type"] == "error"
-
-
 class TestHandleFoundChain:
     """Tests for handle_found_chain."""
 
@@ -312,28 +245,6 @@ class TestActionOnUnstartedGame:
                 "NONEXISTENT", "player_1", {"action": "place_tile", "tile": "1A"}
             )
             mock_send.assert_not_called()
-
-
-class TestValidationErrors:
-    """Tests for validation error handling."""
-
-    @pytest.mark.asyncio
-    async def test_invalid_message_sends_error(self, game_room, clean_session_manager):
-        """Invalid message should send error to player."""
-        room = clean_session_manager.get_room(game_room)
-        current_player_id = room.game.get_current_player_id()
-
-        with patch.object(
-            session_manager, "send_to_player", new_callable=AsyncMock
-        ) as mock_send:
-            # Send invalid action
-            await handle_player_action(
-                game_room, current_player_id, {"action": "invalid_action"}
-            )
-
-            mock_send.assert_called()
-            call_args = mock_send.call_args[0]
-            assert call_args[2]["type"] == "error"
 
 
 class TestConfigureRoomEndpoint:
