@@ -5,6 +5,7 @@ import * as path from 'path'
 import { captureStep, resetStepCounter } from '../support/screenshot'
 import { createGameViaUI, addBotViaUI, startGameViaUI } from '../support/game-setup'
 import { BENCH_DIR, BENCH_RUN_DIR } from './dirs'
+import { openTab } from '../support/tabs'
 
 /**
  * Game transcripts + Buyout Bench, end to end on the real servers (no mocks, no API
@@ -211,6 +212,15 @@ test.describe('Transcripts and Buyout Bench on the real servers', () => {
       await startGameViaUI(page)
       await expect(page.getByTestId('tile-rack')).toBeVisible()
       await shot(page, 'game-started')
+      // Say something at the table: the Fake LLM answers a human, so the transcript gets
+      // table-chat lines and a talk call (seats no longer comment on game events).
+      await openTab(page, 'chat')
+      await page.getByTestId('chat-input').fill('Good luck, everyone')
+      await page.getByTestId('chat-input').press('Enter')
+      await expect(
+        page.getByTestId('chat-message').filter({ hasText: 'Fake LLM heard you, Dana' })
+      ).toHaveCount(1, { timeout: 15_000 })
+      await shot(page, 'table-chat')
       noErrors()
     })
 
@@ -418,8 +428,8 @@ test.describe('Transcripts and Buyout Bench on the real servers', () => {
       expect(t.header.seed).not.toBeNull()
       expect(Array.isArray(t.entries)).toBe(true)
       expect(t.entries.length).toBeGreaterThan(200)
-      // The Fake LLM seat also talks at the table (it reacts to chains being founded), so
-      // the file has table-chat lines and its talk calls between the game lines.
+      // Dana spoke at the table and the Fake LLM answered, so the file has table-chat
+      // lines and the seat's talk calls between the game lines.
       expect(new Set(t.entries.map((e: { type: string }) => e.type))).toEqual(
         new Set(['event', 'decision', 'state', 'chat', 'chat_reply'])
       )
