@@ -7,14 +7,13 @@ import { PageShell } from '../components/ui/PageShell'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { Spinner } from '../components/ui/Spinner'
-import { TileRack, type RackTile } from '../components/game/TileRack'
+import { TileRack, RackNotes, type RackTile } from '../components/game/TileRack'
 import { Standings } from '../components/game/Standings'
 import { ChainTable } from '../components/game/ChainTable'
-import { MergerResult, MergerLog } from '../components/game/MergerResult'
+import { MergerLog } from '../components/game/MergerResult'
+import { StatusLine } from '../components/game/StatusLine'
 import { useMergerResult } from '../hooks/useMergerResult'
 import { Board } from '../components/game/Board'
-import { ChainSelector } from '../components/game/ChainSelector'
-import { MergerDisposition } from '../components/game/MergerDisposition'
 import { TradeBuilder } from '../components/game/TradeBuilder'
 import { TradeOffers } from '../components/game/TradeOffers'
 import { ReconnectionOverlay } from '../components/game/ReconnectionOverlay'
@@ -22,7 +21,9 @@ import { ReconnectedToast } from '../components/game/ReconnectedToast'
 import { GameOver } from '../components/game/GameOver'
 import { ChatPanel } from '../components/game/ChatPanel'
 import { GameLayout } from '../components/game/GameLayout'
-import { shortLabel } from '../lib/gameTabs'
+import { WIDE_QUERY, shortLabel } from '../lib/gameTabs'
+import { useMediaQuery } from '../hooks/useMediaQuery'
+import { decisionEvents, decisionView, statusText, turnKey } from '../lib/decision'
 import { buildFinalScores } from '../lib/finalScores'
 import { roomUnavailable } from '../lib/roomAvailability'
 import { waitingMessage } from '../lib/waiting'
@@ -38,10 +39,10 @@ import {
 import type { ChainId } from '../types/api'
 import { RulesetScope } from '../ruleset/RulesetScope'
 import { rulesFor, useServerRuleset } from '../ruleset/useRules'
-import { orderChainIds, withArticle } from '../lib/ruleset'
+import { orderChainIds } from '../lib/ruleset'
 import { dispositionPhaseText, playerPhaseText, survivorPhaseText } from '../lib/phaseText'
 import type { Coordinate } from '../types/game'
-import { BuyPanel } from './player/BuyPanel'
+import { DecisionTab } from './player/DecisionTab'
 import { LobbyPanel } from './player/LobbyPanel'
 import { usePlayerTrades } from './player/usePlayerTrades'
 import { useTurnActions } from './player/useTurnActions'
@@ -121,11 +122,15 @@ export function PlayerPage() {
 
   const [selectedTile, setSelectedTile] = useState<Coordinate | undefined>()
   const mergerResult = useMergerResult(gameState?.mergers, `merger-dismissed:${room}`)
+  // Bumped when a merger is opened from the log: the decision tab shows it.
+  const [openNow, setOpenNow] = useState(0)
 
   // The game's ruleset (the server's until the first game_state arrives): every limit and word.
   const serverRuleset = useServerRuleset()
   const ruleset = gameState?.ruleset ?? serverRuleset
-  const { theme } = rulesFor(ruleset)
+  const rules = rulesFor(ruleset)
+  const { theme } = rules
+  const wide = useMediaQuery(WIDE_QUERY)
 
   const phase = gameState?.phase ?? 'lobby'
   const currentTurnPlayerId = gameState?.current_player
@@ -133,11 +138,6 @@ export function PlayerPage() {
   const currentPlayerName =
     (currentTurnPlayerId && gameState?.players[currentTurnPlayerId]?.name) || ''
   const myPlayerData = (myPlayerId && gameState?.players[myPlayerId]) || null
-
-  const chainPrices: Record<string, number> = useMemo(
-    () => Object.fromEntries((gameState?.hotel.chains ?? []).map((c) => [c.name, c.price])),
-    [gameState]
-  )
 
   const myHoldings: StockHolding[] = useMemo(() => {
     if (!myPlayerData) return []
@@ -176,8 +176,6 @@ export function PlayerPage() {
     return [...active].sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name))
   }, [gameState, ruleset])
 
-  const stockAvailability = gameState?.hotel.available_stocks ?? {}
-
   // Overlay while the socket is down, welcome-back card after.
   const { hasConnected, showReconnected, dismissReconnected } =
     useConnectionLifecycle(connectionStatus)
@@ -205,80 +203,6 @@ export function PlayerPage() {
         agentLabel: p.agent_label,
       }))
   }, [gameState, myPlayerId])
-
-  // Tile placement: the board takes the clicks; this is the confirm / end-game strip.
-  const renderPlacementActions = () => (
-    <div className={styles.tilePlacementContent} data-testid="placement-actions">
-      {isMyTurn && !selectedTile && (
-        <p className={styles.hintText}>Pick a tile from your rack or the lit squares.</p>
-      )}
-      {isMyTurn && selectedTile && (
-        <div className={styles.placementActions}>
-          <p>
-            Selected: <strong>{selectedTile}</strong>
-          </p>
-          <Button onClick={handlePlaceTile} loading={turn.loading} data-testid="place-tile-button">
-            PLACE TILE
-          </Button>
-        </div>
-      )}
-      {isMyTurn && gameState?.end_game_available && (
-        <div className={styles.placementActions}>
-          <Button
-            variant="danger"
-            onClick={turn.declareEndGame}
-            disabled={turn.loading}
-            data-testid="end-game-button"
-          >
-            END GAME
-          </Button>
-        </div>
-      )}
-      {!isMyTurn && <p className={styles.waitingMessage}>Waiting for {currentPlayerName}...</p>}
-    </div>
-  )
-
-  const renderFoundingContent = () => (
-    <div className={styles.foundingContent}>
-      <h3 className={styles.sectionTitle}>Found {withArticle(theme.chain_noun)}</h3>
-      {pendingChainChoice && (
-        <ChainSelector
-          availableChains={pendingChainChoice}
-          onSelect={turn.foundChain}
-          stockAvailability={stockAvailability}
-        />
-      )}
-    </div>
-  )
-
-  const renderMergerContent = () => (
-    <div className={styles.mergerContent}>
-      {pendingMergerChoice ? (
-        <ChainSelector
-          availableChains={pendingMergerChoice}
-          onSelect={turn.chooseSurvivor}
-          stockAvailability={stockAvailability}
-          unavailableLabel="NOT TIED"
-        />
-      ) : pendingStockDisposition ? (
-        <MergerDisposition
-          defunctChain={pendingStockDisposition.defunctChain}
-          survivorChain={pendingStockDisposition.survivingChain}
-          sharesOwned={pendingStockDisposition.stockCount}
-          defunctPrice={chainPrices[pendingStockDisposition.defunctChain] ?? 0}
-          survivorStockAvailable={pendingStockDisposition.availableToTrade}
-          onConfirm={(sell, trade, hold) =>
-            turn.dispose(pendingStockDisposition.defunctChain, sell, trade, hold)
-          }
-        />
-      ) : (
-        <div className={styles.waitingMerger}>
-          <Spinner />
-          <p>Waiting for other players to dispose of their {theme.share_noun_plural}...</p>
-        </div>
-      )}
-    </div>
-  )
 
   // Page states outside a running game (unavailable, connecting, lobby, game over); null in game.
   const renderOutOfGame = () => {
@@ -339,49 +263,6 @@ export function PlayerPage() {
     return null
   }
 
-  // The decision panel for the current phase (in a game)
-  const renderAction = () => {
-    // Merger/disposition prompts can be mine even when it is not my turn
-    const waiting = (
-      <p className={styles.waitingMessage} data-testid="waiting-message">
-        {waitingMessage(gameState?.awaiting, gameState?.players ?? {}, currentPlayerName, ruleset)}
-      </p>
-    )
-    if (
-      !isMyTurn &&
-      phase !== 'stock_disposition' &&
-      !pendingStockDisposition &&
-      !pendingMergerChoice
-    ) {
-      return waiting
-    }
-
-    switch (phase) {
-      case 'place_tile':
-        return renderPlacementActions()
-      case 'found_chain':
-        return renderFoundingContent()
-      case 'merger':
-      case 'stock_disposition':
-        return renderMergerContent()
-      case 'buy_stocks':
-        return (
-          <BuyPanel
-            chains={activeChains}
-            bank={stockAvailability}
-            cash={myPlayerData?.money ?? 0}
-            isMyTurn={isMyTurn}
-            endGameAvailable={!!gameState?.end_game_available}
-            loading={turn.loading}
-            onSubmit={turn.buy}
-            onDeclareEndGame={turn.declareEndGame}
-          />
-        )
-      default:
-        return waiting
-    }
-  }
-
   const outOfGame = renderOutOfGame()
   const inGame = phase !== 'lobby' && phase !== 'game_over'
 
@@ -391,19 +272,63 @@ export function PlayerPage() {
       selectedTile={selectedTile}
       onTileSelect={setSelectedTile}
       disabled={phase !== 'place_tile' || !isMyTurn}
+      notes={wide}
     />
   )
-  // Is it on me to act right now (the action card is highlighted)?
+  // Is it on me to act right now (turn signal)?
   const myDecision =
     !!pendingMergerChoice ||
     !!pendingStockDisposition ||
     (isMyTurn && phase !== 'merger' && phase !== 'stock_disposition')
 
-  const incomingCount = myTrades.filter((t) => t.to_player_id === myPlayerId).length
+  const incoming = myTrades.filter((t) => t.to_player_id === myPlayerId)
+  const incomingCount = incoming.length
 
-  // The buy and disposition panels are cards of their own.
-  const ownCard =
-    (!!pendingStockDisposition && !pendingMergerChoice) || (isMyTurn && phase === 'buy_stocks')
+  // The decision tab (BL-011): which view, the events that bring the page to it, the status.
+  const mergers = gameState?.mergers ?? []
+  const lastMerger = mergers[mergers.length - 1]
+  const view = decisionView({
+    phase,
+    isMyTurn,
+    survivorChoice: !!pendingMergerChoice,
+    disposition: !!pendingStockDisposition,
+    foundChoice: !!pendingChainChoice,
+    mergerInProgress: !!lastMerger && !lastMerger.complete,
+    explicitMerger: mergerResult.explicit,
+  })
+  const events = decisionEvents({
+    turnKey: turnKey(currentTurnPlayerId, Object.keys(gameState?.board.cells ?? {}).length),
+    view: decisionView({
+      phase,
+      isMyTurn,
+      survivorChoice: !!pendingMergerChoice,
+      disposition: !!pendingStockDisposition,
+      foundChoice: !!pendingChainChoice,
+      mergerInProgress: false,
+      explicitMerger: false,
+    }),
+    disposition:
+      pendingStockDisposition && lastMerger
+        ? { seq: lastMerger.seq, chain: pendingStockDisposition.defunctChain }
+        : null,
+    incomingTradeIds: incoming.map((t) => t.trade_id),
+    mergers,
+    live: mergerResult.live,
+  })
+  const waiting = waitingMessage(
+    gameState?.awaiting,
+    gameState?.players ?? {},
+    currentPlayerName,
+    ruleset
+  )
+  const status = statusText(view === 'merger-result' ? 'waiting' : view, ruleset, {
+    waiting,
+    defunctName: pendingStockDisposition
+      ? rules.name(pendingStockDisposition.defunctChain)
+      : undefined,
+    offerFrom: incoming[0] ? gameState?.players[incoming[0].from_player_id]?.name : undefined,
+  })
+  const placing = isMyTurn && phase === 'place_tile'
 
   return (
     <RulesetScope ruleset={gameState?.ruleset}>
@@ -434,58 +359,92 @@ export function PlayerPage() {
               room={room}
               scope="player"
               myId={myPlayerId}
-              mergers={gameState.mergers}
-              myPlaceTurn={isMyTurn && phase === 'place_tile'}
+              events={events}
+              openNow={openNow}
+              myPlaceTurn={placing}
               board={
                 <Board
                   tiles={boardTileStates}
                   highlightedTile={selectedTile}
                   playableTiles={new Set(playableHand)}
                   size="lg"
-                  interactive={isMyTurn && phase === 'place_tile'}
+                  interactive={placing}
                   onTileClick={(coord) => {
                     if (playableHand.includes(coord)) setSelectedTile(coord)
                   }}
                 />
               }
               rack={rack}
-              now={
-                <>
-                  {/* What I must do now, whatever tab is open. */}
-                  <div
-                    className={`${styles.actionCard} ${myDecision ? styles.actionMine : ''} ${
-                      ownCard ? styles.actionBare : ''
-                    }`}
-                    data-testid="action-panel"
-                  >
-                    {renderAction()}
-                  </div>
-                  {/* Offers waiting for my answer are a decision too. */}
-                  {myPlayerId && (
-                    <TradeOffers
-                      part="incoming"
-                      offers={myTrades}
-                      myPlayerId={myPlayerId}
-                      players={gameState.players}
-                      onAccept={trades.accept}
-                      onReject={trades.reject}
-                      onCancel={trades.cancel}
-                      onPropose={trades.openBuilder}
-                    />
+              status={(openDecision) => (
+                <StatusLine
+                  text={placing && selectedTile ? `Place ${selectedTile}?` : status.text}
+                  mine={status.mine}
+                  onOpen={placing ? undefined : openDecision}
+                >
+                  {placing && (
+                    <span className={styles.placementActions} data-testid="placement-actions">
+                      {selectedTile && (
+                        <Button
+                          size="sm"
+                          onClick={handlePlaceTile}
+                          loading={turn.loading}
+                          data-testid="place-tile-button"
+                        >
+                          PLACE TILE
+                        </Button>
+                      )}
+                      {gameState.end_game_available && (
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={turn.declareEndGame}
+                          disabled={turn.loading}
+                          data-testid="end-game-button"
+                        >
+                          END GAME
+                        </Button>
+                      )}
+                    </span>
                   )}
-                </>
-              }
-              banner={
-                mergerResult.shown && (
-                  <MergerResult
-                    merger={mergerResult.shown}
-                    players={gameState.players}
-                    onDismiss={mergerResult.dismiss}
-                  />
-                )
-              }
-              wideDefault="players"
-              logTab="trades"
+                </StatusLine>
+              )}
+              decision={(select) => (
+                <DecisionTab
+                  view={view}
+                  gameState={gameState}
+                  myId={myPlayerId}
+                  isMyTurn={isMyTurn}
+                  waiting={waiting}
+                  incoming={
+                    myPlayerId && (
+                      <TradeOffers
+                        part="incoming"
+                        offers={myTrades}
+                        myPlayerId={myPlayerId}
+                        players={gameState.players}
+                        onAccept={trades.accept}
+                        onReject={trades.reject}
+                        onCancel={trades.cancel}
+                        onPropose={trades.openBuilder}
+                      />
+                    )
+                  }
+                  rackNotes={<RackNotes tiles={rackTiles} />}
+                  pendingChainChoice={pendingChainChoice}
+                  pendingMergerChoice={pendingMergerChoice}
+                  pendingStockDisposition={pendingStockDisposition}
+                  activeChains={activeChains}
+                  merger={mergerResult}
+                  loading={turn.loading}
+                  onFound={turn.foundChain}
+                  onSurvivor={turn.chooseSurvivor}
+                  onDispose={turn.dispose}
+                  onBuy={turn.buy}
+                  onDeclareEndGame={turn.declareEndGame}
+                  onShowBoard={wide ? undefined : () => select('board')}
+                />
+              )}
+              wideDefault="now"
               tabs={[
                 {
                   id: 'players',
@@ -528,7 +487,10 @@ export function PlayerPage() {
                             mergers={gameState.mergers ?? []}
                             players={gameState.players}
                             openSeq={mergerResult.shown?.seq}
-                            onOpen={mergerResult.open}
+                            onOpen={(seq) => {
+                              mergerResult.open(seq)
+                              setOpenNow((n) => n + 1)
+                            }}
                           />
                         ) : (
                           <p className={styles.hintText}>None yet.</p>

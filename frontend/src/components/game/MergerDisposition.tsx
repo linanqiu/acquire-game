@@ -1,11 +1,15 @@
-import { useState, useCallback } from 'react'
+import { useState, type ReactNode } from 'react'
 import { ChainMarker } from './ChainMarker'
 import { Slider } from '../ui/Slider'
 import { Button } from '../ui/Button'
-import { Card } from '../ui/Card'
 import styles from './MergerDisposition.module.css'
 import type { ChainId } from '../../types/ruleset'
 import { useRules } from '../../ruleset/useRules'
+
+export interface DispositionDraft {
+  sell: number
+  trade: number
+}
 
 export interface MergerDispositionProps {
   defunctChain: ChainId
@@ -13,16 +17,37 @@ export interface MergerDispositionProps {
   sharesOwned: number
   defunctPrice: number
   survivorStockAvailable: number
+  /** My cash now: the summary shows the cash after the sale. */
+  cash?: number
+  /** My survivor shares now: the summary shows them after the trade. */
+  survivorShares?: number
   onConfirm: (sell: number, trade: number, hold: number) => void
+  /** Every change of the sliders (the merger view projects my position from it). */
+  onDraftChange?: (draft: DispositionDraft) => void
+  /** Shown above the controls (the merger's title). */
+  header?: ReactNode
+  /** Shown between the controls and the confirm button (who holds what). */
+  children?: ReactNode
 }
 
+/**
+ * My sell / trade / keep choice for a defunct chain's shares, with the resulting cash and
+ * survivor shares. In the decision tab (BL-011) the merger view goes around it: its title in
+ * `header`, who holds what and the survivor after the merger in `children`, so the confirm
+ * button can stay pinned at the bottom of the whole view.
+ */
 export function MergerDisposition({
   defunctChain,
   survivorChain,
   sharesOwned,
   defunctPrice,
   survivorStockAvailable,
+  cash,
+  survivorShares,
   onConfirm,
+  onDraftChange,
+  header,
+  children,
 }: MergerDispositionProps) {
   const rules = useRules()
   const { theme } = rules
@@ -30,61 +55,51 @@ export function MergerDisposition({
   const ratio = Math.max(1, rules.rs.merger_trade_ratio)
   const defunctName = rules.name(defunctChain)
   const survivorName = rules.name(survivorChain)
-  const [sellCount, setSellCount] = useState(0)
-  const [tradeCount, setTradeCount] = useState(0)
+  const [draft, setDraft] = useState<DispositionDraft>({ sell: 0, trade: 0 })
+  const { sell: sellCount, trade: tradeCount } = draft
 
   // Maximum tradeable shares: limited by survivor stock in the bank and the shares not sold,
   // and always a multiple of the trade ratio (only whole survivor shares are handed out).
   const maxTradeByStock = survivorStockAvailable * ratio
   const maxTrade = Math.floor(Math.min(sharesOwned - sellCount, maxTradeByStock) / ratio) * ratio
 
-  // Calculate hold count and derived values
   const holdCount = sharesOwned - sellCount - tradeCount
   const cashFromSell = sellCount * defunctPrice
   const sharesFromTrade = Math.floor(tradeCount / ratio)
 
-  const handleSellChange = useCallback(
-    (value: number) => {
-      setSellCount(value)
-      // Adjust trade if it would exceed remaining shares
-      const remainingAfterSell = sharesOwned - value
-      if (tradeCount > remainingAfterSell) {
-        setTradeCount(Math.floor(remainingAfterSell / ratio) * ratio)
-      }
-    },
-    [sharesOwned, tradeCount, ratio]
-  )
-
-  const handleTradeChange = useCallback(
-    (value: number) => setTradeCount(Math.floor(value / ratio) * ratio),
-    [ratio]
-  )
-
-  const handleConfirm = () => {
-    onConfirm(sellCount, tradeCount, holdCount)
+  const update = (next: DispositionDraft) => {
+    setDraft(next)
+    onDraftChange?.(next)
   }
+
+  const handleSellChange = (value: number) => {
+    // Selling more takes shares back from a trade that no longer fits.
+    const remaining = sharesOwned - value
+    const trade = tradeCount > remaining ? Math.floor(remaining / ratio) * ratio : tradeCount
+    update({ sell: value, trade })
+  }
+
+  const handleTradeChange = (value: number) =>
+    update({ sell: sellCount, trade: Math.floor(value / ratio) * ratio })
 
   const canTrade = survivorStockAvailable > 0
 
   return (
-    <Card
-      title={`DISPOSE OF YOUR ${defunctName.toUpperCase()} ${theme.share_noun_plural.toUpperCase()}`}
+    <section
+      className={styles.container}
+      data-testid="merger-disposition"
+      aria-label={`Your ${defunctName} ${theme.share_noun_plural}`}
     >
-      <div className={styles.container} data-testid="merger-disposition">
-        <div className={styles.info}>
-          <p className={styles.infoRow}>
-            You have: <strong>{sharesOwned}</strong>{' '}
-            <ChainMarker chain={defunctChain} variant="compact" /> {theme.share_noun_plural}
-          </p>
-          <p className={styles.infoRow}>
-            Price at {theme.merger_noun}: <strong>{rules.money(defunctPrice)}</strong>/
-            {theme.share_noun}
-          </p>
-          <p className={styles.infoRow}>
-            <ChainMarker chain={survivorChain} variant="compact" /> {theme.share_noun_plural} left
-            in the bank: <strong>{survivorStockAvailable}</strong>
-          </p>
-        </div>
+      {header}
+      <div className={styles.controls}>
+        <h4 className={styles.title}>
+          Your <ChainMarker chain={defunctChain} variant="compact" /> {theme.share_noun_plural}:{' '}
+          <strong>{sharesOwned}</strong>
+          <span className={styles.muted}>
+            {' '}
+            at {rules.money(defunctPrice)} (price at {theme.merger_noun})
+          </span>
+        </h4>
 
         <div className={styles.sliders}>
           <Slider
@@ -109,24 +124,46 @@ export function MergerDisposition({
           />
 
           <div className={styles.hold} data-testid="hold-display">
-            <span className={styles.holdLabel}>HOLD (keep for re-founding)</span>
+            <span className={styles.holdLabel}>KEEP {holdCount}</span>
             <span className={styles.holdValue}>
-              {rules.shares(holdCount)} (worth {rules.money(0)} until re-founded)
+              worth {rules.money(0)} now; they count again only if {defunctName} is founded again
             </span>
           </div>
         </div>
-
-        <div className={styles.summary} data-testid="disposition-summary">
-          <strong>SUMMARY:</strong> SELL {sellCount} (+{rules.money(cashFromSell)}) | TRADE{' '}
-          {tradeCount} (+{sharesFromTrade} {survivorName.toUpperCase()}) | HOLD {holdCount}
-        </div>
-
-        <div className={styles.confirm}>
-          <Button fullWidth onClick={handleConfirm} data-testid="confirm-disposition">
-            CONFIRM DISPOSITION
-          </Button>
-        </div>
       </div>
-    </Card>
+      {children}
+
+      {/* Last child of the whole view, so it can stay at the bottom while the tab scrolls. */}
+      <div className={styles.confirm}>
+        <div className={styles.summary} data-testid="disposition-summary">
+          <span>
+            SELL {sellCount} (+{rules.money(cashFromSell)}) | TRADE {tradeCount} (+
+            {sharesFromTrade} {survivorName.toUpperCase()}) | HOLD {holdCount}
+          </span>
+          {(cash !== undefined || survivorShares !== undefined) && (
+            <span className={styles.after}>
+              {cash !== undefined && (
+                <span data-testid="disposition-cash-after">
+                  Cash after {rules.money(cash + cashFromSell)}
+                </span>
+              )}
+              {survivorShares !== undefined && (
+                <span data-testid="disposition-survivor-after">
+                  {survivorName} {survivorShares}
+                  {sharesFromTrade > 0 ? ` → ${survivorShares + sharesFromTrade}` : ''}
+                </span>
+              )}
+            </span>
+          )}
+        </div>
+        <Button
+          fullWidth
+          onClick={() => onConfirm(sellCount, tradeCount, holdCount)}
+          data-testid="confirm-disposition"
+        >
+          CONFIRM DISPOSITION
+        </Button>
+      </div>
+    </section>
   )
 }

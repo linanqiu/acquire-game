@@ -85,9 +85,10 @@ describe('MergerResult: what a merger did', () => {
       'Halcyon takes over Aurelia'
     )
     const d = merger.defunct[0]
-    expect(card).toHaveTextContent(`${d.size} tiles at ${money(d.price)}`)
+    expect(card).toHaveTextContent(`${d.size} tiles, ${money(d.price)} a share`)
     for (const b of d.bonuses!) {
-      const row = screen.getByTestId(`merger-bonus-aurelia-${b.player_id}`)
+      // In the holder's row: name, shares, the bonus paid, the decision.
+      const row = screen.getByTestId(`merger-bonus-aurelia-${b.player_id}`).closest('tr')!
       expect(row).toHaveTextContent(state.players[b.player_id].name)
       expect(row).toHaveTextContent(money(b.majority + b.minority))
     }

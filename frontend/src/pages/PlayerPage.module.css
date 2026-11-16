@@ -83,44 +83,6 @@
   text-align: center;
 }
 
-/* "What I must do now": in the "now" area (sidebar top / phone dock), highlighted when it is
-   on me. */
-.actionCard {
-  padding: var(--space-2) var(--space-3);
-  background-color: var(--bg-secondary);
-  border: var(--border-default);
-  border-radius: var(--radius-md);
-}
-
-.actionCard {
-  transition:
-    background-color var(--duration-normal) var(--ease-default),
-    border-color var(--duration-normal) var(--ease-default);
-}
-
-/* My decision: the card carries the turn accent (the phase line says it in words). */
-.actionMine {
-  border-color: var(--turn-accent);
-  background-color: var(--turn-card);
-  box-shadow: inset 3px 0 0 var(--turn-accent);
-}
-
-/* Panels that bring their own card (buy, disposition) fill the action card: one frame, not two. */
-.actionBare {
-  padding: 0;
-}
-
-.actionBare .buyingActions {
-  padding: 0 var(--space-3) var(--space-3);
-}
-
-.actionBare > *,
-.actionBare > .mergerContent > *,
-.actionBare > .buyingContent > * {
-  border: none;
-  background: transparent;
-}
-
 /* The Trades tab: my offers, then the log of mergers. */
 .tradesTab {
   display: flex;
@@ -137,130 +99,11 @@
   letter-spacing: 0.05em;
 }
 
-/* Tile Placement */
-.tilePlacementContent {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-4);
-}
-
+/* PLACE TILE / END GAME on the status line while I place a tile. */
 .placementActions {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
-}
-
-.placementActions p {
-  margin: 0;
-  color: var(--text-secondary);
-}
-
-/* Chain Founding */
-.foundingContent {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-4);
-}
-
-.sectionTitle {
-  font-size: var(--text-lg);
-  font-weight: var(--font-medium);
-  color: var(--text-primary);
-  margin: 0;
-  text-transform: uppercase;
-}
-
-/* Merger Content */
-.mergerContent {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.waitingMerger {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2);
-  color: var(--text-secondary);
-}
-
-/* Stock Buying */
-.buyingContent {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.stockPurchaseForm {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.purchaseRow {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-/* Chain names differ per ruleset ("Hallucinate.ai"): give them a column that grows, never clip */
-.purchaseChain {
-  flex: 1 1 9em;
-  min-width: 0;
-}
-
-.chainPrice {
-  min-width: 4.5em;
-  font-family: var(--font-mono);
-  font-weight: var(--font-medium);
-}
-
-.chainSize {
-  min-width: 5em;
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-}
-
-.availableStock {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-}
-
-.purchaseSummary {
-  display: flex;
-  justify-content: space-between;
-  padding-top: var(--space-3);
-  border-top: var(--border-default);
-  font-weight: var(--font-medium);
-}
-
-.noChains {
-  color: var(--text-secondary);
-  text-align: center;
-  padding: var(--space-4);
-}
-
-.errorText {
-  color: var(--error);
-  font-size: var(--text-sm);
-  margin: 0;
-}
-
-.buyingActions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-3);
-}
-
-.waitingMessage {
-  color: var(--text-secondary);
-  font-style: italic;
-  text-align: center;
 }
 
 /* Connection States */
@@ -292,31 +135,6 @@
   .hostActions {
     flex-direction: column;
     width: 100%;
-  }
-
-  .buyingActions {
-    flex-direction: column;
-  }
-
-  .stockPurchaseForm {
-    gap: var(--space-2);
-  }
-
-  .purchaseRow {
-    flex-wrap: wrap;
-    row-gap: 0;
-  }
-
-  /* END TURN stays in view while the chain list scrolls inside the "now" area. */
-  .actionBare .buyingActions {
-    position: sticky;
-    bottom: 0;
-    padding: var(--space-2) var(--space-3);
-    background-color: var(--bg-secondary);
-  }
-
-  .placementActions {
-    flex-direction: column;
   }
 }
 
