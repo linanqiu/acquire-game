@@ -435,6 +435,59 @@
           "halcyon": 5
         },
         "survivor": "halcyon",
+        "survivor_after": {
+          "bank": 18,
+          "holders": [
+            {
+              "bonus": 8000,
+              "majority": 8000,
+              "minority": 0,
+              "player_id": "p2",
+              "received": 0,
+              "role": "majority",
+              "shares": 3,
+              "tied": false,
+              "undecided": true
+            },
+            {
+              "bonus": 4000,
+              "majority": 0,
+              "minority": 4000,
+              "player_id": "p1",
+              "received": 0,
+              "role": "minority",
+              "shares": 2,
+              "tied": false,
+              "undecided": true
+            },
+            {
+              "bonus": 0,
+              "majority": 0,
+              "minority": 0,
+              "player_id": "p3",
+              "received": 0,
+              "role": null,
+              "shares": 1,
+              "tied": false,
+              "undecided": true
+            },
+            {
+              "bonus": 0,
+              "majority": 0,
+              "minority": 0,
+              "player_id": "p4",
+              "received": 0,
+              "role": null,
+              "shares": 1,
+              "tied": false,
+              "undecided": true
+            }
+          ],
+          "majority_bonus": 8000,
+          "minority_bonus": 4000,
+          "price": 800,
+          "size": 11
+        },
         "survivor_size": null,
         "tile": "6H"
       }

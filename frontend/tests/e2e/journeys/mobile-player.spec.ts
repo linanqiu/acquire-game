@@ -81,7 +81,7 @@ test('mobile player: 8 turns at phone size with trade panel and disposition', as
         await expect(page.getByTestId('board')).toBeVisible()
         const tile = page.getByTestId('tile-rack').locator('[role="button"]').first()
         await reachable(tile, 'first playable rack tile')
-        for (const name of ['board', 'players', 'chains', 'chat', 'trades']) {
+        for (const name of ['board', 'now', 'players', 'chains', 'chat', 'trades']) {
           await reachable(page.getByTestId(`tab-${name}`), `${name} tab`)
         }
         // Look around through the tab bar, then come back to the board to play.
@@ -106,12 +106,17 @@ test('mobile player: 8 turns at phone size with trade panel and disposition', as
       }
       case 'CHOOSE A HOTEL CHAIN':
       case 'CHOOSE THE SURVIVING HOTEL CHAIN':
+        // A decision takes the page to the decision tab by itself (BL-011).
+        await expect(page.getByTestId('tab-now')).toHaveAttribute('aria-selected', 'true')
         for (const b of await page.getByTestId('chain-selector').locator('button:enabled').all()) {
           await reachable(b, 'chain button')
         }
         break
       case 'DISPOSE YOUR SHARES': {
+        await expect(page.getByTestId('tab-now')).toHaveAttribute('aria-selected', 'true')
         const form = page.getByTestId('merger-disposition')
+        // The whole merger is with the controls: the survivor after the merger too.
+        await expect(form.getByTestId('merger-survivor-after')).toBeAttached()
         await reachable(form.getByTestId('slider-sell-to-bank'), 'sell slider')
         await reachable(form.locator('[data-testid^="slider-trade"]'), 'trade slider')
         await reachable(form.getByTestId('confirm-disposition'), 'CONFIRM DISPOSITION')
@@ -119,6 +124,7 @@ test('mobile player: 8 turns at phone size with trade panel and disposition', as
         break
       }
       case 'BUY STOCKS': {
+        await expect(page.getByTestId('tab-now')).toHaveAttribute('aria-selected', 'true')
         for (const row of await page.locator('[data-testid^="buy-row-"]').all()) {
           await reachable(row.getByTestId('stepper-increment'), 'buy + stepper')
         }

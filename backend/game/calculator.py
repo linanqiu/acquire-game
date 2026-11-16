@@ -738,7 +738,15 @@ def merger_history(game) -> list[dict]:
                     dispositions: [{player_id, sell, trade, hold, sale_proceeds,
                                     survivor_shares_received}],
                     waiting_on: [player_id]}],
-         survivor_size (after; null while in progress), complete}
+         survivor_size (after; null while in progress), complete,
+         survivor_after: null once complete; while in progress
+           {size, price, majority_bonus, minority_bonus (post-merger, engine),
+            bank (survivor shares left in the bank now),
+            holders: [{player_id, shares (now, incl. trades made in this merger),
+                       received (survivor shares got by trading in this merger),
+                       undecided (still holds defunct shares to dispose of),
+                       role, tied, majority, minority, bonus
+                       (at the post-merger size with today's holdings)}]}}
 
     Defunct chains are in the engine's processing order. ``waiting_on`` lists
     the stockholders of the chain being processed who have not decided yet
@@ -827,7 +835,79 @@ def merger_history(game) -> list[dict]:
         )
         if row is not None:
             row["waiting_on"] = list(merger.stock_players[merger.stock_index :])
+    for m in out:
+        m["survivor_after"] = None
+    if current is not None and merger is not None and merger.survivor:
+        current["survivor_after"] = _survivor_after(game, current, merger)
     return out
+
+
+def _survivor_after(game, record: dict, merger) -> dict:
+    """The surviving chain as it will be once the merger in progress ends.
+
+    ``size`` is what ``Board.absorb_merger`` (the engine's own finalisation)
+    gives on a copy of the board; ``price`` and the bonuses are the engine's
+    for that size. Holders are everyone's survivor shares *now*: trades already
+    made in this merger are in them (``received`` says how many), and
+    ``undecided`` marks players who still hold shares of a defunct chain and
+    may trade more (listed with 0 shares if they hold none of the survivor).
+    Roles and amounts are ``Rules.calculate_bonuses`` at the post-merger size
+    with today's holdings.
+    """
+    survivor = merger.survivor
+    board = copy.deepcopy(game.board)
+    board.absorb_merger(survivor, list(merger.chains), merger.tile)
+    size = board.get_chain_size(survivor)
+    received: dict[str, int] = {}
+    for d in record["defunct"]:
+        for x in d["dispositions"]:
+            pid = x["player_id"]
+            received[pid] = received.get(pid, 0) + x["survivor_shares_received"]
+    # Still to decide: the rest of the current chain's queue, and every holder
+    # of a defunct chain not processed yet.
+    undecided = set(merger.stock_players[merger.stock_index :])
+    for chain in merger.defunct_queue:
+        undecided |= {p.player_id for p in game.players if p.get_stock_count(chain)}
+    rows = _holders(game, survivor) + [
+        {"player_id": p.player_id, "shares": 0}
+        for p in game.players
+        if p.player_id in undecided and p.get_stock_count(survivor) == 0
+    ]
+    payouts = _payouts(game.players, survivor, size, game.hotel)
+    holders = []
+    for h in rows:
+        pay = payouts.get(h["player_id"], {"majority": 0, "minority": 0, "total": 0})
+        role = (
+            "majority"
+            if pay["majority"] > 0
+            else "minority"
+            if pay["minority"] > 0
+            else None
+        )
+        holders.append(
+            {
+                "player_id": h["player_id"],
+                "shares": h["shares"],
+                "received": received.get(h["player_id"], 0),
+                "undecided": h["player_id"] in undecided,
+                "role": role,
+                "majority": pay["majority"],
+                "minority": pay["minority"],
+                "bonus": pay["total"],
+            }
+        )
+    for h in holders:
+        h["tied"] = h["role"] is not None and (
+            sum(1 for o in holders if o["role"] == h["role"]) > 1
+        )
+    return {
+        "size": size,
+        "price": game.hotel.get_stock_price(survivor, size),
+        "majority_bonus": game.hotel.get_majority_bonus(survivor, size),
+        "minority_bonus": game.hotel.get_minority_bonus(survivor, size),
+        "bank": game.hotel.get_available_stocks(survivor),
+        "holders": holders,
+    }
 
 
 # ---------------------------------------------------------------------------

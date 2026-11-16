@@ -394,6 +394,7 @@
           "sandpiper": 7
         },
         "survivor": "sandpiper",
+        "survivor_after": null,
         "survivor_size": 13,
         "tile": "6B"
       },
@@ -457,6 +458,7 @@
           "obsidian": 4
         },
         "survivor": "halcyon",
+        "survivor_after": null,
         "survivor_size": 15,
         "tile": "7F"
       },
@@ -520,6 +522,7 @@
           "marlowe": 4
         },
         "survivor": "halcyon",
+        "survivor_after": null,
         "survivor_size": 20,
         "tile": "7E"
       }

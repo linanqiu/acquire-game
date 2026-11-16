@@ -1,11 +1,8 @@
+/* The merger view fills the decision tab (BL-011): no card of its own. */
 .result {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-3);
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--accent-gold);
-  border-radius: var(--radius-md);
   font-size: var(--text-sm);
   min-width: 0;
 }
@@ -139,4 +136,40 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+  width: 1%;
+}
+
+.status {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.undecided {
+  font-style: italic;
+}
+
+.meRow td {
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+}
+
+.survivor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
+.fact {
+  font-family: var(--font-mono);
+  font-weight: var(--font-medium);
 }

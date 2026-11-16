@@ -1,10 +1,10 @@
 /**
- * The game pages show one tab at a time (BL-008): Board (phones only), Players, Chains, Chat,
- * Trades (player) or Log (host). These helpers open a tab through the UI, like a user would.
+ * The game pages show one tab at a time (BL-008): Board (phones only), Now (the decision tab,
+ * BL-011), Players, Chains, Chat, Trades (player) or Log (host). These helpers open a tab through the UI, like a user would.
  */
 import { expect, type Locator, type Page } from '@playwright/test'
 
-export type TabName = 'board' | 'players' | 'chains' | 'chat' | 'trades' | 'log'
+export type TabName = 'board' | 'now' | 'players' | 'chains' | 'chat' | 'trades' | 'log'
 
 export const tab = (page: Page, name: TabName): Locator => page.getByTestId(`tab-${name}`)
 export const tabPanel = (page: Page, name: TabName): Locator => page.getByTestId(`tabpanel-${name}`)

@@ -170,6 +170,7 @@
           "halcyon": 5
         },
         "survivor": "halcyon",
+        "survivor_after": null,
         "survivor_size": 11,
         "tile": "6H"
       },
@@ -241,6 +242,7 @@
           "sandpiper": 5
         },
         "survivor": "obsidian",
+        "survivor_after": null,
         "survivor_size": 13,
         "tile": "7D"
       },
@@ -312,6 +314,7 @@
           "meridian": 3
         },
         "survivor": "halcyon",
+        "survivor_after": null,
         "survivor_size": 17,
         "tile": "10H"
       },
@@ -378,6 +381,7 @@
           "obsidian": 14
         },
         "survivor": "obsidian",
+        "survivor_after": null,
         "survivor_size": 20,
         "tile": "5A"
       },
@@ -444,6 +448,7 @@
           "obsidian": 24
         },
         "survivor": "obsidian",
+        "survivor_after": null,
         "survivor_size": 29,
         "tile": "3B"
       },
@@ -515,6 +520,7 @@
           "marlowe": 3
         },
         "survivor": "halcyon",
+        "survivor_after": null,
         "survivor_size": 23,
         "tile": "4H"
       },
@@ -581,6 +587,7 @@
           "obsidian": 30
         },
         "survivor": "obsidian",
+        "survivor_after": null,
         "survivor_size": 33,
         "tile": "8B"
       },
@@ -657,6 +664,7 @@
           "meridian": 5
         },
         "survivor": "halcyon",
+        "survivor_after": null,
         "survivor_size": 30,
         "tile": "2H"
       }

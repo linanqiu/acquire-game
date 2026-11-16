@@ -9,6 +9,7 @@
  */
 import { expect, type Locator, type Page } from '@playwright/test'
 import type { Journey } from './journey'
+import { openTab } from '../../support/tabs'
 
 /** Phase banner texts that need an action from this seat. */
 const ACTIONABLE =
@@ -138,6 +139,18 @@ export class Seat {
     return this.page.getByTestId('game-phase')
   }
 
+  /**
+   * Show the decision tab ("Now", BL-011) the way a player does: the page goes there by itself
+   * when a decision is new; otherwise (e.g. I opened another tab meanwhile) tap the status line.
+   */
+  async openDecision(): Promise<void> {
+    const view = this.page.getByTestId('decision-view')
+    if (await view.isVisible()) return
+    this.log('decision tab not open: tapping the status line')
+    await this.press(this.page.getByTestId('status-line'))
+    await expect(view).toBeVisible()
+  }
+
   async phaseText(): Promise<string> {
     return ((await this.phase().textContent()) ?? '').trim()
   }
@@ -192,15 +205,19 @@ export class Seat {
         await this.placeTile()
         break
       case 'CHOOSE A HOTEL CHAIN':
+        await this.openDecision()
         await this.foundChain()
         break
       case 'CHOOSE THE SURVIVING HOTEL CHAIN':
+        await this.openDecision()
         await this.chooseSurvivor()
         break
       case 'DISPOSE YOUR SHARES':
+        await this.openDecision()
         await this.dispose()
         break
       case 'BUY STOCKS':
+        await this.openDecision()
         await this.buyAndEnd()
         break
       case 'GAME OVER':
@@ -227,7 +244,7 @@ export class Seat {
     await this.press(tile)
     const place = this.page.getByTestId('place-tile-button')
     await expect(place).toBeEnabled()
-    await expect(this.page.getByText(`Selected: ${coord}`)).toBeVisible()
+    await expect(this.page.getByTestId('status-line')).toHaveText(`Place ${coord}?`)
     await this.shot(`tile-selected-${coord}`)
     await this.press(place)
     await this.waitPhaseLeaves('PLACE A TILE')
@@ -271,21 +288,19 @@ export class Seat {
   async dispose(): Promise<void> {
     const form = this.page.getByTestId('merger-disposition')
     await expect(form).toBeVisible()
-    const title =
-      (await this.page.locator('h3', { hasText: /^DISPOSE OF YOUR/ }).textContent()) ?? ''
-    const owned = Number(
-      ((await form.getByText(/^You have:/).textContent()) ?? '').match(/\d+/)?.[0] ?? '0'
-    )
-    const defunct = title.replace('DISPOSE OF YOUR ', '').replace(' SHARES', '')
-    // The merger result is on screen while the seat decides: which chain took over this one and
-    // the bonuses the engine paid (BL-007).
-    const result = this.page.getByTestId('merger-result')
-    const defunctId = defunct.toLowerCase()
-    await expect(result).toBeVisible()
+    const defunctId = (await form.getAttribute('data-defunct')) ?? ''
+    const owned = Number((await form.getAttribute('data-shares')) ?? '0')
+    const defunct = defunctId
+    const title = `${defunctId}:${owned}`
+    // The whole merger is in the decision tab with my controls (BL-007, BL-011): which chain
+    // takes over this one, the bonuses the engine paid, and the survivor after the merger.
+    const result = this.page.getByTestId('merger-result-body')
+    await expect(this.page.getByTestId('merger-result')).toBeVisible()
     await expect(result.getByTestId(`merger-defunct-${defunctId}`)).toBeVisible()
     await expect(result.getByTestId(`merger-defunct-${defunctId}`)).toContainText(
-      /Bonuses paid|no bonuses/
+      /bonuses paid|no bonuses/i
     )
+    await expect(result.getByTestId('merger-survivor-after')).toBeVisible()
     await this.shot(`disposition-${defunct}`)
     const sell = Math.floor(owned / 2)
     const sellSlider = form.getByTestId('slider-sell-to-bank')
@@ -309,11 +324,13 @@ export class Seat {
       .poll(
         async () => {
           // Non-waiting reads: the form may vanish between two calls.
-          const titles = await this.page
-            .locator('h3', { hasText: /^DISPOSE OF YOUR/ })
-            .allTextContents()
-          if (titles.length === 0) return 'gone'
-          return titles[0] === title ? 'same' : 'next'
+          const forms = await this.page
+            .locator('[data-testid="merger-disposition"]')
+            .evaluateAll((els) =>
+              els.map((e) => `${e.getAttribute('data-defunct')}:${e.getAttribute('data-shares')}`)
+            )
+          if (forms.length === 0) return 'gone'
+          return forms[0] === title ? 'same' : 'next'
         },
         {
           timeout: 15_000,
@@ -321,16 +338,43 @@ export class Seat {
         }
       )
       .not.toBe('same')
-    // ...and then shows what this seat did with its shares.
+    // ...and then shows what this seat did with its shares: in the merger view that stays in
+    // the decision tab, or (when my buy replaced it) one tap away through "Last merger".
     const me = await this.myId()
-    const row = result.getByTestId(`merger-disposition-${defunctId}-${me}`)
-    await expect(row).toBeVisible()
-    if (sell > 0) await expect(row).toContainText(`sold ${sell}`)
-    if (trade > 0) await expect(row).toContainText(`traded ${trade}`)
-    if (hold > 0) await expect(row).toContainText(`kept ${hold}`)
-    this.log(`merger result shows: ${(await row.textContent()) ?? ''}`)
+    const reopen = this.page.getByTestId('decision-last-merger')
+    const decisionView = this.page.getByTestId('decision-view')
+    const row = decisionView.getByTestId(`merger-disposition-${defunctId}-${me}`)
+    let reopened = false
+    let movedFromBoard = false
+    // The view can still move on (the merger resolves, my buy comes) while this reads it: check
+    // it all in one pass, reopening the result when the buy has replaced it.
+    await expect(async () => {
+      const quick = { timeout: 1000 }
+      // My place-tile turn can open the Board tab on a phone: go back to the decision tab.
+      if (!(await decisionView.isVisible())) {
+        movedFromBoard = true
+        await openTab(this.page, 'now')
+      }
+      // Whatever replaced the merger view (my buy, my tile, waiting), the result is one tap
+      // away through "Last merger".
+      if (!reopened && !(await row.isVisible()) && (await reopen.isVisible())) {
+        await reopen.click()
+        reopened = true
+      }
+      await expect(row).toBeVisible(quick)
+      if (sell > 0) await expect(row).toContainText(`sold ${sell}`, quick)
+      if (trade > 0) await expect(row).toContainText(`traded ${trade}`, quick)
+      if (hold > 0) await expect(row).toContainText(`kept ${hold}`, quick)
+    }).toPass({ timeout: 15_000 })
+    this.log(
+      `merger result shows: ${(await row.textContent({ timeout: 1000 }).catch(() => '')) ?? ''}`
+    )
     this.stats.dispositions.push({ defunct, sell, trade, hold })
     await this.shot(`disposition-${defunct}-done`)
+    // Back to my buy (the result stays one tap away).
+    if (reopened) await this.press(this.page.getByTestId('merger-result-dismiss'))
+    // Leave the page where the game put it (the Board, for my tile) for the next step.
+    if (movedFromBoard) await openTab(this.page, 'board')
   }
 
   /** Buy with a simple policy (cheapest chains first, keep a reserve), then end the turn. */

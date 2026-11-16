@@ -17,6 +17,8 @@ import { GameOver } from '../components/game/GameOver'
 import { ChatPanel } from '../components/game/ChatPanel'
 import { GameLayout } from '../components/game/GameLayout'
 import { shortLabel } from '../lib/gameTabs'
+import { decisionEvents } from '../lib/decision'
+import { waitingMessage } from '../lib/waiting'
 import { AddAiControl } from '../components/game/AddAiControl'
 import { ReconnectionOverlay } from '../components/game/ReconnectionOverlay'
 import { SeatKindBadge } from '../components/game/SeatKindBadge'
@@ -113,6 +115,19 @@ export function HostPage() {
   }, [gameState])
 
   const mergerResult = useMergerResult(gameState?.mergers, `merger-dismissed-host:${room}`)
+  // Bumped when a merger is opened from the log: the Now tab shows it.
+  const [openNow, setOpenNow] = useState(0)
+  const mergers = gameState?.mergers ?? []
+  const lastMerger = mergers[mergers.length - 1]
+  const liveMerger = lastMerger && !lastMerger.complete ? lastMerger : undefined
+  // What the table is doing (BL-011): a merger in progress, the last result, who it waits on.
+  const nowMerger = mergerResult.explicit ? mergerResult.shown : (liveMerger ?? mergerResult.shown)
+  const events = decisionEvents({
+    turnKey: '',
+    view: 'waiting',
+    mergers,
+    live: mergerResult.live,
+  })
 
   const handleStartGame = useCallback(async () => {
     setActionLoading(true)
@@ -215,19 +230,25 @@ export function HostPage() {
       <GameLayout
         room={room}
         scope="host"
-        mergers={gameState.mergers}
         board={<Board tiles={boardTileStates} size="lg" />}
-        banner={
-          mergerResult.shown && (
-            <MergerResult
-              merger={mergerResult.shown}
-              players={gameState.players}
-              onDismiss={mergerResult.dismiss}
-            />
-          )
+        events={events}
+        openNow={openNow}
+        decision={
+          <div className={styles.nowTab} data-testid="host-now">
+            <p className={styles.nowLine} data-testid="host-waiting">
+              {waitingMessage(gameState.awaiting, gameState.players, currentPlayerName, ruleset)}
+            </p>
+            {nowMerger && (
+              <MergerResult
+                merger={nowMerger}
+                players={gameState.players}
+                gameState={gameState}
+                onDismiss={nowMerger === liveMerger ? undefined : mergerResult.dismiss}
+              />
+            )}
+          </div>
         }
         wideDefault="players"
-        logTab="log"
         // A TV: players and chains side by side without touching anything.
         pin={['players', 'chains']}
         pinQuery="(min-width: 1600px) and (min-height: 900px)"
@@ -281,7 +302,10 @@ export function HostPage() {
                       mergers={gameState.mergers ?? []}
                       players={gameState.players}
                       openSeq={mergerResult.shown?.seq}
-                      onOpen={mergerResult.open}
+                      onOpen={(seq) => {
+                        mergerResult.open(seq)
+                        setOpenNow((n) => n + 1)
+                      }}
                     />
                     {activityLog
                       .slice(-5)

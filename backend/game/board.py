@@ -188,6 +188,23 @@ class Board:
             if cell.chain == defunct_chain:
                 cell.chain = surviving_chain
 
+    def absorb_merger(
+        self, survivor: str, defunct_chains: list[str], tile: Optional[Tile]
+    ) -> None:
+        """Finish a merger on the board: every defunct chain becomes ``survivor``,
+        and the merging tile with any lone tiles connected to it joins it.
+
+        The one place this happens (``Game._finalize_merger``); the calculator
+        runs it on a copy of the board to show the survivor after the merger.
+        """
+        for defunct in defunct_chains:
+            if defunct != survivor:
+                self.merge_chains(survivor, defunct)
+        if tile:
+            for t in self.get_connected_tiles(tile):
+                if self._grid[t.coords].chain is None:
+                    self.set_chain(t, survivor)
+
     def is_tile_played(self, tile: Tile) -> bool:
         """Check if a tile has been played."""
         return self._grid[tile.coords].state != TileState.EMPTY

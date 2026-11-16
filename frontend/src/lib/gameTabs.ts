@@ -1,9 +1,13 @@
 /**
- * Tab state of the game pages (pure rules; `useGameTabs` holds the state). See BL-008.
+ * Tab state of the game pages (pure rules; `useGameTabs` holds the state). See BL-008 and
+ * BL-011 (the decision tab and its automatic switch).
  */
 import type { ChatMessage } from '../types/api'
 
-export type GameTabId = 'board' | 'players' | 'chains' | 'chat' | 'trades' | 'log'
+export type GameTabId = 'board' | 'now' | 'players' | 'chains' | 'chat' | 'trades' | 'log'
+
+/** The decision tab: what needs me / what is happening now (BL-011). */
+export const NOW_TAB = 'now'
 
 /** Wide screens (tablets and up): board on the left, a tabbed sidebar on the right. */
 export const WIDE_QUERY = '(min-width: 768px)'
@@ -57,6 +61,31 @@ export function autoSwitchTarget(s: AutoSwitchInput): GameTabId | null {
   if (!s.hasBoardTab || s.typing) return null
   if (s.isMyPlaceTurn && !s.wasMyPlaceTurn && s.selected !== 'board') return 'board'
   return null
+}
+
+export interface EventSwitchInput {
+  /** Events (decision or merger keys) not seen before on this page. */
+  fresh: string[]
+  selected: string
+  /** Is the user typing in the chat (input focused or a draft written)? */
+  typing: boolean
+  /** Did the Board switch fire on this same update (my place-tile turn started)? */
+  boardSwitch: boolean
+}
+
+/**
+ * Something new needs me or is happening (a decision of mine, a trade offer for me, a merger
+ * starting or resolving): go to the decision tab, once per event. Not while I am typing in the
+ * chat, and not when my place-tile turn takes me to the Board at the same moment: a badge on
+ * the decision tab instead. Nothing when the decision tab is already open.
+ */
+export function eventSwitch(s: EventSwitchInput): {
+  target: typeof NOW_TAB | null
+  badge: boolean
+} {
+  if (s.fresh.length === 0 || s.selected === NOW_TAB) return { target: null, badge: false }
+  if (s.typing || s.boardSwitch) return { target: null, badge: true }
+  return { target: NOW_TAB, badge: false }
 }
 
 /** Chat messages from others newer than `seenId`. */

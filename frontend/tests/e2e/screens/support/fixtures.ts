@@ -97,6 +97,23 @@ export interface Expect {
     }>
     survivor_size: number | null
     complete: boolean
+    /** The survivor after the merger (BL-011), while it is in progress. */
+    survivor_after: {
+      size: number
+      price: number
+      majority_bonus: number
+      minority_bonus: number
+      bank: number
+      holders: Array<{
+        player_id: string
+        shares: number
+        received: number
+        undecided: boolean
+        role: 'majority' | 'minority' | null
+        tied: boolean
+        bonus: number
+      }>
+    } | null
   }>
 }
 

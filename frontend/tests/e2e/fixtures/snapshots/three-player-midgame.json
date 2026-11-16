@@ -443,6 +443,7 @@
           "sandpiper": 7
         },
         "survivor": "sandpiper",
+        "survivor_after": null,
         "survivor_size": 13,
         "tile": "6B"
       }

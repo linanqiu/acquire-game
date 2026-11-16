@@ -20,9 +20,9 @@ async function expectIncomingCard(page: Page, room: RoomContext) {
   const trade = incomingTrade(room)
   const card = page.getByTestId(`trade-offer-${trade.trade_id}`)
   await expect(card).toBeVisible()
-  // An offer for me is a decision: it shows in the "now" area whatever tab is open, and the
-  // Trades tab carries the count.
-  await expect(page.getByTestId('now-area').getByTestId('trade-incoming')).toContainText(
+  // An offer for me is a decision: it shows in the decision tab (BL-011), and the Trades tab
+  // carries the count.
+  await expect(page.getByTestId('decision-view').getByTestId('trade-incoming')).toContainText(
     room.names[room.seatMap[trade.from_player_id]]
   )
   await expect(tabBadge(page, 'trades')).toHaveText('1')

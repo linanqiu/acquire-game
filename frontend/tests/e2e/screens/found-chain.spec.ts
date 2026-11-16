@@ -15,7 +15,7 @@ test('found chain: only the chains not on the board are offered; founder gets a 
   await shots.take(page, 'chain-selector')
 
   await expect(phaseBanner(page)).toHaveText('CHOOSE A HOTEL CHAIN')
-  await expect(page.getByText('Found a hotel chain')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Found a hotel chain' })).toBeVisible()
   await expect(page.getByTestId('chain-selector')).toBeVisible()
 
   // Exactly the engine's available chains are enabled; everything else is shown as ACTIVE.

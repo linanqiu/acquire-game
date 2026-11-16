@@ -11,7 +11,7 @@ import { startFromSnapshot, type RoomContext } from './support/room'
 import { dollars, loadFixture } from './support/fixtures'
 import { phaseBanner, playHumanTurns } from './support/ui'
 import { layoutProblems } from './support/layout'
-import { openTab, tab, tabBadge, type TabName } from '../support/tabs'
+import { openTab, tab, type TabName } from '../support/tabs'
 
 const DESKTOP = { width: 1366, height: 768 }
 const PHONE = { width: 390, height: 844 }
@@ -27,24 +27,31 @@ async function openHost(browser: Browser, room: RoomContext, viewport = DESKTOP)
   return host
 }
 
-/** Open each tab in turn: it, the merger result and the "now" area fit without overlapping. */
+/**
+ * Open each tab in turn: it fits next to the status line and rack without overlapping, and the
+ * merger in progress lives in the decision tab ("Now", BL-011), never on top of another tab.
+ */
 async function expectTabsFit(page: Page, shots: Shots, label: string, tabs: TabName[]) {
   const phone = (await tab(page, 'board').count()) > 0
   for (const name of tabs) {
     await openTab(page, name)
-    await expect(page.getByTestId('merger-result')).toBeVisible()
+    await expect(page.getByTestId('merger-result')).toBeHidden()
     expect(
       await layoutProblems(page, [
         'game-phase',
-        'merger-banner',
         `tabpanel-${name}`,
-        'now-area',
-        ...(phone ? ['tab-bar'] : ['board-pane', 'tab-list']),
+        ...(phone ? ['dock', 'tab-bar'] : ['board-pane', 'tab-list']),
       ])
     ).toEqual([])
     await shots.take(page, `${label}-${name}`, { fullPage: false })
   }
+  await openTab(page, 'now')
+  await expect(page.getByTestId('tabpanel-now').getByTestId('merger-result')).toBeVisible()
 }
+
+/** The holder's row of the merger view that shows the bonus the engine paid them. */
+const bonusRow = (p: Page, chain: string, id: string) =>
+  p.getByTestId(`merger-bonus-${chain}-${id}`).locator('xpath=ancestor::tr')
 
 /** Net worth, rank and the majority/minority lines match the fixture's engine figures. */
 async function expectTableView(page: Page, room: RoomContext, host = false) {
@@ -144,10 +151,12 @@ test('merger result: bonuses at once, then each stockholder decision as it comes
     await expect(p.getByTestId('merger-result-title')).toContainText(
       new RegExp(`${merger.survivor} takes over ${d.chain}`, 'i')
     )
-    await expect(card).toContainText(`${d.size} tiles at ${dollars(d.price)}`)
+    await expect(card).toContainText(`${d.size} tiles, ${dollars(d.price)} a share`)
     for (const b of d.bonuses!) {
-      const row = p.getByTestId(`merger-bonus-${d.chain}-${id(b.player_id)}`)
-      await expect(row).toContainText(name(b.player_id))
+      const row = bonusRow(p, d.chain, id(b.player_id))
+      // The player page calls its own seat "You".
+      const me = p === page && b.player_id === room.fixture.human_seat
+      await expect(row).toContainText(me ? 'You' : name(b.player_id))
       await expect(row).toContainText(dollars(b.majority + b.minority))
     }
     await expect(p.getByTestId(`merger-waiting-${d.chain}-${id(d.waiting_on[0])}`)).toContainText(
@@ -179,13 +188,15 @@ test('merger result: bonuses at once, then each stockholder decision as it comes
   await shots.take(page, 'player-merger-done')
   await shots.take(host, 'host-merger-done')
 
-  // Close it; it stays available from the log (the Trades tab on the player page, Log on the host).
+  // Close it; it stays available from the log (the Trades tab on the player page, Log on the
+  // host), which opens it in the decision tab.
   for (const p of [page, host]) {
     await p.getByTestId('merger-result-dismiss').click()
     await expect(p.getByTestId('merger-result')).toHaveCount(0)
     await openTab(p, p === page ? 'trades' : 'log')
     await p.getByTestId(`merger-log-${merger.seq}`).click()
-    await expect(p.getByTestId('merger-result')).toBeVisible()
+    await expect(tab(p, 'now')).toHaveAttribute('aria-selected', 'true')
+    await expect(p.getByTestId('tabpanel-now').getByTestId('merger-result')).toBeVisible()
     await p.getByTestId('merger-result-dismiss').click()
   }
   await shots.take(page, 'player-merger-closed')
@@ -202,30 +213,30 @@ test("merger result after the human's own merger (survivor chosen on screen)", a
   // Who gets the defunct chain's bonuses is fixed by the holdings in the fixture.
   const holders = room.fixture.expect.chain_holders[defunct].holders.filter((h) => h.bonus > 0)
   await expect(page.getByTestId('merger-result')).toHaveCount(0)
-  await expect(tabBadge(page, 'trades')).toHaveCount(0)
   await page.getByTestId(`chain-button-${survivor}`).click()
 
-  const card = page.getByTestId('merger-result')
-  await expect(card).toBeVisible()
-  // The new merger also marks the tab with the log until it is opened.
-  await expect(tabBadge(page, 'trades')).toBeVisible()
+  // The whole merger in the decision tab: the takeover, the bonuses paid, who decides.
+  await expect(page.getByTestId('merger-result-title')).toBeVisible()
   await expect(page.getByTestId('merger-result-title')).toContainText(
     new RegExp(`${survivor} takes over ${defunct}`, 'i')
   )
   for (const h of holders) {
-    const row = page.getByTestId(`merger-bonus-${defunct}-${room.seatMap[h.player_id]}`)
-    await expect(row).toContainText(dollars(h.bonus))
+    await expect(bonusRow(page, defunct, room.seatMap[h.player_id])).toContainText(dollars(h.bonus))
   }
   await shots.take(page, 'own-merger-result')
   if (await page.getByTestId('merger-disposition').isVisible()) {
     await page.getByTestId('confirm-disposition').click()
   }
+  // My buy replaces the result in the decision tab; one tap brings it back.
+  await expect(page.getByTestId('decision-view')).toHaveAttribute('data-view', 'buy')
+  await page.getByTestId('decision-last-merger').click()
   await expect(page.getByTestId('merger-result-summary')).toContainText(
     /grows from \d+ to \d+ tiles/
   )
   await shots.take(page, 'own-merger-done')
+  await page.getByTestId('merger-result-dismiss').click()
+  await expect(page.getByTestId('decision-view')).toHaveAttribute('data-view', 'buy')
   await openTab(page, 'trades')
-  await expect(tabBadge(page, 'trades')).toHaveCount(0)
   await expect(page.getByTestId('merger-log')).toContainText(new RegExp(`${survivor}`, 'i'))
 })
 
@@ -234,41 +245,41 @@ async function rackOnScreen(page: Page, shots: Shots, label: string, fixture: st
   await startFromSnapshot(page, fixture, { viewport: DESKTOP })
   await expect(page.getByTestId('tile-rack')).toBeInViewport({ ratio: 1 })
   await expect(page.getByTestId('board').getByTestId('tile-12I')).toBeInViewport({ ratio: 1 })
-  await expect(page.getByTestId('action-panel')).toBeInViewport()
-  for (const name of ['players', 'chains', 'chat', 'trades'] as const) {
+  // The decision tab is open next to the board, the status line under it.
+  await expect(page.getByTestId('decision-view')).toBeInViewport()
+  await expect(page.getByTestId('status')).toBeInViewport({ ratio: 1 })
+  for (const name of ['now', 'players', 'chains', 'chat', 'trades'] as const) {
     await openTab(page, name)
-    expect(
-      await layoutProblems(page, ['board-pane', 'now-area', 'tab-list', `tabpanel-${name}`])
-    ).toEqual([])
+    expect(await layoutProblems(page, ['board-pane', 'tab-list', `tabpanel-${name}`])).toEqual([])
   }
   await shots.take(page, label, { fullPage: false })
 }
 
-test('1366x768, place tile: the rack is on screen without scrolling, the action panel next to the board', async ({
+test('1366x768, place tile: the rack is on screen without scrolling, the decision tab next to the board', async ({
   page,
   shots,
 }) => {
   await rackOnScreen(page, shots, 'place-tile', 'three-player-midgame')
 })
-test('1366x768, found chain: the rack is on screen without scrolling, the action panel next to the board', async ({
+test('1366x768, found chain: the rack is on screen without scrolling, the decision tab next to the board', async ({
   page,
   shots,
 }) => {
   await rackOnScreen(page, shots, 'found-chain', 'found-chain-choice')
 })
-test('1366x768, survivor choice: the rack is on screen without scrolling, the action panel next to the board', async ({
+test('1366x768, survivor choice: the rack is on screen without scrolling, the decision tab next to the board', async ({
   page,
   shots,
 }) => {
   await rackOnScreen(page, shots, 'survivor-choice', 'merger-survivor-tie')
 })
-test('1366x768, disposition: the rack is on screen without scrolling, the action panel next to the board', async ({
+test('1366x768, disposition: the rack is on screen without scrolling, the decision tab next to the board', async ({
   page,
   shots,
 }) => {
   await rackOnScreen(page, shots, 'disposition', 'disposition-human-first')
 })
-test('1366x768, buy: the rack is on screen without scrolling, the action panel next to the board', async ({
+test('1366x768, buy: the rack is on screen without scrolling, the decision tab next to the board', async ({
   page,
   shots,
 }) => {
