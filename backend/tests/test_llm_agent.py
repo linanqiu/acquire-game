@@ -5,10 +5,11 @@ import time
 
 import pytest
 from agents.base import Agent
-from agents.llm.agent import LLMAgent
+from agents.llm.agent import LLMAgent, forced_action, forced_choice
 from agents.llm.decision_log import DecisionLog
 from agents.llm.errors import AgentDecisionError, ProviderError
 from agents.llm.providers import FakeProvider
+from agents.llm.schema import ANY_KIND, build_static_schema
 
 from tests.llm_support import bot_game, buy_ctx, make_ctx, place_ctx
 
@@ -471,8 +472,211 @@ async def test_after_its_purchase_the_seat_ends_the_turn_without_a_model_call(ga
     agent = LLMAgent(prov, agent_id="llm:x")
     assert await agent.decide(after_purchase_ctx(game)) == {"action": "end_turn"}
     assert prov.calls == []
-    # no record of a model decision is attached to this move
+    # another context gets no record ...
     assert agent.last_decision_record(after_purchase_ctx(game)) is None
+
+
+async def test_a_forced_move_is_recorded_as_forced_with_no_attempts(game):
+    prov = FakeProvider([])
+    agent = LLMAgent(prov, agent_id="llm:x")
+    ctx = after_purchase_ctx(game)
+    await agent.decide(ctx)
+    rec = agent.last_decision_record(ctx)
+    assert rec["outcome"] == "forced" and rec["attempts"] == []
+    assert rec["why"].startswith("No model call:")
+    assert rec["system_prompt_id"].startswith("sp-") and rec["user_prompt"] == ""
+    assert agent.forced_decisions == 1 and agent.totals["calls"] == 0
+
+
+def nothing_to_buy_ctx(game, pid="p1", *, shares=None, propose=True):
+    """The buy step when no share is affordable (or none is for sale)."""
+    ctx = buy_ctx(game, pid)
+    legal = {
+        "action_types": [
+            "buy_stocks",
+            "end_turn",
+            *(["propose_trade"] if propose else []),
+        ],
+        "max_total": 3,
+        "options": [{**o, "max_affordable": 0} for o in ctx.legal.get("options", [])],
+        "money": 0,
+    }
+    ctx = make_ctx(game, pid, "buy_stocks", legal)
+    if shares is not None:
+        for p in ctx.calc["players"]:
+            if p["player_id"] == pid:
+                p["shares"] = dict(shares)
+    return ctx
+
+
+async def test_nothing_to_buy_ends_the_turn_without_a_model_call(game):
+    prov = FakeProvider([])
+    agent = LLMAgent(prov, agent_id="llm:x")
+    # no shares to offer anyone: nothing to decide at all
+    ctx = nothing_to_buy_ctx(game, shares={})
+    assert await agent.decide(ctx) == {"action": "end_turn"}
+    assert prov.calls == []
+    assert (
+        agent.last_decision_record(ctx)["why"]
+        == "No model call: no share can be bought."
+    )
+    # holding shares but no trade on offer: still nothing to decide
+    ctx = nothing_to_buy_ctx(game, shares={"sandpiper": 4}, propose=False)
+    assert await agent.decide(ctx) == {"action": "end_turn"}
+    assert prov.calls == []
+
+
+async def test_a_broke_seat_with_shares_is_still_asked_because_it_can_trade(game):
+    prov = FakeProvider([answer({"action": "end_turn"})])
+    agent = LLMAgent(prov, agent_id="llm:x")
+    ctx = nothing_to_buy_ctx(game, shares={"sandpiper": 4})
+    assert await agent.decide(ctx) == {"action": "end_turn"}
+    assert len(prov.calls) == 1
+
+
+async def test_one_playable_tile_or_one_chain_left_needs_no_model_call(game):
+    prov = FakeProvider([])
+    agent = LLMAgent(prov, agent_id="llm:x")
+    ctx = place_ctx(game)
+    only = ctx.legal["tiles"][0]
+    one = make_ctx(
+        game, "p1", "place_tile", {"action_types": ["place_tile"], "tiles": [only]}
+    )
+    assert await agent.decide(one) == {"action": "place_tile", "tile": only["tile"]}
+    found = make_ctx(
+        game,
+        "p1",
+        "found_chain",
+        {"action_types": ["found_chain"], "chains": ["marlowe"]},
+    )
+    assert await agent.decide(found) == {"action": "found_chain", "chain": "marlowe"}
+    assert prov.calls == [] and agent.forced_decisions == 2
+
+
+async def test_a_seat_that_may_declare_the_end_is_always_asked(game):
+    ctx = place_ctx(game)
+    only = ctx.legal["tiles"][0]
+    legal = {"action_types": ["place_tile", "declare_end_game"], "tiles": [only]}
+    prov = FakeProvider([answer({"action": "declare_end_game"})])
+    agent = LLMAgent(prov, agent_id="llm:x")
+    act = await agent.decide(make_ctx(game, "p1", "place_tile", legal))
+    assert act == {"action": "declare_end_game"} and len(prov.calls) == 1
+
+
+async def test_forced_choice_table():
+    assert (
+        forced_choice("place_tile", {"action_types": ["place_tile"], "tiles": []})
+        is None
+    )
+    two = {"action_types": ["place_tile"], "tiles": ["1A", "2B"]}
+    assert forced_choice("place_tile", two) is None
+    assert (
+        forced_choice(
+            "found_chain", {"action_types": ["found_chain"], "chains": ["a", "b"]}
+        )
+        is None
+    )
+    assert (
+        forced_choice("stock_disposition", {"action_types": ["merger_disposition"]})
+        is None
+    )
+    assert (
+        forced_choice(
+            "trade_response", {"action_types": ["accept_trade", "reject_trade"]}
+        )
+        is None
+    )
+    buy = {
+        "action_types": ["buy_stocks", "end_turn", "propose_trade"],
+        "options": [{"chain": "a", "max_affordable": 1}],
+    }
+    assert forced_choice("buy_stocks", buy) is None
+    assert forced_action("buy_stocks", {**buy, "options": []}, holds_shares=False) == {
+        "action": "end_turn"
+    }
+    assert (
+        forced_action("buy_stocks", {**buy, "options": []}, holds_shares=True) is None
+    )
+
+
+class _Recorder(FakeProvider):
+    """A scripted provider that is treated like a real one (static schema)."""
+
+    narrow_schema = False
+
+
+class _Advisory(_Recorder):
+    schema_is_advisory = True
+
+
+async def test_real_providers_get_the_same_schema_for_every_decision_of_a_kind(game):
+    prov = _Recorder(lambda s, u, schema: answer({"action": "end_turn"}))
+    agent = LLMAgent(prov, agent_id="llm:x")
+    ctx = buy_ctx(game)
+    await agent.decide(ctx)
+    poorer = buy_ctx(game)
+    poorer.legal["options"] = poorer.legal["options"][:1]
+    poorer.legal["money"] = 100
+    await agent.decide(poorer)
+    a, b = (c["schema"] for c in prov.calls)
+    assert a == b  # nothing of the moment in it: the request prefix is stable
+    assert a == build_static_schema("buy_stocks")
+    # the fake (it answers by walking the schema) still gets the narrowed one
+    fake = FakeProvider()
+    await LLMAgent(fake).decide(poorer)
+    assert fake.calls[0]["schema"] != a
+
+
+async def test_an_answer_the_static_schema_allows_but_the_rules_do_not_is_sent_back(
+    game,
+):
+    ctx = place_ctx(game)
+    legal_tiles = {t["tile"] for t in ctx.legal["tiles"]}
+    bad = next(
+        f"{c}{r}"
+        for c in range(1, 13)
+        for r in "ABCDEFGHI"
+        if f"{c}{r}" not in legal_tiles
+    )
+    good = first_tile(ctx)
+    prov = _Recorder(
+        [
+            answer({"action": "place_tile", "tile": bad}),
+            answer({"action": "end_turn"}),
+            answer({"action": "place_tile", "tile": good}),
+        ]
+    )
+    agent = LLMAgent(prov, agent_id="llm:x")
+    assert await agent.decide(ctx) == {"action": "place_tile", "tile": good}
+    assert len(prov.calls) == 3
+    assert "is not playable" in prov.calls[1]["user"]
+    assert "is not allowed here" in prov.calls[2]["user"]
+
+
+async def test_a_provider_that_only_describes_the_schema_gets_one_for_all_kinds(game):
+    prov = _Advisory(
+        [answer({"action": "end_turn"}), answer({"action": "place_tile", "tile": "x"})]
+    )
+    agent = LLMAgent(prov, agent_id="llm:x", max_illegal_retries=0)
+    await agent.decide(buy_ctx(game))
+    with pytest.raises(AgentDecisionError):
+        await agent.decide(place_ctx(game))
+    a, b = (c["schema"] for c in prov.calls)
+    assert a == b == build_static_schema(ANY_KIND)
+
+
+async def test_only_the_last_three_notes_are_shown_and_repeats_are_not_stored(game):
+    notes = iter(
+        ["plan one", "plan two", "plan two", "plan three", "", "plan four", ""]
+    )
+    prov = FakeProvider(
+        lambda s, u, schema: answer({"action": "end_turn"}, note=next(notes))
+    )
+    agent = LLMAgent(prov, agent_id="llm:x")
+    for _ in range(7):
+        await agent.decide(buy_ctx(game))
+    assert list(agent.notes) == ["plan two", "plan three", "plan four"]
+    assert "plan one" not in prov.calls[-1]["user"]
 
 
 async def test_model_is_still_asked_when_it_can_buy_or_declare_the_end(game):

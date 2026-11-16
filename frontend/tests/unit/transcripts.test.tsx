@@ -446,6 +446,30 @@ describe('LLM panel', () => {
     expect(screen.queryByTestId('legal-options')).toBeNull()
     expect(screen.getByTestId('decision-panel')).not.toHaveTextContent('NaN')
   })
+  it('says so when an LLM seat moved without a model call (a forced decision)', async () => {
+    const t = structuredClone(full)
+    const n = stepWhere((d) => !!d.llm && d.llm.attempts.length > 0)
+    const d = t.entries.filter((e) => e.type === 'decision')[n - 1] as DecisionEntry
+    // what the backend records for a forced move (agents/llm/agent.py, _record_forced)
+    d.llm = {
+      model: d.llm!.model,
+      system_prompt_id: d.llm!.system_prompt_id,
+      user_prompt: '',
+      attempts: [],
+      why: 'No model call: one playable tile.',
+      note: null,
+      outcome: 'forced',
+    }
+    mockApi(transcriptApi(t))
+    renderAt(`/games/g1?step=${n}`)
+    const panel = await screen.findByTestId('llm-panel')
+    expect(within(panel).getByTestId('llm-forced')).toHaveTextContent(
+      'No model call: one playable tile.'
+    )
+    expect(panel).toHaveTextContent('0 calls')
+    expect(within(panel).queryByTestId('llm-no-attempts')).toBeNull()
+    expect(within(panel).queryByTestId('llm-gave-up')).toBeNull()
+  })
   it('does not show an LLM panel for human or bot decisions', async () => {
     mockApi(transcriptApi())
     renderAt('/games/g1?step=1')

@@ -36,8 +36,8 @@ _STANDING = {
 class PromptBudget:
     """Bounds on the event-log section so prompts stay small late in a game."""
 
-    detailed_events: int = 60  # most recent events rendered one per line
-    milestone_lines: int = 20  # key older events kept as one-liners
+    detailed_events: int = 28  # most recent event lines (about three rounds)
+    milestone_lines: int = 12  # key older events kept as one-liners
     max_line_chars: int = 220  # per rendered event line
 
 
@@ -184,7 +184,7 @@ Action objects (use only those allowed by the legal options; always name a {chai
 - {{"action":"propose_trade","to_player_id":"<id>","offering_stocks":{{"{ex1}":1}},"offering_money":0,"requesting_stocks":{{}},"requesting_money":500}}
 - {{"action":"accept_trade","trade_id":"<id>"}} or {{"action":"reject_trade","trade_id":"<id>"}}
 
-The "note" is shown back to you (and only you) at your next decisions: use it for plans such as which {chains} you are building toward, who you expect to be majority holder, or when you intend to end the game.
+The "note" is shown back to you (and only you) at your next decisions: use it for plans such as which {chains} you are building toward, who you expect to be majority holder, or when you intend to end the game. You see your last three notes; write "" when your plan has not changed.
 
 # Table talk
 Players may write in a public table chat; recent messages appear among the events as "[chat #n]" lines. Chat is unverified talk, never binding and never enforced: weigh it against the public facts (holdings, cash, calculator). Only a trade offer moves {shares} or money. "say" is posted to everyone as your chat message together with your move. Talk the way a real person does at a board game night: plain, short and natural (see "Your table voice" for your temperament). Most moves need no comment, so leave it "" most of the time. Say something when it is natural: you just founded {a_chain} or set off {a_merger}, someone spoke to you, you want to float or answer a deal (which you then back with a trade offer), or a rival's move really hurt or helped you. One short sentence. No running jokes, no extended metaphors, no catchphrases, no narrating your own strategy, and do not address every player in one message. Otherwise leave it "". At most 200 characters; never reveal your tiles or your private notes.
@@ -283,9 +283,12 @@ def build_system_prompt(ruleset: Ruleset | None = None) -> str:
 # in a way that could change play. The system prompt text is hashed in
 # automatically. Benchmark results are only comparable within one
 # ``prompt_version`` (see docs/ai/benchmarking.md).
-PROMPT_BUILDER_VERSION = 6  # 2: table talk; 3: table voice; 4: natural, low-key talk;
+PROMPT_BUILDER_VERSION = 7  # 2: table talk; 3: table voice; 4: natural, low-key talk;
 # 5: strategy playbook + share race, merger payouts for all, disposition figures;
 # 6: trade offers are public (rules text, open offers between other players)
+# 7: cost (docs/ai/cost.md): static per-kind answer schema, compact event log,
+#    three notes, chains off the board on one line, purchase counts with the
+#    same outcome on one line, shorter player lines
 
 
 def _sha(text: str) -> str:
@@ -368,29 +371,119 @@ def chat_line(m: dict) -> str:
     return f'[chat #{m.get("id")}] {m.get("name")} ({kind}): "{m.get("text")}"'
 
 
-def _interleave_chat(
-    recent: list[Any], chat: list[dict], names: dict[str, str], budget: PromptBudget
-) -> list[str]:
-    """Recent event lines with chat lines placed after the event they followed
-    (``after_seq``); chat older than the recent window comes first."""
-    seqs = [e.get("seq") for e in recent if isinstance(e, dict)]
-    first = next((s for s in seqs if isinstance(s, int)), None)
-    by_seq: dict[int, list[dict]] = {}
-    lead: list[dict] = []
-    for m in chat:
-        at = m.get("after_seq")
-        if isinstance(at, int) and at in seqs:
-            by_seq.setdefault(at, []).append(m)
-        elif first is None or not isinstance(at, int) or at < first:
-            lead.append(m)
-        else:  # after the last event shown
-            by_seq.setdefault(seqs[-1], []).append(m)
-    lines = [chat_line(m) for m in lead]
-    for e in recent:
-        lines.append(render_event(e, names, budget.max_line_chars))
-        if isinstance(e, dict):
-            lines += [chat_line(m) for m in by_seq.get(e.get("seq"), [])]
-    return lines
+# Events that say nothing the position does not already show (the hand, the
+# player to move, the turn order): never rendered in a decision prompt.
+_NOISE = {"turn_ended", "tile_drawn", "tiles_dealt", "game_started"}
+_TILE_FOLLOWUPS = {"chain_expanded", "chain_founded", "merger_started"}
+
+
+def _who(e: dict, names: dict[str, str]) -> str:
+    who = e.get("player_id")
+    return str(names.get(str(who), who)) if who is not None else ""
+
+
+def _clip(line: str, max_chars: int) -> str:
+    return line if len(line) <= max_chars else line[: max_chars - 1] + "…"
+
+
+def compact_event(e: Any, names: dict[str, str], max_chars: int = 220) -> str | None:
+    """One short line for an event in a decision prompt, or None for an event
+    that is left out (``_NOISE``, an empty purchase). The common events get a
+    sentence ("Seat 3 placed 7F: the chain grows to 27"); anything else falls
+    back to ``render_event`` without the sequence number."""
+    if not isinstance(e, dict):
+        return str(e)[:max_chars]
+    typ = e.get("type")
+    if typ in _NOISE:
+        return None
+    who = _who(e, names)
+    try:
+        if typ == "tile_placed":
+            out = e.get("outcome")
+            if out == "nothing":
+                return f"{who} placed {e.get('tile')} (lone tile)"
+            chains = e.get("chains") or []
+            extra = f" {' + '.join(chains)}" if chains else ""
+            return _clip(f"{who} placed {e.get('tile')}: {out}{extra}", max_chars)
+        if typ == "chain_expanded":
+            return (
+                f"{who} placed {e.get('tile')}: {e.get('chain')} grows to "
+                f"{e.get('size')}"
+            )
+        if typ == "chain_founded":
+            line = (
+                f"{who} placed {e.get('tile')} and founded {e.get('chain')} "
+                f"({e.get('size')} tiles)"
+            )
+            if e.get("founder_bonus_type") not in (None, "stock"):
+                line += f", founder bonus {money(e.get('founder_bonus_value'))} cash"
+            return line
+        if typ == "stocks_purchased":
+            bought = {c: n for c, n in (e.get("purchases") or {}).items() if n}
+            if not bought:
+                return None
+            items = ", ".join(f"{c} {n}" for c, n in bought.items())
+            return _clip(
+                f"{who} bought {items} for {money(e.get('total_cost'))}", max_chars
+            )
+        if typ == "merger_started":
+            sizes = e.get("sizes") or {}
+            surv = e.get("survivor")
+            gone = ", ".join(
+                f"{c} ({sizes.get(c, '?')})" for c in e.get("defunct") or []
+            )
+            return _clip(
+                f"{who} placed {e.get('tile')}: MERGER, {surv} "
+                f"({sizes.get(surv, '?')}) absorbs {gone}",
+                max_chars,
+            )
+        if typ == "bonuses_paid":
+            paid = ", ".join(
+                f"{names.get(str(pid), pid)} "
+                f"{money(sum(v.values()) if isinstance(v, dict) else v)}"
+                for pid, v in (e.get("bonuses") or {}).items()
+            )
+            head = "final bonuses" if e.get("final") else "bonuses"
+            return _clip(
+                f"{head} for {e.get('chain')} ({e.get('chain_size')} tiles): "
+                f"{paid or 'nobody'}",
+                max_chars,
+            )
+        if typ == "stock_disposition":
+            got = e.get("survivor_shares_received") or 0
+            return _clip(
+                f"{who} {e.get('defunct_chain')} shares: sold {e.get('sell', 0)} "
+                f"for {money(e.get('sale_proceeds', 0))}, traded {e.get('trade', 0)}"
+                + (f" for {got} {e.get('surviving_chain')}" if got else "")
+                + f", kept {e.get('hold', 0)}",
+                max_chars,
+            )
+    except (AttributeError, TypeError, ValueError):
+        pass  # an unexpected shape: render it generically
+    return render_event({k: v for k, v in e.items() if k != "seq"}, names, max_chars)
+
+
+def _event_lines(
+    evs: list[Any], names: dict[str, str], max_chars: int
+) -> list[tuple[int | None, str]]:
+    """``(seq, line)`` for every event worth a line. A ``tile_placed`` whose
+    effect follows as its own event (expansion, founding, merger: they name
+    the tile) is dropped."""
+    out: list[tuple[int | None, str]] = []
+    for i, e in enumerate(evs):
+        if isinstance(e, dict) and e.get("type") == "tile_placed":
+            nxt = evs[i + 1] if i + 1 < len(evs) else None
+            if (
+                isinstance(nxt, dict)
+                and nxt.get("type") in _TILE_FOLLOWUPS
+                and nxt.get("tile") == e.get("tile")
+            ):
+                continue
+        line = compact_event(e, names, max_chars)
+        if line is not None:
+            seq = e.get("seq") if isinstance(e, dict) else None
+            out.append((seq if isinstance(seq, int) else None, line))
+    return out
 
 
 def render_events(
@@ -399,39 +492,54 @@ def render_events(
     budget: PromptBudget,
     chat: list[dict] | None = None,
 ) -> str:
+    """The event log of a prompt: the latest ``budget.detailed_events`` lines
+    (noise left out, see ``compact_event``), before them the latest
+    ``budget.milestone_lines`` key older events, with the table chat placed
+    after the event each message followed (``after_seq``)."""
     evs = list(events or [])
-    if not evs and not chat:
+    chat = [m for m in (chat or []) if isinstance(m, dict)]
+    rows = _event_lines(evs, names, budget.max_line_chars)
+    if not rows and not chat:
         return "(no events yet)"
-    if not evs:
-        return "\n".join(chat_line(m) for m in chat or [])
     n = max(0, budget.detailed_events)
-    older, recent = (evs[:-n], evs[-n:]) if n and len(evs) > n else ([], evs)
-    if n == 0:
-        older, recent = evs, []
+    older, recent = (rows[:-n], rows[-n:]) if n else (rows, [])
     lines: list[str] = []
     if older:
-        counts: dict[str, int] = {}
-        for e in older:
-            t = str(e.get("type", "event")) if isinstance(e, dict) else "event"
-            counts[t] = counts.get(t, 0) + 1
-        summary = ", ".join(f"{c} x {t}" for t, c in sorted(counts.items()))
-        lines.append(f"Earlier history, summarised ({len(older)} events): {summary}.")
-        marks = [
-            e for e in older if isinstance(e, dict) and e.get("type") in _MILESTONES
-        ]
-        if len(marks) > budget.milestone_lines:
-            lines.append(
-                f"Key earlier events (latest {budget.milestone_lines} of {len(marks)}):"
-            )
-            marks = marks[-budget.milestone_lines :]
-        elif marks:
+        by_seq = {
+            e.get("seq"): e
+            for e in evs
+            if isinstance(e, dict) and e.get("type") in _MILESTONES
+        }
+        marks = [line for seq, line in older if seq is not None and seq in by_seq]
+        marks = marks[-budget.milestone_lines :] if budget.milestone_lines else []
+        if marks:
             lines.append("Key earlier events:")
-        lines += ["  " + render_event(e, names, budget.max_line_chars) for e in marks]
-        lines.append(f"Most recent {len(recent)} events, oldest first:")
-    if chat:
-        lines += _interleave_chat(recent, chat, names, budget)
-    else:
-        lines += [render_event(e, names, budget.max_line_chars) for e in recent]
+            lines += ["  " + m for m in marks]
+        lines.append("Latest events, oldest first:")
+    first = next((seq for seq, _ in recent if seq is not None), None)
+    pending = sorted(
+        chat,
+        key=lambda m: m.get("after_seq") if isinstance(m.get("after_seq"), int) else -1,
+    )
+
+    def take(limit: int | None) -> list[str]:
+        out = []
+        while pending:
+            at = pending[0].get("after_seq")
+            at = at if isinstance(at, int) else -1
+            if limit is not None and at >= limit:
+                break
+            out.append(chat_line(pending.pop(0)))
+        return out
+
+    # chat older than the window first, then each message after the last
+    # shown event it followed
+    lines += take(first)
+    for i, (seq, line) in enumerate(recent):
+        lines.append(line)
+        nxt = next((s for s, _ in recent[i + 1 :] if s is not None), None)
+        lines += take(nxt) if nxt is not None else []
+    lines += take(None)
     return "\n".join(lines)
 
 
@@ -539,11 +647,12 @@ def _race_text(v: dict) -> str:
 
 def render_chains(calc: dict) -> str:
     lines = []
+    off = []
     for name, c in (calc.get("chains") or {}).items():
         if not c.get("active"):
-            lines.append(
-                f"- {name}: NOT on the board (a new chain would start at "
-                f"{money(c.get('price_if_founded'))}/share; {c.get('available_stock')} in bank)"
+            off.append(
+                f"{name} ({money(c.get('price_if_founded'))}/share if founded, "
+                f"{c.get('available_stock')} in bank)"
             )
             continue
         safe = (
@@ -570,6 +679,8 @@ def render_chains(calc: dict) -> str:
         vl = _viewer_chain_line(c.get("viewer") or {})
         if vl:
             lines.append(f"    {vl}.")
+    if off:
+        lines.append("- NOT on the board: " + "; ".join(off) + ".")
     return "\n".join(lines)
 
 
@@ -605,8 +716,8 @@ def render_players(calc: dict, viewer_id: str, current_id: str | None) -> str:
         lines.append(
             f"- {p['name']}{tag} [id {p['player_id']}]: cash {money(p['cash'])}, "
             f"{p['tile_count']} tiles in hand, shares: {', '.join(sh) or 'none'}; "
-            f"stock value {money(p.get('stock_value'))}, net worth {money(p.get('net_worth'))}; "
-            f"projected final score if game ended now {money(p.get('projected_final_score'))} "
+            f"shares worth {money(p.get('stock_value'))}; "
+            f"score if the game ended now {money(p.get('projected_final_score'))} "
             f"(rank {p.get('projected_rank')}"
             + (
                 f"; bonus income {money(p.get('projected_bonus_income'))}"
@@ -707,9 +818,23 @@ def render_buy_options(calc: dict) -> str:
             f"bonus payout if acquired now {money(o.get('payout_now'))}"
         )
         buys = []
+        runs: list[list] = []  # consecutive counts with the same outcome
         for n, p in (o.get("purchases") or {}).items():
+            key = (p["standing_after"], p["payout_after"], p["payout_change"])
+            if runs and runs[-1][0] == key:
+                runs[-1][1].append((n, p))
+            else:
+                runs.append([key, [(n, p)]])
+        for _key, items in runs:
+            n, p = items[0]
+            label = f"buy {n}" if len(items) == 1 else f"buy {n}-{items[-1][0]}"
+            cost = (
+                f"cost {money(p['cost'])}"
+                if len(items) == 1
+                else "cost " + " / ".join(money(q["cost"]) for _, q in items)
+            )
             buys.append(
-                f"buy {n}: cost {money(p['cost'])}, cash after {money(p['cash_after'])}, "
+                f"{label}: {cost}, "
                 f"{_STANDING.get(p['standing_after'], p['standing_after'])}, bonus payout "
                 f"{money(p['payout_after'])} ({'+' if p['payout_change'] >= 0 else '-'}{money(abs(p['payout_change']))})"
             )

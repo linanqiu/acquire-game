@@ -213,7 +213,40 @@ def two_fakes(client, code):
 
 
 class TestTalk:
-    def test_unaddressed_human_message_gets_replies_from_every_llm_seat(
+    def test_unaddressed_human_message_is_offered_to_at_most_two_llm_seats(
+        self, app_client, chat_settings
+    ):
+        client = app_client
+        code, alice = create_room(client, "Alice")
+        seats = [add_seat(client, code, "llm:fake")["player_id"] for _ in range(3)]
+        assert chat_settings.chat_reply_table_seats == 2
+        assert say(client, code, alice, "hello table").status_code == 200
+        d = quiet(client, code)
+        counts = {pid: d["chat_replies"].get(pid, {}).get("count", 0) for pid in seats}
+        assert sorted(counts.values()) == [0, 1, 1], counts
+        # the next table message goes to the seat that has not spoken yet first
+        left_out = next(pid for pid, n in counts.items() if n == 0)
+        assert say(client, code, alice, "nice evening").status_code == 200
+        d = quiet(client, code)
+        assert d["chat_replies"][left_out]["count"] == 1
+        assert sum(v["count"] for v in d["chat_replies"].values()) == 4
+
+    def test_a_named_seat_is_the_only_one_asked(self, app_client, chat_settings):
+        client = app_client
+        code, alice = create_room(client, "Alice")
+        a, b = two_fakes(client, code)
+        name = session_manager.get_room(code).players[b].name
+        assert say(client, code, alice, f"{name}, how are you").status_code == 200
+        d = quiet(client, code)
+        assert d["chat_replies"][b]["count"] == 1
+        assert d["chat_replies"].get(a, {}).get("count", 0) == 0
+        replies = [m for m in room_chat(code) if m["kind"] == "llm"]
+        assert [m["player_id"] for m in replies] == [b]
+        # a talk call runs at low effort (chat_reply_effort), not the seat's own
+        calls = session_manager.get_room(code).players[b].agent.provider.calls
+        assert [c["effort"] for c in calls] == ["low"]
+
+    def test_unaddressed_human_message_gets_replies_from_both_llm_seats(
         self, app_client, chat_settings
     ):
         client = app_client
@@ -250,10 +283,13 @@ class TestTalk:
         client = app_client
         streak = chat_settings.chat_ai_streak_max
         code, alice = create_room(client, "Alice")
-        two_fakes(client, code)
-        # a question: both answer it, their answers negotiate ("deal?"), so the
-        # seats answer each other until the AI streak limit stops it
-        assert say(client, code, alice, "anyone want a deal?").status_code == 200
+        a, b = two_fakes(client, code)
+        players = session_manager.get_room(code).players
+        na, nb = players[a].name, players[b].name
+        # both are named: both answer, quoting the message, so each answer
+        # names the other seat and floats a deal ("deal?"); the seats answer
+        # each other until the AI streak limit stops it
+        assert say(client, code, alice, f"{na} {nb} deal?").status_code == 200
         quiet(client, code)
         time.sleep(0.3)
         quiet(client, code)
@@ -311,10 +347,49 @@ class TestTalk:
         d = debug(client, code)["chat_replies"][a]
         assert d["count"] == 2 and d["skipped"] >= 2
 
-    def test_llm_seat_speaks_unprompted_after_a_game_event(
+    def test_an_ai_message_that_names_nobody_triggers_no_talk_call(
+        self, app_client, chat_settings
+    ):
+        client = app_client
+        code, alice = create_room(client, "Alice")
+        two_fakes(client, code)
+        # both answer Alice; the answers quote "deal?" but name no AI seat
+        assert say(client, code, alice, "anyone want a deal?").status_code == 200
+        quiet(client, code)
+        time.sleep(0.3)
+        d = quiet(client, code)
+        assert sum(v["count"] for v in d["chat_replies"].values()) == 2
+        assert len([m for m in room_chat(code) if m["kind"] == "llm"]) == 2
+
+    def test_game_events_trigger_no_talk_call_by_default(
         self, app_client, chat_settings, tdir
     ):
         client = app_client
+        assert chat_settings.chat_reply_events == "game_ended"
+        code, alice = create_room(client, "Alice")
+        fake = add_seat(client, code, "llm:fake")["player_id"]
+        add_seat(client, code, "bot")
+        configure(client, code, 3)
+        with client.websocket_connect(f"/ws/player/{code}/{alice}") as ws:
+            start(client, code)
+            human = HumanClient(ws, alice)
+            human.play(deadline_s=60)
+        quiet(client, code)
+        room = session_manager.get_room(code)
+        assert [e for e in room.game.events if e["type"] == "chain_founded"]
+        calls = [x for x in transcript_lines(tdir) if x["type"] == "chat_reply"]
+        # one call for the seat, at the end of the game, and nothing before it
+        assert [c["player_id"] for c in calls] == [fake]
+        assert calls[0]["trigger"]["events"] == ["game_ended"]
+
+    def test_llm_seat_speaks_unprompted_after_a_game_event(
+        self, app_client, chat_settings, tdir, monkeypatch
+    ):
+        client = app_client
+        # opt-in: chain foundings are not a trigger by default (cost)
+        monkeypatch.setattr(
+            chat_settings, "chat_reply_events", "chain_founded,game_ended"
+        )
         code, alice = create_room(client, "Alice")
         fake = add_seat(client, code, "llm:fake")["player_id"]
         add_seat(client, code, "bot")

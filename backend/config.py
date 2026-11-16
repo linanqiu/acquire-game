@@ -55,6 +55,15 @@ class Settings(BaseSettings):
     # chat messages and notable game events; one model call each, at the
     # seat's normal effort; cost counted in the transcript totals).
     chat_replies_enabled: bool = True
+    # Which game events give a seat a talk call (comma separated; "" = none).
+    # Each one is a paid model call per LLM seat, so only the end of the game
+    # by default. Also understood: chain_founded, merger_started,
+    # trade_accepted, trade_rejected, majority_lost (see chat.event_targets).
+    chat_reply_events: str = "game_ended"
+    # A human message that names no seat is offered to at most this many LLM
+    # seats (the ones that spoke least so far); a named seat is always asked.
+    chat_reply_table_seats: int = 2
+    chat_reply_effort: str = "low"  # thinking effort of a talk call ("" = the seat's)
     chat_reply_cooldown_s: float = 4.0  # per seat, between talk calls
     chat_ai_streak_max: int = 2  # AI messages in a row before AI talk stops
     #                              triggering more (a human message or a move resets)

@@ -13,6 +13,8 @@ from agents.llm.prompt import (
     render_event,
     render_events,
 )
+from game.calculator import build_calculator_pack
+from game.decisions import public_events
 from game.hotel import Hotel
 
 from tests.llm_support import (
@@ -109,9 +111,22 @@ def test_events_private_to_someone_else_are_dropped(game):
         {"seq": 2, "type": "turn_ended", "player_id": "p2", "private_to": None},
     ]
     p = build_user_prompt(place_ctx(game, events=evs), [])
-    assert "8H" not in p.split("# Recent public events")[1]
-    assert "tile=9I" in p
-    assert "Bob turn ended" in p
+    log = p.split("# Recent public events")[1].split("# Your private notes")[0]
+    assert "8H" not in log
+    # own draws and turn ends are noise (the hand and the player to move are
+    # shown above): not rendered either
+    assert "9I" not in log and "turn ended" not in log
+    evs.append(
+        {
+            "seq": 3,
+            "type": "tile_placed",
+            "player_id": "p2",
+            "tile": "7C",
+            "outcome": "nothing",
+        }
+    )
+    p = build_user_prompt(place_ctx(game, events=evs), [])
+    assert "Bob placed 7C (lone tile)" in p
 
 
 def test_prompt_stays_under_budget_with_500_events(game):
@@ -120,15 +135,12 @@ def test_prompt_stays_under_budget_with_500_events(game):
     section = p.split("# Recent public events")[1].split("# Your private notes")[0]
     lines = section.strip().splitlines()
     b = PromptBudget()
-    assert len(lines) <= b.detailed_events + b.milestone_lines + 4
-    assert len(p) < 24_000
-    # newest events are in detail, old ones summarised
-    assert "[498]" in section  # 499 is another seat's private event: dropped
-    assert "[100]" not in section
-    assert re.search(r"Earlier history, summarised \(\d+ events\)", section)
+    assert len(lines) <= b.detailed_events + b.milestone_lines + 2
+    assert len(p) < 12_000
+    assert "Latest events, oldest first:" in section
     # the rest of the prompt is not affected by the log length
     small = build_user_prompt(place_ctx(game, events=sample_events(5)), ["note"] * 6)
-    assert len(p) - len(small) < 9_000
+    assert len(p) - len(small) < 3_500
 
 
 def test_budget_is_a_parameter(game):
@@ -141,11 +153,12 @@ def test_budget_is_a_parameter(game):
     )
     assert len(tight) < len(loose)
     sec = tight.split("# Recent public events")[1].split("# Your private notes")[0]
-    assert "Most recent 5 events" in sec
-    recent = sec.split("Most recent 5 events, oldest first:")[1]
-    assert len(re.findall(r"^\[\d+\]", recent, re.MULTILINE)) == 5
+    recent = sec.split("Latest events, oldest first:")[1]
+    assert len(recent.strip().splitlines()) == 5
+    assert len(sec.split("Key earlier events:")[1].split("Latest")[0].split()) > 0
     none = build_user_prompt(ctx, [], budget=PromptBudget(detailed_events=0))
-    assert "Most recent 0 events" in none
+    none_sec = none.split("# Recent public events")[1].split("# Your private notes")[0]
+    assert none_sec.split("Latest events, oldest first:")[1].strip() == ""
 
 
 def test_unknown_and_malformed_events_render_generically():
@@ -162,8 +175,15 @@ def test_unknown_and_malformed_events_render_generically():
     out = render_events(
         [{"type": "a"}, None, 5, {"seq": 9, "type": "b"}], names, PromptBudget()
     )
-    assert "[9] b" in out
+    assert out.splitlines() == ["a", "None", "5", "b"]  # no sequence numbers
     assert render_events([], names, PromptBudget()) == "(no events yet)"
+    # a known type with an unexpected shape still renders
+    odd = render_events(
+        [{"type": "bonuses_paid", "bonuses": "??"}, {"type": "stocks_purchased"}],
+        names,
+        PromptBudget(),
+    )
+    assert "bonuses paid" in odd and "stocks purchased" not in odd
 
 
 def test_slices_per_decision_kind(game):
@@ -374,7 +394,7 @@ def test_buy_prompt_shows_open_offers_between_other_players(game):
 def test_rules_text_says_offers_are_public():
     s = build_system_prompt()
     assert "Offers are public" in s and "competing offer" in s
-    assert PROMPT_BUILDER_VERSION == 6
+    assert PROMPT_BUILDER_VERSION == 7
 
 
 def test_engine_context_is_included_verbatim(game):
@@ -387,3 +407,244 @@ def test_engine_context_is_included_verbatim(game):
     )
     p = build_user_prompt(ctx, [])
     assert 'Engine context: {"tile":"5C"}' in p
+
+
+# --------------------------------------------------------- prompt size (cost)
+
+
+def test_event_log_is_compact_and_leaves_out_noise():
+    names = {"p1": "Alice", "p2": "Bob"}
+    evs = [
+        {"seq": 0, "type": "game_started", "turn_order": ["p1", "p2"]},
+        {"seq": 1, "type": "tiles_dealt", "player_id": "p1", "tiles": ["1A"]},
+        {
+            "seq": 2,
+            "type": "tile_placed",
+            "player_id": "p1",
+            "tile": "4F",
+            "outcome": "nothing",
+        },
+        {
+            "seq": 3,
+            "type": "stocks_purchased",
+            "player_id": "p1",
+            "purchases": {},
+            "total_cost": 0,
+        },
+        {"seq": 4, "type": "turn_ended", "player_id": "p1", "next_player_id": "p2"},
+        {
+            "seq": 5,
+            "type": "tile_placed",
+            "player_id": "p2",
+            "tile": "4E",
+            "outcome": "found",
+        },
+        {
+            "seq": 6,
+            "type": "chain_founded",
+            "player_id": "p2",
+            "chain": "marlowe",
+            "tile": "4E",
+            "size": 2,
+            "founder_bonus_type": "stock",
+            "founder_bonus_value": 1,
+        },
+        {
+            "seq": 7,
+            "type": "stocks_purchased",
+            "player_id": "p2",
+            "purchases": {"marlowe": 2, "halcyon": 0},
+            "prices": {"marlowe": 200},
+            "total_cost": 400,
+        },
+        {"seq": 8, "type": "tile_drawn", "player_id": "p2", "tile": "9I"},
+        {
+            "seq": 9,
+            "type": "tile_placed",
+            "player_id": "p1",
+            "tile": "4D",
+            "outcome": "expand",
+            "chains": ["marlowe"],
+        },
+        {
+            "seq": 10,
+            "type": "chain_expanded",
+            "player_id": "p1",
+            "chain": "marlowe",
+            "tile": "4D",
+            "size": 3,
+        },
+        {
+            "seq": 11,
+            "type": "merger_started",
+            "player_id": "p2",
+            "tile": "5D",
+            "survivor": "halcyon",
+            "defunct": ["marlowe"],
+            "sizes": {"halcyon": 5, "marlowe": 3},
+        },
+        {
+            "seq": 12,
+            "type": "bonuses_paid",
+            "chain": "marlowe",
+            "chain_size": 3,
+            "final": False,
+            "bonuses": {"p2": {"majority": 3000, "minority": 1500}},
+        },
+        {
+            "seq": 13,
+            "type": "stock_disposition",
+            "player_id": "p2",
+            "defunct_chain": "marlowe",
+            "surviving_chain": "halcyon",
+            "sell": 1,
+            "trade": 2,
+            "hold": 0,
+            "sale_proceeds": 300,
+            "survivor_shares_received": 1,
+        },
+        {
+            "seq": 14,
+            "type": "tile_placed",
+            "player_id": "p1",
+            "tile": "7C",
+            "outcome": "found",
+        },
+    ]
+    assert render_events(evs, names, PromptBudget()).splitlines() == [
+        "Alice placed 4F (lone tile)",
+        "Bob placed 4E and founded marlowe (2 tiles)",
+        "Bob bought marlowe 2 for $400",
+        "Alice placed 4D: marlowe grows to 3",
+        "Bob placed 5D: MERGER, halcyon (5) absorbs marlowe (3)",
+        "bonuses for marlowe (3 tiles): Bob $4,500",
+        "Bob marlowe shares: sold 1 for $300, traded 2 for 1 halcyon, kept 0",
+        # the placement whose founding decision is still open is shown
+        "Alice placed 7C: found",
+    ]
+
+
+def test_long_games_keep_key_earlier_events_as_milestones():
+    names = {"p1": "Alice"}
+    evs = [
+        {
+            "seq": 0,
+            "type": "chain_founded",
+            "player_id": "p1",
+            "chain": "marlowe",
+            "tile": "1A",
+            "size": 2,
+        },
+    ] + [
+        {
+            "seq": i,
+            "type": "tile_placed",
+            "player_id": "p1",
+            "tile": f"{i % 12 + 1}B",
+            "outcome": "nothing",
+        }
+        for i in range(1, 60)
+    ]
+    out = render_events(evs, names, PromptBudget(detailed_events=10, milestone_lines=3))
+    lines = out.splitlines()
+    assert lines[:3] == [
+        "Key earlier events:",
+        "  Alice placed 1A and founded marlowe (2 tiles)",
+        "Latest events, oldest first:",
+    ]
+    assert len(lines) == 13
+
+
+def test_chains_off_the_board_share_one_line():
+    game = bot_game(seed=3, min_turns=4)  # early: most chains not founded yet
+    p = build_user_prompt(place_ctx(game), [])
+    section = p.split("# Chains (calculator)")[1].split("# Players")[0]
+    off = [
+        c
+        for c, v in build_calculator_pack(game, "p1")["chains"].items()
+        if not v["active"]
+    ]
+    assert off, "the fixture game should have a chain off the board"
+    assert section.count("NOT on the board") == 1
+    line = next(x for x in section.splitlines() if "NOT on the board" in x)
+    assert all(c in line and "/share if founded" in line for c in off)
+
+
+def test_purchase_counts_with_the_same_outcome_share_a_line(game):
+    ctx = buy_ctx(game)
+    section = (
+        build_user_prompt(ctx, [])
+        .split("# Purchase options (calculator)")[1]
+        .split("# Bank and end game")[0]
+    )
+    opts = ctx.calc["buy_options"]
+    assert opts
+    merged_some = False
+    for chain, o in opts.items():
+        outcomes = [
+            (p["standing_after"], p["payout_after"], p["payout_change"])
+            for p in o["purchases"].values()
+        ]
+        runs = (
+            (1 + sum(1 for a, b in zip(outcomes, outcomes[1:]) if a != b))
+            if outcomes
+            else 0
+        )
+        merged_some = merged_some or runs < len(outcomes)
+        block = section.split(f"- {chain}: ")[1].split("\n- ")[0]
+        assert len(block.strip().splitlines()) == 1 + runs
+        for p in o["purchases"].values():  # every count's cost is still shown
+            assert f"${p['cost']:,}" in block
+    if merged_some:
+        assert re.search(r"buy 1-\d: cost \$[\d,]+ / \$", section)
+
+
+def test_purchase_lines_merge_only_counts_with_the_same_outcome():
+    calc = {
+        "buy_options": {
+            "marlowe": {
+                "price": 200,
+                "available": 20,
+                "max_affordable": 3,
+                "standing_now": "none",
+                "payout_now": 0,
+                "purchases": {
+                    "1": {
+                        "cost": 200,
+                        "cash_after": 800,
+                        "standing_after": "minority_sole",
+                        "payout_after": 1000,
+                        "payout_change": 1000,
+                    },
+                    "2": {
+                        "cost": 400,
+                        "cash_after": 600,
+                        "standing_after": "minority_sole",
+                        "payout_after": 1000,
+                        "payout_change": 1000,
+                    },
+                    "3": {
+                        "cost": 600,
+                        "cash_after": 400,
+                        "standing_after": "majority_tied",
+                        "payout_after": 1500,
+                        "payout_change": 1500,
+                    },
+                },
+            }
+        }
+    }
+    from agents.llm.prompt import render_buy_options
+
+    assert render_buy_options(calc).splitlines()[1:] == [
+        "    buy 1-2: cost $200 / $400, sole minority, bonus payout $1,000 (+$1,000)",
+        "    buy 3: cost $600, tied for majority, bonus payout $1,500 (+$1,500)",
+    ]
+
+
+def test_decision_prompt_is_about_half_the_size_it_was(game):
+    # Version 6 rendered ~10,000 characters for this position (60 raw events,
+    # six notes, the full legal dict); a guard against the prompt growing back.
+    ctx = place_ctx(game, events=public_events(game, "p1"))
+    p = build_user_prompt(ctx, ["a plan " * 30] * 3)
+    assert len(p) < 8_000, len(p)

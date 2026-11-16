@@ -11,7 +11,13 @@ import asyncio
 import pytest
 
 from agents.llm.agent import LLMAgent
-from agents.llm.prompt import build_system_prompt, build_user_prompt, chat_line
+from agents.llm.prompt import (
+    _event_lines,
+    build_system_prompt,
+    build_user_prompt,
+    chat_line,
+    compact_event,
+)
 from agents.llm.providers import FakeProvider
 from agents.llm.schema import (
     REPLY_SCHEMA,
@@ -54,7 +60,11 @@ def test_system_prompt_explains_table_talk_and_say():
 def test_decision_prompt_interleaves_chat_with_events_by_after_seq(game):
     events = public_events(game, "p1")
     ctx = place_ctx(game, events=events)
-    last, prev = events[-1]["seq"], events[-2]["seq"]
+    names = {pl.player_id: pl.name for pl in game.players}
+    shown = dict(_event_lines(events, names, 220))
+    assert all(compact_event(e, names) for e in events if e["seq"] in shown)
+    # events that get a line (turn ends, draws and the like do not)
+    last, prev = sorted(shown)[-1], sorted(shown)[-2]
     ctx.chat = [
         msg(
             1,
@@ -71,8 +81,8 @@ def test_decision_prompt_interleaves_chat_with_events_by_after_seq(game):
     # chat #2 sits right after the event it followed, before the last event
     lines = p.splitlines()
     i = lines.index(b)
-    assert lines[i - 1].startswith(f"[{prev}] ")
-    assert lines[i + 1].startswith(f"[{last}] ")
+    assert lines[i - 1] == shown[prev]
+    assert lines[i + 1] == shown[last]
     assert lines.index(a) < i
 
 

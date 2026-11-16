@@ -86,6 +86,20 @@ function AttemptView({
 export function LlmPanel({ decision, systemPrompts, redacted }: LlmPanelProps) {
   const llm = decision.llm
   if (!llm) return null
+  if (llm.outcome === 'forced') {
+    // Nothing to decide (one legal move, nothing affordable): the seat acted without a model call.
+    return (
+      <section className={styles.panel} aria-label="No model call" data-testid="llm-panel">
+        <header className={styles.head}>
+          <h3 className={styles.title}>NO MODEL CALL</h3>
+          <span className={styles.meta}>{llm.model} · 0 calls</span>
+        </header>
+        <p className={styles.muted} data-testid="llm-forced">
+          {llm.why ?? 'There was only one thing to do, so the model was not asked.'}
+        </p>
+      </section>
+    )
+  }
   const idx = decision.index
   const systemPrompt = systemPrompts[llm.system_prompt_id] ?? llm.system_prompt
   const attempts = llm.attempts ?? []

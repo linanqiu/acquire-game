@@ -627,19 +627,24 @@ kept per room.
   user prompt with the decision context -- own hand and holdings, standings,
   chains with majorities and bonuses, recent events with the chat, private
   notes -- plus what triggered the call; answer `{"reply": str}` (`""` or
-  null = stay silent, which is normal). The seat's normal effort; output cap
-  `chat_reply_max_tokens` (2048, thinking included), timeout
-  `chat_reply_timeout_s` (30 s). Triggers:
-  - any human message: every talking seat gets the chance (addressed or not);
-  - an AI message (reply or `say`): the talking seats it names (full name,
-    `@name`, or a first word no other seat shares), or every other talking
-    seat when it proposes or negotiates (a `?` or a deal word: deal, trade,
-    offer, sell, buy, majority, merger, shares...);
-  - after a move: `chain_founded` and `merger_started` (every talking seat
-    but the mover, who can `say`), `trade_accepted` / `trade_rejected` (the
-    other party), a seat losing its place as top holder of a chain
-    (synthetic `majority_lost`), `game_ended` (everyone). A trade offered to
-    a seat is answered by its `trade_response` decision, which can `say`.
+  null = stay silent, which is normal). Effort `chat_reply_effort` (`low`;
+  providers that take an effort), output cap `chat_reply_max_tokens` (2048,
+  thinking included), timeout `chat_reply_timeout_s` (30 s). Every talk call
+  is a paid model call, so who is asked is decided by rules before any call
+  (LO-010, [docs/ai/cost.md](../ai/cost.md)). Triggers:
+  - a human message that names seats (full name, `@name`, or a first word no
+    other seat shares): those talking seats; a human message that names
+    nobody (spoken to the table): at most `chat_reply_table_seats` (2)
+    talking seats, the ones with the fewest talk calls so far;
+  - an AI message (reply or `say`): only the talking seats it names, and
+    only when it floats a deal or asks something (a `?` or a deal word:
+    deal, trade, offer, sell, buy, majority, merger, shares...);
+  - after a move: the event types in `chat_reply_events` (default
+    `game_ended`: everyone, once). Also understood there: `chain_founded` and
+    `merger_started` (every talking seat but the mover, who can `say`),
+    `trade_accepted` / `trade_rejected` (the other party), `majority_lost`
+    (a seat losing its place as top holder of a chain). A trade offered to a
+    seat is answered by its `trade_response` decision, which can `say`.
 * **Loop protection** (settings in `backend/config.py`, env vars of the same
   name): AI messages stop triggering talk once `chat_ai_streak_max` (3) AI
   messages came in a row (a human message or a move resets the streak); a
@@ -723,7 +728,7 @@ Lines, in order:
                      "cache_write_tokens":0,
                      "retry_prompt":"<full text of the retry message>"|null}],
         "why":"..."|null,"note":"..."|null,
-        "outcome":"answered"|"failed","error":"<why the agent gave up>"|absent,
+        "outcome":"answered"|"failed"|"forced","error":"<why the agent gave up>"|absent,
         "system_prompt":"<text>"|absent}|null}
 
 {"type":"state","after_seq":13,"public":{...game.get_public_state()...}}
@@ -770,6 +775,21 @@ Semantics clients rely on:
   attempts. `system_prompt_id` refers to `header.system_prompts`; a prompt not
   in the header (a custom agent) is stored inline once as
   `llm.system_prompt`.
+* **Forced decisions.** An LLM seat makes no model call when nothing is left
+  to decide (`agents.llm.agent.forced_choice`): the buy step after its
+  purchase, a buy step where no share can be bought (and no trade could be
+  proposed with shares in hand), exactly one playable tile, one chain left
+  to found; never when it may declare the game over. The move goes through
+  `apply_action` like any other; its line has `source: "llm"` and an `llm`
+  record with `outcome: "forced"`, `attempts: []`, an empty `user_prompt`
+  and the reason in `why` ("No model call: one playable tile.").
+* **Answer schema.** Real providers are sent the static schema of the
+  decision kind (`agents.llm.schema.build_static_schema`: it depends on the
+  kind and the ruleset only, so the request prefix is identical from call to
+  call and the provider's prompt cache hits); a provider that only describes
+  the schema in its prompt (`json_object` mode) gets one schema for all
+  kinds. Whether the answer is legal now is checked by `check_against_legal`
+  and the engine; an illegal answer is sent back as before.
 * **Retries** = number of attempts with a non-null `error` (also in
   `totals.retries` and the leaderboard's `retry_rate`). `llm_calls` counts
   attempts with a model answer (`raw` not null).
