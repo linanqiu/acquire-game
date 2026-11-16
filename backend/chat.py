@@ -261,11 +261,15 @@ async def send_history(room_code: str, player_id: str | None = None) -> None:
 # A "talk call" asks one LLM seat "do you want to say something?" outside its
 # decisions. Triggers (``Trigger.kind``):
 #
-# * ``message``: any human message (every talking seat gets the chance, each
-#   decides for itself), and an AI message that names the seat or proposes /
-#   negotiates something (a question or a deal word), while the AI streak is
-#   below ``chat_ai_streak_max``;
-# * ``event``: notable public game events after a move (``on_action``).
+# * ``message``: a human message (the seats it names; spoken to the table, at
+#   most ``chat_reply_table_seats`` seats), and an AI message that names the
+#   seat AND floats a deal or asks something (a question or a deal word),
+#   while the AI streak is below ``chat_ai_streak_max``;
+# * ``event``: the game events listed in ``chat_reply_events`` after a move
+#   (``on_action``); by default only the end of the game.
+#
+# Every trigger is a paid model call, so who is asked is decided here by
+# rules, never by asking the model "do you want to speak?" on every line.
 #
 # Guards (settings): a per-seat cooldown (``chat_reply_cooldown_s``; a trigger
 # arriving meanwhile is kept, the most important one, and fires when the
@@ -326,25 +330,37 @@ def named_seats(room, msg: dict) -> list:
 
 
 def message_targets(room, msg: dict) -> list:
-    """Talking seats a new message gives the chance to speak.
+    """Talking seats a new message gives the chance to speak. Decided by
+    rules alone, before any model call, since every chance is a paid call.
 
-    Human message: every talking seat (addressed or not). AI message: the
-    talking seats it names, or every other talking seat when it proposes or
-    negotiates something (a question, a deal word); never while
-    the AI streak is at ``chat_ai_streak_max``.
+    Human message: the talking seats it names; when it names none (spoken to
+    the table), at most ``chat_reply_table_seats`` of them, the ones that
+    have had the fewest talk calls so far. AI message: only the talking
+    seats it names, and only when it floats a deal or asks something (a
+    question mark or a deal word); never while the AI streak is at
+    ``chat_ai_streak_max``.
     """
     talking = [s for s in _talking_seats(room) if s.player_id != msg["player_id"]]
     if not talking:
         return []
-    if msg.get("kind") == "human":
-        return talking
-    state = chat_state(room)
-    if state.ai_streak >= get_settings().chat_ai_streak_max:
-        return []
-    if _NEGOTIATION.search(msg["text"]):
-        return talking
     named = {s.player_id for s in named_seats(room, msg)}
-    return [s for s in talking if s.player_id in named]
+    addressed = [s for s in talking if s.player_id in named]
+    state = chat_state(room)
+    settings = get_settings()
+    if msg.get("kind") == "human":
+        if addressed:
+            return addressed
+        cap = max(0, settings.chat_reply_table_seats)
+        order = sorted(
+            range(len(talking)),
+            key=lambda i: (_slot(state, room, talking[i].player_id)["count"], i),
+        )
+        return [talking[i] for i in sorted(order[:cap])]
+    if state.ai_streak >= settings.chat_ai_streak_max:
+        return []
+    if not _NEGOTIATION.search(msg["text"]):
+        return []
+    return addressed
 
 
 def _slot(state, room, player_id: str) -> dict:
@@ -459,12 +475,15 @@ def event_targets(room, game, events: list[dict], before: dict, actor) -> dict:
     game over: everyone; a seat that lost its majority in a chain (someone
     overtook it): that seat (as a synthetic ``majority_lost`` event)."""
     talking = {s.player_id for s in _talking_seats(room)}
-    if not talking:
+    wanted = {
+        t.strip() for t in get_settings().chat_reply_events.split(",") if t.strip()
+    }
+    if not talking or not wanted:
         return {}
     out: dict[str, list] = {}
 
     def add(pid, e):
-        if pid in talking:
+        if pid in talking and e.get("type") in wanted:
             out.setdefault(pid, []).append(e)
 
     for e in events:
@@ -490,6 +509,8 @@ def event_targets(room, game, events: list[dict], before: dict, actor) -> dict:
         elif t == "game_ended":
             for pid in talking:
                 add(pid, e)
+    if "majority_lost" not in wanted:
+        return out
     after = top_holders(game)
     for chain, holders in before.items():
         now = after.get(chain)
@@ -599,6 +620,7 @@ async def _talk(room_code: str, player_id: str, trigger: dict, slot: dict) -> No
                     view,
                     max_tokens=s.chat_reply_max_tokens,
                     timeout=s.chat_reply_timeout_s,
+                    effort=s.chat_reply_effort or None,
                 ),
                 s.chat_reply_timeout_s + 5,
             )

@@ -203,6 +203,104 @@ def build_schema(
     )
 
 
+# The action types each decision kind can ever offer. ``build_static_schema``
+# uses these instead of the legal options of the moment.
+KIND_ACTIONS: dict[str, tuple[str, ...]] = {
+    "place_tile": ("place_tile", "declare_end_game"),
+    "found_chain": ("found_chain",),
+    "choose_survivor": ("merger_choice",),
+    "stock_disposition": ("merger_disposition",),
+    "buy_stocks": ("buy_stocks", "end_turn", "declare_end_game", "propose_trade"),
+    "trade_response": ("accept_trade", "reject_trade"),
+}
+
+# ``build_static_schema(ANY_KIND)``: every action type in one schema, the
+# same for every decision of a game. For providers that only describe the
+# schema in the prompt (``json_object`` mode): the text is then identical on
+# every call and can be served from the provider's prefix cache.
+ANY_KIND = "*"
+
+_INT = {"type": "integer"}
+_STR = {"type": "string"}
+
+
+def _static_variant(action_type: str, chains: tuple[str, ...], max_buy: int) -> dict:
+    head: dict[str, Any] = {"action": _enum_str([action_type])}
+    if action_type == "place_tile":
+        return _obj({**head, "tile": _STR})
+    if action_type == "found_chain":
+        return _obj({**head, "chain": _enum_str(list(chains))})
+    if action_type == "merger_choice":
+        return _obj({**head, "surviving_chain": _enum_str(list(chains))})
+    if action_type == "merger_disposition":
+        return _obj(
+            {
+                **head,
+                "defunct_chain": _enum_str(list(chains)),
+                "disposition": _obj({"sell": _INT, "trade": _INT, "hold": _INT}),
+            }
+        )
+    if action_type == "buy_stocks":
+        counts = _int_enum(list(range(max_buy + 1)))
+        return _obj({**head, "purchases": _obj({c: counts for c in chains})})
+    if action_type in ("accept_trade", "reject_trade"):
+        return _obj({**head, "trade_id": _STR})
+    if action_type == "propose_trade":
+        stock_map = _obj({c: _INT for c in chains})
+        return _obj(
+            {
+                **head,
+                "to_player_id": _STR,
+                "offering_stocks": stock_map,
+                "offering_money": _INT,
+                "requesting_stocks": stock_map,
+                "requesting_money": _INT,
+            }
+        )
+    return _obj(head)  # end_turn / declare_end_game
+
+
+def build_static_schema(
+    kind: str,
+    *,
+    chains: tuple[str, ...] | list[str] | None = None,
+    max_buy: int | None = None,
+) -> dict | None:
+    """The answer schema for a decision ``kind``, the same for every decision
+    of that kind in a game (None for an unknown kind).
+
+    It depends only on the kind and the ruleset (chain ids, purchases per
+    turn), never on the legal options of the moment, so the request prefix
+    that carries it is identical from call to call and a provider's prompt
+    cache keeps hitting: a schema narrowed to the playable tiles or the
+    affordable counts changed on every call and each change was billed as a
+    fresh cache write of the whole system prompt. It is also much smaller
+    (no 0..25 enumerations per chain). What it no longer enforces (the tile
+    is playable, counts fit cash and bank, the action type is offered now) is
+    stated in the prompt's legal options and checked by
+    ``check_against_legal``; an answer outside them is sent back once more.
+    """
+    types = ACTION_ORDER if kind == ANY_KIND else KIND_ACTIONS.get(kind)
+    if types is None:
+        return None
+    chain_ids = tuple(chains) if chains is not None else CHAINS
+    cap = (
+        max_buy
+        if max_buy is not None
+        else default_ruleset().max_stock_purchases_per_turn
+    )
+    variants = [_static_variant(t, chain_ids, cap) for t in types]
+    action = variants[0] if len(variants) == 1 else {"anyOf": variants}
+    return _obj(
+        {
+            "why": {"type": "string"},
+            "action": action,
+            "note": {"type": "string"},
+            "say": {"type": "string"},
+        }
+    )
+
+
 # ---------------------------------------------------------------------------
 # Answer parsing / normalisation
 # ---------------------------------------------------------------------------

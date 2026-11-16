@@ -94,8 +94,9 @@ decision (LO-004).
 | [LO-008](../stories/09-llm-opponents/LO-008.md) | Public table chat; LLM seats talk and negotiate (owner decision 2026-11-15) | complete | LO-003, LO-005, AB-001 |
 | [LO-009](../stories/09-llm-opponents/LO-009.md) | Strategy playbook and strategy figures in the prompt, measured with the bench (owner request 2026-11-15) | complete | LO-002, ES-004, AB-003 |
 | [LO-010](../stories/09-llm-opponents/LO-010.md) | Position-aware trading: the rules-based bot prices majority/minority positions, the LLM guide and offer line too (owner request 2026-11-16) | complete | ES-004, LO-004, LO-009 |
+| [LO-011](../stories/09-llm-opponents/LO-011.md) | Cost per game: a prompt cache that hits, no call when nothing is to decide, smaller prompt, talk calls gated by rules (owner request 2026-11-16) | complete | LO-003, LO-008, LO-009, AB-001 |
 
-Status as of 2026-11-16: **4 of 9 active stories complete** (LO-010 position-aware trading; LO-009 strategy playbook; LO-008
+Status as of 2026-11-16: **5 of 10 active stories complete** (LO-011 cost per game; LO-010 position-aware trading; LO-009 strategy playbook; LO-008
 table chat; LO-006, the headless harness); LO-001..LO-005 are partly built (see the status note at the bottom of each story);
 LO-007 is superseded. The benchmark as a product (protocol, standalone CLI/API contract, ratings,
 leaderboard, first results) and transcripts moved to [Epic 12](12-bench.md). Changes caused
