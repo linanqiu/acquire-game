@@ -3,8 +3,8 @@
  * recorded server messages (tests/unit/fixtures/wire-messages.json). Nothing is added up here:
  * the components show what the server's calculator sent, and the tests check exactly that.
  */
-import { act, fireEvent, render, renderHook, screen, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { fireEvent, render, renderHook, screen, within } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
 import { Standings } from './Standings'
 import { ChainTable } from './ChainTable'
 import { MergerLog, MergerResult } from './MergerResult'
@@ -58,7 +58,9 @@ describe('ChainTable: majority and minority at a glance', () => {
         }
         if (second.length > 1) {
           sawTie = true
-          expect(minority).toHaveTextContent('(tie)')
+          expect(minority).toHaveAttribute('data-tied', 'true')
+          expect(minority).toHaveTextContent('=2nd')
+          expect(minority).toHaveTextContent('each')
         }
       }
       const mine = info.holders.find((h: any) => h.player_id === 'p1')
@@ -79,13 +81,13 @@ describe('MergerResult: what a merger did', () => {
     const view = snapshot('disposition-waiting-on-other')
     const state = view.host as GameStateMessage
     const merger = state.mergers![0]
-    render(<MergerResult merger={merger} players={state.players} onDismiss={() => {}} />)
+    render(<MergerResult merger={merger} players={state.players} />)
     const card = screen.getByTestId('merger-result')
     expect(screen.getByTestId('merger-result-title')).toHaveTextContent(
       'Halcyon takes over Aurelia'
     )
     const d = merger.defunct[0]
-    expect(card).toHaveTextContent(`${d.size} tiles, ${money(d.price)} a share`)
+    expect(card).toHaveTextContent(`${d.size} tiles · ${money(d.price)}`)
     for (const b of d.bonuses!) {
       // In the holder's row: name, shares, the bonus paid, the decision.
       const row = screen.getByTestId(`merger-bonus-aurelia-${b.player_id}`).closest('tr')!
@@ -104,9 +106,9 @@ describe('MergerResult: what a merger did', () => {
     const view = snapshot('three-player-midgame')
     const state = view.host as GameStateMessage
     const merger = state.mergers!.find((m) => m.complete)!
-    render(<MergerResult merger={merger} players={state.players} onDismiss={() => {}} />)
+    render(<MergerResult merger={merger} players={state.players} />)
     expect(screen.getByTestId('merger-result-summary')).toHaveTextContent(
-      `to ${merger.survivor_size} tiles`
+      `→ ${merger.survivor_size} tiles`
     )
     for (const d of merger.defunct) {
       for (const x of d.dispositions) {
@@ -119,48 +121,54 @@ describe('MergerResult: what a merger did', () => {
   })
 })
 
-describe('useMergerResult: open, close, reopen', () => {
-  beforeEach(() => sessionStorage.clear())
+describe('useMergerResult: shown by itself, gone by itself', () => {
   const host = () => snapshot('disposition-waiting-on-other').host as GameStateMessage
   const done = () => snapshot('three-player-midgame').host as GameStateMessage
 
-  it('a merger in progress when the page loads opens; a finished one does not', () => {
-    const live = renderHook(() => useMergerResult(host().mergers, 'k1'))
-    expect(live.result.current.shown?.seq).toBe(host().mergers![0].seq)
-    const old = renderHook(() => useMergerResult(done().mergers, 'k2'))
-    expect(old.result.current.shown).toBeNull()
+  it('a merger in progress when the page loads is shown; a finished one is not', () => {
+    const live = renderHook(() => useMergerResult(host().mergers, 30))
+    expect(live.result.current.auto?.seq).toBe(host().mergers![0].seq)
+    const old = renderHook(() => useMergerResult(done().mergers, 30))
+    expect(old.result.current.auto).toBeNull()
   })
 
-  it('a merger that appears later opens, stays after updates, closes for good, reopens on demand', () => {
+  it('a merger that appears later is shown, stays when it ends, and goes when the next tile is placed', () => {
     const merger = host().mergers![0]
+    const finished = { ...merger, complete: true, survivor_size: 11 }
     const { result, rerender } = renderHook(
-      ({ m }: { m: MergerRecord[] }) => useMergerResult(m, 'k3'),
-      { initialProps: { m: [] as MergerRecord[] } }
+      ({ m, tiles }: { m: MergerRecord[]; tiles: number }) => useMergerResult(m, tiles),
+      { initialProps: { m: [] as MergerRecord[], tiles: 30 } }
     )
-    expect(result.current.shown).toBeNull()
-    rerender({ m: [merger] })
-    expect(result.current.shown?.seq).toBe(merger.seq)
-    rerender({ m: [{ ...merger, complete: true, survivor_size: 11 }] })
-    expect(result.current.shown?.complete).toBe(true)
-    act(() => result.current.dismiss())
-    expect(result.current.shown).toBeNull()
-    rerender({ m: [{ ...merger, complete: true, survivor_size: 11 }] })
-    expect(result.current.shown).toBeNull()
-    act(() => result.current.open(merger.seq))
-    expect(result.current.shown?.seq).toBe(merger.seq)
-    // A reload in the same tab does not bring back a card that was closed.
-    const again = renderHook(() => useMergerResult([merger], 'k3'))
-    expect(again.result.current.shown).toBeNull()
+    expect(result.current.auto).toBeNull()
+    rerender({ m: [merger], tiles: 31 })
+    expect(result.current.auto?.seq).toBe(merger.seq)
+    expect(result.current.live).toEqual([merger.seq])
+    rerender({ m: [finished], tiles: 31 })
+    expect(result.current.auto?.complete).toBe(true)
+    // More updates on the same board (the merging player buys): still there.
+    rerender({ m: [{ ...finished }], tiles: 31 })
+    expect(result.current.auto?.seq).toBe(merger.seq)
+    // The next tile: play has moved on.
+    rerender({ m: [finished], tiles: 32 })
+    expect(result.current.auto).toBeNull()
+    // A reload after that does not bring the result back.
+    const again = renderHook(() => useMergerResult([finished], 32))
+    expect(again.result.current.auto).toBeNull()
   })
 
-  it('the log reopens a merger', () => {
+  it('the log keeps every merger: a line opens in place to the result and closes again', () => {
     const state = done()
-    let opened: number | null = null
-    render(
-      <MergerLog mergers={state.mergers!} players={state.players} onOpen={(s) => (opened = s)} />
-    )
+    render(<MergerLog mergers={state.mergers!} players={state.players} gameState={state} />)
     const log = screen.getByTestId('merger-log')
-    fireEvent.click(within(log).getByTestId(`merger-log-${state.mergers![0].seq}`))
-    expect(opened).toBe(state.mergers![0].seq)
+    const line = within(log).getByTestId(`merger-log-${state.mergers![0].seq}`)
+    expect(within(log).queryByTestId('merger-result')).not.toBeInTheDocument()
+    fireEvent.click(line)
+    expect(line).toHaveAttribute('aria-expanded', 'true')
+    expect(within(log).getByTestId('merger-result')).toHaveAttribute(
+      'data-merger-seq',
+      String(state.mergers![0].seq)
+    )
+    fireEvent.click(line)
+    expect(within(log).queryByTestId('merger-result')).not.toBeInTheDocument()
   })
 })

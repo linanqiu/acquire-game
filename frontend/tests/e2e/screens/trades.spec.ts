@@ -3,6 +3,7 @@ import { test, expect } from './support/test'
 import { startFromSnapshot, type RoomContext } from './support/room'
 import { dollars, loadFixture } from './support/fixtures'
 import { headerCash, phaseBanner, playHumanTurns } from './support/ui'
+import { layoutProblems } from './support/layout'
 import { openTab, tabBadge } from '../support/tabs'
 
 /** Latest toast containing `text` (an earlier identical toast may still be fading out). */
@@ -314,7 +315,7 @@ test('a new offer between two other players: one toast, a dot on the tab, the of
   await openTab(page, 'trades', { tap: false })
   await expect(page.getByTestId(`trade-table-${trade.trade_id}`)).toBeVisible()
   await shots.take(page, 'phone-offer-between-others')
-  await openTab(page, 'players')
+  await openTab(page, 'table')
   await expect(tabBadge(page, 'trades')).toHaveCount(0)
 
   // The recipient says no (no toast for me: it is their business), then a new offer comes.
@@ -371,7 +372,7 @@ test('propose a trade through the builder: validation, then the offer shows as p
   await page.getByTestId(`player-select-${room.seatMap[partnerSeat]}`).click()
   await page.getByTestId('propose-trade').click()
   await expect(page.getByTestId('trade-error')).toHaveText('You must offer something')
-  await builder.getByTestId('stepper-increment').first().click()
+  await builder.getByTestId(`offer-stock-${chain}`).getByTestId('stepper-increment').click()
   await page.getByTestId('propose-trade').click()
   await expect(page.getByTestId('trade-error')).toHaveText('You must request something')
   await shots.take(page, 'builder-validation')
@@ -448,4 +449,117 @@ test('server refuses a trade mid-merger: reason shown in the builder and as a to
   await expect(page.getByTestId('merger-disposition')).toBeVisible()
   await page.getByTestId('confirm-disposition').click()
   await playHumanTurns(page, room, 2, shots)
+})
+
+for (const vp of [
+  { label: '390x844', width: 390, height: 844 },
+  { label: '360x640', width: 360, height: 640 },
+]) {
+  test(`trade builder at ${vp.label}: a full-screen sheet, one line per row, the deal and the buttons always in view`, async ({
+    page,
+    shots,
+  }) => {
+    const room = await startFromSnapshot(page, 'trade-outgoing-pending', {
+      idle: ['p2', 'p3', 'p4'],
+      viewport: vp,
+    })
+    const { human, players, active_chains } = room.fixture.expect
+    const partner = players.find((p) => p.player_id === 'p3')!
+    await openTab(page, 'trades')
+    await page.getByRole('button', { name: 'PROPOSE TRADE' }).click()
+    const builder = page.getByTestId('trade-builder')
+    await expect(builder).toBeVisible()
+    // The sheet is the screen: nothing of the game shows around it, and it does not scroll
+    // as a whole (the rows scroll inside it).
+    const dialog = page.getByRole('dialog', { name: 'Propose a trade' })
+    // (Once the short slide-in has settled.)
+    await expect
+      .poll(async () => {
+        const b = (await dialog.boundingBox())!
+        return [b.x, b.y, b.width, b.height].map(Math.round)
+      })
+      .toEqual([0, 0, vp.width, vp.height])
+    expect(await layoutProblems(page, ['trade-builder'])).toEqual([])
+    expect(await layoutProblems(page, ['propose-trade', 'cancel-trade'])).toEqual([])
+    // The buttons are thumb-sized and on screen before anything is filled in.
+    for (const id of ['propose-trade', 'cancel-trade']) {
+      await expect(page.getByTestId(id)).toBeInViewport({ ratio: 1 })
+      expect((await page.getByTestId(id).boundingBox())!.height).toBeGreaterThanOrEqual(44)
+    }
+    await expect(page.getByTestId('trade-give')).toContainText('nothing yet')
+    await shots.take(page, 'builder-open', { fullPage: false })
+
+    await page.getByTestId(`player-select-${room.seatMap.p3}`).click()
+    // Every partner on one line; every stock row on one line (chain, "of N", stepper).
+    const tops = await builder
+      .locator('[data-testid^="player-select-"]')
+      .evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)))
+    expect(new Set(tops).size, 'partner buttons on one line').toBe(1)
+    const rows = builder.locator('[data-testid^="offer-stock-"], [data-testid^="want-stock-"]')
+    expect(await rows.count()).toBeGreaterThan(0)
+    for (const h of await rows.evaluateAll((els) =>
+      els.map((e) => e.getBoundingClientRect().height)
+    )) {
+      expect(h, 'a stock row is one line').toBeLessThanOrEqual(52)
+    }
+    // Chains are listed in the ruleset's order on both sides.
+    const res = await page.request.get('/api/config/game')
+    const order = ((await res.json()) as { chains: Array<{ id: string }> }).chains.map((c) => c.id)
+    for (const prefix of ['offer-stock-', 'want-stock-']) {
+      const listed = await builder
+        .locator(`[data-testid^="${prefix}"]`)
+        .evaluateAll(
+          (els, n) => els.map((e) => e.getAttribute('data-testid')!.slice(n)),
+          prefix.length
+        )
+      expect(listed).toEqual(order.filter((c) => listed.includes(c)))
+    }
+
+    // Two of my shares for cash: the deal in words, both sides valued at current prices.
+    const [chain] = order.filter((c) => (human.holdings[c] ?? 0) >= 2)
+    expect(chain, 'the human holds two shares of some chain').toBeTruthy()
+    const row = builder.getByTestId(`offer-stock-${chain}`)
+    await expect(row).toContainText(`of ${human.holdings[chain]}`)
+    await row.getByTestId('stepper-increment').click()
+    await row.getByTestId('stepper-increment').click()
+    await page.getByTestId('want-cash-input').fill('1200')
+    const price = active_chains[chain]?.price ?? 0
+    const give = page.getByTestId('trade-give')
+    await expect(give).toContainText(new RegExp(`2 ${chain}`, 'i'))
+    await expect(give).toContainText(dollars(2 * price))
+    await expect(page.getByTestId('trade-get')).toContainText('$1,200')
+    await expect(page.getByTestId('propose-trade')).toBeInViewport({ ratio: 1 })
+    await expect(page.getByTestId('trade-summary')).toBeInViewport({ ratio: 1 })
+    expect(await layoutProblems(page, ['trade-summary', 'propose-trade'])).toEqual([])
+    await shots.take(page, 'builder-filled', { fullPage: false })
+
+    await page.getByTestId('propose-trade').click()
+    await expect(builder).toHaveCount(0)
+    await expect(toast(page, `Offer sent to ${partner.name}`)).toBeVisible()
+    await expect(page.locator('[data-testid^="trade-outgoing-"]')).toHaveCount(2)
+    await shots.take(page, 'offer-sent', { fullPage: false })
+  })
+}
+
+test('a hint is read once: after I have proposed a trade it is a "?" that brings the words back', async ({
+  page,
+  shots,
+}) => {
+  await startFromSnapshot(page, 'trade-outgoing-pending', { idle: ['p2', 'p3', 'p4'] })
+  await openTab(page, 'trades')
+  const table = page.getByTestId('trade-table')
+  await expect(table.getByTestId('hint-trades')).toContainText('Offers are public')
+  await shots.take(page, 'hint-first-time')
+  // Doing the thing retires the hint (remembered in this browser).
+  await page.getByRole('button', { name: 'PROPOSE TRADE' }).click()
+  await page.getByTestId('cancel-trade').click()
+  await page.reload()
+  await expect(page.getByTestId('game-phase')).toBeVisible()
+  await openTab(page, 'trades')
+  await expect(table.getByTestId('hint-trades')).toHaveCount(0)
+  const more = table.getByTestId('hint-button-trades')
+  await expect(more).toHaveAccessibleName('How this works')
+  await shots.take(page, 'hint-retired')
+  await more.click()
+  await expect(table.getByTestId('hint-trades')).toContainText('Offers are public')
 })

@@ -1,6 +1,7 @@
 /**
- * Tier 3 (BL-011): the decision tab ("Now") shows each decision with the information needed to
- * make it, and the page goes there by itself instead of popping cards over other tabs.
+ * Tier 3 (BL-011, BL-013): each decision appears in place, in the table panel (under the board
+ * on a phone, next to it on a wide screen), with the information needed to make it; the page
+ * brings it into view by itself instead of popping cards over other tabs.
  *
  * - Buying: every chain's holders (engine roles), my shares next to the stepper, the bonuses,
  *   the projection as I step; the buy button on screen without scrolling, seven chains too.
@@ -8,8 +9,10 @@
  *   size, price, bank, everyone's shares, undecided players), my controls with the projection
  *   following the trade slider, the confirm button on screen.
  * - Survivor choice and waiting; the Board tab shows the full board in every phase on phones.
- * - Redirect: an opponent's merger takes me to the decision tab from another tab, but not while
- *   I have a chat draft (a badge then).
+ * - Redirect: an opponent's merger takes me back to the board and the merger under it from
+ *   another tab, but not while I have a chat draft (a badge then).
+ * - A merger result needs no closing: it stays until the next tile is placed, then it is gone,
+ *   and the last merger is one quiet line that opens in place.
  *
  * Values are checked against the fixture's `expect` block (engine figures). Setup is tier 3:
  * snapshot fixtures, idle seats whose moves are posted through the action route.
@@ -17,10 +20,10 @@
 import type { Page } from '@playwright/test'
 import { test, expect, type Shots } from './support/test'
 import { startFromSnapshot, type RoomContext } from './support/room'
-import { dollars } from './support/fixtures'
+import { dollars, loadFixture } from './support/fixtures'
 import { expectFullBoard, layoutProblems } from './support/layout'
 import { phaseBanner } from './support/ui'
-import { openTab, tab, tabBadge, tabPanel } from '../support/tabs'
+import { openTab, tab, tabBadge, tablePanel, tableTab, tableTabId } from '../support/tabs'
 
 const SIZES = [
   { label: '390x844', width: 390, height: 844 },
@@ -37,7 +40,13 @@ const isPhone = (page: Page) => (page.viewportSize()?.width ?? 1280) < 768
  */
 async function expectNoScroll(page: Page, controls: string[] = []) {
   const frame = isPhone(page) ? ['dock', 'tab-bar'] : ['board-pane', 'tab-list']
-  expect(await layoutProblems(page, ['game-phase', 'tabpanel-now', ...frame])).toEqual([])
+  const id = await tableTabId(page)
+  expect(await layoutProblems(page, ['game-phase', `tabpanel-${id}`, ...frame])).toEqual([])
+  if (isPhone(page)) {
+    // The board is whole and the decision is under it, in the same view.
+    await expectFullBoard(page)
+    expect(await layoutProblems(page, ['board', 'table-panel'])).toEqual([])
+  }
   for (const id of controls) expect(await layoutProblems(page, [id, ...frame])).toEqual([])
 }
 
@@ -91,13 +100,17 @@ for (const vp of SIZES) {
       idle: ['p2'],
     })
     await expect(phaseBanner(page)).toHaveText('BUY STOCKS')
-    await expect(tab(page, 'now')).toHaveAttribute('aria-selected', 'true')
+    await expect(await tableTab(page)).toHaveAttribute('aria-selected', 'true')
     await expect(page.getByTestId('decision-view')).toHaveAttribute('data-view', 'buy')
     await expectBuyRows(page, room)
     await expect(page.getByTestId('end-turn-button')).toBeInViewport({ ratio: 1 })
     await expect(page.getByTestId('purchase-cash-after')).toBeInViewport({ ratio: 1 })
     await expectNoScroll(page, ['end-turn-button'])
-    await expect(page.getByTestId('status-line')).toHaveText(/Your move: buy shares/)
+    // Wide screens name the decision under the board; on a phone it is right there.
+    if (isPhone(page)) await expect(page.getByTestId('status-line')).toHaveCount(0)
+    else await expect(page.getByTestId('status-line')).toHaveText(/Your move: buy shares/)
+    // The players matrix is in the same panel, under the decision.
+    await expect(tablePanel(page).getByTestId('holdings-matrix')).toBeAttached()
     await shots.take(page, 'buy', { fullPage: false })
 
     // Step a chain with stock left that I can afford: my chip and the projection follow.
@@ -167,7 +180,7 @@ async function expectMergerView(page: Page, room: RoomContext) {
   await expect(view.getByTestId('survivor-after-price')).toHaveText(dollars(after.price))
   await expect(view.getByTestId('survivor-after-bank')).toHaveText(`bank ${after.bank}`)
   await expect(view.getByTestId('survivor-after-bonus')).toContainText(
-    `1st pays ${dollars(after.majority_bonus)}, 2nd ${dollars(after.minority_bonus)}`
+    `1st ${dollars(after.majority_bonus)} · 2nd ${dollars(after.minority_bonus)}`
   )
   for (const h of after.holders) {
     const row = view.getByTestId(`survivor-row-${room.seatMap[h.player_id]}`)
@@ -188,11 +201,13 @@ for (const vp of SIZES) {
       idle: ['p2', 'p3', 'p4'],
     })
     await expect(phaseBanner(page)).toHaveText('DISPOSE YOUR SHARES')
-    await expect(tab(page, 'now')).toHaveAttribute('aria-selected', 'true')
+    await expect(await tableTab(page)).toHaveAttribute('aria-selected', 'true')
     await expect(page.getByTestId('decision-view')).toHaveAttribute('data-view', 'disposition')
     const { d, after } = await expectMergerView(page, room)
     await expect(page.getByTestId('confirm-disposition')).toBeInViewport({ ratio: 1 })
+    await page.getByTestId('slider-sell-to-bank').scrollIntoViewIfNeeded()
     await expect(page.getByTestId('slider-sell-to-bank')).toBeInViewport()
+    await expect(page.getByTestId('confirm-disposition')).toBeInViewport({ ratio: 1 })
     await expectNoScroll(page, ['confirm-disposition'])
     await shots.take(page, 'disposition', { fullPage: false })
 
@@ -275,22 +290,23 @@ test("waiting during someone else's disposition: who and what, the merger read-o
     idle: ['p2'],
   })
   const awaited = room.names[room.seatMap[room.fixture.expect.decisions[0].player_id]]
-  await expect(tab(page, 'now')).toHaveAttribute('aria-selected', 'true')
+  await expect(tab(page, 'board')).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByTestId('decision-view')).toHaveAttribute('data-view', 'merger')
   await expect(page.getByTestId('waiting-message')).toHaveText(
     `Waiting for ${awaited} to dispose of their shares...`
   )
+  await expectMergerView(page, room)
+  await expect(page.getByTestId('merger-disposition')).toHaveCount(0)
+  // Read-only, and nothing to close.
+  await expect(page.getByTestId('merger-result-dismiss')).toHaveCount(0)
+  await expect(tablePanel(page).getByRole('button', { name: /close/i })).toHaveCount(0)
+  await expectNoScroll(page)
+  await shots.take(page, 'waiting-merger-under-the-board', { fullPage: false })
+  // From another tab the status line says who the table waits for.
+  await openTab(page, 'chains')
   await expect(page.getByTestId('status-line')).toHaveText(
     new RegExp(`Waiting for ${awaited} to dispose of their shares`)
   )
-  await expectMergerView(page, room)
-  await expect(page.getByTestId('merger-disposition')).toHaveCount(0)
-  await expect(page.getByTestId('merger-result-dismiss')).toHaveCount(0)
-  await expectNoScroll(page)
-  await shots.take(page, 'waiting-now', { fullPage: false })
-  await openTab(page, 'board')
-  await expectFullBoard(page)
-  await shots.take(page, 'waiting-board', { fullPage: false })
 })
 
 const PHASES = [
@@ -319,7 +335,7 @@ for (const vp of PHONES) {
  * leave for `away`, then Bob places 7H and picks the survivor (posted through the action route,
  * as his client would).
  */
-async function opponentMerges(page: Page, shots: Shots, away: 'players' | 'chat') {
+async function opponentMerges(page: Page, shots: Shots, away: 'chains' | 'chat') {
   const room = await startFromSnapshot(page, 'low-cash', {
     viewport: { width: 390, height: 844 },
     idle: ['p2'],
@@ -338,27 +354,29 @@ async function opponentMerges(page: Page, shots: Shots, away: 'players' | 'chat'
   return { room, bob, survivor: tied[0] }
 }
 
-test('redirect: an opponent starts a merger while I am on another tab: the page goes to the decision tab', async ({
+test('redirect: an opponent starts a merger while I am on another tab: the page goes to the board and the merger under it', async ({
   page,
   shots,
 }) => {
-  const { room, bob, survivor } = await opponentMerges(page, shots, 'players')
-  await shots.take(page, 'players-before-merger', { fullPage: false })
+  const { room, bob, survivor } = await opponentMerges(page, shots, 'chains')
+  await shots.take(page, 'chains-before-merger', { fullPage: false })
   const chose = await room.act(bob, { action: 'merger_choice', surviving_chain: survivor })
   expect(chose.status, JSON.stringify(chose)).toBe('ok')
-  await expect(tab(page, 'now')).toHaveAttribute('aria-selected', 'true')
-  await expect(tabPanel(page, 'now').getByTestId('merger-result-title')).toContainText(
+  await expect(tab(page, 'board')).toHaveAttribute('aria-selected', 'true')
+  await expect(tablePanel(page).getByTestId('merger-result-title')).toContainText(
     new RegExp(`${survivor} takes over`, 'i')
   )
-  await expect(tabPanel(page, 'now').getByTestId('merger-survivor-after')).toBeVisible()
+  await expect(tablePanel(page).getByTestId('merger-result-title')).toBeInViewport()
+  await expect(tablePanel(page).getByTestId('merger-survivor-after')).toBeVisible()
+  await expectFullBoard(page)
   await shots.take(page, 'redirected-to-merger', { fullPage: false })
-  // Once per event: I go back to Players and stay there while the same merger goes on.
-  await openTab(page, 'players')
+  // Once per event: I go back to Chains and stay there while the same merger goes on.
+  await openTab(page, 'chains')
   await page.waitForTimeout(500)
-  await expect(tab(page, 'players')).toHaveAttribute('aria-selected', 'true')
+  await expect(tab(page, 'chains')).toHaveAttribute('aria-selected', 'true')
 })
 
-test('no redirect while I have a chat draft: a badge on the decision tab instead', async ({
+test('no redirect while I have a chat draft: a badge on the Board tab instead', async ({
   page,
   shots,
 }) => {
@@ -366,15 +384,120 @@ test('no redirect while I have a chat draft: a badge on the decision tab instead
   await page.getByTestId('chat-input').fill('hold on, thinking')
   const chose = await room.act(bob, { action: 'merger_choice', surviving_chain: survivor })
   expect(chose.status, JSON.stringify(chose)).toBe('ok')
-  await expect(tabBadge(page, 'now')).toBeVisible()
+  await expect(tabBadge(page, 'board')).toBeVisible()
   await expect(tab(page, 'chat')).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByTestId('chat-input')).toHaveValue('hold on, thinking')
   await expect(page.getByTestId('merger-result-title')).toBeHidden()
   await shots.take(page, 'draft-kept-badge', { fullPage: false })
   // The status line names what is happening and takes me there.
   await page.getByTestId('status-line').click()
-  await expect(tab(page, 'now')).toHaveAttribute('aria-selected', 'true')
-  await expect(tabBadge(page, 'now')).toHaveCount(0)
-  await expect(tabPanel(page, 'now').getByTestId('merger-result-title')).toBeVisible()
+  await expect(tab(page, 'board')).toHaveAttribute('aria-selected', 'true')
+  await expect(tabBadge(page, 'board')).toHaveCount(0)
+  await expect(tablePanel(page).getByTestId('merger-result-title')).toBeVisible()
   await shots.take(page, 'opened-from-status-line', { fullPage: false })
 })
+
+for (const vp of PHONES) {
+  test(`merger result at ${vp.label}: shown with what was paid, nothing to close, gone when the next tile is placed`, async ({
+    page,
+    shots,
+  }) => {
+    // Bob (p2, idle) merged and decides first; the other seats are idle too, so every step
+    // is posted here, as their clients would.
+    const fx = loadFixture('disposition-waiting-on-other')
+    const others = fx.expect.players.map((p) => p.player_id).filter((s) => s !== fx.human_seat)
+    const room = await startFromSnapshot(page, 'disposition-waiting-on-other', {
+      viewport: vp,
+      idle: others,
+    })
+    const merger = room.fixture.expect.mergers.find((m) => !m.complete)!
+    const panel = tablePanel(page)
+    await expect(page.getByTestId('decision-view')).toHaveAttribute('data-view', 'merger')
+    await shots.take(page, 'merger-in-progress', { fullPage: false })
+
+    // Everyone sells; when it is my turn I confirm (keep everything) through the UI.
+    for (let guard = 0; guard < 12; guard++) {
+      const live = await room.liveSnapshot()
+      const pa = live.pending_action
+      if (!pa || pa.type !== 'stock_disposition') break
+      if (pa.player_id === room.humanId) {
+        await expect(page.getByTestId('confirm-disposition')).toBeInViewport({ ratio: 1 })
+        await expectFullBoard(page)
+        await shots.take(page, 'my-disposition', { fullPage: false })
+        await page.getByTestId('confirm-disposition').click()
+        await expect(page.getByTestId('merger-disposition')).toHaveCount(0)
+      } else {
+        const res = await room.act(String(pa.player_id), {
+          action: 'merger_disposition',
+          defunct_chain: pa.defunct_chain,
+          disposition: { sell: pa.stock_count, trade: 0, hold: 0 },
+        })
+        expect(res.status, JSON.stringify(res)).toBe('ok')
+      }
+    }
+    const done = await room.liveSnapshot()
+    expect(done.phase).toBe('buying_stocks')
+
+    // The merger is over: its result is on screen by itself, with the bonuses the engine paid.
+    const result = panel.getByTestId('merger-result')
+    await expect(page.getByTestId('decision-view')).toHaveAttribute('data-view', 'waiting')
+    await expect(result).toBeVisible()
+    await expect(result.getByTestId('merger-result-title')).toContainText(
+      new RegExp(`${merger.survivor} takes over`, 'i')
+    )
+    await expect(result.getByTestId('merger-result-title')).toBeInViewport()
+    for (const d of merger.defunct) {
+      for (const b of d.bonuses ?? []) {
+        await expect(
+          result.getByTestId(`merger-bonus-${d.chain}-${room.seatMap[b.player_id]}`)
+        ).toContainText(dollars(b.majority + b.minority))
+      }
+      await expect(
+        result.getByTestId(`merger-disposition-${d.chain}-${room.humanId}`)
+      ).toContainText('kept')
+    }
+    await expect(result.getByTestId('merger-survivor-now')).toBeVisible()
+    // Nothing asks to be closed.
+    await expect(page.getByTestId('merger-result-dismiss')).toHaveCount(0)
+    await expect(panel.getByRole('button', { name: /close|back/i })).toHaveCount(0)
+    await expectFullBoard(page)
+    await shots.take(page, 'merger-result', { fullPage: false })
+
+    // Still there while the merging player buys (same board) ...
+    const bob = String(done.players[done.current_player_index].player_id)
+    expect((await room.act(bob, { action: 'end_turn' })).status).toBe('ok')
+    await expect(phaseBanner(page)).not.toHaveText(new RegExp(`^${room.names[bob]}'s TURN$`, 'i'))
+    const after = await room.liveSnapshot()
+    const next = after.players[after.current_player_index]
+    if (next.player_id === room.humanId) {
+      // ... and gone by itself when the next decision is mine.
+      await expect(page.getByTestId('decision-view')).toHaveAttribute('data-view', 'place')
+    } else {
+      await expect(result).toBeVisible()
+      // ... and gone by itself when the next tile is placed.
+      let placed = false
+      for (const tile of next.hand) {
+        if (
+          (await room.act(String(next.player_id), { action: 'place_tile', tile })).status === 'ok'
+        ) {
+          placed = true
+          break
+        }
+      }
+      expect(placed, 'the next player placed a tile').toBe(true)
+    }
+    await expect(panel.getByTestId('merger-result')).toHaveCount(0)
+    // The players matrix has the room back, and the outcome is one quiet line away.
+    await expect(panel.getByTestId('holdings-matrix')).toBeInViewport()
+    const line = panel.getByTestId('decision-last-merger').locator('[data-testid^="merger-log-"]')
+    await expect(line).toHaveAttribute('aria-expanded', 'false')
+    await expect(line).toContainText(new RegExp(merger.survivor, 'i'))
+    await shots.take(page, 'after-the-merger', { fullPage: false })
+    await line.scrollIntoViewIfNeeded()
+    await line.click()
+    await expect(panel.getByTestId('merger-result')).toBeVisible()
+    await shots.take(page, 'last-merger-opened-in-place', { fullPage: false })
+    await line.click()
+    await expect(panel.getByTestId('merger-result')).toHaveCount(0)
+  })
+}

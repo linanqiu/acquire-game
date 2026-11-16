@@ -1,64 +1,99 @@
-/* Players table: rank | name | cash | shares | net worth, holdings on a second line. */
+/* Players matrix (BL-013): player | one column per chain | cash + shares | net worth, rank.
+   Fits a 360px phone without sideways scrolling: the chain columns share what the name and the
+   two money columns leave. */
 .standings {
-  display: flex;
-  flex-direction: column;
-  font-size: var(--text-sm);
   min-width: 0;
+  container-type: inline-size;
 }
 
-.head,
-.row {
-  display: grid;
-  grid-template-columns: 1.6em minmax(0, 1fr) minmax(4.6em, auto) minmax(4.6em, auto) minmax(
-      5.2em,
-      auto
-    );
-  column-gap: var(--space-2);
-  align-items: center;
+.matrix {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
 }
 
-.head {
-  padding: 0 var(--space-2) var(--space-1);
+.colName {
+  width: 58px;
+}
+
+.colMoney {
+  width: 60px;
+}
+
+.matrix th,
+.matrix td {
+  padding: 0;
+  font-weight: var(--font-normal);
+}
+
+/* ---- Head --------------------------------------------------------------------------------- */
+.matrix thead th {
+  padding-bottom: var(--space-1);
+  vertical-align: bottom;
   font-size: var(--text-xs);
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
+  line-height: var(--line-height-tight);
 }
 
-.row {
-  padding: var(--space-1) var(--space-2);
-  border-left: 3px solid transparent;
-  border-radius: var(--radius-sm);
-  row-gap: 2px;
+.nameHead {
+  text-align: left;
+  padding-left: var(--space-2) !important;
 }
 
-.row + .row {
+.chainHead {
+  text-align: center;
+}
+
+.moneyHead {
+  text-align: right;
+  padding-right: var(--space-1) !important;
+}
+
+.moneyHead span {
+  display: block;
+  white-space: nowrap;
+}
+
+.sub {
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.85;
+}
+
+/* ---- Player rows -------------------------------------------------------------------------- */
+.row > * {
+  height: 34px;
   border-top: 1px solid var(--border);
-}
-
-.turn {
-  border-left-color: var(--text-accent);
-  background-color: var(--bg-tertiary);
-}
-
-.me .nameText {
-  font-weight: var(--font-bold);
-}
-
-.rank {
-  font-variant-numeric: tabular-nums;
-  font-family: var(--font-mono);
-  color: var(--text-secondary);
-  font-weight: var(--font-bold);
+  vertical-align: middle;
 }
 
 .name {
+  text-align: left;
+  padding-left: calc(var(--space-2) - 3px) !important;
+  border-left: 3px solid transparent;
+  overflow: hidden;
+}
+
+.turn > * {
+  background-color: var(--bg-tertiary);
+}
+
+.turn .name {
+  border-left-color: var(--turn-accent);
+}
+
+.nameLine {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: 3px;
   min-width: 0;
-  flex-wrap: wrap;
   font-size: var(--text-md);
+  line-height: var(--line-height-tight);
+  color: var(--text-primary);
 }
 
 .nameText {
@@ -68,28 +103,103 @@
   min-width: 0;
 }
 
+.me .nameText {
+  font-weight: var(--font-bold);
+}
+
 .turnMarker {
-  color: var(--text-positive);
+  flex: none;
+  color: var(--turn-accent);
   font-size: var(--text-xs);
 }
 
+.tags {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 0;
+  margin-top: 1px;
+}
+
+.tags:empty {
+  display: none;
+}
+
 .you {
-  font-size: var(--text-xs);
+  font-size: 9px;
   font-weight: var(--font-bold);
+  line-height: 1.4;
+  letter-spacing: 0.04em;
   color: var(--bg-primary);
   background-color: var(--text-primary);
   padding: 0 4px;
   border-radius: var(--radius-sm);
 }
 
-.num {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
+/* ---- Share cells -------------------------------------------------------------------------- */
+.cell {
+  text-align: center;
   font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 2px;
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-md);
+  line-height: 1;
+  font-family: var(--font-mono);
+  letter-spacing: -0.02em;
+}
+
+/* Most shares: filled with the chain colour. Second most: outlined. Shape, not colour alone. */
+.majority {
+  background-color: var(--chain-bg);
+  border-color: var(--chain-bg);
+  color: var(--chain-fg);
+  font-weight: var(--font-bold);
+}
+
+.minority {
+  border-color: var(--chain-bg);
+  font-weight: var(--font-bold);
+}
+
+.none {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+/* A chain that is not on the board keeps its column, quietly. */
+.off {
+  opacity: 0.38;
+}
+
+/* ---- Money -------------------------------------------------------------------------------- */
+.money {
+  text-align: right;
+  padding-right: var(--space-1) !important;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.3;
   white-space: nowrap;
 }
 
-.muted {
+.money > * {
+  display: block;
+}
+
+.cash {
+  color: var(--text-primary);
+}
+
+.stockValue {
   color: var(--text-secondary);
 }
 
@@ -98,49 +208,158 @@
   font-weight: var(--font-bold);
 }
 
-.stocks {
-  grid-column: 2 / -1;
+.rank {
+  color: var(--text-secondary);
+  font-weight: var(--font-bold);
+}
+
+/* ---- Footer: the chains themselves --------------------------------------------------------- */
+.footRow > * {
+  height: 20px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  text-align: center;
+  letter-spacing: -0.03em;
+}
+
+.footRow > th {
+  text-align: left;
+  padding-left: var(--space-2) !important;
+  font-family: var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.footRow:first-child > * {
+  border-top: 1px solid var(--border);
+  padding-top: 2px;
+}
+
+.safe {
+  color: var(--text-primary);
+  font-weight: var(--font-bold);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.footNote {
+  vertical-align: bottom;
+  padding-bottom: 2px !important;
+}
+
+.legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 3px;
-  min-height: 0;
-}
-
-.stocks:empty {
-  display: none;
-}
-
-/* Colour from the ruleset (inline --chain-bg/--chain-fg); the abbreviation is always shown so
-   colour is never the only cue. */
-.badge {
-  display: inline-flex;
+  justify-content: flex-end;
   align-items: center;
-  gap: 3px;
-  font-size: var(--text-xs);
-  font-weight: var(--font-bold);
-  background-color: var(--chain-bg);
-  color: var(--chain-fg);
-  padding: 0 5px;
-  border-radius: var(--radius-sm);
+  gap: 3px var(--space-1);
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+  padding-right: var(--space-1);
+}
+
+.key {
+  --chain-bg: var(--text-secondary);
+  --chain-fg: var(--bg-primary);
+  height: 16px;
+  min-width: 0;
+  padding: 0 4px;
+  font-family: var(--font-sans);
+  font-size: 9px;
+  letter-spacing: 0;
+}
+
+.key.minority {
+  color: var(--text-secondary);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
   white-space: nowrap;
-  line-height: 1.6;
 }
 
-/* The abbreviation is drawn from data-abbr so the badge's text stays the plain count */
-.badge::before {
-  content: attr(data-abbr);
-  opacity: 0.85;
-  font-weight: var(--font-medium);
+/* ---- The chain strip under the board (phones) ----------------------------------------------- */
+.strip {
+  flex: none;
 }
 
-@media (max-width: 420px) {
-  .head,
-  .row {
-    grid-template-columns: 1.3em minmax(0, 1fr) auto auto auto;
-    column-gap: var(--space-1);
+.colLabel {
+  width: 54px;
+}
+
+.strip thead th {
+  padding-bottom: 2px;
+}
+
+.strip .footRow:first-child > * {
+  border-top: none;
+  padding-top: 0;
+}
+
+.strip .footRow > * {
+  font-size: 11px;
+}
+
+.strip .footRow > th {
+  font-size: var(--text-xs);
+}
+
+.mineRow > * {
+  height: 26px;
+  color: var(--text-primary);
+  border-top: 1px solid var(--border);
+}
+
+.mineRow > th {
+  font-weight: var(--font-bold) !important;
+}
+
+.mineRow .count {
+  min-width: 20px;
+  height: 20px;
+  font-size: 11px;
+}
+
+/* Room to breathe where there is some (tablets, the sidebar on a wide screen, the host's TV). */
+@container (min-width: 430px) {
+  .colName {
+    width: 96px;
   }
 
-  .name {
+  .colMoney {
+    width: 68px;
+  }
+
+  .money {
+    font-size: var(--text-sm);
+  }
+
+  .count {
+    min-width: 26px;
+    height: 24px;
+  }
+
+  .row > * {
+    height: 38px;
+  }
+}
+
+@container (min-width: 620px) {
+  .colName {
+    width: 150px;
+  }
+
+  .colMoney {
+    width: 84px;
+  }
+
+  .footRow > * {
     font-size: var(--text-sm);
   }
 }

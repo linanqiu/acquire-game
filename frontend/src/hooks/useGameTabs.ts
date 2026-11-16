@@ -26,6 +26,8 @@ export interface GameTabsOptions {
   available: string[]
   /** Tab shown when nothing was chosen yet (or the chosen one is not on this layout). */
   fallback: string
+  /** The tab that holds decisions (`board` on phones, `now` on wide screens); null: none. */
+  decisionTab?: string | null
   /** Is it my turn to place a tile? (player page) */
   myPlaceTurn?: boolean
   /** The viewer's player id: their own chat lines never count as unread. */
@@ -51,6 +53,7 @@ export function useGameTabs({
   scope,
   available,
   fallback,
+  decisionTab = NOW_TAB,
   myPlaceTurn = false,
   myId,
   events = [],
@@ -94,12 +97,20 @@ export function useGameTabs({
     const known = new Set(seen ?? (restored ? events : []))
     const fresh = events.filter((e) => !known.has(e))
     setSeen([...known, ...fresh].slice(-200))
-    const result = eventSwitch({ fresh, selected, typing: isTyping(), boardSwitch })
-    if (result.target) setChosen(result.target)
-    if (result.badge || (first && restored && events.length > 0 && selected !== NOW_TAB))
-      setNowBadge(true)
+    if (decisionTab !== null) {
+      const result = eventSwitch({
+        fresh,
+        selected,
+        typing: isTyping(),
+        boardSwitch,
+        decisionTab,
+      })
+      if (result.target) setChosen(result.target)
+      if (result.badge || (first && restored && events.length > 0 && selected !== decisionTab))
+        setNowBadge(true)
+    }
   }
-  if (nowBadge && selected === NOW_TAB) setNowBadge(false)
+  if (nowBadge && selected === decisionTab) setNowBadge(false)
 
   // Unread chat: lines from others after the last one seen on the Chat tab.
   const messages = useGameStore((s) => s.chatMessages)
@@ -120,7 +131,7 @@ export function useGameTabs({
     select: setChosen as (id: string) => void,
     chatUnread,
     /** Something new in the decision tab that I have not looked at. */
-    nowBadge: nowBadge && selected !== NOW_TAB,
+    nowBadge: nowBadge && selected !== decisionTab,
     /** My tile to place while the Board tab is not open (phones). */
     boardMarker: hasBoardTab && myPlaceTurn && selected !== 'board',
   }

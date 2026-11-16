@@ -1,7 +1,10 @@
 /**
- * Tier 3 (BL-007): net worth, majority/minority holders and the merger result, on the player
- * page and the host page, at desktop and phone sizes, asserted against the fixture's `expect`
- * block (computed by the engine's calculator when the fixture was generated). Also the layout
+ * Tier 3 (BL-007, BL-013): net worth, majority/minority holders and the merger result, on the
+ * player page and the host page, at desktop and phone sizes, asserted against the fixture's
+ * `expect` block (computed by the engine's calculator when the fixture was generated). The
+ * players matrix: one row per player, one column per chain in the ruleset's order (the same for
+ * every player and everywhere else chains are listed), majority and minority marked in the
+ * cell, no sideways scrolling at 360, 390 and 1366 wide. Also the layout
  * promises of the redesign: the tile rack is on screen without scrolling at 1366x768 in every
  * phase, nothing overlaps and nothing leaves the screen sideways.
  */
@@ -11,7 +14,8 @@ import { startFromSnapshot, type RoomContext } from './support/room'
 import { dollars, loadFixture } from './support/fixtures'
 import { phaseBanner, playHumanTurns } from './support/ui'
 import { layoutProblems } from './support/layout'
-import { openTab, tab, type TabName } from '../support/tabs'
+import { expectFullBoard, outsideWidth } from './support/layout'
+import { openTab, tab, tablePanel, tableTabId, type TabName } from '../support/tabs'
 
 const DESKTOP = { width: 1366, height: 768 }
 const PHONE = { width: 390, height: 844 }
@@ -27,9 +31,80 @@ async function openHost(browser: Browser, room: RoomContext, viewport = DESKTOP)
   return host
 }
 
+/** The chains of the server's ruleset, in its order: the one order used everywhere. */
+async function rulesetChains(page: Page): Promise<string[]> {
+  const res = await page.request.get('/api/config/game')
+  expect(res.ok(), 'GET /api/config/game').toBeTruthy()
+  const body = (await res.json()) as { chains: Array<{ id: string }> }
+  return body.chains.map((c) => c.id)
+}
+
 /**
- * Open each tab in turn: it fits next to the status line and rack without overlapping, and the
- * merger in progress lives in the decision tab ("Now", BL-011), never on top of another tab.
+ * The players matrix against the fixture: every row lists every chain in the ruleset's order;
+ * a cell is the share count (empty cells carry no count), marked majority / minority exactly
+ * where the engine's `chain_holders` says so (ties too); the footer gives each chain's size,
+ * price and bank stock; chains not on the board keep their column, marked inactive.
+ */
+async function expectMatrix(page: Page, room: RoomContext) {
+  const { players, chain_holders, active_chains, inactive_chains } = room.fixture.expect
+  const order = await rulesetChains(page)
+  const matrix = page.getByTestId('holdings-matrix')
+  await expect(matrix).toHaveCount(1)
+  const cols = await matrix
+    .locator('thead [data-testid^="matrix-chain-"]')
+    .evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')!.slice(13)))
+  expect(cols, 'chain columns are the ruleset order').toEqual(order)
+  const rows = matrix.locator('tbody tr[data-player-id]')
+  await expect(rows).toHaveCount(players.length)
+  for (const p of players) {
+    const id = room.seatMap[p.player_id]
+    const row = matrix.locator(`tbody tr[data-player-id="${id}"]`)
+    const cells = await row
+      .locator('[data-testid^="matrix-cell-"]')
+      .evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')))
+    expect(cells, `${p.name}: same chain order as everyone`).toEqual(
+      order.map((c) => `matrix-cell-${id}-${c}`)
+    )
+    for (const chain of order) {
+      const cell = row.getByTestId(`matrix-cell-${id}-${chain}`)
+      const held = p.holdings[chain] ?? 0
+      const count = cell.getByTestId(`player-stock-${id}-${chain}`)
+      if (held > 0) await expect(count).toHaveText(String(held))
+      else await expect(count).toHaveCount(0)
+      const holder = chain_holders[chain]?.holders.find((h) => h.player_id === p.player_id)
+      const role = held > 0 ? (holder?.role ?? null) : null
+      if (role) await expect(cell, `${p.name} ${chain}`).toHaveAttribute('data-role', role)
+      else await expect(cell, `${p.name} ${chain}`).not.toHaveAttribute('data-role', /.+/)
+      if (role && holder?.tied) await expect(cell).toHaveAttribute('data-tied', 'true')
+      else await expect(cell).not.toHaveAttribute('data-tied', /.+/)
+    }
+  }
+  for (const [chain, c] of Object.entries(active_chains)) {
+    await expect(matrix.getByTestId(`matrix-chain-${chain}`)).toHaveAttribute('data-active', 'true')
+    await expect(matrix.getByTestId(`matrix-size-${chain}`)).toContainText(String(c.size))
+    await expect(matrix.getByTestId(`matrix-price-${chain}`)).toHaveAttribute(
+      'data-price',
+      String(c.price)
+    )
+    await expect(matrix.getByTestId(`matrix-bank-${chain}`)).toHaveText(String(c.available))
+  }
+  for (const chain of inactive_chains) {
+    await expect(matrix.getByTestId(`matrix-chain-${chain}`)).toHaveAttribute(
+      'data-active',
+      'false'
+    )
+  }
+  // The same order in the Chains tab (active chains only).
+  const listed = await page
+    .getByTestId('chain-list')
+    .locator('[data-testid^="chain-row-"]')
+    .evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')!.slice(10)))
+  expect(listed).toEqual(order.filter((c) => c in active_chains))
+}
+
+/**
+ * Open each reference tab in turn: it fits next to the rack without overlapping, and the merger
+ * in progress lives in the table panel (BL-011, BL-013), never on top of another tab.
  */
 async function expectTabsFit(page: Page, shots: Shots, label: string, tabs: TabName[]) {
   const phone = (await tab(page, 'board').count()) > 0
@@ -45,8 +120,23 @@ async function expectTabsFit(page: Page, shots: Shots, label: string, tabs: TabN
     ).toEqual([])
     await shots.take(page, `${label}-${name}`, { fullPage: false })
   }
-  await openTab(page, 'now')
-  await expect(page.getByTestId('tabpanel-now').getByTestId('merger-result')).toBeVisible()
+  await openTab(page, 'table')
+  await expect(tablePanel(page).getByTestId('merger-result')).toBeVisible()
+  // The matrix fits the width of its panel: no sideways scrolling anywhere.
+  const matrix = page.getByTestId('holdings-matrix')
+  await matrix.scrollIntoViewIfNeeded()
+  expect(
+    await outsideWidth(
+      page,
+      '[data-testid="holdings-matrix"] td, [data-testid="holdings-matrix"] th'
+    )
+  ).toEqual([])
+  expect(
+    await tablePanel(page).evaluate((el) => el.scrollWidth - el.clientWidth),
+    'the table panel does not scroll sideways'
+  ).toBeLessThanOrEqual(1)
+  await shots.take(page, `${label}-matrix`, { fullPage: false })
+  if ((await tableTabId(page)) === 'board') await expectFullBoard(page)
 }
 
 /** The holder's row of the merger view that shows the bonus the engine paid them. */
@@ -72,12 +162,12 @@ async function expectTableView(page: Page, room: RoomContext, host = false) {
       await expect(majority).toContainText(name(h.player_id))
       await expect(majority).toContainText(dollars(h.bonus))
     }
-    if (first.length > 1) await expect(majority).toContainText('(tie)')
+    if (first.length > 1) await expect(majority).toHaveAttribute('data-tied', 'true')
     for (const h of second) {
       const minority = page.getByTestId(`chain-minority-${chain}`)
       await expect(minority).toContainText(name(h.player_id))
       await expect(minority).toContainText(dollars(h.bonus))
-      if (second.length > 1) await expect(minority).toContainText('(tie)')
+      if (second.length > 1) await expect(minority).toHaveAttribute('data-tied', 'true')
     }
     if (!host) {
       const mine = info.holders.find((h) => h.player_id === room.fixture.human_seat)
@@ -107,13 +197,14 @@ async function tableView(
     viewport: vp,
   })
   await expectTableView(page, room)
+  await expectMatrix(page, room)
   await expect(page.getByTestId('tile-rack')).toBeInViewport()
-  // Each reference tab next to the merger result (open, on top) and the "now" area.
-  await expectTabsFit(page, shots, `${label}-player`, ['players', 'chains'])
+  await expectTabsFit(page, shots, `${label}-player`, ['chains'])
 
   const host = await openHost(browser, room, vp)
   await expectTableView(host, room, true)
-  await expectTabsFit(host, shots, `${label}-host`, ['players', 'chains'])
+  await expectMatrix(host, room)
+  await expectTabsFit(host, shots, `${label}-host`, ['chains'])
 }
 
 test('table view on desktop: net worth, ranks and majority/minority holders, player and host', async ({
@@ -131,6 +222,49 @@ test('table view on phone: net worth, ranks and majority/minority holders, playe
 }) => {
   await tableView(page, browser, shots, 'phone', PHONE)
 })
+
+for (const vp of [
+  { label: '360x640', width: 360, height: 640 },
+  { label: '390x844', width: 390, height: 844 },
+  { label: '1366x768', width: 1366, height: 768 },
+]) {
+  test(`players matrix at ${vp.label}, six players: one chain order for everyone, majority and minority marked, with the board`, async ({
+    page,
+    shots,
+  }) => {
+    const room = await startFromSnapshot(page, 'six-player-midgame', { viewport: vp })
+    await expect(phaseBanner(page)).toHaveText('PLACE A TILE')
+    // No tab to switch to: the matrix is in the table panel, with the board on screen.
+    await expect(page.getByTestId('tab-players')).toHaveCount(0)
+    await expect(tablePanel(page).getByTestId('holdings-matrix')).toBeInViewport()
+    await expectFullBoard(page)
+    expect(await layoutProblems(page, ['board', 'table-panel', 'tile-rack'])).toEqual([])
+    await expectMatrix(page, room)
+    // A real table: column headers name the chains, row headers the players.
+    const matrix = page.getByTestId('holdings-matrix')
+    await expect(matrix.getByRole('columnheader')).toHaveCount(
+      (await rulesetChains(page)).length + 3
+    )
+    for (const p of room.fixture.expect.players) {
+      await expect(matrix.getByRole('rowheader', { name: new RegExp(p.name) })).toBeVisible()
+    }
+    // Me, marked.
+    await expect(
+      matrix.locator(`tr[data-player-id="${room.humanId}"]`).getByText('YOU')
+    ).toBeVisible()
+    expect(
+      await outsideWidth(
+        page,
+        '[data-testid="holdings-matrix"] td, [data-testid="holdings-matrix"] th'
+      )
+    ).toEqual([])
+    expect(
+      await tablePanel(page).evaluate((el) => el.scrollWidth - el.clientWidth),
+      'no sideways scrolling'
+    ).toBeLessThanOrEqual(1)
+    await shots.take(page, `matrix-${vp.label}`, { fullPage: false })
+  })
+}
 
 test('merger result: bonuses at once, then each stockholder decision as it comes, on player and host', async ({
   page,
@@ -151,7 +285,7 @@ test('merger result: bonuses at once, then each stockholder decision as it comes
     await expect(p.getByTestId('merger-result-title')).toContainText(
       new RegExp(`${merger.survivor} takes over ${d.chain}`, 'i')
     )
-    await expect(card).toContainText(`${d.size} tiles, ${dollars(d.price)} a share`)
+    await expect(card).toContainText(`${d.size} tiles · ${dollars(d.price)}`)
     for (const b of d.bonuses!) {
       const row = bonusRow(p, d.chain, id(b.player_id))
       // The player page calls its own seat "You".
@@ -181,26 +315,33 @@ test('merger result: bonuses at once, then each stockholder decision as it comes
       await expect(p.getByTestId(`merger-disposition-${d.chain}-${id(seat)}`)).toBeVisible()
     }
     await expect(p.getByTestId(`merger-disposition-${d.chain}-${id('p1')}`)).toContainText('kept')
-    await expect(p.getByTestId('merger-result-summary')).toContainText(
-      /grows from \d+ to \d+ tiles/
-    )
+    await expect(p.getByTestId('merger-result-summary')).toContainText(/\d+ → \d+ tiles/)
+    // Nothing to close.
+    await expect(p.getByTestId('merger-result-dismiss')).toHaveCount(0)
   }
   await shots.take(page, 'player-merger-done')
   await shots.take(host, 'host-merger-done')
 
-  // Close it; it stays available from the log (the Trades tab on the player page, Log on the
-  // host), which opens it in the decision tab.
+  // It stays available in the log (the Trades tab on the player page, Log on the host): the
+  // line opens to the full result in place, and closes again.
   for (const p of [page, host]) {
-    await p.getByTestId('merger-result-dismiss').click()
-    await expect(p.getByTestId('merger-result')).toHaveCount(0)
-    await openTab(p, p === page ? 'trades' : 'log')
-    await p.getByTestId(`merger-log-${merger.seq}`).click()
-    await expect(tab(p, 'now')).toHaveAttribute('aria-selected', 'true')
-    await expect(p.getByTestId('tabpanel-now').getByTestId('merger-result')).toBeVisible()
-    await p.getByTestId('merger-result-dismiss').click()
+    const logTab = p === page ? 'trades' : 'log'
+    await openTab(p, logTab)
+    const panel = p.getByTestId(`tabpanel-${logTab}`)
+    const line = panel.getByTestId(`merger-log-${merger.seq}`)
+    await line.click()
+    await expect(panel.getByTestId('merger-result')).toBeVisible()
+    await expect(panel.getByTestId('merger-result-summary')).toContainText(/\d+ → \d+ tiles/)
+    await line.click()
+    await expect(panel.getByTestId('merger-result')).toHaveCount(0)
+    await openTab(p, 'table')
   }
-  await shots.take(page, 'player-merger-closed')
+  await shots.take(page, 'player-merger-log')
+  // Play moves on (my turns among them): the result leaves the table panel by itself.
   await playHumanTurns(page, room, 2, shots)
+  for (const p of [page, host]) {
+    await expect(tablePanel(p).getByTestId('merger-result')).toHaveCount(0)
+  }
 })
 
 test("merger result after the human's own merger (survivor chosen on screen)", async ({
@@ -227,14 +368,17 @@ test("merger result after the human's own merger (survivor chosen on screen)", a
   if (await page.getByTestId('merger-disposition').isVisible()) {
     await page.getByTestId('confirm-disposition').click()
   }
-  // My buy replaces the result in the decision tab; one tap brings it back.
+  // My buy takes the place of the merger by itself; the quiet "last merger" line under the
+  // players brings the result back in place, and closes it again.
   await expect(page.getByTestId('decision-view')).toHaveAttribute('data-view', 'buy')
-  await page.getByTestId('decision-last-merger').click()
-  await expect(page.getByTestId('merger-result-summary')).toContainText(
-    /grows from \d+ to \d+ tiles/
-  )
+  await expect(tablePanel(page).getByTestId('merger-result')).toHaveCount(0)
+  const line = page.getByTestId('decision-last-merger').locator('[data-testid^="merger-log-"]')
+  await line.scrollIntoViewIfNeeded()
+  await line.click()
+  await expect(page.getByTestId('merger-result-summary')).toContainText(/\d+ → \d+ tiles/)
   await shots.take(page, 'own-merger-done')
-  await page.getByTestId('merger-result-dismiss').click()
+  await line.click()
+  await expect(tablePanel(page).getByTestId('merger-result')).toHaveCount(0)
   await expect(page.getByTestId('decision-view')).toHaveAttribute('data-view', 'buy')
   await openTab(page, 'trades')
   await expect(page.getByTestId('merger-log')).toContainText(new RegExp(`${survivor}`, 'i'))
@@ -245,12 +389,13 @@ async function rackOnScreen(page: Page, shots: Shots, label: string, fixture: st
   await startFromSnapshot(page, fixture, { viewport: DESKTOP })
   await expect(page.getByTestId('tile-rack')).toBeInViewport({ ratio: 1 })
   await expect(page.getByTestId('board').getByTestId('tile-12I')).toBeInViewport({ ratio: 1 })
-  // The decision tab is open next to the board, the status line under it.
+  // The table panel is open next to the board, the status line under it.
   await expect(page.getByTestId('decision-view')).toBeInViewport()
   await expect(page.getByTestId('status')).toBeInViewport({ ratio: 1 })
-  for (const name of ['now', 'players', 'chains', 'chat', 'trades'] as const) {
+  for (const name of ['table', 'chains', 'chat', 'trades'] as const) {
     await openTab(page, name)
-    expect(await layoutProblems(page, ['board-pane', 'tab-list', `tabpanel-${name}`])).toEqual([])
+    const id = name === 'table' ? 'now' : name
+    expect(await layoutProblems(page, ['board-pane', 'tab-list', `tabpanel-${id}`])).toEqual([])
   }
   await shots.take(page, label, { fullPage: false })
 }

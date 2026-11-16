@@ -18,7 +18,7 @@ export function Header({ roomCode, cash, netWorth, rank, playerName, tilePool }:
   const brand = useBrand()
   const rules = useRules()
   return (
-    <header className={styles.header}>
+    <header className={styles.header} data-numbers={netWorth !== undefined ? 'true' : undefined}>
       <div className={styles.logo} data-testid="header-title">
         {brand.toUpperCase()}
       </div>

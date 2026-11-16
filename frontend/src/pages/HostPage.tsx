@@ -116,14 +116,13 @@ export function HostPage() {
     return transformBoardToTileStates(gameState.board.cells)
   }, [gameState])
 
-  const mergerResult = useMergerResult(gameState?.mergers, `merger-dismissed-host:${room}`)
-  // Bumped when a merger is opened from the log: the Now tab shows it.
-  const [openNow, setOpenNow] = useState(0)
+  const tilesOnBoard = Object.values(gameState?.board.cells ?? {}).filter(
+    (c) => c.state !== 'empty'
+  ).length
+  const mergerResult = useMergerResult(gameState?.mergers, tilesOnBoard)
   const mergers = gameState?.mergers ?? []
-  const lastMerger = mergers[mergers.length - 1]
-  const liveMerger = lastMerger && !lastMerger.complete ? lastMerger : undefined
-  // What the table is doing (BL-011): a merger in progress, the last result, who it waits on.
-  const nowMerger = mergerResult.explicit ? mergerResult.shown : (liveMerger ?? mergerResult.shown)
+  // What the table is doing (BL-011): a merger while it runs and until play moves on.
+  const nowMerger = mergerResult.auto
   const events = decisionEvents({
     turnKey: '',
     view: 'waiting',
@@ -234,34 +233,24 @@ export function HostPage() {
         scope="host"
         board={<Board tiles={boardTileStates} size="lg" />}
         events={events}
-        openNow={openNow}
-        decision={
+        deciding={!!nowMerger}
+        table={
           <div className={styles.nowTab} data-testid="host-now">
             <p className={styles.nowLine} data-testid="host-waiting">
               {waitingMessage(gameState.awaiting, gameState.players, currentPlayerName, ruleset)}
             </p>
             {nowMerger && (
-              <MergerResult
-                merger={nowMerger}
-                players={gameState.players}
-                gameState={gameState}
-                onDismiss={nowMerger === liveMerger ? undefined : mergerResult.dismiss}
-              />
+              <MergerResult merger={nowMerger} players={gameState.players} gameState={gameState} />
             )}
+            <Standings gameState={gameState} rowTestId="player-card" testId="scoreboard" />
           </div>
         }
-        wideDefault="players"
+        tableLabel="Players"
+        wideDefault="now"
         // A TV: players and chains side by side without touching anything.
-        pin={['players', 'chains']}
+        pin={['now', 'chains']}
         pinQuery="(min-width: 1600px) and (min-height: 900px)"
         tabs={[
-          {
-            id: 'players',
-            label: 'Players',
-            content: (
-              <Standings gameState={gameState} rowTestId="player-card" testId="scoreboard" />
-            ),
-          },
           {
             id: 'chains',
             label: shortLabel(theme.chain_noun_plural),
@@ -303,11 +292,7 @@ export function HostPage() {
                     <MergerLog
                       mergers={gameState.mergers ?? []}
                       players={gameState.players}
-                      openSeq={mergerResult.shown?.seq}
-                      onOpen={(seq) => {
-                        mergerResult.open(seq)
-                        setOpenNow((n) => n + 1)
-                      }}
+                      gameState={gameState}
                     />
                     <TradeActivity events={tradeLog} players={gameState.players} />
                     {activityLog
