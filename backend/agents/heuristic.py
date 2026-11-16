@@ -63,13 +63,6 @@ def _is_winning(ctx: DecisionContext) -> bool:
     return False
 
 
-def _chain_prices(ctx: DecisionContext) -> dict[str, int]:
-    prices = {}
-    for name, info in ((ctx.calc or {}).get("chains") or {}).items():
-        prices[name] = int(info.get("price") or 0) if info.get("active") else 0
-    return prices
-
-
 class HeuristicAgent:
     """Rule-based seat. Deterministic for a given seat name (seeded RNG)."""
 
@@ -192,21 +185,19 @@ class HeuristicAgent:
         return {"action": "buy_stocks", "purchases": counts}
 
     def _trade_response(self, ctx: DecisionContext) -> dict:
-        """Accept only trades that are legal and strictly favourable at current prices."""
+        """Accept only a legal trade that improves this seat's position.
+
+        The judgement is ``game.trade_value.trade_valuation`` (in the
+        calculator pack as ``trades``): cash, shares and bonus positions for
+        both sides, a discount for what the proposer gains and a margin. See
+        docs/ai/bot-trading.md. No valuation (or an invalid trade) -> reject.
+        """
         legal = ctx.legal
         trade = legal.get("trade") or {}
         trade_id = trade.get("trade_id")
-        if not legal.get("can_accept"):
-            return {"action": "reject_trade", "trade_id": trade_id}
-        prices = _chain_prices(ctx)
-        # From this seat's point of view: it receives what the proposer offers.
-        gain = int(trade.get("offering_money", 0)) + sum(
-            prices.get(c, 0) * n
-            for c, n in (trade.get("offering_stocks") or {}).items()
-        )
-        cost = int(trade.get("requesting_money", 0)) + sum(
-            prices.get(c, 0) * n
-            for c, n in (trade.get("requesting_stocks") or {}).items()
-        )
-        verb = "accept_trade" if gain > cost else "reject_trade"
-        return {"action": verb, "trade_id": trade_id}
+        value = ((ctx.calc or {}).get("trades") or {}).get(trade_id) or {}
+        accept = bool(legal.get("can_accept") and value.get("acceptable"))
+        return {
+            "action": "accept_trade" if accept else "reject_trade",
+            "trade_id": trade_id,
+        }
