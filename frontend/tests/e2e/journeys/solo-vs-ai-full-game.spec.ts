@@ -92,7 +92,7 @@ test('@ci solo vs AI: full game from the home page to game over and play again',
   await j.shot(page, 'game-started-chat-tab')
 
   // AI seats carry their kind badges in the players panel.
-  await openTab(page, 'players')
+  await openTab(page, 'table')
   for (const id of aiIds)
     await expect(page.locator(`[data-testid="player-row"][data-player-id="${id}"]`)).toBeVisible()
   await expect(page.locator('[data-testid="player-row"] [data-kind="bot"]')).toHaveCount(1)

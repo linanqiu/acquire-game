@@ -140,13 +140,14 @@ export class Seat {
   }
 
   /**
-   * Show the decision tab ("Now", BL-011) the way a player does: the page goes there by itself
-   * when a decision is new; otherwise (e.g. I opened another tab meanwhile) tap the status line.
+   * Show my decision the way a player does: it appears by itself in the table panel (under the
+   * board on a phone, next to it on a wide screen; BL-013); if I opened another tab meanwhile,
+   * tap the status line.
    */
   async openDecision(): Promise<void> {
     const view = this.page.getByTestId('decision-view')
     if (await view.isVisible()) return
-    this.log('decision tab not open: tapping the status line')
+    this.log('decision not in view: tapping the status line')
     await this.press(this.page.getByTestId('status-line'))
     await expect(view).toBeVisible()
   }
@@ -338,27 +339,26 @@ export class Seat {
         }
       )
       .not.toBe('same')
-    // ...and then shows what this seat did with its shares: in the merger view that stays in
-    // the decision tab, or (when my buy replaced it) one tap away through "Last merger".
+    // ...and then shows what this seat did with its shares: in the merger view while the
+    // merger runs, or (when my buy took its place, or play moved on) in the quiet "last
+    // merger" line under the players, which opens in place.
     const me = await this.myId()
-    const reopen = this.page.getByTestId('decision-last-merger')
+    const reopen = this.page
+      .getByTestId('decision-last-merger')
+      .locator('[data-testid^="merger-log-"]')
     const decisionView = this.page.getByTestId('decision-view')
     const row = decisionView.getByTestId(`merger-disposition-${defunctId}-${me}`)
     let reopened = false
-    let movedFromBoard = false
     // The view can still move on (the merger resolves, my buy comes) while this reads it: check
     // it all in one pass, reopening the result when the buy has replaced it.
     await expect(async () => {
       const quick = { timeout: 1000 }
-      // My place-tile turn can open the Board tab on a phone: go back to the decision tab.
-      if (!(await decisionView.isVisible())) {
-        movedFromBoard = true
-        await openTab(this.page, 'now')
-      }
-      // Whatever replaced the merger view (my buy, my tile, waiting), the result is one tap
-      // away through "Last merger".
-      if (!reopened && !(await row.isVisible()) && (await reopen.isVisible())) {
-        await reopen.click()
+      // I may have been on another tab: the table panel is where the merger is.
+      if (!(await decisionView.isVisible())) await openTab(this.page, 'table')
+      // Whatever took the merger view's place (my buy, my tile, waiting), the result is one tap
+      // away through the "last merger" line.
+      if (!(await row.isVisible()) && (await reopen.isVisible())) {
+        if ((await reopen.getAttribute('aria-expanded')) !== 'true') await reopen.click()
         reopened = true
       }
       await expect(row).toBeVisible(quick)
@@ -371,10 +371,9 @@ export class Seat {
     )
     this.stats.dispositions.push({ defunct, sell, trade, hold })
     await this.shot(`disposition-${defunct}-done`)
-    // Back to my buy (the result stays one tap away).
-    if (reopened) await this.press(this.page.getByTestId('merger-result-dismiss'))
-    // Leave the page where the game put it (the Board, for my tile) for the next step.
-    if (movedFromBoard) await openTab(this.page, 'board')
+    // Nothing asks to be closed; fold the line again so the panel is as the game left it.
+    await expect(this.page.getByTestId('merger-result-dismiss')).toHaveCount(0)
+    if (reopened && (await reopen.getAttribute('aria-expanded')) === 'true') await reopen.click()
   }
 
   /** Buy with a simple policy (cheapest chains first, keep a reserve), then end the turn. */

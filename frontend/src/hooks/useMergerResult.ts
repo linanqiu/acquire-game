@@ -22,9 +22,7 @@ export function useMergerResult(mergers: MergerRecord[] | undefined, tilesOnBoar
   if (mergers && initialDone === null) {
     setInitialDone(mergers.filter((m) => m.complete).map((m) => m.seq))
   }
-  const before = new Set(
-    initialDone ?? (mergers ?? []).filter((m) => m.complete).map((m) => m.seq)
-  )
+  const before = new Set(initialDone ?? (mergers ?? []).filter((m) => m.complete).map((m) => m.seq))
   const last = mergers?.[mergers.length - 1]
   if (last && last.complete && !before.has(last.seq) && ended?.seq !== last.seq) {
     setEnded({ seq: last.seq, tiles: tilesOnBoard })

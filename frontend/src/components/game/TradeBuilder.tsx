@@ -352,7 +352,6 @@ export function TradeBuilder({
             <p className={styles.hint}>Select a trade partner to see their holdings</p>
           </div>
         )}
-
       </div>
 
       {/* Always in view under the scrolling rows: the deal, the refusal reason, the buttons. */}

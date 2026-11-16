@@ -1,10 +1,15 @@
 /**
- * Tier 3 (BL-008, BL-011): the game pages navigate by tabs. On phones the selected tab fills the
- * screen between the phase bar and a slim dock (status line, rack) above the tab bar; on wide
- * screens the board (status line and rack under it) stays on the left and the tabs, the
- * decision tab first, are in the sidebar. In every decision state the status line, the rack and
- * the tab bar are on screen, apart, and the page itself does not scroll; each tab shows its
- * content (checked against the fixture's `expect`).
+ * Tier 3 (BL-008, BL-011, BL-013): how the game pages are laid out and navigated.
+ *
+ * Phones: the Board tab is the game: the whole board, and under it the table panel (my decision
+ * in place when there is one, otherwise who the table waits for; always the players matrix),
+ * then the rack and the tab bar. No Now tab to be sent to, no Players tab to toggle with: the
+ * reference tabs are Chains, Chat and Trades. Wide screens: the board (status line and rack
+ * under it) stays on the left; the table panel is the first sidebar tab.
+ *
+ * In every decision state the board is whole, the decision and its main button are on screen
+ * without scrolling the page, nothing overlaps, and each tab shows its content (checked against
+ * the fixture's `expect`).
  *
  * Setup (tier 3 only): snapshot fixtures and, for the chat, an idle human seat whose lines are
  * posted through the chat route. The browser player uses the UI only.
@@ -12,10 +17,18 @@
 import type { Page } from '@playwright/test'
 import { test, expect, type Shots } from './support/test'
 import { startFromSnapshot, type RoomContext } from './support/room'
-import { dollars } from './support/fixtures'
+import { dollars, loadFixture } from './support/fixtures'
 import { expectFullBoard, layoutProblems } from './support/layout'
-import { phaseBanner, waitForMyDecision } from './support/ui'
-import { openTab, tab, tabBadge, tabPanel, type TabName } from '../support/tabs'
+import { openDecision, phaseBanner, waitForMyDecision } from './support/ui'
+import {
+  openTab,
+  tab,
+  tabBadge,
+  tabPanel,
+  tablePanel,
+  tableTabId,
+  type TabName,
+} from '../support/tabs'
 
 const STATES = [
   { state: 'place tile', fixture: 'three-player-midgame', banner: 'PLACE A TILE' },
@@ -39,19 +52,28 @@ const WIDE = [
 
 /**
  * Answer the prompts the other seats' moves bring (a disposition, a chain choice) until it is my
- * turn to place a tile. Each decision is in the decision tab. With `stayOn` (I am typing in the
- * chat there) the page must not switch by itself: the decision tab gets a badge and the status
- * line takes me there, as a player would tap it; then back to `stayOn`.
+ * turn to place a tile. With `stayOn` (I am typing in the chat there) the page must not switch
+ * by itself: the Board tab gets a badge and the status line takes me to the decision, as a
+ * player would tap it; then back to `stayOn`.
  */
-async function untilMyPlaceTurn(page: Page, room: RoomContext, stayOn?: TabName) {
+async function untilMyPlaceTurn(
+  page: Page,
+  room: RoomContext,
+  stayOn?: 'chat' | 'chains',
+  typing = true
+) {
   for (let i = 0; i < 8; i++) {
     const banner = await waitForMyDecision(page, room)
     if (banner === 'PLACE A TILE') return
-    if (stayOn) {
+    if (stayOn && typing) {
       await expect(tab(page, stayOn)).toHaveAttribute('aria-selected', 'true')
-      await expect(tabBadge(page, 'now')).toBeVisible()
+      await expect(tabBadge(page, 'board')).toBeVisible()
       await page.getByTestId('status-line').click()
+    } else if (stayOn) {
+      // Not typing: the page comes back to the board and the decision under it by itself.
+      await expect(tab(page, 'board')).toHaveAttribute('aria-selected', 'true')
     }
+    await openDecision(page)
     if (banner === 'DISPOSE YOUR SHARES') await page.getByTestId('confirm-disposition').click()
     else if (banner === 'BUY STOCKS') await page.getByTestId('end-turn-button').click()
     else await page.locator('[data-testid^="chain-button-"]:not([disabled])').first().click()
@@ -65,20 +87,26 @@ const name = (room: RoomContext, seat: string) => room.names[room.seatMap[seat]]
 
 /** What each tab must show, from the fixture's engine figures. */
 async function expectTabContent(page: Page, room: RoomContext, which: TabName) {
-  const panel = tabPanel(page, which)
   const { net_worth, chain_holders } = room.fixture.expect
-  if (which === 'board') {
-    await expect(panel.getByTestId('board')).toBeVisible()
-    await expectFullBoard(page)
-  } else if (which === 'now') {
+  if (which === 'table') {
+    // The table panel: the decision (or what the table waits for) and every player's figures.
+    const panel = tablePanel(page)
     await expect(panel.getByTestId('decision-view')).toBeVisible()
-  } else if (which === 'players') {
     for (const [seat, w] of Object.entries(net_worth)) {
       await expect(panel.getByTestId(`player-networth-${room.seatMap[seat]}`)).toHaveText(
         dollars(w.net_worth)
       )
     }
-  } else if (which === 'chains') {
+    if ((await tableTabId(page)) === 'board') {
+      // Phones: with the whole board above it, in the same tab.
+      await expect(tabPanel(page, 'board').getByTestId('board')).toBeVisible()
+      await expectFullBoard(page)
+      expect(await layoutProblems(page, ['board', 'table-panel'])).toEqual([])
+    }
+    return
+  }
+  const panel = tabPanel(page, which)
+  if (which === 'chains') {
     for (const [chain, info] of Object.entries(chain_holders)) {
       for (const h of info.holders.filter((x) => x.role === 'majority')) {
         await expect(panel.getByTestId(`chain-majority-${chain}`)).toContainText(
@@ -93,34 +121,57 @@ async function expectTabContent(page: Page, room: RoomContext, which: TabName) {
   }
 }
 
-async function checkEveryTab(page: Page, room: RoomContext, shots: Shots, label: string) {
+async function checkEveryTab(
+  page: Page,
+  room: RoomContext,
+  shots: Shots,
+  label: string,
+  opts: { rackHidden: boolean }
+) {
   const phone = (await tab(page, 'board').count()) > 0
-  const tabs: TabName[] = phone
-    ? ['board', 'now', 'players', 'chains', 'chat', 'trades']
-    : ['now', 'players', 'chains', 'chat', 'trades']
-  for (const which of tabs) {
+  const ids = await page
+    .getByRole('tab')
+    .evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')))
+  // No Now tab and no Players tab: fewer tabs, the table panel holds both.
+  expect(ids).toEqual(
+    (phone ? ['board', 'chains', 'chat', 'trades'] : ['now', 'chains', 'chat', 'trades']).map(
+      (t) => `tab-${t}`
+    )
+  )
+  for (const which of ['table', 'chains', 'chat', 'trades'] as TabName[]) {
     await openTab(page, which)
     await expectTabContent(page, room, which)
-    // The status line, the rack and the tab bar (and the open tab) are all on screen, apart,
-    // and the page does not scroll in either direction. No card sits on top of the tab.
+    const id = which === 'table' ? await tableTabId(page) : which
+    // The open tab, the rack and the tab bar are all on screen, apart, and the page does not
+    // scroll in either direction. No card sits on top of the tab.
     expect(
       await layoutProblems(page, [
         'game-phase',
-        `tabpanel-${which}`,
+        `tabpanel-${id}`,
         ...(phone ? ['dock', 'tab-bar'] : ['board-pane', 'tab-list']),
       ]),
       `${label}, ${which} tab`
     ).toEqual([])
-    await expect(page.getByTestId('status')).toBeInViewport({ ratio: 1 })
-    await expect(page.getByTestId('tile-rack')).toBeInViewport({ ratio: 1 })
-    if (phone && which !== 'now') await expect(page.getByTestId('decision-view')).toBeHidden()
+    if (phone && which === 'table' && opts.rackHidden) {
+      // A short phone gives the rack's row to my decision while it is open.
+      await expect(page.getByTestId('tile-rack')).toBeHidden()
+    } else {
+      await expect(page.getByTestId('tile-rack')).toBeInViewport({ ratio: 1 })
+    }
+    if (phone && which !== 'table') {
+      // The decision is not on top of the reference tabs; the status line leads back to it.
+      await expect(page.getByTestId('decision-view')).toBeHidden()
+      await expect(page.getByTestId('status')).toBeInViewport({ ratio: 1 })
+    }
+    if (!phone) await expect(page.getByTestId('status')).toBeInViewport({ ratio: 1 })
     await shots.take(page, `${label}-${which}`, { fullPage: false })
   }
+  await openTab(page, 'table')
 }
 
 for (const vp of [...PHONES, ...WIDE]) {
   for (const s of STATES) {
-    test(`tabs at ${vp.label}, ${s.state}: status line, rack and tabs fit; every tab shows its content`, async ({
+    test(`tabs at ${vp.label}, ${s.state}: board, decision, rack and tabs fit; every tab shows its content`, async ({
       page,
       shots,
     }) => {
@@ -131,13 +182,15 @@ for (const vp of [...PHONES, ...WIDE]) {
       await expect(phaseBanner(page)).toHaveText(s.banner)
       const phone = vp.width < 768
       expect(await tab(page, 'board').count(), 'Board is a tab on phones only').toBe(phone ? 1 : 0)
-      // A decision of mine or a merger in progress opens the decision tab; my place-tile turn
-      // opens the Board on a phone (wide screens show the decision tab next to the board).
-      const opensOn = s.state === 'place tile' && phone ? 'board' : 'now'
-      await expect(tab(page, opensOn)).toHaveAttribute('aria-selected', 'true')
-      await checkEveryTab(page, room, shots, s.state.replace(' ', '-'))
+      // The page opens where the game is: the Board (with the decision under it) on a phone,
+      // the table panel next to the board on a wide screen. Nothing to hunt for.
+      await expect(tab(page, phone ? 'board' : 'now')).toHaveAttribute('aria-selected', 'true')
+      const deciding = s.state === 'buy' || s.state === 'disposition' || s.state === 'waiting'
+      await checkEveryTab(page, room, shots, s.state.replace(' ', '-'), {
+        rackHidden: deciding && vp.height <= 700,
+      })
 
-      // The decision's main button is on screen in the decision tab, without scrolling.
+      // The decision's main button is on screen with the board, without scrolling.
       const action =
         s.state === 'buy'
           ? 'end-turn-button'
@@ -145,11 +198,14 @@ for (const vp of [...PHONES, ...WIDE]) {
             ? 'confirm-disposition'
             : null
       if (action) {
-        await openTab(page, 'now')
         await expect(page.getByTestId(action)).toBeInViewport({ ratio: 1 })
         expect(
           await layoutProblems(page, [action, 'tile-rack', phone ? 'tab-bar' : 'tab-list'])
         ).toEqual([])
+        if (phone) {
+          await expectFullBoard(page)
+          expect(await layoutProblems(page, ['board', action])).toEqual([])
+        }
       }
     })
   }
@@ -178,10 +234,11 @@ test('phone: unread chat badge, Chat tab content, and no tab switch while typing
     'psst, want to trade?'
   )
 
-  // Write a draft, then end the turn (the status line opens the decision tab): my next
+  // Write a draft, then end the turn (the status line leads back to the decision): my next
   // decisions and my place-tile turn would switch tabs, but not while I am writing.
   await page.getByTestId('chat-input').fill('let me think')
   await page.getByTestId('status-line').click()
+  await expect(tab(page, 'board')).toHaveAttribute('aria-selected', 'true')
   await page.getByTestId('end-turn-button').click()
   await expect(phaseBanner(page)).not.toHaveText('BUY STOCKS')
   await openTab(page, 'chat')
@@ -197,8 +254,12 @@ test('phone: my place-tile turn opens the Board when I am on another tab; the ch
   page,
   shots,
 }) => {
+  // The other seats are idle and move only when this test drives them (inside
+  // `untilMyPlaceTurn`), so what happens while I am on another tab is not a race.
+  const fx = loadFixture('buy-phase-multi-chain')
   const room = await startFromSnapshot(page, 'buy-phase-multi-chain', {
     viewport: { width: 390, height: 844 },
+    idle: fx.expect.players.map((p) => p.player_id).filter((s) => s !== fx.human_seat),
   })
   await openTab(page, 'chains')
   await page.reload()
@@ -206,25 +267,27 @@ test('phone: my place-tile turn opens the Board when I am on another tab; the ch
   // Remembered for the session, per room.
   await expect(tab(page, 'chains')).toHaveAttribute('aria-selected', 'true')
   // The buy still waiting for me is not news after a reload: a badge, and the status line.
-  await expect(tabBadge(page, 'now')).toBeVisible()
+  await expect(tabBadge(page, 'board')).toBeVisible()
   await expect(page.getByTestId('status-line')).toHaveText(/Your move: buy shares/)
   await shots.take(page, 'chains-after-reload', { fullPage: false })
 
   await page.getByTestId('status-line').click()
-  await expect(tab(page, 'now')).toHaveAttribute('aria-selected', 'true')
-  await expect(tabBadge(page, 'now')).toHaveCount(0)
+  await expect(tab(page, 'board')).toHaveAttribute('aria-selected', 'true')
+  await expect(tabBadge(page, 'board')).toHaveCount(0)
   await page.getByTestId('end-turn-button').click()
   // Wait for the server's answer before reading the banner again (a stale BUY STOCKS would send
   // a second END TURN at a page that has moved on).
   await expect(phaseBanner(page)).not.toHaveText('BUY STOCKS')
-  await untilMyPlaceTurn(page, room)
+  // I look at the chains while the others play; my tile brings the Board back by itself.
+  await openTab(page, 'chains')
+  await untilMyPlaceTurn(page, room, 'chains', false)
   await expect(tab(page, 'board')).toHaveAttribute('aria-selected', 'true')
   await expect(tabBadge(page, 'board')).toHaveCount(0)
   await expect(page.getByTestId('board')).toBeVisible()
   await shots.take(page, 'board-on-my-turn', { fullPage: false })
 })
 
-test('phone: an incoming trade offer is a decision: in the decision tab, with a badge on Trades', async ({
+test('phone: an incoming trade offer is a decision: under the board, with a badge on Trades', async ({
   page,
   shots,
 }) => {
@@ -233,12 +296,13 @@ test('phone: an incoming trade offer is a decision: in the decision tab, with a 
   })
   const trade = room.fixture.expect.pending_trades[0]
   await expect(tabBadge(page, 'trades')).toHaveText('1')
-  await expect(tab(page, 'now')).toHaveAttribute('aria-selected', 'true')
-  const offer = tabPanel(page, 'now').getByTestId(`trade-offer-${trade.trade_id}`)
+  await expect(tab(page, 'board')).toHaveAttribute('aria-selected', 'true')
+  const offer = tablePanel(page).getByTestId(`trade-offer-${trade.trade_id}`)
   await expect(offer).toBeVisible()
   await expect(page.getByTestId(`trade-accept-${trade.trade_id}`)).toBeInViewport({ ratio: 1 })
+  await expectFullBoard(page)
   // Nothing sits on top of the other tabs.
-  for (const which of ['board', 'players', 'chat'] as TabName[]) {
+  for (const which of ['chains', 'chat'] as const) {
     await openTab(page, which)
     await expect(offer).toBeHidden()
     expect(
@@ -246,24 +310,32 @@ test('phone: an incoming trade offer is a decision: in the decision tab, with a 
     ).toEqual([])
   }
   await shots.take(page, 'chat-tab-clear', { fullPage: false })
-  await openTab(page, 'now')
-  await shots.take(page, 'incoming-offer-in-decision-tab', { fullPage: false })
+  // The Trades tab lists it too; ANSWER leads to where it is answered.
+  await openTab(page, 'trades')
+  await page.getByTestId(`trade-answer-${trade.trade_id}`).click()
+  await expect(tab(page, 'board')).toHaveAttribute('aria-selected', 'true')
+  await expect(offer).toBeInViewport()
+  await shots.take(page, 'incoming-offer-under-the-board', { fullPage: false })
   await page.getByTestId(`trade-reject-${trade.trade_id}`).click()
   await expect(tabBadge(page, 'trades')).toHaveCount(0)
   await expect(page.getByTestId('trade-incoming')).toHaveCount(0)
 })
 
-test('phone: the merger result stays in the decision tab, not over other tabs; the log reopens it there', async ({
+test('phone: a merger is under the board, not over other tabs; the log opens any merger in place', async ({
   page,
   shots,
 }) => {
+  // The other seats are idle, so the merger stays in progress while we look around.
+  const fx = loadFixture('merger-survivor-tie')
   const room = await startFromSnapshot(page, 'merger-survivor-tie', {
     viewport: { width: 390, height: 844 },
+    idle: fx.expect.players.map((p) => p.player_id).filter((s) => s !== fx.human_seat),
   })
   const [survivor] = room.fixture.expect.decisions[0].legal.chains as string[]
   await page.getByTestId(`chain-button-${survivor}`).click()
-  await expect(tabPanel(page, 'now').getByTestId('merger-result-title')).toBeVisible()
-  for (const which of ['board', 'players', 'chains', 'chat'] as TabName[]) {
+  await expect(tablePanel(page).getByTestId('merger-result-title')).toBeVisible()
+  await expectFullBoard(page)
+  for (const which of ['chains', 'chat'] as const) {
     await openTab(page, which)
     await expect(page.getByTestId('merger-result-title')).toBeHidden()
     expect(
@@ -271,9 +343,14 @@ test('phone: the merger result stays in the decision tab, not over other tabs; t
     ).toEqual([])
   }
   await shots.take(page, 'chat-tab-no-overlay', { fullPage: false })
+  // The log in the Trades tab: a line opens to the full result where it is, and closes again.
   await openTab(page, 'trades')
-  await page.locator('[data-testid^="merger-log-"]').first().click()
-  await expect(tab(page, 'now')).toHaveAttribute('aria-selected', 'true')
-  await expect(tabPanel(page, 'now').getByTestId('merger-result')).toBeVisible()
-  await shots.take(page, 'merger-result-reopened', { fullPage: false })
+  const line = tabPanel(page, 'trades').locator('[data-testid^="merger-log-"]').first()
+  await expect(line).toHaveAttribute('aria-expanded', 'false')
+  await line.click()
+  await expect(tab(page, 'trades')).toHaveAttribute('aria-selected', 'true')
+  await expect(tabPanel(page, 'trades').getByTestId('merger-result')).toBeVisible()
+  await shots.take(page, 'merger-opened-in-the-log', { fullPage: false })
+  await line.click()
+  await expect(tabPanel(page, 'trades').getByTestId('merger-result')).toHaveCount(0)
 })

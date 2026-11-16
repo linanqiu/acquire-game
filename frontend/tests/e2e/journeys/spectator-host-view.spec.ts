@@ -98,7 +98,7 @@ test('spectator host view: watch an all-AI game to game over', async ({ page, jo
         `${firstBot} joined`
       )
       await j.shot(page, 'host-log-tab')
-      await openTab(page, 'players')
+      await openTab(page, 'table')
       // Refresh the host screen mid-game: the board and scoreboard come back.
       merge(await observed(page))
       j.log(`reload host page at ${last} tiles`)
