@@ -11,6 +11,7 @@ import type {
   LobbySeat,
   LobbyUpdateMessage,
   TilePlayabilityInfo,
+  TradeLifecycleMessage,
   TradeOffer,
   AgentFallbackMessage,
   ChatMessage,
@@ -30,7 +31,11 @@ export interface CurrentPlayer {
   isHost: boolean
 }
 
-/** A trade lifecycle event, surfaced so pages can toast about it. `seq` increments per event. */
+/**
+ * A public trade event (an offer or its answer): every page gets every one, whoever the two
+ * players are. `seq` is the engine event's number, so the same event received twice (as a
+ * message and again in a state's `trade_log`) is one event.
+ */
 export interface TradeEvent {
   seq: number
   kind: 'proposed' | 'accepted' | 'rejected' | 'canceled'
@@ -43,6 +48,71 @@ export interface TradeEvent {
    *  when this page never saw the offer (an AI seat can answer before it arrives). */
   fromPlayerId?: string
   toPlayerId?: string
+  /** Why an offer was cancelled: `cancelled` (withdrawn) or `no_longer_valid`. */
+  reason?: string
+  /**
+   * False for what had already happened when this page first received the game (history:
+   * listed in the activity, never announced). True for what happens while the page is open,
+   * including what it missed while its connection was down.
+   */
+  live: boolean
+}
+
+/** Trade events kept for the activity list. */
+export const TRADE_LOG_KEEP = 20
+
+const TRADE_KIND = {
+  trade_proposed: 'proposed',
+  trade_accepted: 'accepted',
+  trade_rejected: 'rejected',
+  trade_canceled: 'canceled',
+} as const
+
+/** The offer a trade message is about: a proposal's own, else the one the answer names. */
+function tradeIdOf(m: TradeLifecycleMessage): string | undefined {
+  return m.type === 'trade_proposed'
+    ? m.trade?.trade_id
+    : (m.trade_id ?? m.trade?.trade_id ?? undefined)
+}
+
+/** The store's event for a trade message; null when the message names no offer. */
+function tradeEventOf(
+  m: TradeLifecycleMessage,
+  seq: number,
+  live: boolean,
+  known?: TradeOffer
+): TradeEvent | null {
+  const tradeId = tradeIdOf(m)
+  if (!tradeId) return null
+  const trade = m.trade?.trade_id === tradeId ? m.trade : known
+  const fromPlayerId = trade?.from_player_id ?? m.from_player ?? undefined
+  const toPlayerId = trade?.to_player_id ?? m.to_player ?? undefined
+  const byPlayerId =
+    m.type === 'trade_proposed'
+      ? fromPlayerId
+      : m.type === 'trade_accepted'
+        ? toPlayerId
+        : m.type === 'trade_rejected'
+          ? m.rejected_by
+          : m.canceled_by
+  return {
+    seq,
+    kind: TRADE_KIND[m.type],
+    tradeId,
+    trade,
+    byPlayerId,
+    fromPlayerId,
+    toPlayerId,
+    reason: m.type === 'trade_canceled' ? m.reason : undefined,
+    live,
+  }
+}
+
+function appendTradeEvents(log: TradeEvent[], events: TradeEvent[]): TradeEvent[] {
+  const have = new Set(log.map((e) => e.seq))
+  const fresh = events.filter((e) => !have.has(e.seq))
+  if (fresh.length === 0) return log
+  return [...log, ...fresh].sort((a, b) => a.seq - b.seq).slice(-TRADE_LOG_KEEP)
 }
 
 /** The newest `agent_fallback` message, surfaced so pages can toast about it. */
@@ -68,10 +138,13 @@ export interface GameStoreState {
   yourHand: string[]
   tilePlayability: Record<string, TilePlayabilityInfo> | null
 
-  // Player-to-player trading. `trades` = pending offers involving this player
-  // (incoming + outgoing); `publicTrades` = every pending offer (host/spectator view).
+  // Player-to-player trading. Offers are public: `publicTrades` = every pending offer at
+  // the table; `trades` = the ones involving this player (incoming + outgoing).
   trades: TradeOffer[]
   publicTrades: TradeOffer[]
+  /** Recent trade events (offers and answers at the whole table), oldest first. */
+  tradeLog: TradeEvent[]
+  /** The newest entry of `tradeLog`. */
   lastTradeEvent: TradeEvent | null
   tradeEventAnnouncedSeq: number
   lastFallbackEvent: FallbackEvent | null
@@ -137,6 +210,7 @@ const initialState = {
   tilePlayability: null,
   trades: [] as TradeOffer[],
   publicTrades: [] as TradeOffer[],
+  tradeLog: [] as TradeEvent[],
   lastTradeEvent: null as TradeEvent | null,
   /** `seq` of the newest trade event already announced (a toast). Kept here, not in the
    *  page, so a page that mounts or remounts after the event still announces it once. */
@@ -183,6 +257,21 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }
     if (message.pending_trades) {
       patch.publicTrades = message.pending_trades
+    }
+    if (message.trade_log?.length) {
+      // Events this page has not seen as messages. With a game already on the page they
+      // happened while the socket was down (announce them); on the first state they are
+      // what came before (history).
+      const live = get().gameState !== null
+      const events = message.trade_log
+        .filter((m) => typeof m.seq === 'number')
+        .map((m) => tradeEventOf(m, m.seq as number, live))
+        .filter((e): e is TradeEvent => e !== null)
+      const tradeLog = appendTradeEvents(get().tradeLog, events)
+      if (tradeLog !== get().tradeLog) {
+        patch.tradeLog = tradeLog
+        patch.lastTradeEvent = tradeLog[tradeLog.length - 1]
+      }
     }
     set(patch)
   },
@@ -247,53 +336,45 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         })
         break
 
-      case 'trade_proposed': {
-        const trade = message.trade
-        if (!trade?.trade_id) break
-        const others = store.trades.filter((t) => t.trade_id !== trade.trade_id)
-        set({
-          trades: [...others, trade],
-          lastTradeEvent: {
-            seq: (store.lastTradeEvent?.seq ?? 0) + 1,
-            kind: 'proposed',
-            tradeId: trade.trade_id,
-            trade,
-            byPlayerId: trade.from_player_id,
-            fromPlayerId: trade.from_player_id,
-            toPlayerId: trade.to_player_id,
-          },
-        })
-        break
-      }
-
+      case 'trade_proposed':
       case 'trade_accepted':
       case 'trade_rejected':
       case 'trade_canceled': {
-        const known = store.trades.find((t) => t.trade_id === message.trade_id)
-        const kind =
-          message.type === 'trade_accepted'
-            ? 'accepted'
-            : message.type === 'trade_rejected'
-              ? 'rejected'
-              : 'canceled'
-        const byPlayerId =
-          message.type === 'trade_accepted'
-            ? message.to_player
-            : message.type === 'trade_rejected'
-              ? message.rejected_by
-              : message.canceled_by
-        set({
-          trades: store.trades.filter((t) => t.trade_id !== message.trade_id),
-          lastTradeEvent: {
-            seq: (store.lastTradeEvent?.seq ?? 0) + 1,
-            kind,
-            tradeId: message.trade_id,
-            trade: known,
-            byPlayerId,
-            fromPlayerId: known?.from_player_id ?? message.from_player ?? undefined,
-            toPlayerId: known?.to_player_id ?? message.to_player ?? undefined,
-          },
-        })
+        const proposed = message.type === 'trade_proposed'
+        const id = tradeIdOf(message)
+        if (!id) break
+        const known =
+          store.publicTrades.find((t) => t.trade_id === id) ??
+          store.trades.find((t) => t.trade_id === id)
+        const lastSeq = store.tradeLog[store.tradeLog.length - 1]?.seq ?? 0
+        const event = tradeEventOf(
+          message,
+          typeof message.seq === 'number' ? message.seq : lastSeq + 1,
+          true,
+          known
+        )
+        if (!event) break
+        // The lists: an offer joins them, an answered one leaves. Every offer is public;
+        // `trades` keeps the ones this player is part of.
+        const me = store.currentPlayer?.id
+        const without = (list: TradeOffer[]) => list.filter((t) => t.trade_id !== id)
+        const patch: Partial<GameStoreState> = {
+          trades: without(store.trades),
+          publicTrades: without(store.publicTrades),
+        }
+        if (proposed) {
+          const trade = message.trade
+          patch.publicTrades = [...patch.publicTrades!, trade]
+          if (!me || trade.from_player_id === me || trade.to_player_id === me) {
+            patch.trades = [...patch.trades!, trade]
+          }
+        }
+        const tradeLog = appendTradeEvents(store.tradeLog, [event])
+        if (tradeLog !== store.tradeLog) {
+          patch.tradeLog = tradeLog
+          patch.lastTradeEvent = tradeLog[tradeLog.length - 1]
+        }
+        set(patch)
         break
       }
 

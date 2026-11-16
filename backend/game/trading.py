@@ -2,6 +2,11 @@
 
 ``TradingMixin`` is mixed into ``game.game.Game`` and works on its
 ``pending_trades`` and players; validation is ``Rules.validate_trade``.
+
+Offers are public: every trade event (proposed, accepted, rejected,
+cancelled) is a public event that carries the full offer, so the whole table
+can follow it and anyone may make a competing offer. Only the recipient can
+accept or reject, and only the proposer can cancel.
 """
 
 from typing import List
@@ -115,6 +120,7 @@ class TradingMixin:
                 player_id,
                 trade_id=trade_id,
                 reason="no_longer_valid",
+                trade=trade.to_dict(),
             )
             return AcceptTradeResult(
                 success=False, error=f"Trade is no longer valid: {error_msg}"
@@ -176,7 +182,9 @@ class TradingMixin:
 
         # Remove the trade
         del self.pending_trades[trade_id]
-        self._emit("trade_rejected", player_id, trade_id=trade_id)
+        self._emit(
+            "trade_rejected", player_id, trade_id=trade_id, trade=trade.to_dict()
+        )
 
         return RejectTradeResult(success=True, trade_id=trade_id, rejected_by=player_id)
 
@@ -206,7 +214,13 @@ class TradingMixin:
 
         # Remove the trade
         del self.pending_trades[trade_id]
-        self._emit("trade_cancelled", player_id, trade_id=trade_id, reason="cancelled")
+        self._emit(
+            "trade_cancelled",
+            player_id,
+            trade_id=trade_id,
+            reason="cancelled",
+            trade=trade.to_dict(),
+        )
 
         return CancelTradeResult(success=True, trade_id=trade_id, canceled_by=player_id)
 

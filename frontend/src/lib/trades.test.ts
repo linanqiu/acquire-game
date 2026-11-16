@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { incomingBlockReason, nonZero, type TradeParty } from './trades'
-import { snapshot, playerState } from '../../tests/unit/fixtures/wire'
+import { competingOffer, incomingBlockReason, nonZero, type TradeParty } from './trades'
+import { snapshot, playerState, wireTrades } from '../../tests/unit/fixtures/wire'
 import { DEFAULT_RS, MINI } from '../../tests/unit/fixtures/rulesets'
 
 /** A default chain's display name (ids are lowercase, names capitalised). */
@@ -114,5 +114,53 @@ describe('nonZero', () => {
     ])
     expect(nonZero(undefined)).toEqual([])
     expect(nonZero({})).toEqual([])
+  })
+})
+
+describe('competingOffer (my own offer, started from an offer between two other players)', () => {
+  // A real public offer as a third player received it: Cara offers Bob 2 Aurelia for $800.
+  const o = wireTrades().others
+  const [offer] = o.state.pending_trades
+  const players = o.state.players as Record<string, TradeParty>
+  const me = players[o.human]
+
+  it('to the recipient: I offer what the proposer offered, as far as I hold it, for the same price', () => {
+    expect(offer.offering_stocks).toEqual({ aurelia: 2 })
+    expect(me.stocks.aurelia).toBe(1)
+    expect(competingOffer(offer, 'recipient', me, players)).toEqual({
+      partnerId: o.to,
+      offer: { stocks: [{ chain: 'aurelia', quantity: 1 }], cash: 0 },
+      want: { stocks: [], cash: offer.requesting_money },
+      basedOn: offer,
+    })
+  })
+
+  it('to the proposer: I pay what was asked of the recipient, for what the proposer offered', () => {
+    expect(competingOffer(offer, 'proposer', me, players)).toEqual({
+      partnerId: o.from,
+      offer: { stocks: [], cash: offer.requesting_money },
+      want: { stocks: [{ chain: 'aurelia', quantity: 2 }], cash: 0 },
+      basedOn: offer,
+    })
+  })
+
+  it('never starts from more than a side has: cash and shares are cut to the holdings', () => {
+    const poor = { ...me, money: 300, stocks: {} }
+    expect(competingOffer(offer, 'proposer', poor, players).offer).toEqual({
+      stocks: [],
+      cash: 300,
+    })
+    expect(competingOffer(offer, 'recipient', poor, players).offer).toEqual({ stocks: [], cash: 0 })
+    const broke = { ...players, [o.to]: { ...players[o.to], money: 50 } }
+    expect(competingOffer(offer, 'recipient', me, broke).want.cash).toBe(50)
+    const sold = { ...players, [o.from]: { ...players[o.from], stocks: { aurelia: 1 } } }
+    expect(competingOffer(offer, 'proposer', me, sold).want.stocks).toEqual([
+      { chain: 'aurelia', quantity: 1 },
+    ])
+    // Nothing known about me: an empty starting point, still addressed to the right player.
+    expect(competingOffer(offer, 'recipient', undefined, players)).toMatchObject({
+      partnerId: o.to,
+      offer: { stocks: [], cash: 0 },
+    })
   })
 })

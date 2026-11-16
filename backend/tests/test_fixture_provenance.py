@@ -146,6 +146,19 @@ def _claim_outgoing(g, h):
     assert g.get_current_player().player_id == h
 
 
+def _claim_between_others(g, h):
+    """An open offer between two OTHER players; nothing is asked of the human
+    in it, the human holds some of what is offered and it is their turn."""
+    (t,) = g.pending_trades.values()
+    assert h not in (t.from_player_id, t.to_player_id)
+    assert not any(
+        d.kind == TRADE_RESPONSE and d.player_id == h for d in pending_decisions(g)
+    )
+    me = g.get_player(h)
+    assert any(me.stocks.get(c, 0) > 0 for c in t.offering_stocks)
+    assert g.get_current_player().player_id == h
+
+
 def _claim_end_available(g, h):
     d = _human_decision(g, h, PLACE_TILE)
     assert d and "declare_end_game" in legal_actions(g, d)["action_types"]
@@ -208,6 +221,7 @@ CLAIMS = {
     "trade-incoming": _claim_incoming_my_turn,
     "trade-incoming-not-my-turn": _claim_incoming_not_my_turn,
     "trade-outgoing-pending": _claim_outgoing,
+    "trade-between-others": _claim_between_others,
     "end-game-available": _claim_end_available,
     "last-turn-before-game-over": _claim_last_turn,
     "game-over": _claim_game_over,

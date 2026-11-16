@@ -79,6 +79,7 @@ describe('which screen each real game state shows', () => {
     'last-turn-before-game-over': ['buy', 'BUY STOCKS'],
     'trade-incoming': ['buy', 'BUY STOCKS'],
     'trade-outgoing-pending': ['buy', 'BUY STOCKS'],
+    'trade-between-others': ['buy', 'BUY STOCKS'],
     'game-over': ['game-over', 'GAME OVER'],
     'game-over-tie': ['game-over', 'GAME OVER'],
   }

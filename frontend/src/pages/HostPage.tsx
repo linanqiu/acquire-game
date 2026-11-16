@@ -12,6 +12,7 @@ import { Board } from '../components/game/Board'
 import { Standings } from '../components/game/Standings'
 import { ChainTable } from '../components/game/ChainTable'
 import { MergerResult, MergerLog } from '../components/game/MergerResult'
+import { TradeActivity } from '../components/game/TradeActivity'
 import { useMergerResult } from '../hooks/useMergerResult'
 import { GameOver } from '../components/game/GameOver'
 import { ChatPanel } from '../components/game/ChatPanel'
@@ -80,6 +81,7 @@ export function HostPage() {
     canStart,
     gameState,
     publicTrades,
+    tradeLog,
     gameOver,
   } = useGameStore()
   const unavailable = roomUnavailable(connectionStatus, connectionError)
@@ -307,6 +309,7 @@ export function HostPage() {
                         setOpenNow((n) => n + 1)
                       }}
                     />
+                    <TradeActivity events={tradeLog} players={gameState.players} />
                     {activityLog
                       .slice(-5)
                       .reverse()

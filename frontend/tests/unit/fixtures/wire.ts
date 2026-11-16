@@ -51,7 +51,17 @@ export function wireTrades() {
   return structuredClone(raw.trades) as Record<
     'accepted' | 'rejected' | 'canceled' | 'proposed',
     Record<string, any>
-  >
+  > & {
+    /**
+     * What a player (`human`) received about offers between two OTHER players (`from`, `to`):
+     * `state` (the offer open), then the offer rejected, proposed again, cancelled, proposed
+     * and accepted, and `state_after`.
+     */
+    others: Record<
+      'state' | 'rejected' | 'proposed' | 'canceled' | 'accepted' | 'state_after',
+      Record<string, any>
+    > & { from: string; to: string; human: string }
+  }
 }
 
 /** What the home page's routes answered (status + body): create, join, spectator, each refusal. */

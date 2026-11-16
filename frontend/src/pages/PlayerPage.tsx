@@ -16,6 +16,8 @@ import { useMergerResult } from '../hooks/useMergerResult'
 import { Board } from '../components/game/Board'
 import { TradeBuilder } from '../components/game/TradeBuilder'
 import { TradeOffers } from '../components/game/TradeOffers'
+import { TradeActivity } from '../components/game/TradeActivity'
+import { competingOffer } from '../lib/trades'
 import { ReconnectionOverlay } from '../components/game/ReconnectionOverlay'
 import { ReconnectedToast } from '../components/game/ReconnectedToast'
 import { GameOver } from '../components/game/GameOver'
@@ -36,7 +38,7 @@ import {
   transformPlayabilityMap,
   unplayableReasons,
 } from '../utils/transforms'
-import type { ChainId } from '../types/api'
+import type { ChainId, GameStateMessage } from '../types/api'
 import { RulesetScope } from '../ruleset/RulesetScope'
 import { rulesFor, useServerRuleset } from '../ruleset/useRules'
 import { orderChainIds } from '../lib/ruleset'
@@ -49,6 +51,17 @@ import { useTurnActions } from './player/useTurnActions'
 import styles from './PlayerPage.module.css'
 
 type StockHolding = { chain: ChainId; quantity: number }
+
+/** Runs `then` whenever its tab is (or becomes) the one shown. */
+function WhenShown({ shown, then }: { shown: boolean; then: () => void }) {
+  useEffect(() => {
+    if (shown) then()
+  }, [shown, then])
+  return null
+}
+
+const nameIn = (state: GameStateMessage | null, id: string) =>
+  state?.players[id]?.name ?? 'another player'
 
 export function PlayerPage() {
   const room = useRoom()
@@ -76,7 +89,8 @@ export function PlayerPage() {
     pendingMergerChoice,
     pendingStockDisposition,
     trades: myTrades,
-    lastTradeEvent,
+    publicTrades,
+    tradeLog,
     gameOver,
     setCurrentPlayer,
   } = useGameStore()
@@ -110,7 +124,13 @@ export function PlayerPage() {
   })
 
   const turn = useTurnActions({ room, sendAction, gameState })
-  const trades = usePlayerTrades({ sendAction, gameState, myPlayerId, lastTradeEvent })
+  const trades = usePlayerTrades({
+    sendAction,
+    gameState,
+    myPlayerId,
+    tradeLog,
+    publicTrades,
+  })
   const { onRefused: turnRefused } = turn
   const { onRefused: tradeRefused } = trades
   useEffect(() => {
@@ -464,21 +484,43 @@ export function PlayerPage() {
                 {
                   id: 'trades',
                   label: 'Trades',
-                  badge: incomingCount,
-                  badgeLabel: `${incomingCount} for you`,
-                  content: (
+                  // Offers waiting for my answer are counted; a new offer between two
+                  // other players is a quiet dot until the tab has been opened.
+                  badge: incomingCount > 0 ? incomingCount : trades.newAtTable > 0 ? 'dot' : 0,
+                  badgeLabel:
+                    incomingCount > 0 ? `${incomingCount} for you` : 'new offer at the table',
+                  content: (shown) => (
                     <div className={styles.tradesTab}>
+                      <WhenShown shown={shown} then={trades.markTableSeen} />
                       {myPlayerId && (
                         <TradeOffers
                           part="mine"
                           offers={myTrades}
+                          tableOffers={publicTrades}
                           myPlayerId={myPlayerId}
                           players={gameState.players}
                           onAccept={trades.accept}
                           onReject={trades.reject}
                           onCancel={trades.cancel}
                           onPropose={trades.openBuilder}
+                          onAnswer={() => setOpenNow((n) => n + 1)}
+                          onCompete={(offer, target) =>
+                            trades.openBuilderFrom(
+                              competingOffer(
+                                offer,
+                                target,
+                                myPlayerData ?? undefined,
+                                gameState.players
+                              )
+                            )
+                          }
                         />
+                      )}
+                      {tradeLog.length > 0 && (
+                        <section aria-label="Recent trades">
+                          <h4 className={styles.refTitle}>Recent trades</h4>
+                          <TradeActivity events={tradeLog} players={gameState.players} />
+                        </section>
                       )}
                       <section aria-label="Activity">
                         <h4 className={styles.refTitle}>{theme.merger_noun_plural}</h4>
@@ -514,6 +556,13 @@ export function PlayerPage() {
             cancelLabel=""
           >
             <TradeBuilder
+              key={trades.builderKey}
+              initial={trades.prefill ?? undefined}
+              startedFrom={
+                trades.prefill
+                  ? `Started from ${nameIn(gameState, trades.prefill.basedOn.from_player_id)}'s offer to ${nameIn(gameState, trades.prefill.basedOn.to_player_id)}. Change anything before you send it.`
+                  : undefined
+              }
               players={otherPlayers}
               myHoldings={myHoldings}
               myCash={myPlayerData?.money ?? 0}

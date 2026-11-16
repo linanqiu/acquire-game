@@ -108,7 +108,7 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | PG-29 | Players tab (`tabpanel-players`): net worth from the fixture | all game phases | `screens/tabs.spec.ts : status line, rack and tabs fit; every tab shows its content`; `screens/table-view.spec.ts : table view on phone` | 3 |
 | PG-30 | Chains tab (`tabpanel-chains`, label from the ruleset: Chains / Startups / Lines): majority holders from the fixture | all game phases | `screens/tabs.spec.ts : status line, rack and tabs fit; every tab shows its content`; `screens/table-view.spec.ts : table view on phone` | 3 |
 | PG-31 | Chat tab (`tabpanel-chat`) with the unread badge (`tab-badge-chat`; history sent on a first visit counts as read) | all game phases | `screens/chat.spec.ts : chat on a phone`; `screens/tabs.spec.ts : phone: unread chat badge` | 3 |
-| PG-32 | Trades tab (`tabpanel-trades`): my offers, PROPOSE TRADE and the mergers log; badge with the number of offers waiting for my answer (`tab-badge-trades`) | all game phases | `screens/trades.spec.ts : outgoing offer stays pending until cancelled`; `screens/tabs.spec.ts : phone: an incoming trade offer`; `screens/tabs.spec.ts : phone: the merger result stays in the decision tab`; `screens/table-view.spec.ts : merger result after the human's own merger` | 3 |
+| PG-32 | Trades tab (`tabpanel-trades`): my offers, PROPOSE TRADE, every other open offer at the table (BL-012), recent trades and the mergers log; badge with the number of offers waiting for my answer, else a dot for a new offer between other players (`tab-badge-trades`) | all game phases | `screens/trades.spec.ts : outgoing offer stays pending until cancelled`; `screens/tabs.spec.ts : phone: an incoming trade offer`; `screens/tabs.spec.ts : phone: the merger result stays in the decision tab`; `screens/table-view.spec.ts : merger result after the human's own merger`; `screens/trades.spec.ts : an offer between two other players` | 3 |
 | PG-33 | Selected tab remembered per room for the session (reload keeps it) | | `screens/tabs.spec.ts : phone: my place-tile turn opens the Board`; `screens/chat.spec.ts : chat on desktop` | 3 |
 | PG-34 | "Your turn" signal: phase bar `data-turn="mine"` (accent tint) and the status line accent while the table waits on me; calm "other" with a turn marker otherwise (host: whose turn) | all game phases | `screens/appearance.spec.ts : your-turn signal` | 3 |
 | PG-35 | Chains drawn as shapes on the board: same-chain neighbours joined (`data-join`), one visible label per chain (`data-anchor`), orphans separate | board | `screens/appearance.spec.ts : a chain is one block with one label` | 3 |
@@ -130,10 +130,14 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | TR-01 | Propose Trade modal (`Modal` + `TradeBuilder`) | opened from the Trades tab | `screens/trades.spec.ts : propose a trade through the builder` | 3, 4 |
 | TR-02 | Trade builder validation (partner, offer, request; the steppers stop at what you hold) | | `screens/trades.spec.ts : propose a trade through the builder`; `journeys/trade-with-ai.spec.ts : trade with AI` | 3, 4 |
 | TR-03 | Incoming trade offer with accept/reject (`TradeOffers part="incoming"`, `trade-incoming`), in the "now" area whatever tab is open, on my turn and on another's turn | | `screens/trades.spec.ts : incoming offer on my turn: accept it`; `screens/trades.spec.ts : incoming offer on my turn: reject it`; `screens/trades.spec.ts : incoming offer while another player is on turn`; `screens/reload.spec.ts : reload with a trade offer waiting` | 3, 4 |
-| TR-04 | Trade accepted/rejected/cancelled notifications (toasts, both sides) | | `screens/trades.spec.ts : outgoing offer: a scripted opponent accepts it`; `screens/trades.spec.ts : outgoing offer: a scripted opponent rejects it`; `journeys/two-humans-and-bot.spec.ts : two humans and a bot` | 3, 4 |
+| TR-04 | Trade accepted/rejected/cancelled notifications (toasts, both sides; each event announced once, also when an offer and its answer arrive together) | | `screens/trades.spec.ts : outgoing offer: a scripted opponent accepts it`; `screens/trades.spec.ts : outgoing offer: a scripted opponent rejects it`; `journeys/two-humans-and-bot.spec.ts : two humans and a bot` | 3, 4 |
 | TR-05 | Trade with an LLM or scripted seat end to end | | `journeys/trade-with-ai.spec.ts : trade with AI`; `screens/trades.spec.ts : outgoing offer: a scripted opponent accepts it` | 3, 4 |
 | TR-06 | Outgoing offer pending, with cancel | `trade-outgoing-*`, `trade-cancel-*` | `screens/trades.spec.ts : outgoing offer stays pending until cancelled` | 3, 4 |
 | TR-07 | Server refuses a trade: reason in the builder and a toast | `trade-error` | `screens/trades.spec.ts : server refuses a trade mid-merger` | 3 |
+| TR-08 | Open offers at the table (`trade-table`, BL-012): an offer between two other players, read-only (who offers what to whom; no accept / reject / cancel), with the note that offers are public | another player's offer is open | `screens/trades.spec.ts : an offer between two other players`; `screens/trades.spec.ts : a new offer between two other players` | 3 |
+| TR-09 | Competing offer: "Make a competing offer" TO recipient / TO proposer (`trade-compete-*`) opens the builder on that player with the terms filled in (`trade-started-from`); sent as my own offer, the first one stays open | from an offer between others | `screens/trades.spec.ts : an offer between two other players` | 3 |
+| TR-10 | A new offer between two other players: one info toast and a dot on the Trades tab until it is opened; their answers are not toasted | while I am on another tab | `screens/trades.spec.ts : a new offer between two other players`; `journeys/two-humans-and-bot.spec.ts : two humans and a bot` | 3, 4 |
+| TR-11 | Recent trades (`trade-activity`, `TradeActivity`): every offer and answer at the table in words with the terms, newest first | after the first trade event | `screens/trades.spec.ts : an offer between two other players`; `screens/trades.spec.ts : a new offer between two other players`; `journeys/two-humans-and-bot.spec.ts : two humans and a bot` | 3, 4 |
 
 ## 5b. Table chat (`ChatPanel`, player and host pages)
 
@@ -157,6 +161,7 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | HO-01 | Host lobby: "WAITING FOR PLAYERS", player list | | `journeys/spectator-host-view.spec.ts : spectator host view`; `screens/lobby.spec.ts : host/spectator lobby` | 3, 4 |
 | HO-02 | Host lobby: add AI control, START GAME | | `journeys/spectator-host-view.spec.ts : spectator host view`; `screens/lobby.spec.ts : host/spectator lobby` | 3, 4 |
 | HO-12 | Host on a TV (1920x1080): board, Players and Chains pinned side by side (`pinned-players`, `pinned-chains`) without a tap; Chat and Log stay tabs | `(min-width: 1600px) and (min-height: 900px)` | `screens/host.spec.ts : board, scoreboard and chain list do not overlap or leave the screen` | 3 |
+| HO-13 | Host: trade activity in the Log (`TradeActivity`, BL-012): offers and answers in words with the terms | after the first trade event | `screens/host.spec.ts : host view lists a pending trade` | 3 |
 | HO-03 | Host in-game view: board (large; always visible on wide screens, a tab on phones), Players / Chains / Chat / Log tabs (`Standings` rows `player-card`, `ChainTable`); every tab fits at 390x844, 360x640, 768x1024, 1100x700 and 1366x768 without page scroll | | `screens/host.spec.ts : host view of a busy mid-game board`; `journeys/spectator-host-view.spec.ts : spectator host view` | 3, 4 |
 | HO-04 | Host: merger in progress | | `screens/host.spec.ts : host view of a merger in progress` | 3, 4 |
 | HO-05 | Host: thinking indicator | | `journeys/spectator-host-view.spec.ts : spectator host view`; GAP: no screen test, same reason as PG-12 | 4 |
@@ -223,8 +228,8 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | `ChainTable` | majority, minority, ties, sole holder, nobody; my position; held off-board chains; no holdings | PG-14, PG-22 | `screens/table-view.spec.ts : table view on desktop`; `screens/table-view.spec.ts : table view on phone`; `screens/place-tile.spec.ts : opening`; `screens/merger.spec.ts : disposition (human first)` |
 | `MergerResult`, `MergerLog` | in progress (deciding / to decide), bonuses with ties, survivor after the merger with my live projection, complete with dispositions, closed, reopened | PG-23, PG-24, PG-40, HO-11 | `screens/table-view.spec.ts : merger result: bonuses at once`; `screens/decision-tab.spec.ts : holders and decisions, the survivor after the merger` |
 | `DecisionTab`, `BuyPanel`, `HolderChips`, `StatusLine` | each view; holders in rank order with ties and me; projection; status line mine / other | PG-38..PG-44 | `screens/decision-tab.spec.ts : every chain's holders and my shares next to the stepper`; `screens/decision-tab.spec.ts : waiting during someone else's disposition` |
-| `TradeBuilder` | stocks and money both ways, player picker | TR-01 | `screens/trades.spec.ts : propose a trade through the builder` |
-| `TradeOffers` | incoming, outgoing, none | TR-03, TR-06 | `screens/trades.spec.ts : outgoing offer stays pending until cancelled` |
+| `TradeBuilder` | stocks and money both ways, player picker; opened on a starting point from another player's offer (`trade-started-from`) | TR-01, TR-09 | `screens/trades.spec.ts : propose a trade through the builder`; `screens/trades.spec.ts : an offer between two other players` |
+| `TradeOffers`, `TradeActivity` | incoming, outgoing, none; open offers at the table (between others with competing-offer buttons, for me with ANSWER, none); recent trades in words | TR-03, TR-06, TR-08, TR-11 | `screens/trades.spec.ts : outgoing offer stays pending until cancelled`; `screens/trades.spec.ts : an offer between two other players` |
 | `GameOver` | final scores, winner, ties, breakdown | PG-15, HO-06 | `screens/end-game.spec.ts : game over with a tie`; `screens/host.spec.ts : host view of a finished game` |
 | `ReconnectionOverlay`, `ReconnectedToast` | reconnecting, welcome back | CN-03, CN-04 | `screens/connection.spec.ts : connection drops mid-game` |
 | `AddAiControl`, `RemoveSeatButton` | menu, disabled entry, remove | PL-02..04 | `screens/lobby.spec.ts : lobby: AI menu` |
@@ -262,8 +267,8 @@ Facts learned while filling this map (2026-11-14):
 
 ## Summary (checked by the script; update when rows change)
 
-- Surfaces: 159
-- Covered: 154
+- Surfaces: 164
+- Covered: 159
 - GAP: 7
 - Journeys: 7
 
@@ -290,6 +295,7 @@ Generated by real play (`cd backend && python -m fixtures_gen`); see `frontend/t
 | `safe-chain-on-board` | 3 | place_tile | place_tile (p1) | A safe chain (11+ tiles) is on the board and the human holds a tile that cannot be played because it would merge two safe chains. | `screens/place-tile.spec.ts : safe chain on board` |
 | `six-player-midgame` | 6 | place_tile | place_tile (p1) | Six players, busy mid-game board, the human to place a tile. | `screens/layout.spec.ts : busy` |
 | `three-player-midgame` | 3 | place_tile | place_tile (p1) | Three players, busy mid-game board, the human to place a tile. | `screens/layout.spec.ts : busy`; `screens/host.spec.ts : host view of a busy mid-game board`; `screens/turn-basics.spec.ts : expanding a chain` |
+| `trade-between-others` | 4 | buy_stocks | buy_stocks (p1) | The human's turn; one opponent has proposed a trade (stock for cash) to another opponent. The human is not a party but sees the public offer. | `screens/trades.spec.ts : an offer between two other players`; `screens/trades.spec.ts : a new offer between two other players` |
 | `trade-incoming` | 4 | buy_stocks | buy_stocks (p1) | It is the human's turn and another player has proposed a trade to them (stock for cash). | `screens/trades.spec.ts : incoming offer on my turn: accept it` |
 | `trade-incoming-not-my-turn` | 4 | buy_stocks | buy_stocks (p3) | Another player's turn; a third player has proposed a trade to the human. | `screens/trades.spec.ts : incoming offer while another player is on turn`; `screens/reload.spec.ts : reload with a trade offer waiting` |
 | `trade-outgoing-pending` | 4 | buy_stocks | buy_stocks (p1) | The human proposed a trade (stock for cash) and is awaiting the answer. | `screens/trades.spec.ts : outgoing offer stays pending until cancelled`; `screens/host.spec.ts : host view lists a pending trade` |
