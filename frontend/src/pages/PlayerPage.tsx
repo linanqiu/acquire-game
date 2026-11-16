@@ -429,7 +429,7 @@ export function PlayerPage() {
                       />
                     )
                   }
-                  rackNotes={<RackNotes tiles={rackTiles} />}
+                  rackNotes={wide ? undefined : <RackNotes tiles={rackTiles} />}
                   pendingChainChoice={pendingChainChoice}
                   pendingMergerChoice={pendingMergerChoice}
                   pendingStockDisposition={pendingStockDisposition}

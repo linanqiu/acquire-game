@@ -51,6 +51,17 @@ export async function waitForMyDecision(page: Page, room?: RoomContext | null): 
 }
 
 /**
+ * Show the decision tab ("Now", BL-011), as a player would: tap the status line when another tab
+ * is open (the page only switches by itself for new events).
+ */
+export async function openDecision(page: Page): Promise<void> {
+  const view = page.getByTestId('decision-view')
+  if (await view.isVisible()) return
+  await page.getByTestId('status-line').click()
+  await expect(view).toBeVisible()
+}
+
+/**
  * Play one complete human turn through the UI with first-available choices: place a tile, answer
  * any chain/merger prompts, then end the turn (buying nothing). Returns a short log line.
  */
@@ -72,12 +83,14 @@ async function playHumanTurn(
       await page.getByTestId('place-tile-button').click()
       await expect(phaseBanner(page)).not.toHaveText('PLACE A TILE')
     } else if (banner === 'CHOOSE A HOTEL CHAIN' || banner === 'CHOOSE THE SURVIVING HOTEL CHAIN') {
+      await openDecision(page)
       await shots?.take(page, `${label}-chain-choice`)
       await page.locator('[data-testid^="chain-button-"]:not([disabled])').first().click()
       await expect(page.getByTestId('chain-selector')).toBeHidden()
       // The banner follows the server's answer; do not act again on the stale one.
       await expect(phaseBanner(page)).not.toHaveText(banner)
     } else if (banner === 'DISPOSE YOUR SHARES') {
+      await openDecision(page)
       const title = await page.getByTestId('merger-disposition').innerText()
       await shots?.take(page, `${label}-disposition`)
       await page.getByTestId('confirm-disposition').click()
@@ -88,6 +101,7 @@ async function playHumanTurn(
         })
         .toBe(true)
     } else if (banner === 'BUY STOCKS') {
+      await openDecision(page)
       await shots?.take(page, `${label}-buy-phase`)
       await page.getByTestId('end-turn-button').click()
       await expect(phaseBanner(page)).not.toHaveText('BUY STOCKS')

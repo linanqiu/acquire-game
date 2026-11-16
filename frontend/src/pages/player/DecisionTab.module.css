@@ -25,6 +25,10 @@
   color: var(--text-secondary);
 }
 
+.waiting p {
+  margin: 0;
+}
+
 .waiting {
   margin: 0;
   display: flex;

@@ -128,7 +128,8 @@ describe('placing a tile', () => {
     const view = loadSnapshotAsPlayer('trade-incoming-not-my-turn')
     renderPage()
     fireEvent.click(rackTile(view.expect.human.hand[0]))
-    expect(screen.queryByText(/Selected:/)).not.toBeInTheDocument()
+    expect(screen.getByTestId('status-line')).not.toHaveTextContent(/^Place /)
+    expect(screen.queryByTestId('place-tile-button')).not.toBeInTheDocument()
   })
 })
 

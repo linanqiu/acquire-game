@@ -88,11 +88,13 @@ export function MergerDisposition({
     <section
       className={styles.container}
       data-testid="merger-disposition"
+      data-defunct={defunctChain}
+      data-shares={sharesOwned}
       aria-label={`Your ${defunctName} ${theme.share_noun_plural}`}
     >
       {header}
       <div className={styles.controls}>
-        <h4 className={styles.title}>
+        <h4 className={styles.title} data-testid="disposition-title">
           Your <ChainMarker chain={defunctChain} variant="compact" /> {theme.share_noun_plural}:{' '}
           <strong>{sharesOwned}</strong>
           <span className={styles.muted}>
@@ -124,7 +126,7 @@ export function MergerDisposition({
           />
 
           <div className={styles.hold} data-testid="hold-display">
-            <span className={styles.holdLabel}>KEEP {holdCount}</span>
+            <span className={styles.holdLabel}>KEEP {rules.shares(holdCount)}</span>
             <span className={styles.holdValue}>
               worth {rules.money(0)} now; they count again only if {defunctName} is founded again
             </span>

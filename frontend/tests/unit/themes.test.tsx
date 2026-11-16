@@ -261,13 +261,12 @@ describe.each(THEMED)('%s ruleset', (_name, rs) => {
     expect(screen.getByTestId('game-phase')).toHaveTextContent(
       `DISPOSE YOUR ${t.share_noun_plural.toUpperCase()}`
     )
-    expect(
-      screen.getByText(
-        `DISPOSE OF YOUR ${defunct.name.toUpperCase()} ${t.share_noun_plural.toUpperCase()}`
-      )
-    ).toBeInTheDocument()
+    expect(screen.getByTestId('status-line')).toHaveTextContent(
+      `Your move: sell, trade or keep your ${defunct.name} ${t.share_noun_plural}`
+    )
     const form = screen.getByTestId('merger-disposition')
-    expect(form).toHaveTextContent(`Price at ${t.merger_noun}`)
+    expect(form).toHaveTextContent(`(price at ${t.merger_noun})`)
+    expect(form).toHaveTextContent(`Your ${defunct.abbreviation}`)
     const r = rs.merger_trade_ratio
     expect(
       within(form).getByText(`TRADE ${r}:1 for ${survivor.name.toUpperCase()}`)

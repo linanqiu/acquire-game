@@ -64,7 +64,7 @@ export function DecisionTab(p: DecisionTabProps) {
   const me = myId ? players[myId] : undefined
 
   // A link back to the latest merger result when a decision replaced it.
-  const lastLink = last && p.merger.shown?.seq !== last.seq && (
+  const lastLink = last && (
     <button
       type="button"
       className={styles.link}
@@ -171,9 +171,10 @@ export function DecisionTab(p: DecisionTabProps) {
     case 'merger':
       body = (
         <>
-          <p className={styles.waiting} data-testid="waiting-message">
-            <Spinner size="sm" /> {p.waiting}
-          </p>
+          <div className={styles.waiting}>
+            <Spinner size="sm" />
+            <p data-testid="waiting-message">{p.waiting}</p>
+          </div>
           {live && (
             <MergerResult merger={live} players={players} gameState={gameState} myId={myId} />
           )}
