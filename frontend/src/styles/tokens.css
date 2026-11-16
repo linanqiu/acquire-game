@@ -1,6 +1,10 @@
 /**
  * Buyout Design Tokens
  * CSS custom properties (see docs/ui/README.md)
+ *
+ * The look (BL-014): neutral ink surfaces that separate by fill before they separate by a line,
+ * one accent colour (my turn, my playable tiles, the main button), soft status colours, 6-8px
+ * corners, and numbers in the UI face with tabular figures.
  */
 
 :root {
@@ -8,19 +12,19 @@
   /* ==========================================================================
      Colors - Background
      ========================================================================== */
-  --bg-primary: #1a1a2e; /* deep navy-charcoal */
-  --bg-secondary: #16213e; /* slightly lighter for cards/panels */
-  --bg-tertiary: #0f0f1a; /* darkest, for depth */
-  --border: #2a2a4a; /* subtle separation */
+  --bg-primary: #16171a; /* ink: the page */
+  --bg-secondary: #1f2125; /* a step up: cards, panels, bars */
+  --bg-tertiary: #0f1012; /* a step down: wells (the board, the rack) */
+  --border: #2f3238; /* hairlines; surfaces separate by fill first */
 
   /* ==========================================================================
      Colors - Text
      ========================================================================== */
-  --text-primary: #e8e8e8; /* off-white, easy on eyes */
-  --text-secondary: #8888aa; /* muted for labels */
+  --text-primary: #e7e8ea; /* off-white, easy on eyes */
+  --text-secondary: #a0a3ab; /* muted for labels */
   --text-accent: #ffffff; /* pure white for emphasis only */
-  --text-negative: #ff6b6b; /* muted red for losses/warnings */
-  --text-positive: #6bff8a; /* muted green for gains */
+  --text-negative: #f28b82; /* soft red for losses/warnings */
+  --text-positive: #7dd3a0; /* soft green for gains */
 
   /* ==========================================================================
      Colors - Chains
@@ -28,40 +32,42 @@
      --chain-bg / --chain-fg (see lib/ruleset.ts chainStyle). Only the neutral
      "played but in no chain" colour is a token.
      ========================================================================== */
-  --chain-orphan: #4a4a5a; /* Orphan/unincorporated tiles */
-  --chain-orphan-fg: #e8e8e8;
+  --chain-orphan: #676b77; /* Orphan/unincorporated tiles */
+  --chain-orphan-fg: #ffffff;
 
-  /* Board: empty squares are quiet, playable squares are lit. */
-  --board-square: #182241; /* an empty square, a step up from the board */
-  --board-coord: #4b5478; /* faint coordinate hint on an empty square */
-  /* "Your turn": the phase bar and the action card when the table waits on the viewer. */
-  --turn-accent: #5cc8ff;
-  --turn-tint: #183a5c;
-  --turn-card: #1a2d52;
-  --cta-fg: #06121f; /* text on --turn-accent */
+  /* Board: empty squares are quiet, playable squares are marked. */
+  --board-square: #1c1e22; /* an empty square, a step up from the board */
+  --board-coord: #5d616b; /* faint coordinate hint on an empty square */
+  /* The one accent: "your turn" (phase bar, action card), my playable tiles, the main button. */
+  --turn-accent: #8ab4f8;
+  --turn-tint: #1d2736;
+  --turn-card: #1c232e;
+  --cta-fg: #0b1526; /* text on --turn-accent */
   /* Chains tab: holder chips, rows the viewer holds. */
-  --chip-bg: rgba(255, 255, 255, 0.05);
-  --held-bg: rgba(92, 200, 255, 0.05);
+  --chip-bg: rgba(255, 255, 255, 0.06);
+  --held-bg: rgba(138, 180, 248, 0.07);
   /* A number that just went up / down (cash, net worth). */
-  --flash-up: rgba(107, 255, 138, 0.35);
-  --flash-down: rgba(255, 107, 107, 0.35);
-  --playable-border: rgba(100, 200, 255, 0.65);
-  --playable-glow: rgba(100, 200, 255, 0.3);
-  --selection-bg: #3d5e8a; /* Text selection highlight */
-  --accent-gold: #c9a227; /* Winner crown / star */
-  --warning: #ffaa00; /* merger / fallback / caution accents */
+  --flash-up: rgba(125, 211, 160, 0.3);
+  --flash-down: rgba(242, 139, 130, 0.3);
+  /* A square I can play: a quiet accent fill and a thin ring (no glow). */
+  --playable-bg: #2c3646;
+  --playable-border: #6f93cf;
+  /* A tile in my rack: a raised neutral chip. */
+  --tile-bg: #2b2e35;
+  --selection-bg: #3a4a66; /* Text selection highlight */
+  --accent-gold: #d9b44a; /* Winner star, 1st / 2nd */
+  --warning: #e3b05a; /* merger / fallback / caution accents */
 
   /* ==========================================================================
      Colors - Interactive States
      ========================================================================== */
-  --primary-hover: #1e2a4a;
-  --danger-hover: #ff5252;
+  --primary-hover: #2a2d33;
+  --danger-hover: #f06a60;
 
   /* ==========================================================================
      Typography
      ========================================================================== */
-  /* Two system stacks, no font files and no network requests:
-     sans for names, labels, chat and body text; mono for numbers, coordinates and money. */
+  /* System stacks, no font files and no network requests. */
   --font-sans:
     system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', 'Liberation Sans',
     Arial, sans-serif;
@@ -69,6 +75,9 @@
     ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Menlo, Consolas, 'Liberation Mono',
     'DejaVu Sans Mono', monospace;
   --font-primary: var(--font-sans);
+  /* Numbers, money and coordinates: the UI face with tabular figures (the body sets
+     font-variant-numeric). --font-mono is kept for codes and raw text (room code, transcripts). */
+  --font-num: var(--font-sans);
 
   /* Type Scale */
   --text-xl: 24px; /* Phase announcements, winner declaration */
@@ -107,16 +116,17 @@
   --border-default: var(--border-width) var(--border-style) var(--border);
 
   /* Border Radius */
-  --radius-sm: 2px; /* buttons, inputs */
-  --radius-md: 4px; /* cards, modals */
+  --radius-xs: 4px; /* chips, markers, small squares */
+  --radius-sm: 6px; /* buttons, inputs */
+  --radius-md: 8px; /* cards, panels, modals */
   --radius-full: 9999px; /* pills, badges */
 
   /* ==========================================================================
      Shadows
-     Keep shadows minimal - dark theme provides natural depth
+     Elevation for what floats (popovers, sheets, a picked tile); panels are flat.
      ========================================================================== */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.45);
 
   /* ==========================================================================
      Animation
@@ -145,79 +155,81 @@
 @media (prefers-color-scheme: light) {
   :root:not([data-theme='dark']) {
     color-scheme: light;
-    --bg-primary: #eef0f5;
+    --bg-primary: #f4f4f6;
     --bg-secondary: #ffffff;
-    --bg-tertiary: #e2e5ee;
-    --border: #cfd4e0;
+    --bg-tertiary: #e9eaee;
+    --border: #d6d8de;
 
-    --text-primary: #1b1f2e;
-    --text-secondary: #555c73;
+    --text-primary: #1b1c20;
+    --text-secondary: #5b5e68;
     --text-accent: #05070f;
-    --text-negative: #b42318;
-    --text-positive: #17703a;
+    --text-negative: #b3261e;
+    --text-positive: #196c3c;
 
-    --chain-orphan: #6f7487;
+    --chain-orphan: #6c707c;
     --chain-orphan-fg: #ffffff;
-    --selection-bg: #c5dafc;
-    --accent-gold: #8a6a00;
-    --warning: #8f5400;
+    --selection-bg: #cfdcf7;
+    --accent-gold: #7a5c00;
+    --warning: #8a5300;
 
-    --primary-hover: #e4e9f5;
+    --primary-hover: #ecedf1;
     --danger-hover: #c62828;
 
-    --board-square: #f8f9fc;
-    --board-coord: #a7adbf;
-    --turn-accent: #0b6fc2;
-    --turn-tint: #d3e7fb;
-    --turn-card: #e9f3fd;
+    --board-square: #fbfbfc;
+    --board-coord: #a3a6b0;
+    --turn-accent: #2459c4;
+    --turn-tint: #dbe6fa;
+    --turn-card: #eef3fc;
     --cta-fg: #ffffff;
-    --chip-bg: rgba(20, 30, 60, 0.06);
-    --held-bg: rgba(11, 111, 194, 0.06);
-    --flash-up: rgba(23, 112, 58, 0.25);
-    --flash-down: rgba(180, 35, 24, 0.22);
-    --playable-border: rgba(11, 111, 194, 0.75);
-    --playable-glow: rgba(11, 111, 194, 0.25);
+    --chip-bg: rgba(20, 22, 30, 0.06);
+    --held-bg: rgba(36, 89, 196, 0.06);
+    --flash-up: rgba(25, 108, 60, 0.25);
+    --flash-down: rgba(179, 38, 30, 0.22);
+    --playable-bg: #dde6f7;
+    --playable-border: #5a82d2;
+    --tile-bg: #ffffff;
 
-    --shadow-sm: 0 1px 2px rgba(20, 30, 60, 0.12);
-    --shadow-md: 0 4px 10px rgba(20, 30, 60, 0.14);
+    --shadow-sm: 0 1px 2px rgba(20, 22, 30, 0.1);
+    --shadow-md: 0 6px 16px rgba(20, 22, 30, 0.14);
   }
 }
 
 :root[data-theme='light'] {
   color-scheme: light;
-  --bg-primary: #eef0f5;
+  --bg-primary: #f4f4f6;
   --bg-secondary: #ffffff;
-  --bg-tertiary: #e2e5ee;
-  --border: #cfd4e0;
+  --bg-tertiary: #e9eaee;
+  --border: #d6d8de;
 
-  --text-primary: #1b1f2e;
-  --text-secondary: #555c73;
+  --text-primary: #1b1c20;
+  --text-secondary: #5b5e68;
   --text-accent: #05070f;
-  --text-negative: #b42318;
-  --text-positive: #17703a;
+  --text-negative: #b3261e;
+  --text-positive: #196c3c;
 
-  --chain-orphan: #6f7487;
+  --chain-orphan: #6c707c;
   --chain-orphan-fg: #ffffff;
-  --selection-bg: #c5dafc;
-  --accent-gold: #8a6a00;
-  --warning: #8f5400;
+  --selection-bg: #cfdcf7;
+  --accent-gold: #7a5c00;
+  --warning: #8a5300;
 
-  --primary-hover: #e4e9f5;
+  --primary-hover: #ecedf1;
   --danger-hover: #c62828;
 
-  --board-square: #f8f9fc;
-  --board-coord: #a7adbf;
-  --turn-accent: #0b6fc2;
-  --turn-tint: #d3e7fb;
-  --turn-card: #e9f3fd;
+  --board-square: #fbfbfc;
+  --board-coord: #a3a6b0;
+  --turn-accent: #2459c4;
+  --turn-tint: #dbe6fa;
+  --turn-card: #eef3fc;
   --cta-fg: #ffffff;
-  --chip-bg: rgba(20, 30, 60, 0.06);
-  --held-bg: rgba(11, 111, 194, 0.06);
-  --flash-up: rgba(23, 112, 58, 0.25);
-  --flash-down: rgba(180, 35, 24, 0.22);
-  --playable-border: rgba(11, 111, 194, 0.75);
-  --playable-glow: rgba(11, 111, 194, 0.25);
+  --chip-bg: rgba(20, 22, 30, 0.06);
+  --held-bg: rgba(36, 89, 196, 0.06);
+  --flash-up: rgba(25, 108, 60, 0.25);
+  --flash-down: rgba(179, 38, 30, 0.22);
+  --playable-bg: #dde6f7;
+  --playable-border: #5a82d2;
+  --tile-bg: #ffffff;
 
-  --shadow-sm: 0 1px 2px rgba(20, 30, 60, 0.12);
-  --shadow-md: 0 4px 10px rgba(20, 30, 60, 0.14);
+  --shadow-sm: 0 1px 2px rgba(20, 22, 30, 0.1);
+  --shadow-md: 0 6px 16px rgba(20, 22, 30, 0.14);
 }

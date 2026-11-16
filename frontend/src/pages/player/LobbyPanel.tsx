@@ -65,7 +65,12 @@ export function LobbyPanel({
         <>
           <div className={styles.hostActions}>
             <AddAiControl room={room} disabled={players.length >= maxPlayers || loading} />
-            <Button onClick={onStart} disabled={!canStart || loading} loading={loading}>
+            <Button
+              variant="accent"
+              onClick={onStart}
+              disabled={!canStart || loading}
+              loading={loading}
+            >
               START GAME
             </Button>
           </div>

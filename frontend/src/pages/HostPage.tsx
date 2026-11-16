@@ -9,7 +9,7 @@ import { ThemeToggle } from '../components/ui/ThemeToggle'
 import { Button } from '../components/ui/Button'
 import { Spinner } from '../components/ui/Spinner'
 import { Board } from '../components/game/Board'
-import { Standings } from '../components/game/Standings'
+import { Standings, StandingsLegend } from '../components/game/Standings'
 import { ChainTable } from '../components/game/ChainTable'
 import { MergerResult, MergerLog } from '../components/game/MergerResult'
 import { TradeActivity } from '../components/game/TradeActivity'
@@ -364,6 +364,7 @@ export function HostPage() {
         phase={hostPhaseText(ruleset, phase, currentPlayerName)}
         turn="other"
         fill
+        help={<StandingsLegend />}
       >
         {renderGameView()}
       </PageShell>

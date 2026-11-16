@@ -61,7 +61,7 @@
 
 .rankRow.you {
   background-color: var(--bg-elevated);
-  border: 1px solid var(--text-accent);
+  border: 1px solid var(--playable-border);
 }
 
 /* Not `.winner`: that class is the centred announcement box above. */
@@ -93,7 +93,7 @@
   font-weight: var(--font-medium);
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
 }
 
 .breakdown {
@@ -115,7 +115,7 @@
 .breakdownTable .amount {
   text-align: right;
   font-variant-numeric: tabular-nums;
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
   color: var(--text-primary);
 }
 
@@ -154,7 +154,7 @@
 .fullTable td {
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
 }
 
 .fullTable .winnerRow {

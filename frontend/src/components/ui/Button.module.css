@@ -1,6 +1,7 @@
 .button {
   font-family: var(--font-primary);
   font-weight: var(--font-medium);
+  letter-spacing: 0.02em;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -8,7 +9,10 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  transition: all var(--duration-fast) var(--ease-default);
+  transition:
+    background-color var(--duration-fast) var(--ease-default),
+    color var(--duration-fast) var(--ease-default),
+    filter var(--duration-fast) var(--ease-default);
 }
 
 .button:focus-visible {
@@ -41,14 +45,25 @@
 }
 
 /* Variants */
+/* A filled, raised surface: no outline. */
 .primary {
-  background-color: var(--bg-secondary);
+  background-color: var(--primary-hover);
   color: var(--text-primary);
-  border-color: var(--border);
 }
 
 .primary:hover:not(:disabled) {
-  background-color: var(--primary-hover);
+  filter: brightness(1.12);
+}
+
+/* The one main action of a screen: the accent. */
+.accent {
+  background-color: var(--turn-accent);
+  color: var(--cta-fg);
+  font-weight: var(--font-bold);
+}
+
+.accent:hover:not(:disabled) {
+  filter: brightness(1.08);
 }
 
 .secondary {

@@ -90,7 +90,7 @@
 }
 
 .roomCodeLarge {
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
   font-size: 64px;
   font-weight: var(--font-bold);
   color: var(--text-primary);
@@ -110,7 +110,7 @@
 }
 
 .url {
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
   font-size: var(--text-md);
   color: var(--text-accent);
   background-color: var(--bg-tertiary);

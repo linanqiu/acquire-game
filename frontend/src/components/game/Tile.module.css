@@ -4,10 +4,13 @@
   justify-content: center;
   position: relative;
   border-radius: var(--radius-sm);
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
   transition:
     background-color var(--duration-fast) var(--ease-default),
+    color var(--duration-fast) var(--ease-default),
     box-shadow var(--duration-fast) var(--ease-default),
+    transform var(--duration-fast) var(--ease-default),
     filter var(--duration-fast) var(--ease-default);
   box-sizing: border-box;
 }
@@ -69,7 +72,7 @@
   min-width: 0;
   min-height: 0;
   font-size: clamp(7px, calc(var(--cell, 28px) * 0.34), 15px);
-  --r: max(2px, calc(var(--cell, 28px) * 0.12));
+  --r: max(3px, calc(var(--cell, 28px) * 0.16));
   border-radius: var(--r);
 }
 
@@ -111,7 +114,7 @@
   /* Centred on the shape (a 2-square chain is labelled between its squares). */
   transform: translate(
     calc(var(--label-dx, 0) * (var(--cell, 28px) + var(--gap, 0px))),
-    calc(var(--label-dy, 0) * (var(--cell, 28px) + var(--gap, 0px)))
+    calc(var(--label-dy, 0) * (var(--cell-h, var(--cell, 28px)) + var(--gap, 0px)))
   );
 }
 
@@ -138,15 +141,31 @@
   color: var(--chain-fg);
 }
 
-/* Visual states */
-.default {
-  border: 1px solid transparent;
+/* A loose tile (the rack): a raised neutral chip. Brighter while it can be played now. */
+.tile:not(.fluid).empty {
+  background-color: var(--tile-bg);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-sm);
 }
 
-.selected {
-  border: 2px solid var(--text-accent);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
+.tile:not(.fluid).empty .label {
+  font-weight: var(--font-medium);
+}
+
+.tile:not(.fluid).interactive {
+  color: var(--text-primary);
+}
+
+/* Visual states */
+.selected:not(.fluid) {
+  background-color: var(--turn-accent) !important;
+  color: var(--cta-fg) !important;
+  box-shadow: var(--shadow-md) !important;
+  transform: translateY(-3px);
+}
+
+.selected .label {
+  font-weight: var(--font-bold) !important;
 }
 
 .disabled {
@@ -155,7 +174,7 @@
 }
 
 .merger {
-  border: 2px solid var(--warning);
+  box-shadow: inset 0 0 0 1.5px var(--warning) !important;
 }
 
 .dead {
@@ -166,29 +185,37 @@
   text-decoration: line-through;
 }
 
-.highlighted {
-  box-shadow: 0 0 8px var(--playable-glow);
-}
-
+/* A square I can play (board): a quiet accent fill and a thin ring. No glow. */
 .empty.highlighted {
+  background-color: var(--playable-bg);
   color: var(--text-primary);
-  border-color: var(--playable-border);
+  box-shadow: inset 0 0 0 1px var(--playable-border);
 }
 
 .empty.highlighted .label {
   font-weight: var(--font-medium);
 }
 
+/* The square I picked: the accent itself. */
+.fluid[data-picked] {
+  background-color: var(--turn-accent);
+  color: var(--cta-fg);
+  box-shadow: none;
+}
+
+.fluid[data-picked] .label {
+  font-weight: var(--font-bold);
+}
+
 /* Interactive states */
 .interactive {
   cursor: pointer;
-  border: 2px solid var(--playable-border);
-  box-shadow: 0 0 6px var(--playable-glow);
 }
 
-.interactive:hover:not(.disabled) {
-  filter: brightness(1.2);
-  box-shadow: 0 0 10px var(--playable-border);
+@media (hover: hover) {
+  .interactive:hover:not(.disabled) {
+    filter: brightness(1.15);
+  }
 }
 
 .interactive:focus-visible {

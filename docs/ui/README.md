@@ -6,7 +6,7 @@ spacing, radii), chain colours in `frontend/src/styles/colors.css`, type in
 (`backend/rulesets/*.json`), not from the frontend. There is no separate UI spec; the screens
 are covered, one by one, in [surface-coverage.md](../tests/surface-coverage.md).
 
-Look: dark, muted, monospace, information-dense ("terminal meets pixel art"), no CRT effects.
+Look (BL-014): neutral ink surfaces that separate by fill before a line, one accent (my turn, my playable tiles, the main button), the board as the only saturated thing, system sans-serif with tabular figures, information-dense, no glow and no CRT effects. A matching light theme.
 
 ## Routes (`frontend/src/App.tsx`)
 

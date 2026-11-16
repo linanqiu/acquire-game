@@ -6,7 +6,7 @@
   font-weight: var(--font-bold);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   white-space: nowrap;
   font-size: var(--text-xs);
   padding: 2px 6px;

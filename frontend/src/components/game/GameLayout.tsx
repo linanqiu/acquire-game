@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
 import { TabList, TabPanels, type TabItem } from '../ui/Tabs'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { useGameTabs } from '../../hooks/useGameTabs'
@@ -50,7 +50,10 @@ export interface GameLayoutProps {
  * The in-game layout of the player and host pages (BL-008, BL-011, BL-013).
  *
  * Phones: the Board tab is the game: the board, and under it the table panel (the decision in
- * place when there is one, otherwise the players matrix), then the rack and the tab bar. The
+ * place when there is one, otherwise the players matrix), then the rack and the tab bar. With
+ * no decision open the panel is as tall as its content and the board takes the rest, so header,
+ * board, every player row and the rack are on screen at once with nothing to scroll (a phone
+ * browser with its toolbars showing leaves about 390x675). The
  * other tabs are reference: Chains, Chat, Trades (or Log). Wide screens: the board (status line
  * and rack under it) on the left, always visible; on the right the tabs, the table panel first.
  * There is no pop-up and nothing to close: a decision replaces the top of the table panel and
@@ -110,6 +113,28 @@ export function GameLayout({
     if (scroller.current) scroller.current.scrollTop = 0
   }, [signature, openTable])
 
+  // Phones: the board gives the table panel exactly the height its content needs (BL-014), so
+  // the players matrix shows whole, with no scrolling, whenever the screen can hold both. The
+  // content's own height is measured (it does not depend on the panel's) and handed to the CSS
+  // as --table-need; see .boardTab in the stylesheet for what the board does with it.
+  const boardTab = useRef<HTMLDivElement>(null)
+  const tableInner = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const inner = tableInner.current
+    const tab = boardTab.current
+    if (!inner || !tab) return
+    const apply = () => {
+      // Hidden (another tab is open): keep the last measure, so the board does not jump back.
+      const need = Math.ceil(inner.offsetHeight)
+      if (need > 0) tab.style.setProperty('--table-need', `${need}px`)
+    }
+    apply()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(apply)
+    observer.observe(inner)
+    return () => observer.disconnect()
+  }, [wide])
+
   const tablePanel = (
     <div
       ref={scroller}
@@ -117,7 +142,9 @@ export function GameLayout({
       data-testid="table-panel"
       data-deciding={deciding ? 'true' : undefined}
     >
-      {table}
+      <div ref={tableInner} className={styles.tableInner}>
+        {table}
+      </div>
     </div>
   )
 
@@ -127,7 +154,11 @@ export function GameLayout({
         id: 'board',
         label: 'Board',
         content: (
-          <div className={styles.boardTab} data-deciding={deciding ? 'true' : undefined}>
+          <div
+            ref={boardTab}
+            className={styles.boardTab}
+            data-deciding={deciding ? 'true' : undefined}
+          >
             <div className={styles.boardBox}>{board}</div>
             {tablePanel}
           </div>

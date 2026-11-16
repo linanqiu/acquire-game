@@ -37,6 +37,7 @@ When you discover a potential improvement while using the app:
 | [BL-011](../stories/08-backlog/BL-011.md) | Decision tab: each decision with what is needed to make it (holders, the survivor after a merger, live projection); redirect instead of pop-ups | high | L | completed |
 | [BL-012](../stories/08-backlog/BL-012.md) | Public trade offers: everyone sees every offer and its answer, and can make a competing offer to either side | high | M | completed |
 | [BL-013](../stories/08-backlog/BL-013.md) | Phone UX pass: players matrix with one chain order, standings and decisions under the board (no Now / Players tabs), merger result that goes by itself, fewer words, trade builder as a sheet | high | L | completed |
+| [BL-014](../stories/08-backlog/BL-014.md) | The Board tab fits a real phone screen (390x675: one line per player, small seat icon, the board yields what the table needs, nothing scrolls); a calmer neutral theme with one accent | high | L | completed |
 
 ## Promotion Process
 

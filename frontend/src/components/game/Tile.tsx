@@ -11,6 +11,8 @@ interface TileProps {
   chain?: ChainId | 'orphan'
   state?: TileVisualState
   highlighted?: boolean
+  /** Board squares only: the square the player has picked to place (drawn in the accent). */
+  picked?: boolean
   onClick?: () => void
   /** `fluid` fills its grid cell (the board sizes it). */
   size?: 'sm' | 'md' | 'lg' | 'fluid'
@@ -31,6 +33,7 @@ export function Tile({
   chain,
   state = 'default',
   highlighted = false,
+  picked = false,
   onClick,
   size = 'md',
   showLabel = true,
@@ -115,6 +118,7 @@ export function Tile({
       title={title}
       data-testid={`tile-${coordinate}`}
       data-chain={chain ?? 'empty'}
+      data-picked={picked ? 'true' : undefined}
       data-join={join || undefined}
       data-anchor={inChain && join !== undefined ? String(anchor) : undefined}
     >

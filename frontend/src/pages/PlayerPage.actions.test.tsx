@@ -113,15 +113,23 @@ describe('the buy form', () => {
 })
 
 describe('placing a tile', () => {
-  it('on my turn the page says to pick a tile; when I am only waiting it does not', () => {
+  it('how to place a tile is behind the "?" of the phase bar, not a line on the page (BL-014)', () => {
     loadSnapshotAsPlayer('opening-place-tile')
-    const mine = renderPage()
-    expect(screen.getByText(/Pick a tile from your rack/)).toBeInTheDocument()
-    mine.unmount()
-    useGameStore.getState().reset()
-    loadSnapshotAsPlayer('trade-incoming-not-my-turn')
     renderPage()
-    expect(screen.queryByText(/Pick a tile from your rack/)).not.toBeInTheDocument()
+    // No instruction line takes room under the board.
+    expect(screen.queryByText(/pick a tile from your rack/i)).not.toBeInTheDocument()
+    // Until the first tile is placed the "?" is marked as unread.
+    const help = screen.getByTestId('phase-help')
+    expect(help).toHaveAttribute('data-fresh', 'true')
+    fireEvent.click(help)
+    const panel = screen.getByTestId('phase-help-panel')
+    expect(within(panel).getByTestId('help-place')).toHaveTextContent(
+      /pick a tile from your rack, or a marked square on the board, then PLACE TILE/
+    )
+    // The legend of the players matrix lives there too.
+    expect(within(panel).getByTestId('matrix-legend')).toHaveTextContent(/second most/)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByTestId('phase-help-panel')).not.toBeInTheDocument()
   })
 
   it('the rack is locked outside my turn', () => {

@@ -5,24 +5,32 @@
   background-color: var(--bg-primary);
 }
 
-.phase {
-  padding: var(--space-1) var(--space-4);
-  background-color: var(--bg-tertiary);
-  font-size: var(--text-md);
-  font-weight: var(--font-medium);
-  color: var(--text-accent);
-  text-align: center;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+/* The phase bar: what the game is waiting for, in capitals (one of the two places that shout;
+   the other is tiny labels). The "?" at its end holds the hints and the table's legend. */
+.phaseBar {
+  position: relative;
+  flex: none;
 }
 
-/* The table waits on me: an accent tint and edge (the text says it as well). */
+.phase {
+  padding: 5px 44px;
+  background-color: var(--bg-tertiary);
+  font-size: 13px;
+  font-weight: var(--font-bold);
+  line-height: 1.3;
+  color: var(--text-secondary);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  transition:
+    background-color var(--duration-normal) var(--ease-default),
+    color var(--duration-normal) var(--ease-default);
+}
+
+/* The table waits on me: the accent tint and the accent colour (the text says it as well). */
 .mine {
   background-color: var(--turn-tint);
-  box-shadow:
-    inset 0 2px 0 var(--turn-accent),
-    inset 0 -1px 0 var(--turn-accent);
-  color: var(--text-accent);
+  color: var(--turn-accent);
 }
 
 /* Someone else's move (and the host's "whose turn"): calm, with a small turn marker. */
@@ -32,12 +40,6 @@
   margin-right: 0.5em;
   color: var(--turn-accent);
   opacity: 0.8;
-}
-
-.phase {
-  transition:
-    background-color var(--duration-normal) var(--ease-default),
-    box-shadow var(--duration-normal) var(--ease-default);
 }
 
 .main {

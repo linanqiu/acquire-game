@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { PageShell } from './PageShell'
 
 describe('PageShell', () => {
@@ -54,5 +54,41 @@ describe('PageShell', () => {
       </PageShell>
     )
     expect(screen.getByRole('status')).not.toHaveAttribute('data-turn')
+  })
+
+  it('the "?" of the phase bar opens and closes the help, outside the announced status (BL-014)', () => {
+    render(
+      <PageShell phase="PLACE A TILE" turn="mine" help={<p>How to place</p>} helpFresh>
+        <p>board</p>
+      </PageShell>
+    )
+    const help = screen.getByRole('button', { name: 'How this works' })
+    // The status region is only the phase text: opening the help announces nothing new.
+    expect(screen.getByRole('status')).toHaveTextContent(/^PLACE A TILE$/)
+    expect(screen.getByRole('status')).not.toContainElement(help)
+    expect(help).toHaveAttribute('aria-expanded', 'false')
+    expect(help).toHaveAttribute('data-fresh', 'true')
+    expect(screen.queryByText('How to place')).not.toBeInTheDocument()
+    fireEvent.click(help)
+    expect(help).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('dialog', { name: 'How this works' })).toHaveTextContent('How to place')
+    // A press anywhere else closes it; so does the "?" itself, and Escape.
+    fireEvent.pointerDown(screen.getByText('board'))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    fireEvent.click(help)
+    fireEvent.click(help)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    fireEvent.click(help)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('there is no "?" without help to show', () => {
+    render(
+      <PageShell phase="GAME OVER">
+        <p>scores</p>
+      </PageShell>
+    )
+    expect(screen.queryByTestId('phase-help')).not.toBeInTheDocument()
   })
 })

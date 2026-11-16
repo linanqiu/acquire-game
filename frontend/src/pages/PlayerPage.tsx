@@ -8,9 +8,9 @@ import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { Spinner } from '../components/ui/Spinner'
 import { TileRack, RackNotes, type RackTile } from '../components/game/TileRack'
-import { Standings } from '../components/game/Standings'
+import { Standings, StandingsLegend } from '../components/game/Standings'
 import { ChainTable } from '../components/game/ChainTable'
-import { markHintSeen } from '../lib/hints'
+import { hintSeen, markHintSeen } from '../lib/hints'
 import { MergerLog } from '../components/game/MergerResult'
 import { StatusLine } from '../components/game/StatusLine'
 import { useMergerResult } from '../hooks/useMergerResult'
@@ -373,6 +373,18 @@ export function PlayerPage() {
         playerName={currentPlayer?.name}
         tilePool={gameState?.tiles_remaining ?? undefined}
         fill={!outOfGame}
+        helpFresh={placing && !hintSeen('place')}
+        help={
+          inGame && !outOfGame ? (
+            <>
+              <p data-testid="help-place">
+                <strong>Your turn:</strong> pick a tile from your rack, or a marked square on the
+                board, then PLACE TILE.
+              </p>
+              <StandingsLegend />
+            </>
+          ) : undefined
+        }
       >
         {outOfGame ? (
           <div className={styles.content}>{outOfGame}</div>
@@ -413,6 +425,7 @@ export function PlayerPage() {
                       {selectedTile && (
                         <Button
                           size="sm"
+                          variant="accent"
                           onClick={handlePlaceTile}
                           loading={turn.loading}
                           data-testid="place-tile-button"

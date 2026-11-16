@@ -95,7 +95,7 @@
 }
 
 .playerCash {
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
   font-size: 11px;
   color: var(--text-secondary);
 }
@@ -123,7 +123,7 @@
 }
 
 .available {
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
   font-variant-numeric: tabular-nums;
   font-size: var(--text-sm);
   color: var(--text-secondary);
@@ -149,7 +149,7 @@
 
 .cashRow input {
   text-align: right;
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
 }
 
 .noStocks {
@@ -212,7 +212,7 @@
 }
 
 .summaryRow .value {
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
   font-variant-numeric: tabular-nums;
   font-weight: var(--font-bold);
   white-space: nowrap;

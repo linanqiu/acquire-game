@@ -188,14 +188,8 @@ export function DecisionTab(p: DecisionTabProps) {
       )
       break
     case 'place':
-      body = (
-        <>
-          <Hint id="place" retire>
-            Pick a tile from your rack or a lit square on the board, then PLACE TILE.
-          </Hint>
-          {p.rackNotes}
-        </>
-      )
+      // How to place is behind the "?" of the phase bar (BL-014): no line of the panel for it.
+      body = p.rackNotes
       break
     default: {
       // Someone else's move. A merger that just ended stays until the next tile is placed.

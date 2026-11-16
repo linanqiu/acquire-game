@@ -6,17 +6,14 @@
   flex-wrap: wrap;
   gap: var(--space-1) var(--space-2);
   min-height: 36px;
-  padding: 2px var(--space-2);
-  border: var(--border-default);
+  padding: 2px var(--space-2) 2px var(--space-3);
   border-radius: var(--radius-md);
   background-color: var(--bg-secondary);
   font-size: var(--text-sm);
 }
 
 .status[data-turn='mine'] {
-  border-color: var(--turn-accent);
-  background-color: var(--turn-card);
-  box-shadow: inset 3px 0 0 var(--turn-accent);
+  background-color: var(--turn-tint);
 }
 
 .open {
@@ -48,7 +45,7 @@
 }
 
 .arrow {
-  color: var(--text-accent);
+  color: var(--turn-accent);
   font-weight: var(--font-bold);
 }
 

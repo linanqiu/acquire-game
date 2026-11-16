@@ -11,8 +11,6 @@
 }
 
 .tierLabel {
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   font-size: var(--text-sm);
   color: var(--text-secondary);
   font-weight: var(--font-medium);
