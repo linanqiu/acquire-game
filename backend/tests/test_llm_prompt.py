@@ -360,6 +360,54 @@ def test_trade_response_prompt_values_the_offer(game):
     assert "trade_id = t-77" in p
 
 
+def test_trade_response_prompt_shows_position_aware_numbers():
+    """The offer block carries the numbers of game.trade_value for the seat
+    deciding, so the model does not have to work out bonus positions."""
+    from agents.base import build_context
+    from game.calculator import build_calculator_pack
+    from game.decisions import TRADE_RESPONSE, apply_action, pending_decisions
+
+    g = bot_game(seed=39, min_turns=30)
+    calc = build_calculator_pack(g, "p1")
+    # A chain where p1 collects a bonus: p2 asks for all of p1's shares for
+    # their list price (or all the cash it has, if that is less).
+    chain = next(
+        c
+        for c, info in calc["chains"].items()
+        if info["active"] and info["payouts"].get("p1", {}).get("total")
+    )
+    held = calc["chains"][chain]["viewer"]["shares"]
+    cost = held * calc["chains"][chain]["price"]
+    paid = min(cost, g.get_player("p2").money)
+    assert paid > 0
+    r = apply_action(
+        g,
+        "p2",
+        {
+            "action": "propose_trade",
+            "to_player_id": "p1",
+            "offering_money": paid,
+            "requesting_stocks": {chain: held},
+        },
+    )
+    assert r["success"], r
+    decision = next(d for d in pending_decisions(g) if d.kind == TRADE_RESPONSE)
+    ctx = build_context(g, decision)
+    v = ctx.calc["trades"][r["trade_id"]]
+    assert v["viewer"]["bonus_change"] < 0 and not v["acceptable"]
+    p = build_user_prompt(ctx, [])
+    offer = p.split("# The offer\n", 1)[1].split("\n#", 1)[0]
+    assert f"At list prices: give ${cost:,}, get ${paid:,}." in offer
+    assert "Counting bonus positions" in offer
+    assert (
+        f"net -${-v['viewer']['change']:,} for you "
+        f"(bonuses -${-v['viewer']['bonus_change']:,})"
+    ) in offer
+    them = v["counterparty"]["change"]
+    assert f"{'+' if them >= 0 else '-'}${abs(them):,} for Bob" in offer
+    assert f"you in {chain}: " in offer and "-> no bonus position" in offer
+
+
 def test_buy_prompt_shows_open_offers_between_other_players(game):
     """Offers are public: an offer between two other seats is in my prompt,
     valued at current prices; my own offers are not repeated there."""
@@ -394,7 +442,22 @@ def test_buy_prompt_shows_open_offers_between_other_players(game):
 def test_rules_text_says_offers_are_public():
     s = build_system_prompt()
     assert "Offers are public" in s and "competing offer" in s
-    assert PROMPT_BUILDER_VERSION == 7
+    assert PROMPT_BUILDER_VERSION == 8
+
+
+def test_playbook_teaches_position_aware_trading():
+    s = build_system_prompt()
+    line = next(x for x in s.splitlines() if x.startswith("- Trade offer:"))
+    for needle in (
+        "majority/minority positions",
+        "not by list price",
+        "holds a bonus position",
+        "premium",
+        "helps the other side more than me",
+        "Rules-based opponents",
+    ):
+        assert needle in line, needle
+    assert 80 <= len(line.split()) <= 130
 
 
 def test_engine_context_is_included_verbatim(game):

@@ -200,6 +200,7 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | TX-07 | Replay: first / previous / next / last, scrubber, keyboard, deep link, event log, replay board | | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` | 4 |
 | TX-08 | Replay: play/pause and speed controls; copy-step-link | `play-pause`, `speed`, `copy-step-link` | GAP: not clicked by any browser test (the stepping controls are); no component test either | - |
 | TX-09 | Decision panel (chosen action, legal options) and LLM panel (system prompt, user prompt, raw output, attempts) | `DecisionPanel`, `LlmPanel`, `TextBlock` | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` | 4 |
+| TX-09b | LLM panel for a move made without a model call ("NO MODEL CALL" and the reason) | `llm-forced` | `frontend/tests/unit/transcripts.test.tsx : says so when an LLM seat moved without a model call`; `backend/tests/test_llm_agent.py : test_a_forced_move_is_recorded_as_forced_with_no_attempts` | unit |
 | TX-10 | Timeline of turns and steps (`Timeline`, `VirtualList`) | | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` | 4 |
 | TX-11 | Download transcript JSON | `download-transcript` | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` | 4 |
 | TX-12 | Transcript: unknown game id (not-found page with links back) | `error-not-found` | `screens/waking-and-not-found.spec.ts : unknown transcript and unknown benchmark series` | 3 |
@@ -267,8 +268,8 @@ Facts learned while filling this map (2026-11-14):
 
 ## Summary (checked by the script; update when rows change)
 
-- Surfaces: 164
-- Covered: 159
+- Surfaces: 165
+- Covered: 160
 - GAP: 7
 - Journeys: 7
 
