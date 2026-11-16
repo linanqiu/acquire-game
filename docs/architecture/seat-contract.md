@@ -363,7 +363,9 @@ public information plus the viewer's own holdings only. Contains per-chain
 size/price/safe/available stock, every player's public holdings and cash,
 majority/minority holders and bonus payouts per chain if it were acquired now,
 the viewer's net worth and everyone's projected end-game score, and remaining
-tiles in the bag.
+tiles in the bag. `trades` holds, for every open offer the viewer is a party
+to, what the trade does to both sides' positions
+(`game/trade_value.py: trade_valuation`, see `docs/ai/bot-trading.md`).
 
 The same module builds the public table view of `game_state`
 (`public_net_worth`, `public_chain_holders`, `merger_history`; see Server) from
@@ -401,8 +403,8 @@ answers always drawn from `ctx.legal`; RNG seeded by `seed` (a seat added
 through the server gets "Bot N" for the room's N-th bot, so its play does not
 depend on its random character name), else by seat name, so a seeded game is
 reproducible; declares the end when legal and `ctx.calc` ranks it
-first; accepts a trade only when `can_accept` and what it receives is worth
-strictly more at current prices; it is also the fallback for every other
+first; accepts a trade only when `can_accept` and the position-aware valuation
+in `ctx.calc["trades"]` says `acceptable` (see `docs/ai/bot-trading.md`); it is also the fallback for every other
 seat), `agents/scripted.py` (`ScriptedAgent`, deterministic test
 opponents), `agents/llm/` (LLM opponent). `agents/registry.py`:
 `catalog()` and `create(agent_id, *, name, **opts)` (LLM package imported

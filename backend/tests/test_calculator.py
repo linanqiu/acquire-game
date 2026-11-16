@@ -543,8 +543,10 @@ def test_json_serialisable_and_stable_keys():
         "bank",
         "buy_options",
         "disposition",
+        "trades",
     }
     assert pack["disposition"] is None
+    assert pack["trades"] == {}
     assert set(pack["chains"]) == set(Hotel().get_all_chain_names())
 
 

@@ -196,3 +196,94 @@ def test_only_the_parties_can_answer_or_withdraw_a_public_offer(app_client):
             "trade_canceled",
         ]
         assert {p["money"] for p in final["players"].values()} == {6000}
+
+
+def test_bot_refuses_face_value_for_its_majority_and_takes_a_fair_price(app_client):
+    """A human plays real turns against two rules-based seats until one of
+    them holds a chain's majority alone, then asks for those shares: at list
+    price the bot rejects, at a price that covers the bonuses it accepts
+    (docs/ai/bot-trading.md). Everything over the real protocol."""
+    from tests.protocol.helpers import HumanClient, add_seat, configure
+
+    client = app_client
+    code, me = create_room(client, "Ann")
+    bots = {add_seat(client, code, "bot")["player_id"] for _ in range(2)}
+    configure(client, code, 5)
+
+    def target(state):
+        """(bot, chain, shares, list value, bonuses) the human can pay for."""
+        for chain, info in (state.get("chain_holders") or {}).items():
+            for h in info["holders"]:
+                if h["player_id"] in bots and h["role"] == "majority" and not h["tied"]:
+                    cost = h["shares"] * info["price"]
+                    both = info["majority_bonus"] + info["minority_bonus"]
+                    if cost + 2 * both <= state["players"][me]["money"]:
+                        return h["player_id"], chain, h["shares"], cost, both
+        return None
+
+    with client.websocket_connect(f"/ws/player/{code}/{me}") as ws:
+        human = HumanClient(ws, me)
+        start(client, code)
+        state = human.play(
+            stop=lambda s: (
+                human.my_turn(s)
+                and s["awaiting"]["decision"] == "place_tile"
+                and target(s) is not None
+            )
+        )
+        assert state["phase"] != "game_over", "no bot ever held a sole majority"
+        bot, chain, shares, cost, both = target(state)
+        cash = state["players"][me]["money"]
+
+        # 1. List price for the whole majority position: refused.
+        ws.send_json(
+            {
+                "action": "propose_trade",
+                "to_player_id": bot,
+                "offering_money": cost,
+                "requesting_stocks": {chain: shares},
+                "trade_id": "face",
+            }
+        )
+        log: list = []
+        answer = recv_until(
+            ws,
+            lambda m: m["type"] in ("trade_rejected", "trade_accepted", "error"),
+            log,
+        )
+        assert answer["type"] == "trade_rejected", answer
+        assert (answer["trade_id"], answer["rejected_by"]) == ("face", bot)
+        after = recv_until(
+            ws, lambda m: m["type"] == "game_state" and m["pending_trades"] == [], log
+        )
+        assert after["players"][me]["money"] == cash
+        assert after["players"][bot]["stocks"][chain] == shares
+
+        # 2. List price plus twice the bonuses at stake: accepted.
+        ws.send_json(
+            {
+                "action": "propose_trade",
+                "to_player_id": bot,
+                "offering_money": cost + 2 * both,
+                "requesting_stocks": {chain: shares},
+                "trade_id": "fair",
+            }
+        )
+        answer = recv_until(
+            ws,
+            lambda m: m["type"] in ("trade_rejected", "trade_accepted", "error"),
+            log,
+        )
+        assert answer["type"] == "trade_accepted", answer
+        assert (answer["trade_id"], answer["to_player"]) == ("fair", bot)
+        after = recv_until(
+            ws,
+            lambda m: (
+                m["type"] == "game_state"
+                and m["players"][me]["stocks"].get(chain, 0) >= shares
+            ),
+            log,
+        )
+        assert after["players"][me]["money"] == cash - cost - 2 * both
+        assert after["players"][bot]["stocks"].get(chain, 0) == 0
+        assert human.errors == [] and not [m for m in log if m["type"] == "error"]

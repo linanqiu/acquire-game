@@ -20,6 +20,7 @@ Top-level shape::
       "bank":    BankInfo,
       "buy_options": {chain_name: BuyOption},  # active chains with stock left
       "disposition": DispositionInfo | None,   # the viewer's pending merger choice
+      "trades": {trade_id: TradeValuation},    # open offers the viewer is a party to
     }
 
 ChainInfo (every chain; inactive chains only fill the first few keys)::
@@ -81,6 +82,9 @@ BuyOption::
                            payout_change}}   (only counts the viewer can afford)
     payout_* is what the viewer would receive for that chain's bonuses if it were
     liquidated/acquired at its current size.
+
+TradeValuation: see ``game.trade_value.trade_valuation`` (what an offer does to
+both sides' positions: cash, shares and bonus positions, not just list prices).
 
 DispositionInfo: see ``_disposition_section`` (sell vs trade with the survivor's
 post-merger price and the viewer's survivor standing after trading).
@@ -917,6 +921,8 @@ def _survivor_after(game, record: dict, merger) -> dict:
 
 def build_calculator_pack(game, viewer_id: str) -> dict:
     """Build the calculator pack for ``viewer_id`` (see module docstring)."""
+    from game.trade_value import trades_section  # imports this module
+
     viewer = game.get_player(viewer_id)
     if viewer is None:
         raise ValueError(f"Unknown player: {viewer_id}")
@@ -932,6 +938,7 @@ def build_calculator_pack(game, viewer_id: str) -> dict:
         "bank": _bank_section(game, viewer_id),
         "buy_options": _buy_options(game, viewer),
         "disposition": _disposition_section(game, viewer),
+        "trades": trades_section(game, viewer_id),
     }
 
 
