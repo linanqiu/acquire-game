@@ -54,6 +54,13 @@ function lexicon(rs: Ruleset) {
 
 type Lex = ReturnType<typeof lexicon>
 
+const TRADE_EVENT_KIND = {
+  trade_proposed: 'proposed',
+  trade_accepted: 'accepted',
+  trade_rejected: 'rejected',
+  trade_cancelled: 'canceled',
+} as const
+
 export function tradeText(
   t: Record<string, unknown> | undefined,
   names: Names,
@@ -74,6 +81,58 @@ export function tradeText(
     .filter(Boolean)
     .join(' + ')
   return `${nameOf(names, t.from_player_id)} gives ${give || 'nothing'} for ${get || 'nothing'} from ${nameOf(names, t.to_player_id)}`
+}
+
+/** One side of an offer in words: "2 Tower + $100", or "nothing". */
+function sideText(lx: Lex, stocks: unknown, cash: unknown): string {
+  return (
+    [lx.stockText(stocks), Number(cash) ? lx.money(cash) : ''].filter(Boolean).join(' + ') ||
+    'nothing'
+  )
+}
+
+export type TradeEventKind = 'proposed' | 'accepted' | 'rejected' | 'canceled'
+
+/**
+ * A public trade event in one sentence, with the offer's terms, the same for the live game
+ * (trade messages) and for transcripts (engine events): "Ada offers Bo 2 Tower for $600.",
+ * "Bo accepted Ada's offer: 2 Tower for $600.". `trade` may be missing (transcripts recorded
+ * before answers carried the offer): then the sentence names what is known.
+ */
+export function tradeEventText(
+  kind: TradeEventKind,
+  trade: Record<string, unknown> | null | undefined,
+  names: Names,
+  rs: Ruleset,
+  opts: { by?: unknown; reason?: unknown } = {}
+): string {
+  const lx = lexicon(rs)
+  if (!trade || typeof trade.from_player_id !== 'string') {
+    const who = nameOf(names, opts.by)
+    if (kind === 'proposed') return `${who} proposed a trade.`
+    if (kind === 'accepted') return `${who} accepted a trade offer.`
+    if (kind === 'rejected') return `${who} rejected a trade offer.`
+    return `A trade offer was cancelled (${String(opts.reason ?? 'cancelled').replace(/_/g, ' ')}).`
+  }
+  const from = nameOf(names, trade.from_player_id)
+  const to = nameOf(names, trade.to_player_id)
+  const terms = `${sideText(lx, trade.offering_stocks, trade.offering_money)} for ${sideText(
+    lx,
+    trade.requesting_stocks,
+    trade.requesting_money
+  )}`
+  switch (kind) {
+    case 'proposed':
+      return `${from} offers ${to} ${terms}.`
+    case 'accepted':
+      return `${to} accepted ${from}'s offer: ${terms}.`
+    case 'rejected':
+      return `${to} rejected ${from}'s offer: ${terms}.`
+    default:
+      return opts.reason === 'no_longer_valid'
+        ? `${from}'s offer to ${to} can no longer be met and was removed: ${terms}.`
+        : `${from} withdrew the offer to ${to}: ${terms}.`
+  }
 }
 
 function generic(e: EngineEvent): string {
@@ -168,13 +227,16 @@ function one(e: EngineEvent, names: Names, lx: Lex): string {
     case 'turn_ended':
       return `${who} ended their turn. ${nameOf(names, e.next_player_id)} is up.`
     case 'trade_proposed':
-      return `${who} proposed a trade: ${tradeText(e.trade as Record<string, unknown>, names, rs)}.`
     case 'trade_accepted':
-      return `${who} accepted the trade: ${tradeText(e.trade as Record<string, unknown>, names, rs)}.`
     case 'trade_rejected':
-      return `${who} rejected a trade offer.`
     case 'trade_cancelled':
-      return `A trade offer was cancelled (${String(e.reason ?? 'cancelled').replace(/_/g, ' ')}).`
+      return tradeEventText(
+        TRADE_EVENT_KIND[e.type],
+        e.trade as Record<string, unknown> | undefined,
+        names,
+        rs,
+        { by: e.player_id, reason: e.reason }
+      )
     case 'end_game_declared':
       return `${who} declared the game over.`
     case 'game_ended': {

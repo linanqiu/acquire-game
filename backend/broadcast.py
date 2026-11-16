@@ -7,8 +7,9 @@ human action and an agent action produce identical messages.
 Messages (shapes unchanged from the pre-seat server unless noted):
 
 * ``game_state`` - public state; per player ``kind``, ``is_bot``,
-  ``agent_label`` (new); top-level ``awaiting``, ``pending_trades`` and
-  ``ruleset`` (the game's ruleset dict + ``fingerprint``) (new); each
+  ``agent_label`` (new); top-level ``awaiting``, ``pending_trades`` (every
+  open offer, public) and ``ruleset`` (the game's ruleset dict +
+  ``fingerprint``) (new); each
   ``hotel.chains`` entry also carries ``color`` (new);
   to each player also ``your_hand``, ``end_game_available``, and (new)
   ``tile_playability``, ``incoming_trades``, ``outgoing_trades``.
@@ -22,9 +23,16 @@ Messages (shapes unchanged from the pre-seat server unless noted):
 * ``can_end_game`` - to the human whose turn just started when declaring is legal.
 * ``all_tiles_unplayable`` (room) / ``tiles_replaced`` (that player).
 * ``trade_proposed`` / ``trade_accepted`` / ``trade_rejected`` /
-  ``trade_canceled`` - to both trade parties and the host. Answers carry
-  ``from_player`` / ``to_player``, so a page that never saw the offer (an AI
-  seat can answer at once) still knows whose offer it was.
+  ``trade_canceled`` - to the whole room (every player and the host): offers
+  are public, so anyone can follow them and make a competing offer. Each
+  carries the full ``trade`` (terms), ``trade_id``, ``from_player`` /
+  ``to_player`` and ``seq`` (the engine event's number); answers also say who
+  answered (``rejected_by`` / ``canceled_by``; ``reason`` on a cancel). Only
+  the recipient can accept or reject and only the proposer can cancel: the
+  engine enforces that, not this module.
+  ``game_state`` also carries ``trade_log``: the last ``TRADE_LOG_KEEP`` of
+  these messages, so a page that was not connected when one was sent (a
+  reload, a dropped socket) still shows it.
 * ``agent_fallback`` - room and host: the rules-based bot decided for an LLM
   seat (``player_id, player_name, agent_label, reason, decision, message``);
   ``game_state`` players also carry ``fallbacks: {count, last_reason}``.
@@ -177,6 +185,7 @@ def build_public_state(room: GameRoom, game: Game) -> dict:
         "players": players,
         "tiles_remaining": game_state["tiles_remaining"],
         "pending_trades": game_state["pending_trades"],
+        "trade_log": trade_log(game),
         "awaiting": compute_awaiting(room, game),
         "game_id": getattr(room, "game_id", None),
         "ruleset": game_state["ruleset"],
@@ -325,17 +334,65 @@ async def send_prompts(room_code: str, game: Game, decision: Decision | None) ->
 # ---------------------------------------------------------------------------
 
 
-def _trade_parties(game: Game, trade_id: str) -> tuple[str | None, str | None]:
+_TRADE_MESSAGE_TYPES = {
+    "trade_proposed": "trade_proposed",
+    "trade_accepted": "trade_accepted",
+    "trade_rejected": "trade_rejected",
+    "trade_cancelled": "trade_canceled",
+}
+
+#: How many trade messages ``game_state`` repeats in ``trade_log``.
+TRADE_LOG_KEEP = 12
+
+
+def _proposed_trade(game: Game, trade_id: str | None) -> dict:
+    """The offer ``trade_id`` as it was proposed (for events recorded before
+    answers carried the offer themselves)."""
     for e in reversed(game.events):
         if e["type"] == "trade_proposed" and e["trade"].get("trade_id") == trade_id:
-            return e["trade"]["from_player_id"], e["trade"]["to_player_id"]
-    return None, None
+            return e["trade"]
+    return {}
 
 
-async def _send_both(room_code: str, a: str | None, b: str | None, msg: dict) -> None:
-    """Trade notifications go to both parties and the host display."""
-    for pid in dict.fromkeys(x for x in (a, b) if x):
-        await session_manager.send_to_player(room_code, pid, msg)
+def trade_message(game: Game, e: dict) -> dict | None:
+    """The public message for trade event ``e`` (None for any other event).
+
+    One shape for all four: ``trade`` (the full offer), ``trade_id``,
+    ``from_player`` / ``to_player`` and ``seq``; plus who answered."""
+    mtype = _TRADE_MESSAGE_TYPES.get(e["type"])
+    if mtype is None:
+        return None
+    trade = e.get("trade") or _proposed_trade(game, e.get("trade_id"))
+    msg = {
+        "type": mtype,
+        "seq": e.get("seq"),
+        "trade_id": trade.get("trade_id") or e.get("trade_id"),
+        "from_player": trade.get("from_player_id"),
+        "to_player": trade.get("to_player_id"),
+        "trade": trade or None,
+    }
+    if mtype == "trade_rejected":
+        msg["rejected_by"] = e.get("player_id")
+    elif mtype == "trade_canceled":
+        msg["canceled_by"] = e.get("player_id")
+        msg["reason"] = e.get("reason", "cancelled")
+    return msg
+
+
+def trade_log(game: Game) -> list[dict]:
+    """The last ``TRADE_LOG_KEEP`` trade messages, oldest first."""
+    out: list[dict] = []
+    for e in reversed(game.events):
+        if e["type"] in _TRADE_MESSAGE_TYPES:
+            out.append(trade_message(game, e))
+            if len(out) >= TRADE_LOG_KEEP:
+                break
+    return out[::-1]
+
+
+async def _send_table(room_code: str, msg: dict) -> None:
+    """To every connected player and the host display."""
+    await session_manager.broadcast_to_room(room_code, msg)
     await session_manager.send_to_host(room_code, msg)
 
 
@@ -370,55 +427,9 @@ async def publish_events(room_code: str, game: Game, since_seq: int) -> None:
                         "new_hand": [str(t) for t in player.hand],
                     },
                 )
-        elif etype == "trade_proposed":
-            trade = e["trade"]
-            await _send_both(
-                room_code,
-                trade["from_player_id"],
-                trade["to_player_id"],
-                {"type": "trade_proposed", "trade": trade},
-            )
-        elif etype == "trade_accepted":
-            trade = e["trade"]
-            await _send_both(
-                room_code,
-                trade["from_player_id"],
-                trade["to_player_id"],
-                {
-                    "type": "trade_accepted",
-                    "trade_id": trade["trade_id"],
-                    "from_player": trade["from_player_id"],
-                    "to_player": trade["to_player_id"],
-                },
-            )
-        elif etype == "trade_rejected":
-            a, b = _trade_parties(game, e["trade_id"])
-            await _send_both(
-                room_code,
-                a,
-                b,
-                {
-                    "type": "trade_rejected",
-                    "trade_id": e["trade_id"],
-                    "rejected_by": pid,
-                    "from_player": a,
-                    "to_player": b,
-                },
-            )
-        elif etype == "trade_cancelled":
-            a, b = _trade_parties(game, e["trade_id"])
-            await _send_both(
-                room_code,
-                a,
-                b,
-                {
-                    "type": "trade_canceled",
-                    "trade_id": e["trade_id"],
-                    "canceled_by": pid,
-                    "from_player": a,
-                    "to_player": b,
-                },
-            )
+        elif etype in _TRADE_MESSAGE_TYPES:
+            # Offers are public: the whole table hears about each one.
+            await _send_table(room_code, trade_message(game, e))
         elif etype == "end_game_declared":
             declared_by = pid
         elif etype == "game_ended":

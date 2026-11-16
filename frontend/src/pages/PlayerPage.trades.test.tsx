@@ -10,7 +10,12 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { PlayerPage } from './PlayerPage'
 import { ToastProvider } from '../components/ui/ToastProvider'
 import { useGameStore } from '../store/gameStore'
-import { loadSnapshotAsPlayer, snapshot } from '../../tests/unit/fixtures/wire'
+import {
+  deliver as deliverAs,
+  loadSnapshotAsPlayer,
+  snapshot,
+  wireTrades,
+} from '../../tests/unit/fixtures/wire'
 
 const ws = vi.hoisted(() => ({
   sendAction: vi.fn(() => true),
@@ -203,6 +208,182 @@ describe('trade notices for offers made to me', () => {
       },
     })
     expect(screen.queryByText(/sent you a trade offer/)).not.toBeInTheDocument()
+  })
+})
+
+describe('offers between two other players are public', () => {
+  // What a third player really received: Cara offers Bob 2 Aurelia for $800.
+  const o = wireTrades().others
+  const [offer] = o.state.pending_trades
+  const name = (id: string) => o.state.players[id].name
+  const seat = () => {
+    deliverAs([o.state], o.human)
+    mount()
+  }
+  // A toast's text, without its icon and its close button.
+  const alerts = () =>
+    screen.queryAllByRole('alert').map((a) => (a.textContent ?? '').replace(/^.|×$/gu, ''))
+
+  it('I see the offer in the Trades tab, read-only, marked by a dot until I have looked', () => {
+    seat()
+    // Nothing is asked of me: no offer in the decision tab, no count; a quiet dot instead.
+    expect(screen.queryByTestId('trade-incoming')).toBeNull()
+    expect(screen.getByTestId('tab-badge-trades')).toHaveTextContent('')
+    expect(screen.getByRole('tab', { name: /Trades \(new offer at the table\)/ })).toBeTruthy()
+    fireEvent.click(screen.getByRole('tab', { name: /Trades/ }))
+    const card = screen.getByTestId(`trade-table-${offer.trade_id}`)
+    expect(card).toHaveTextContent(name(o.from))
+    expect(card).toHaveTextContent(name(o.to))
+    expect(within(card).getByTestId('trade-stock-aurelia')).toHaveTextContent('×2')
+    expect(card).toHaveTextContent('$800')
+    expect(screen.queryByTestId(`trade-accept-${offer.trade_id}`)).toBeNull()
+    expect(screen.queryByTestId(`trade-reject-${offer.trade_id}`)).toBeNull()
+    expect(screen.queryByTestId(`trade-cancel-${offer.trade_id}`)).toBeNull()
+    // Looked at: the dot is gone, and stays gone on another tab.
+    expect(screen.queryByTestId('tab-badge-trades')).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: /Players/ }))
+    expect(screen.queryByTestId('tab-badge-trades')).toBeNull()
+    // The offer was already open when I arrived: listed in the activity, no toast.
+    expect(alerts()).toEqual([])
+    expect(screen.getByTestId('trade-activity')).toHaveTextContent(
+      'Cara offers Bob 2 Aurelia for $800.'
+    )
+  })
+
+  it.each([
+    ['recipient', () => o.to, { aurelia: 1 }, 0, {}, 800],
+    ['proposer', () => o.from, {}, 800, { aurelia: 2 }, 0],
+  ] as const)(
+    'a competing offer to the %s opens the builder on that player with the terms filled in',
+    (target, partner, giveStocks, giveCash, wantStocks, wantCash) => {
+      seat()
+      fireEvent.click(screen.getByRole('tab', { name: /Trades/ }))
+      fireEvent.click(screen.getByTestId(`trade-compete-${target}-${offer.trade_id}`))
+      const builder = screen.getByTestId('trade-builder')
+      expect(screen.getByTestId('trade-started-from')).toHaveTextContent(
+        "Started from Cara's offer to Bob. Change anything before you send it."
+      )
+      expect(within(builder).getByTestId(`player-select-${partner()}`)).toHaveAttribute(
+        'aria-pressed',
+        'true'
+      )
+      // Sent as it stands: an ordinary proposal of my own, to that player.
+      fireEvent.click(screen.getByTestId('propose-trade'))
+      expect(ws.sendAction).toHaveBeenLastCalledWith({
+        action: 'propose_trade',
+        to_player_id: partner(),
+        offering_stocks: giveStocks,
+        offering_money: giveCash,
+        requesting_stocks: wantStocks,
+        requesting_money: wantCash,
+      })
+    }
+  )
+
+  it('PROPOSE TRADE after a competing offer starts from an empty builder again', () => {
+    seat()
+    fireEvent.click(screen.getByRole('tab', { name: /Trades/ }))
+    fireEvent.click(screen.getByTestId(`trade-compete-recipient-${offer.trade_id}`))
+    fireEvent.click(screen.getByTestId('cancel-trade'))
+    fireEvent.click(screen.getByRole('button', { name: 'PROPOSE TRADE' }))
+    expect(screen.queryByTestId('trade-started-from')).toBeNull()
+    expect(screen.getByText('Select a trade partner to see their holdings')).toBeInTheDocument()
+  })
+
+  it('a new offer between others is one toast and a dot; their answers are not toasted', () => {
+    seat()
+    fireEvent.click(screen.getByRole('tab', { name: /Trades/ }))
+    deliver(o.rejected)
+    expect(alerts()).toEqual([])
+    expect(screen.queryByTestId(`trade-table-${offer.trade_id}`)).toBeNull()
+    expect(screen.getByTestId('trade-table-empty')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: /Players/ }))
+    deliver(o.proposed)
+    expect(alerts()).toEqual(['Cara offers Bob a trade'])
+    expect(screen.getByTestId('tab-badge-trades')).toHaveTextContent('')
+    deliver(o.canceled)
+    expect(alerts()).toEqual(['Cara offers Bob a trade'])
+    expect(screen.queryByTestId('tab-badge-trades')).toBeNull()
+    // The whole story is in the activity list, newest first.
+    fireEvent.click(screen.getByRole('tab', { name: /Trades/ }))
+    const lines = within(screen.getByTestId('trade-activity'))
+      .getAllByRole('listitem')
+      .map((li) => li.textContent)
+    expect(lines).toEqual([
+      'Cara withdrew the offer to Bob: 2 Aurelia for $800.',
+      'Cara offers Bob 2 Aurelia for $800.',
+      "Bob rejected Cara's offer: 2 Aurelia for $800.",
+      'Cara offers Bob 2 Aurelia for $800.',
+    ])
+  })
+
+  it('several offers between others arriving together are announced once', () => {
+    seat()
+    act(() => {
+      const { handleMessage } = useGameStore.getState()
+      handleMessage({ ...o.proposed, seq: 900 } as never)
+      handleMessage({
+        ...o.proposed,
+        seq: 901,
+        trade_id: 'x2',
+        trade: { ...o.proposed.trade, trade_id: 'x2' },
+      } as never)
+    })
+    expect(alerts()).toEqual(['2 new trade offers at the table'])
+  })
+
+  it('an offer for me still counts on the tab, ahead of the dot', () => {
+    seat()
+    deliver({
+      type: 'trade_proposed',
+      seq: 950,
+      trade: { ...offer, trade_id: 'for-me', to_player_id: o.human },
+    })
+    expect(screen.getByTestId('tab-badge-trades')).toHaveTextContent('1')
+    expect(screen.getByTestId('trade-offer-for-me')).toBeInTheDocument()
+  })
+})
+
+describe('an offer answered at once (an AI seat)', () => {
+  it('my proposal and its answer arriving together: both are announced and the builder closes', () => {
+    const view = loadSnapshotAsPlayer('buy-phase-multi-chain')
+    mount()
+    fireEvent.click(screen.getByRole('tab', { name: /Trades/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'PROPOSE TRADE' }))
+    const state = stateOf(view)
+    const [partner, info] = Object.entries(state.players).find(([id]) => id !== view.human)!
+    fireEvent.click(screen.getByTestId(`player-select-${partner}`))
+    fireEvent.change(screen.getByTestId('offer-cash-input'), { target: { value: '100' } })
+    fireEvent.change(screen.getByTestId('want-cash-input'), { target: { value: '50' } })
+    fireEvent.click(screen.getByTestId('propose-trade'))
+    const trade = {
+      trade_id: 'quick',
+      from_player_id: view.human,
+      to_player_id: partner,
+      offering_stocks: {},
+      offering_money: 100,
+      requesting_stocks: {},
+      requesting_money: 50,
+    }
+    // Both messages land before the page renders again.
+    act(() => {
+      const { handleMessage } = useGameStore.getState()
+      handleMessage({ type: 'trade_proposed', seq: 500, trade } as never)
+      handleMessage({
+        type: 'trade_rejected',
+        seq: 501,
+        trade_id: 'quick',
+        rejected_by: partner,
+        from_player: view.human,
+        to_player: partner,
+        trade,
+      } as never)
+    })
+    const name = (info as { name: string }).name
+    expect(screen.getByText(`Offer sent to ${name}`)).toBeInTheDocument()
+    expect(screen.getByText(`${name} rejected your offer`)).toBeInTheDocument()
+    expect(screen.queryByTestId('trade-builder')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('trade-outgoing-quick')).not.toBeInTheDocument()
   })
 })
 

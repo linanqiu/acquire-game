@@ -111,6 +111,16 @@ export async function startFromSnapshot(
     names[seatMap[seat]] = nameOf(seat)
   }
 
+  // The page must be listening before the game starts: a scripted seat can act the moment
+  // the snapshot is loaded (e.g. answer a trade offer), and what the server sends then goes
+  // only to sockets that are open. Every seat showing in the lobby proves this page's socket
+  // is connected and delivering (the list comes over it). Without this wait the API calls
+  // above could finish before the socket opened, and the page then missed those messages
+  // (the cause of the intermittent "scripted opponent accepts/rejects" toast failures).
+  for (const id of Object.values(seatMap)) {
+    await expect(page.getByTestId(`lobby-player-${id}`), 'lobby lists every seat').toBeVisible()
+  }
+
   // 3. Load the snapshot (this replaces pressing START and playing).
   const load = await request.post(`/api/test/room/${code}/load-snapshot`, {
     data: { snapshot: fixture.snapshot, seat_map: seatMap },

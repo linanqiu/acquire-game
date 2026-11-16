@@ -155,7 +155,7 @@ Prices and bonuses depend only on the number of tiles in the {chain}:
 {price_table}
 
 Player-to-player trading (a house feature of this server)
-- Any player may propose a trade to another: any mix of {shares} and cash offered, any mix requested. The recipient may accept or reject (no counter-offers); on accept it executes immediately if both sides still hold what is listed. Offers can arrive during anyone's turn, so you may be asked to respond even when it is not your turn.
+- Any player may propose a trade to another: any mix of {shares} and cash offered, any mix requested. The recipient may accept or reject (no counter-offers); on accept it executes immediately if both sides still hold what is listed. Offers can arrive during anyone's turn, so you may be asked to respond even when it is not your turn. Offers are public: every player sees each open offer and how it was answered, and anyone may make either side a competing offer of their own (an ordinary propose_trade).
 - A trade moves money/{shares} between two players, so it only helps you if what you receive is worth more TO YOU than what you give (consider majority/minority positions, {merger} prospects and current prices), and it also helps the other side. You may propose at most one trade per turn here, and only during the buy step; "no trade" is the normal choice.
 
 End of game
@@ -283,8 +283,9 @@ def build_system_prompt(ruleset: Ruleset | None = None) -> str:
 # in a way that could change play. The system prompt text is hashed in
 # automatically. Benchmark results are only comparable within one
 # ``prompt_version`` (see docs/ai/benchmarking.md).
-PROMPT_BUILDER_VERSION = 5  # 2: table talk; 3: table voice; 4: natural, low-key talk;
-# 5: strategy playbook + share race, merger payouts for all, disposition figures
+PROMPT_BUILDER_VERSION = 6  # 2: table talk; 3: table voice; 4: natural, low-key talk;
+# 5: strategy playbook + share race, merger payouts for all, disposition figures;
+# 6: trade offers are public (rules text, open offers between other players)
 
 
 def _sha(text: str) -> str:
@@ -757,6 +758,28 @@ def render_trade(trade: dict, calc: dict, names: dict[str, str]) -> str:
     )
 
 
+def render_open_offers(
+    trades: list[dict], calc: dict, names: dict[str, str], me: str
+) -> str:
+    """Open offers between OTHER players (offers are public), one line each
+    with both sides valued at current prices; "" when there are none."""
+    lines = []
+    for t in trades or []:
+        frm, to = t.get("from_player_id"), t.get("to_player_id")
+        if me in (frm, to):
+            continue
+        give = _trade_value(t.get("offering_stocks"), t.get("offering_money"), calc)
+        want = _trade_value(t.get("requesting_stocks"), t.get("requesting_money"), calc)
+        lines.append(
+            f"- {names.get(frm, frm)} [id {frm}] offers {names.get(to, to)} [id {to}]: "
+            f"{_stock_text(t.get('offering_stocks'), t.get('offering_money'), names)} "
+            f"(worth {money(give)}) for "
+            f"{_stock_text(t.get('requesting_stocks'), t.get('requesting_money'), names)} "
+            f"(worth {money(want)})."
+        )
+    return "\n".join(lines)
+
+
 def render_disposition(ctx, calc: dict) -> str:
     ratio = ruleset_from_state(ctx.state).merger_trade_ratio
     times = _TIMES.get(ratio, f"{ratio} times")
@@ -917,6 +940,12 @@ def _build_user_prompt(ctx, notes: Any, budget: PromptBudget | None) -> str:
                     f"{_stock_text(t.get('requesting_stocks'), t.get('requesting_money'), names)}"
                     for t in out
                 )
+            )
+        others = render_open_offers(state.get("pending_trades"), calc, names, me)
+        if others:
+            parts.append(
+                "# Open offers between other players (public, values at current "
+                "prices; you may offer either side a better deal)\n" + others
             )
     elif kind == "stock_disposition":
         parts.append("# Merger numbers\n" + render_disposition(ctx, calc))

@@ -188,6 +188,161 @@ test('outgoing offer: a scripted opponent rejects it (the default answer)', asyn
   await playHumanTurns(page, room, 3, shots)
 })
 
+test('an offer between two other players: I see it, read-only, and can make a competing offer', async ({
+  page,
+  shots,
+}) => {
+  // Offers are public (BL-012). Both parties are idle seats so the offer stays open.
+  const fx = loadFixture('trade-between-others')
+  const trade = fx.expect.pending_trades[0]
+  expect([trade.from_player_id, trade.to_player_id]).not.toContain(fx.human_seat)
+  const room = await startFromSnapshot(page, 'trade-between-others', {
+    idle: [trade.from_player_id, trade.to_player_id],
+  })
+  const { human } = room.fixture.expect
+  const proposer = room.names[room.seatMap[trade.from_player_id]]
+  const recipient = room.names[room.seatMap[trade.to_player_id]]
+  const [chain, qty] = Object.entries(trade.offering_stocks)[0]
+  const mine = human.holdings[chain] ?? 0
+  expect(mine, 'the human holds some of the offered chain').toBeGreaterThan(0)
+  console.log(
+    `[offer] ${proposer} offers ${recipient} ${qty} ${chain} for ${dollars(trade.requesting_money)}; I hold ${mine}`
+  )
+
+  // Nothing is asked of me: no offer in the decision tab; the Trades tab carries a quiet dot.
+  await expect(phaseBanner(page)).toHaveText('BUY STOCKS')
+  await expect(page.getByTestId('trade-incoming')).toHaveCount(0)
+  await expect(tabBadge(page, 'trades')).toBeVisible()
+  await expect(tabBadge(page, 'trades')).toHaveText('')
+  await shots.take(page, 'dot-on-trades-tab')
+
+  await openTab(page, 'trades')
+  const card = page.getByTestId(`trade-table-${trade.trade_id}`)
+  await expect(card).toBeVisible()
+  await expect(card).toContainText(proposer)
+  await expect(card).toContainText(recipient)
+  await expect(card.getByTestId(`trade-stock-${chain}`)).toContainText(`×${qty}`)
+  await expect(card).toContainText(dollars(trade.requesting_money))
+  await expect(page.getByTestId('trade-table')).toContainText('Offers are public')
+  // Read-only for me: it is not mine to answer or withdraw.
+  await expect(page.getByTestId(`trade-accept-${trade.trade_id}`)).toHaveCount(0)
+  await expect(page.getByTestId(`trade-reject-${trade.trade_id}`)).toHaveCount(0)
+  await expect(page.getByTestId(`trade-cancel-${trade.trade_id}`)).toHaveCount(0)
+  await expect(tabBadge(page, 'trades')).toHaveCount(0) // looked at
+  // The public activity says it in words, with the terms.
+  await expect(page.getByTestId('trade-activity')).toContainText(
+    `${proposer} offers ${recipient} ${qty} ${chain[0].toUpperCase()}${chain.slice(1)} for ${dollars(trade.requesting_money)}.`
+  )
+  await shots.take(page, 'offer-between-others')
+
+  // A competing offer to the recipient: the builder opens on them with the terms filled in
+  // (as many shares as I hold, the same price).
+  await page.getByTestId(`trade-compete-recipient-${trade.trade_id}`).click()
+  const builder = page.getByTestId('trade-builder')
+  await expect(builder).toBeVisible()
+  await expect(page.getByTestId('trade-started-from')).toContainText(
+    `Started from ${proposer}'s offer to ${recipient}`
+  )
+  await expect(
+    builder.getByTestId(`player-select-${room.seatMap[trade.to_player_id]}`)
+  ).toHaveAttribute('aria-pressed', 'true')
+  const give = Math.min(qty, mine)
+  await expect(builder.getByTestId(`offer-stock-${chain}`).getByTestId('stepper-value')).toHaveText(
+    String(give)
+  )
+  await expect(page.getByTestId('want-cash-input')).toHaveValue(String(trade.requesting_money))
+  await shots.take(page, 'competing-builder-prefilled')
+
+  // Undercut: the same shares for $100 less, then send it.
+  const price = trade.requesting_money - 100
+  await page.getByTestId('want-cash-input').fill(String(price))
+  await page.getByTestId('propose-trade').click()
+  await expect(builder).toHaveCount(0)
+  await expect(toast(page, `Offer sent to ${recipient}`)).toBeVisible()
+  const outgoing = page.locator('[data-testid^="trade-outgoing-"]')
+  await expect(outgoing).toHaveCount(1)
+  await expect(outgoing).toContainText(recipient)
+  await expect(outgoing).toContainText(dollars(price))
+  // Both offers are open at the table; the other one is still there, untouched.
+  await expect(card).toBeVisible()
+  const live = await room.liveSnapshot()
+  expect(live.pending_trades).toHaveLength(2)
+  await shots.take(page, 'competing-offer-sent')
+
+  // The recipient takes mine: everyone hears; then the first offer is withdrawn.
+  const myOffer = live.pending_trades
+    .map((t) => (t.trade ?? t) as Record<string, unknown>)
+    .find((t) => t.from_player_id === room.humanId)!
+  const accepted = await room.act(room.seatMap[trade.to_player_id], {
+    action: 'accept_trade',
+    trade_id: myOffer.trade_id,
+  })
+  expect(accepted.status, JSON.stringify(accepted)).not.toBe('error')
+  await expect(toast(page, `${recipient} accepted your offer`)).toBeVisible()
+  await expect(outgoing).toHaveCount(0)
+  await expect(headerCash(page)).toHaveText(dollars(human.cash + price))
+  const withdrawn = await room.act(room.seatMap[trade.from_player_id], {
+    action: 'cancel_trade',
+    trade_id: trade.trade_id,
+  })
+  expect(withdrawn.status, JSON.stringify(withdrawn)).not.toBe('error')
+  await expect(card).toHaveCount(0)
+  await expect(page.getByTestId('trade-table-empty')).toBeVisible()
+  const activity = page.getByTestId('trade-activity')
+  await expect(activity).toContainText(`${proposer} withdrew the offer to ${recipient}`)
+  await expect(activity).toContainText(`${recipient} accepted ${human.name}'s offer`)
+  await shots.take(page, 'activity-after-answers')
+  await playHumanTurns(page, room, 2, shots)
+})
+
+test('a new offer between two other players: one toast, a dot on the tab, the offer listed', async ({
+  page,
+  shots,
+}) => {
+  // Start with no open offer between others, then have one made while I watch.
+  const fx = loadFixture('trade-between-others')
+  const trade = fx.expect.pending_trades[0]
+  const room = await startFromSnapshot(page, 'trade-between-others', {
+    idle: [trade.from_player_id, trade.to_player_id],
+    viewport: { width: 390, height: 844 },
+  })
+  const from = room.seatMap[trade.from_player_id]
+  const to = room.seatMap[trade.to_player_id]
+  // The first offer was there when I arrived: a dot, but no toast about it.
+  await expect(tabBadge(page, 'trades')).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await openTab(page, 'trades', { tap: false })
+  await expect(page.getByTestId(`trade-table-${trade.trade_id}`)).toBeVisible()
+  await shots.take(page, 'phone-offer-between-others')
+  await openTab(page, 'players')
+  await expect(tabBadge(page, 'trades')).toHaveCount(0)
+
+  // The recipient says no (no toast for me: it is their business), then a new offer comes.
+  expect(
+    (await room.act(to, { action: 'reject_trade', trade_id: trade.trade_id })).status
+  ).not.toBe('error')
+  const again = await room.act(from, {
+    action: 'propose_trade',
+    to_player_id: to,
+    offering_stocks: trade.offering_stocks,
+    requesting_money: trade.requesting_money - 200,
+    trade_id: 'trade-2',
+  })
+  expect(again.status, JSON.stringify(again)).not.toBe('error')
+  await expect(toast(page, `${room.names[from]} offers ${room.names[to]} a trade`)).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(1)
+  await expect(tabBadge(page, 'trades')).toBeVisible()
+  await shots.take(page, 'phone-toast-and-dot')
+  await openTab(page, 'trades')
+  await expect(page.getByTestId('trade-table-trade-2')).toContainText(
+    dollars(trade.requesting_money - 200)
+  )
+  await expect(page.getByTestId('trade-activity')).toContainText(
+    `${room.names[to]} rejected ${room.names[from]}'s offer`
+  )
+  await shots.take(page, 'phone-new-offer-listed')
+})
+
 test('propose a trade through the builder: validation, then the offer shows as pending', async ({
   page,
   shots,

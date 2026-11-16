@@ -173,4 +173,42 @@ describe('TradeBuilder', () => {
     fireEvent.click(screen.getByLabelText('Close'))
     expect(onCancel).toHaveBeenCalledTimes(2)
   })
+
+  it('opens on a starting point (a competing offer): partner, both sides and the note; all editable', () => {
+    const props = propsFrom()
+    const partner = props.players.find((p) => p.cash >= 5000)
+    const [mine] = props.myHoldings
+    const onPropose = vi.fn()
+    render(
+      <TradeBuilder
+        {...props}
+        onPropose={onPropose}
+        onCancel={vi.fn()}
+        startedFrom="Started from Cara's offer to Bob."
+        initial={{
+          partnerId: partner.id,
+          offer: { stocks: [{ chain: mine.chain, quantity: 1 }], cash: 0 },
+          want: { stocks: [], cash: 600 },
+        }}
+      />
+    )
+    expect(screen.getByTestId('trade-started-from')).toHaveTextContent(
+      "Started from Cara's offer to Bob."
+    )
+    expect(screen.getByTestId(`player-select-${partner.id}`)).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
+    expect(offerRow(mine.chain).getByTestId('stepper-value')).toHaveTextContent('1')
+    expect(screen.getByTestId('want-cash-input')).toHaveValue(600)
+    expect(screen.getByTestId('offer-cash-input')).toHaveValue(null)
+    // It is only a start: change the price, then send.
+    fireEvent.change(screen.getByTestId('want-cash-input'), { target: { value: '500' } })
+    fireEvent.click(screen.getByTestId('propose-trade'))
+    expect(onPropose).toHaveBeenCalledWith(
+      partner.id,
+      { stocks: [{ chain: mine.chain, quantity: 1 }], cash: 0 },
+      { stocks: [], cash: 500 }
+    )
+  })
 })

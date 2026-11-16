@@ -20,9 +20,16 @@ export interface TradeOffersProps {
   onPropose: () => void
   /**
    * `incoming`: offers waiting for my answer (shown in the "now" area whatever tab is open;
-   * nothing when there are none). `mine`: my own pending offers and PROPOSE TRADE (Trades tab).
+   * nothing when there are none). `mine`: the Trades tab: PROPOSE TRADE, my own pending
+   * offers, and every other open offer at the table (offers are public).
    */
   part: 'incoming' | 'mine'
+  /** Every open offer at the table (`part="mine"`); the ones I did not make are listed. */
+  tableOffers?: TradeOffer[]
+  /** Start my own offer from someone else's: to its recipient or to its proposer. */
+  onCompete?: (offer: TradeOffer, target: 'recipient' | 'proposer') => void
+  /** Go to where I answer an offer made to me (the decision tab). */
+  onAnswer?: () => void
 }
 
 function Side({
@@ -77,6 +84,9 @@ export function TradeOffers({
   onCancel,
   onPropose,
   part,
+  tableOffers = [],
+  onCompete,
+  onAnswer,
 }: TradeOffersProps) {
   // Ids we have already responded to: buttons stay disabled until the offer disappears
   // (or a few seconds pass, in case the server refused the action).
@@ -94,6 +104,9 @@ export function TradeOffers({
 
   const incoming = offers.filter((o) => o.to_player_id === myPlayerId)
   const outgoing = offers.filter((o) => o.from_player_id === myPlayerId)
+  // Offers I did not make: the ones for me (answered in the decision tab) and the ones
+  // between two other players (read-only, with a way to make my own offer to either side).
+  const atTable = tableOffers.filter((o) => o.from_player_id !== myPlayerId)
   const me = players[myPlayerId]
   const rules = useRules()
 
@@ -211,6 +224,88 @@ export function TradeOffers({
             </div>
           )
         })}
+
+      {part === 'mine' && (
+        <div className={styles.table} data-testid="trade-table">
+          <h5 className={styles.subtitle}>
+            Open offers at the table
+            {atTable.length > 0 && (
+              <span className={styles.tableCount} data-testid="trade-table-count">
+                {atTable.length}
+              </span>
+            )}
+          </h5>
+          <p className={styles.note}>
+            Offers are public: everyone sees them, and anyone can make a competing offer.
+          </p>
+          {atTable.length === 0 && (
+            <p className={styles.note} data-testid="trade-table-empty">
+              No open offers from other players.
+            </p>
+          )}
+          {atTable.map((offer) => {
+            const proposer = players[offer.from_player_id]
+            const target = players[offer.to_player_id]
+            const forMe = offer.to_player_id === myPlayerId
+            return (
+              <div
+                key={offer.trade_id}
+                className={styles.offer}
+                data-testid={`trade-table-${offer.trade_id}`}
+              >
+                <div className={styles.offerHead}>
+                  <PlayerName id={offer.from_player_id} party={proposer} />
+                  <span className={styles.verb}>offers</span>
+                  {forMe ? (
+                    <strong>you</strong>
+                  ) : (
+                    <PlayerName id={offer.to_player_id} party={target} />
+                  )}
+                </div>
+                <Side label="Gives" stocks={offer.offering_stocks} money={offer.offering_money} />
+                <Side
+                  label="Wants"
+                  stocks={offer.requesting_stocks}
+                  money={offer.requesting_money}
+                />
+                {forMe ? (
+                  <div className={styles.actions}>
+                    <Button
+                      size="sm"
+                      onClick={onAnswer}
+                      data-testid={`trade-answer-${offer.trade_id}`}
+                    >
+                      ANSWER
+                    </Button>
+                  </div>
+                ) : (
+                  <div className={styles.compete}>
+                    <span className={styles.sideLabel}>Make a competing offer</span>
+                    <span className={styles.competeButtons}>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => onCompete?.(offer, 'recipient')}
+                        data-testid={`trade-compete-recipient-${offer.trade_id}`}
+                      >
+                        TO {target?.name ?? 'the recipient'}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => onCompete?.(offer, 'proposer')}
+                        data-testid={`trade-compete-proposer-${offer.trade_id}`}
+                      >
+                        TO {proposer?.name ?? 'the proposer'}
+                      </Button>
+                    </span>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
     </section>
   )
 }

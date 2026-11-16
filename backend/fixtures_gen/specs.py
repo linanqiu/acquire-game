@@ -349,6 +349,44 @@ def _human_won(ctx: Ctx) -> bool:
 # the fixtures
 # ---------------------------------------------------------------------------
 
+
+def _others_tail(ctx: Ctx):
+    """One opponent offers another opponent shares for cash (the human is not
+    a party: offers are public, so the human sees it)."""
+    others = [p.player_id for p in ctx.game.players if p.player_id != ctx.human]
+    for seller in others:
+        for buyer in others:
+            if buyer == seller:
+                continue
+            steps = _propose_sale(ctx, seller, buyer, "trade-1")
+            if steps:
+                return steps
+    return None
+
+
+def _others_offer(ctx: Ctx):
+    return next(
+        (
+            t
+            for t in ctx.game.pending_trades.values()
+            if ctx.human not in (t.from_player_id, t.to_player_id)
+        ),
+        None,
+    )
+
+
+def _human_can_compete(ctx: Ctx) -> bool:
+    """The human holds a share of what is offered and both parties still have
+    cash: a competing offer to either side can be prefilled with something."""
+    t = _others_offer(ctx)
+    me = ctx.game.get_player(ctx.human)
+    return (
+        t is not None
+        and any(me.stocks.get(c, 0) > 0 for c in t.offering_stocks)
+        and me.money >= t.requesting_money
+    )
+
+
 _inc_my_pre, _inc_my_tail = _incoming_tail(True)
 _inc_other_pre, _inc_other_tail = _incoming_tail(False)
 
@@ -550,6 +588,21 @@ FIXTURES: list[Fixture] = [
         ],
         pre=_outgoing_pre,
         tail=_outgoing_tail,
+    ),
+    Fixture(
+        "trade-between-others",
+        "The human's turn; one opponent has proposed a trade (stock for cash) to "
+        "another opponent. The human is not a party but sees the public offer.",
+        (4,),
+        [
+            req("offer_between_others", lambda c: _others_offer(c) is not None),
+            req("nothing_for_human", lambda c: not _incoming_pending(c)),
+            req("human_has_turn", lambda c: c.flow and c.flow.player_id == c.human),
+            req("human_can_compete", _human_can_compete),
+            ideal("human_buy_phase", lambda c: c.flow_is(BUY_STOCKS)),
+        ],
+        pre=_outgoing_pre,
+        tail=_others_tail,
     ),
     Fixture(
         "end-game-available",

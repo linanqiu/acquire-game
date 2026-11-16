@@ -6,6 +6,7 @@ import re
 import pytest
 from agents.llm.prompt import (
     PromptBudget,
+    PROMPT_BUILDER_VERSION,
     build_system_prompt,
     build_user_prompt,
     render_board,
@@ -337,6 +338,43 @@ def test_trade_response_prompt_values_the_offer(game):
     assert "Bob [id p2] offers you: 2 juniper + $100 (worth $900" in p
     assert "in exchange for: 1 marlowe (worth $200" in p
     assert "trade_id = t-77" in p
+
+
+def test_buy_prompt_shows_open_offers_between_other_players(game):
+    """Offers are public: an offer between two other seats is in my prompt,
+    valued at current prices; my own offers are not repeated there."""
+    theirs = {
+        "trade_id": "t-90",
+        "from_player_id": "p2",
+        "to_player_id": "p3",
+        "offering_stocks": {"juniper": 2},
+        "offering_money": 0,
+        "requesting_stocks": {},
+        "requesting_money": 600,
+    }
+    mine = {**theirs, "trade_id": "t-91", "from_player_id": "p1"}
+    ctx = make_ctx(game, "p1", "buy_stocks", {"action_types": ["buy_stocks"]})
+    heading = "# Open offers between other players (public"
+    assert heading not in build_user_prompt(ctx, [])
+    names = {p["player_id"]: p["name"] for p in ctx.state["players"]}
+    ctx.state["pending_trades"] = [theirs, mine]
+    p = build_user_prompt(ctx, [])
+    block = p.split(heading)[1].split("\n\n")[0]
+    assert (
+        f"- {names['p2']} [id p2] offers {names['p3']} [id p3]: 2 juniper "
+        "(worth $800) for $600 (worth $600)." in block
+    )
+    assert block.count("\n- ") == 1  # my own offer to p3 is not listed here
+    # only where a competing offer can be made (the buy step)
+    place = place_ctx(game, "p1", events=[])
+    place.state["pending_trades"] = [theirs]
+    assert heading not in build_user_prompt(place, [])
+
+
+def test_rules_text_says_offers_are_public():
+    s = build_system_prompt()
+    assert "Offers are public" in s and "competing offer" in s
+    assert PROMPT_BUILDER_VERSION == 6
 
 
 def test_engine_context_is_included_verbatim(game):
