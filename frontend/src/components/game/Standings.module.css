@@ -190,6 +190,8 @@
 
 /* ---- Money -------------------------------------------------------------------------------- */
 .money {
+  /* Never wider than its column: a sum beyond six figures is cut, not pushed sideways. */
+  overflow: hidden;
   text-align: right;
   padding-right: var(--space-2) !important;
   font-family: var(--font-num);
@@ -302,17 +304,28 @@
 
 /* The narrowest phones: the name column gives a little to the numbers. */
 @container (max-width: 350px) {
+  /* Sized from the font ("$12,600" is 7 figures; the rank adds about 20px), so a phone with a
+     wider system font gets wider columns instead of numbers that push the table sideways. */
   .colCash {
-    width: 48px;
+    font-family: var(--font-num);
+    font-size: 11px;
+    width: calc(7ch + 6px);
   }
 
   .colWorth {
-    width: 64px;
+    font-family: var(--font-num);
+    font-size: 11px;
+    width: calc(7ch + 26px);
   }
 
   .money {
     font-size: 11px;
     padding-right: var(--space-1) !important;
+  }
+
+  /* Three-figure prices side by side in 24px columns: small enough to stay apart in any font. */
+  .footRow > * {
+    font-size: 9px;
   }
 }
 
