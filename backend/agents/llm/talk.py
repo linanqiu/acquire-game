@@ -32,7 +32,7 @@ from agents.llm.schema import SAY_MAX_CHARS
 from game.ruleset import ruleset_from_state
 from session.seat_names import short_names
 
-TALK_BUDGET = PromptBudget(detailed_events=30, milestone_lines=10)
+TALK_BUDGET = PromptBudget(detailed_events=16, milestone_lines=6)
 
 TALK_INSTRUCTIONS = f"""\
 # Table talk: do you want to say something?

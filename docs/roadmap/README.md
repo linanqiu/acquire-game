@@ -42,7 +42,7 @@
 | [Real-time Integration](epics/03-realtime-integration.md) | 5/6 | RT-004 (optional) |
 | [Security Hardening](epics/06-security-hardening.md) | 0/5 | SH-002..SH-005 (SH-001 after test pyramid) |
 | [Backlog](epics/08-backlog.md) | 10/12, BL-004 superseded (BL-008 game-page tabs, BL-009 visual pass, BL-010 seat names and badge, BL-011 decision tab, BL-012 public trade offers done) | BL-005 |
-| [LLM Opponents](epics/09-llm-bot.md) | 4/9 (LO-006 harness, LO-008 table chat, LO-009 strategy playbook, LO-010 position-aware trading done; LO-007 superseded) | LO-001..LO-005 partly built; LO-003 needs the 4-retry loop and fallback notice |
+| [LLM Opponents](epics/09-llm-bot.md) | 5/10 (LO-006 harness, LO-008 table chat, LO-009 strategy playbook, LO-010 position-aware trading, LO-011 cost per game done; LO-007 superseded) | LO-001..LO-005 partly built; LO-003 needs the 4-retry loop and fallback notice |
 | [Engine Seam](epics/10-engine-seam.md) | 6/6 (ES-001..ES-006) | Complete (fuzz volume: 600 games in the slow tier) |
 | [Test Pyramid](epics/11-test-pyramid.md) | 5/9 (TP-001, TP-004..TP-007) | TP-002, TP-003 partly built; TP-008 workflow written, needs a green PR run; TP-009 (remaining display-state gaps) |
 | [Transcripts & Buyout Bench](epics/12-bench.md) | 0/9 | AB-001..AB-007 in-progress; AB-008 (blocked: volume), AB-009 (blocked: API key) |

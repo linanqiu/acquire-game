@@ -5,6 +5,10 @@ import json
 import pytest
 from agents.llm.providers import schema_first_answer
 from agents.llm.schema import (
+    ACTION_ORDER,
+    ANY_KIND,
+    KIND_ACTIONS,
+    build_static_schema,
     CHAINS,
     build_schema,
     check_against_legal,
@@ -435,3 +439,69 @@ def test_chains_for_proposals_come_from_the_view():
     assert check_against_legal(ok, B_PROPOSE, view=view) is None
     bad = _b_propose(offering_stocks={"sandpiper": 1})
     assert check_against_legal(bad, B_PROPOSE, view=view) is not None
+
+
+# ------------------------------------------------- static (cacheable) schemas
+
+
+@pytest.mark.parametrize("kind", sorted(KIND_ACTIONS))
+def test_static_schema_depends_only_on_kind_and_ruleset(kind):
+    a = build_static_schema(kind)
+    assert a == build_static_schema(kind)  # deterministic
+    assert types(a) == list(KIND_ACTIONS[kind])
+    assert list(a["properties"]) == ["why", "action", "note", "say"]
+    blob = json.dumps(a)
+    for kw in ("minimum", "maximum", "minLength", "maxLength", "multipleOf"):
+        assert kw not in blob
+    # small: no 0..25 enumeration per chain
+    assert len(blob) < 2600
+
+
+def test_static_schema_covers_every_kind_the_engine_asks():
+    from game.decisions import (
+        BUY_STOCKS,
+        CHOOSE_SURVIVOR,
+        FOUND_CHAIN,
+        PLACE_TILE,
+        STOCK_DISPOSITION,
+        TRADE_RESPONSE,
+    )
+
+    kinds = {
+        PLACE_TILE,
+        FOUND_CHAIN,
+        CHOOSE_SURVIVOR,
+        STOCK_DISPOSITION,
+        BUY_STOCKS,
+        TRADE_RESPONSE,
+    }
+    assert kinds == set(KIND_ACTIONS)
+    assert build_static_schema("brand_new_kind") is None
+    assert types(build_static_schema(ANY_KIND)) == list(ACTION_ORDER)
+
+
+def test_static_schema_uses_the_rulesets_chains_and_purchase_limit():
+    s = build_static_schema("buy_stocks", chains=("aa", "bb"), max_buy=2)
+    buy = variants(s)[0]["properties"]["purchases"]["properties"]
+    assert buy == {
+        "aa": {"type": "integer", "enum": [0, 1, 2]},
+        "bb": {"type": "integer", "enum": [0, 1, 2]},
+    }
+    found = build_static_schema("found_chain", chains=("aa", "bb"))
+    assert variants(found)[0]["properties"]["chain"]["enum"] == ["aa", "bb"]
+
+
+@pytest.mark.parametrize(
+    "legal,kind",
+    [
+        (PLACE, "place_tile"),
+        (FOUND, "found_chain"),
+        (SURVIVOR, "choose_survivor"),
+        (DISPOSE, "stock_disposition"),
+        (BUY, "buy_stocks"),
+        (TRADE, "trade_response"),
+    ],
+    ids=lambda x: x if isinstance(x, str) else "",
+)
+def test_every_action_type_a_decision_can_offer_is_in_its_static_schema(legal, kind):
+    assert set(legal["action_types"]) <= set(types(build_static_schema(kind)))

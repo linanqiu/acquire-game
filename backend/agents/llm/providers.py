@@ -237,6 +237,13 @@ class OpenAICompatProvider:
         self.extra_body = dict(extra_body or {})
         self._transport = transport
 
+    @property
+    def schema_is_advisory(self) -> bool:
+        """True when the schema is only described in the system message (not
+        enforced by the endpoint). ``LLMAgent`` then sends one schema for all
+        decision kinds, so the whole system message is a stable prefix."""
+        return self.json_mode != "json_schema"
+
     def build_request(
         self, *, system: str, user: str, schema: dict, max_tokens: int
     ) -> dict:
@@ -354,6 +361,11 @@ class FakeProvider:
     passed through, others wrapped) or a callable. With no responses it answers
     with the first legal action by walking the schema.
     """
+
+    # ``LLMAgent`` sends this provider the schema narrowed to the legal
+    # options (real providers get the static per-kind schema), so walking it
+    # yields a legal answer.
+    narrow_schema = True
 
     def __init__(
         self,

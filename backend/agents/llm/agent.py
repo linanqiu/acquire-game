@@ -32,10 +32,13 @@ from agents.llm.prompt import (
 )
 from agents.llm.providers import Provider, ProviderResult
 from agents.llm.schema import (
+    ANY_KIND,
     NOTE_MAX_CHARS,
     REPLY_SCHEMA,
     build_schema,
+    build_static_schema,
     check_against_legal,
+    legal_tiles,
     parse_answer,
     parse_reply,
     parse_say,
@@ -66,23 +69,55 @@ DEFAULT_MAX_TOKENS = 6000
 DEFAULT_MAX_ILLEGAL_RETRIES = 4
 
 
-def forced_action(kind: str, legal: dict) -> dict | None:
-    """The action when nothing is left to decide, so no model call is made.
+def forced_choice(
+    kind: str, legal: dict, *, holds_shares: bool = True
+) -> tuple[dict, str] | None:
+    """``(action, reason)`` when nothing is left to decide, so no model call
+    is made; None when the seat has a real choice.
 
-    After a seat has made its purchase for the turn the engine asks the buy
-    decision once more, where the only moves are ending the turn or proposing
-    a trade. That second question was a third of all model calls. The seat
-    ends its turn there; it can still propose trades before it buys. A seat
-    that may declare the game over is still asked.
+    * Buy step after the purchase: the engine asks the buy decision once more,
+      where the only moves are ending the turn or proposing a trade. That
+      second question was a third of all model calls. The seat ends its turn
+      there; it can still propose trades before it buys.
+    * Buy step where no share can be bought (no chain on the board, the bank
+      is empty, or the seat cannot afford one): the seat ends its turn. With
+      shares in hand and a trade on offer it is still asked, since selling
+      shares to another player is then a real option.
+    * Exactly one playable tile, or one chain left to found.
+
+    A seat that may declare the game over is always asked.
     """
-    if kind != "buy_stocks":
-        return None
     types = set(legal.get("action_types", []))
-    if "buy_stocks" in types or "declare_end_game" in types:
+    if "declare_end_game" in types:
         return None
-    if "end_turn" not in types:
+    if kind == "buy_stocks":
+        if "end_turn" not in types:
+            return None
+        if "buy_stocks" not in types:
+            return {"action": "end_turn"}, "turn's purchase already made"
+        buyable = any(
+            int(o.get("max_affordable", 0) or 0) > 0
+            for o in legal.get("options", []) or []
+        )
+        if not buyable and not ("propose_trade" in types and holds_shares):
+            return {"action": "end_turn"}, "no share can be bought"
         return None
-    return {"action": "end_turn"}
+    if kind == "place_tile" and types == {"place_tile"}:
+        tiles = legal_tiles(legal)
+        if len(tiles) == 1:
+            return {"action": "place_tile", "tile": tiles[0]}, "one playable tile"
+        return None
+    if kind == "found_chain" and types == {"found_chain"}:
+        chains = list(legal.get("chains", []) or [])
+        if len(chains) == 1:
+            return {"action": "found_chain", "chain": chains[0]}, "one chain left"
+    return None
+
+
+def forced_action(kind: str, legal: dict, *, holds_shares: bool = True) -> dict | None:
+    """The action of ``forced_choice`` (None when the seat must be asked)."""
+    choice = forced_choice(kind, legal, holds_shares=holds_shares)
+    return choice[0] if choice else None
 
 
 class LLMAgent:
@@ -99,7 +134,7 @@ class LLMAgent:
         timeout: float = DEFAULT_TIMEOUT_S,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         max_proposals_per_turn: int = 1,
-        notes_limit: int = 6,
+        notes_limit: int = 3,
         timeout_grace: float = 2.0,
         max_illegal_retries: int = DEFAULT_MAX_ILLEGAL_RETRIES,
         decision_budget: float | None = None,
@@ -130,6 +165,7 @@ class LLMAgent:
         # ``last_decision_record``.
         self._record: dict | None = None
         self._record_ctx: Any = None
+        self.forced_decisions = 0  # decisions answered without a model call
 
     # ------------------------------------------------------------------ API
 
@@ -192,10 +228,15 @@ class LLMAgent:
         """
         kind = ctx.decision.kind
         legal = self._effective_legal(ctx)
-        forced = forced_action(kind, legal)
-        if forced is not None and not rejected:
-            return forced
         view = self._trade_view(ctx)
+        mine = ((view or {}).get("players") or {}).get(ctx.player_id) or {}
+        holds = any((mine.get("shares") or {}).values()) if view else True
+        rs = ruleset_from_state(ctx.state)
+        system = _system_prompt(rs)
+        forced = forced_choice(kind, legal, holds_shares=holds)
+        if forced is not None and not rejected:
+            self._record_forced(ctx, *forced, system_prompt_id(system, rs))
+            return forced[0]
         others = tuple(p for p in (view or {}).get("players", {}) if p != ctx.player_id)
         engine_rejected = [dict(r) for r in (rejected or [])]
         if not engine_rejected:
@@ -203,19 +244,12 @@ class LLMAgent:
         history = self._history
         if deadline is None and self.decision_budget:
             deadline = time.monotonic() + self.decision_budget
-        rs = ruleset_from_state(ctx.state)
-        system = _system_prompt(rs)
         user = build_user_prompt(
             replace(ctx, legal=legal), list(self.notes), budget=self.budget
         )
         rec = self._start_record(ctx, system, user, engine_rejected, rs)
         try:
-            schema = build_schema(
-                legal,
-                other_player_ids=others,
-                chains=rs.chain_ids,
-                max_shares=rs.stocks_per_chain,
-            )
+            schema = self._schema(kind, legal, others, rs)
         except ValueError as exc:
             self._log_failure(ctx, 0, "", "", [], f"no answerable action: {exc}", 0.0)
             rec["outcome"], rec["error"] = "failed", f"no answerable action: {exc}"
@@ -324,7 +358,7 @@ class LLMAgent:
 
         say = parse_say(results[-1].data) if results else ""
         rec.update(outcome="answered", why=why, note=note, error=None, say=say or None)
-        if note:
+        if note and (not self.notes or self.notes[-1] != note[:NOTE_MAX_CHARS]):
             self.notes.append(note[:NOTE_MAX_CHARS])
         if action["action"] == "propose_trade":
             key = self._turn_key(ctx)
@@ -427,6 +461,52 @@ class LLMAgent:
         return text, record
 
     # ------------------------------------------------------------ internals
+
+    def _schema(self, kind: str, legal: dict, others: tuple, rs: Ruleset) -> dict:
+        """The answer schema sent to the provider.
+
+        Real providers get the static schema of the decision kind (see
+        ``build_static_schema``: a stable request prefix, so the prompt cache
+        hits). A provider with ``narrow_schema`` true (the offline fake, which
+        answers by walking the schema) gets the one narrowed to the legal
+        options. Either way the answer is checked by ``check_against_legal``.
+        """
+        narrow = build_schema(  # raises ValueError when nothing is answerable
+            legal,
+            other_player_ids=others,
+            chains=rs.chain_ids,
+            max_shares=rs.stocks_per_chain,
+        )
+        if getattr(self.provider, "narrow_schema", False):
+            return narrow
+        # A provider that enforces the schema gets the one of this decision
+        # kind; one that only describes it in the prompt gets a single schema
+        # for all kinds, so its system message never changes.
+        advisory = getattr(self.provider, "schema_is_advisory", False)
+        static = build_static_schema(
+            ANY_KIND if advisory else kind,
+            chains=rs.chain_ids,
+            max_buy=rs.max_stock_purchases_per_turn,
+        )
+        return static if static is not None else narrow
+
+    def _record_forced(self, ctx, action: dict, reason: str, sp_id: str) -> None:
+        """Transcript record of a decision made without a model call: no
+        attempts, no prompt, ``outcome`` "forced" and the reason as ``why``."""
+        self._record = {
+            "model": getattr(self.provider, "model", "") or "",
+            "system_prompt_id": sp_id,
+            "system_prompt": None,
+            "user_prompt": "",
+            "attempts": [],
+            "why": f"No model call: {reason}.",
+            "note": None,
+            "say": None,
+            "outcome": "forced",
+            "error": None,
+        }
+        self._record_ctx = ctx
+        self.forced_decisions += 1
 
     def _start_record(
         self, ctx, system: str, user: str, engine_rejected, rs: Ruleset

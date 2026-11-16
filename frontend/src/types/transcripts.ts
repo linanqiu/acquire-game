@@ -141,6 +141,7 @@ export interface LlmAttempt {
 
 export interface LlmRecord {
   model: string
+  /** Empty for a forced decision. */
   system_prompt_id: string
   /** A prompt not in the header (a custom agent) is stored inline. */
   system_prompt?: string
@@ -150,7 +151,8 @@ export interface LlmRecord {
   /** Absent in redacted transcripts. */
   why?: string | null
   note?: string | null
-  outcome?: 'answered' | 'failed'
+  /** 'forced': nothing to decide, so no model call was made (no attempts, no prompts). */
+  outcome?: 'answered' | 'failed' | 'forced'
   /** Why the agent gave up (absent in redacted transcripts). */
   error?: string
 }
