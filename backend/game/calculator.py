@@ -19,6 +19,7 @@ Top-level shape::
       "viewer":  ViewerInfo,
       "bank":    BankInfo,
       "buy_options": {chain_name: BuyOption},  # active chains with stock left
+      "disposition": DispositionInfo | None,   # the viewer's pending merger choice
     }
 
 ChainInfo (every chain; inactive chains only fill the first few keys)::
@@ -32,7 +33,8 @@ ChainInfo (every chain; inactive chains only fill the first few keys)::
     majority_receivers / minority_receivers: [player_id]
     viewer: {shares, sell_value, standing, shares_to_tie_majority,
              shares_to_take_majority, shares_to_reach_minority,
-             shares_to_take_minority}
+             shares_to_take_minority, best_rival_shares, lead,
+             rival_shares_to_pass, majority_locked}   (see ``_race``)
         standing is one of: none, minority_tied, minority_sole, majority_tied,
         majority_sole.  The shares_to_* values are the smallest number of extra
         shares the viewer must buy (bounded by bank stock and the per-chain cap)
@@ -60,7 +62,8 @@ ViewerInfo::
          viewer_shares, sell_all_value, trade: {shares_traded, survivor_shares_received,
          value_at_survivor_post_merger_price, leftover_shares_sold,
          leftover_sale_value, total_value}, trade_minus_sell}],
-         survivor_size_after, survivor_price_after, viewer_total_bonus}
+         survivor_size_after, survivor_price_after, survivor_safe_after,
+         viewer_total_bonus, bonus_by_player {player_id: total}}
         Defunct chains appear in the engine's processing order (largest first).
         Trading uses the survivor's bank stock as it is now; earlier trades in a
         multi-chain merger can reduce it.
@@ -78,6 +81,9 @@ BuyOption::
                            payout_change}}   (only counts the viewer can afford)
     payout_* is what the viewer would receive for that chain's bonuses if it were
     liquidated/acquired at its current size.
+
+DispositionInfo: see ``_disposition_section`` (sell vs trade with the survivor's
+post-merger price and the viewer's survivor standing after trading).
 """
 
 from __future__ import annotations
@@ -155,6 +161,29 @@ def _shares_needed(
         if _standing(h, me) in wanted:
             return k
     return None
+
+
+def _race(holdings: dict[str, int], me: str, available: int) -> dict:
+    """The share race in one chain from the viewer's side.
+
+    ``best_rival_shares``: most shares any other player holds. ``lead``: the
+    viewer's shares minus that (negative when behind). ``rival_shares_to_pass``
+    (only when the viewer holds the most, alone or tied): the fewest shares the
+    best-placed rival must buy from the bank to hold strictly more than the
+    viewer, ``None`` when the bank no longer has that many, i.e. no rival can
+    pass the viewer by buying (``majority_locked``)."""
+    mine = holdings.get(me, 0)
+    best = max((n for pid, n in holdings.items() if pid != me), default=0)
+    lead = mine - best
+    to_pass = None
+    if mine > 0 and lead >= 0 and lead + 1 <= available:
+        to_pass = lead + 1
+    return {
+        "best_rival_shares": best,
+        "lead": lead,
+        "rival_shares_to_pass": to_pass,
+        "majority_locked": bool(mine > 0 and lead > 0 and to_pass is None),
+    }
 
 
 def _prices(game) -> dict[str, int]:
@@ -240,6 +269,7 @@ def _chains_section(game, viewer_id: str) -> dict:
             payouts = _payouts(game.players, chain, size, game.hotel)
             mine = holdings.get(viewer_id, 0)
             cap = min(game.hotel.get_available_stocks(chain), max_held - mine)
+            race = _race(holdings, viewer_id, game.hotel.get_available_stocks(chain))
             info.update(
                 tiles_to_safe=max(0, rs.safe_chain_size - size),
                 next_price_size=nsize,
@@ -283,6 +313,7 @@ def _chains_section(game, viewer_id: str) -> dict:
                     "shares_to_take_minority": _shares_needed(
                         holdings, viewer_id, {"minority_sole"}, cap, max_held
                     ),
+                    **race,
                 },
             )
         out[chain] = info
@@ -387,12 +418,25 @@ def _merge_scenario(game, tile: Tile, chains: list[str], survivor: str, viewer_i
                 "trade_minus_sell": total_trade - shares * price,
             }
         )
+    bonus_by_player: dict[str, int] = {}
+    for row in rows:
+        for pid, b in row["bonus_payouts"].items():
+            bonus_by_player[pid] = bonus_by_player.get(pid, 0) + b["total"]
     return {
         "survivor": survivor,
         "defunct": rows,
         "survivor_size_after": size_after,
         "survivor_price_after": price_after,
+        "survivor_safe_after": game.hotel.is_chain_safe(survivor, size_after),
         "viewer_total_bonus": total_bonus,
+        # Every player's merger bonuses over all defunct chains (nonzero only),
+        # largest first: who this merger pays, not only the mover.
+        "bonus_by_player": dict(
+            sorted(
+                ((p, v) for p, v in bonus_by_player.items() if v),
+                key=lambda kv: -kv[1],
+            )
+        ),
     }
 
 
@@ -468,6 +512,81 @@ def _bank_section(game, viewer_id: str) -> dict:
         "viewer_can_declare_now": bool(
             current == viewer_id and game.can_declare_end_game()
         ),
+    }
+
+
+def _disposition_section(game, viewer) -> dict | None:
+    """The viewer's pending merger disposition, with the survivor as it will
+    be once the merger completes (``None`` unless the viewer must decide now).
+
+    ``{defunct, survivor, shares, defunct_price, sell_all_value, survivor_size_after,
+    survivor_price_after, survivor_safe_after, max_trade, trade_max: {shares_traded,
+    survivor_shares_received, value, leftover_shares, leftover_sale_value, total_value},
+    trade_minus_sell, survivor_shares_now, survivor_standing_now,
+    survivor_standing_after_trade, survivor_payout_now, survivor_payout_after_trade}``
+
+    Sale price is the defunct chain's price at its size before the merger (as
+    ``handle_stock_disposition`` pays it). The survivor's size after the merger
+    is what ``_finalize_merger`` builds (all merging chains, the merger tile
+    and lone tiles touching it). ``value`` prices the received survivor shares
+    at that post-merger price. The survivor payouts are what the viewer would
+    receive in the survivor's bonuses at its post-merger size, holding everyone
+    else's survivor shares as they are now."""
+    pa = game.pending_action or {}
+    if pa.get("type") != "stock_disposition" or pa.get("player_id") != (
+        viewer.player_id
+    ):
+        return None
+    merger = game._merger
+    defunct, survivor = pa["defunct_chain"], pa["surviving_chain"]
+    n = int(pa["stock_count"])
+    ratio = game.ruleset.merger_trade_ratio
+    d_price = game.hotel.get_stock_price(defunct, game.board.get_chain_size(defunct))
+    others = [c for c in merger.chains if c != survivor]
+    after = _simulate(game.board, merger.tile, survivor, others)
+    size_after = after.get_chain_size(survivor)
+    s_price = game.hotel.get_stock_price(survivor, size_after)
+    bank = game.hotel.get_available_stocks(survivor)
+    max_trade = min(n - n % ratio, bank * ratio)
+    received = max_trade // ratio
+    leftover = n - max_trade
+    total = received * s_price + leftover * d_price
+    holdings = _holdings(game, survivor)
+    me = viewer.player_id
+    after_h = dict(holdings)
+    after_h[me] = holdings.get(me, 0) + received
+
+    def pay(h):
+        return (
+            _payouts(_fake_players(h, survivor), survivor, size_after, game.hotel)
+            .get(me, {})
+            .get("total", 0)
+        )
+
+    return {
+        "defunct": defunct,
+        "survivor": survivor,
+        "shares": n,
+        "defunct_price": d_price,
+        "sell_all_value": n * d_price,
+        "survivor_size_after": size_after,
+        "survivor_price_after": s_price,
+        "survivor_safe_after": game.hotel.is_chain_safe(survivor, size_after),
+        "max_trade": max_trade,
+        "trade_max": {
+            "shares_traded": max_trade,
+            "survivor_shares_received": received,
+            "value": received * s_price,
+            "leftover_shares": leftover,
+            "leftover_sale_value": leftover * d_price,
+            "total_value": total,
+        },
+        "trade_minus_sell": total - n * d_price,
+        "survivor_shares_now": holdings.get(me, 0),
+        "survivor_standing_now": _standing(holdings, me),
+        "survivor_standing_after_trade": _standing(after_h, me),
+        "survivor_payout_now": pay(holdings),
+        "survivor_payout_after_trade": pay(after_h),
     }
 
 
@@ -732,6 +851,7 @@ def build_calculator_pack(game, viewer_id: str) -> dict:
         "viewer": _viewer_section(game, viewer),
         "bank": _bank_section(game, viewer_id),
         "buy_options": _buy_options(game, viewer),
+        "disposition": _disposition_section(game, viewer),
     }
 
 

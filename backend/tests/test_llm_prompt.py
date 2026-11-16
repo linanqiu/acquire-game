@@ -191,6 +191,133 @@ def test_disposition_prompt_has_derived_numbers(game):
     assert "Decision: stock_disposition" in p
 
 
+def _first_decisions(seed, kinds, ruleset=None, limit=3000):
+    """Real played positions (heuristic seats through the decisions API):
+    yields (game, decision) for each blocking decision of a kind in ``kinds``."""
+    from game.decisions import pending_decisions
+    from game.game import Game, GamePhase
+    from tests.support.drive import HeuristicTable
+
+    g = Game(seed=seed, ruleset=ruleset)
+    for i in range(4):
+        g.add_player(f"p{i + 1}", f"P{i + 1}", is_bot=True)
+    g.start_game()
+    table = HeuristicTable(g, seed=seed)
+    for _ in range(limit):
+        if g.phase == GamePhase.GAME_OVER:
+            return
+        d = pending_decisions(g)[0]
+        if d.kind in kinds:
+            yield g, d
+        table.step()
+
+
+def test_strategy_playbook_is_in_the_default_system_prompt():
+    s = build_system_prompt()
+    play = s[s.index("# Strategy playbook") :]
+    for needle in (
+        "majority bonus is 10x the share price and the minority bonus 5x",
+        "Use your 3 purchases",
+        "a rival buying N passes you",
+        "LOCKED",
+        "bonuses paid to all",
+        "SELL / TRADE / HOLD",
+        "Named blunders",
+        "Your note: keep it a plan",
+    ):
+        assert needle in play, needle
+    assert len(play.split()) < 1000  # a rubric, not an essay
+
+
+def test_user_prompt_shows_the_share_race_from_the_calculator():
+    from agents.base import build_context
+
+    seen = 0
+    for g, d in _first_decisions(7, {"buy_stocks"}):
+        ctx = build_context(g, d)
+        p = build_user_prompt(ctx, [])
+        for chain, c in ctx.calc["chains"].items():
+            v = c.get("viewer") or {}
+            if not v.get("shares"):
+                continue
+            if v["majority_locked"]:
+                assert "LOCKED" in p
+            if v["lead"] < 0:
+                assert (
+                    f"top rival holds {v['best_rival_shares']}, {-v['lead']} more" in p
+                )
+            elif v["rival_shares_to_pass"] is not None:
+                assert f"a rival buying {v['rival_shares_to_pass']} passes you" in p
+            seen += 1
+        if seen > 30:
+            break
+    assert seen > 30
+
+
+def test_merge_tiles_show_every_players_bonus():
+    from agents.base import build_context
+    from agents.llm.prompt import money
+
+    for g, d in _first_decisions(5, {"place_tile"}):
+        ctx = build_context(g, d)
+        merges = [
+            t
+            for t in ctx.calc["viewer"]["tiles"]
+            if t["effect"] == "merge" and t["playable"]
+        ]
+        if not merges:
+            continue
+        p = build_user_prompt(ctx, [])
+        names = {x["player_id"]: x["name"] for x in ctx.calc["players"]}
+        for t in merges:
+            for sc in t["scenarios"]:
+                want = ", ".join(
+                    f"{'YOU' if pid == d.player_id else names[pid]} {money(v)}"
+                    for pid, v in sc["bonus_by_player"].items()
+                )
+                assert f"bonuses paid to all: {want or 'nobody holds shares'}" in p
+        return
+    raise AssertionError("no merge tile in the played game")
+
+
+@pytest.mark.parametrize("ruleset", [None, "mini"])
+def test_disposition_prompt_shows_sell_trade_hold_from_the_calculator(ruleset):
+    from agents.base import build_context
+    from agents.llm.prompt import money
+    from game.ruleset import load_ruleset
+
+    rs = load_ruleset(ruleset) if ruleset else None
+    sym = rs.theme.currency_symbol if rs else "$"
+    positions = (
+        pos
+        for seed in (21, 4, 8, 9, 12)
+        for pos in _first_decisions(seed, {"stock_disposition"}, ruleset=rs)
+    )
+    for g, d in positions:
+        ctx = build_context(g, d)
+        x = ctx.calc["disposition"]
+        if not x["trade_max"]["shares_traded"]:
+            continue
+        p = build_user_prompt(ctx, [])
+        tm = x["trade_max"]
+        assert (
+            f"- SELL all {x['shares']}: {money(x['sell_all_value'], sym)} cash now."
+            in p
+        )
+        assert (
+            f"- TRADE {tm['shares_traded']} for {tm['survivor_shares_received']} "
+            f"{x['survivor']}" in p
+        )
+        assert f"worth {money(tm['total_value'], sym)} at the post-merger price" in p
+        assert (
+            f"{x['survivor_size_after']} tiles at "
+            f"{money(x['survivor_price_after'], sym)}/share" in p
+        )
+        assert "- HOLD:" in p
+        return
+    raise AssertionError("no tradable disposition in the played game")
+
+
 def test_trade_response_prompt_values_the_offer(game):
     trade = {
         "trade_id": "t-77",

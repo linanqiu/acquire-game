@@ -655,6 +655,29 @@ def test_system_prompt_is_generated_from_the_ruleset(rs):
         assert t.label in s
     top = rs.tiers[-1].prices[-1][1]
     assert f"${top:,}" in s
+    # The strategy playbook (LO-009) is generated too: theme words and the
+    # ruleset's own numbers only; no default-theme word or number leaks.
+    play = s[s.index("# Strategy playbook") :]
+    for word in ("Named blunders", "Checklists", "LOCKED", "bonuses paid to all"):
+        assert word in play, word
+    assert f"majority bonus is {rs.bonuses.majority_multiplier}x" in play
+    assert f"minority bonus {rs.bonuses.minority_multiplier}x" in play
+    assert f"Use your {rs.max_stock_purchases_per_turn} purchases" in play
+    assert rs.theme.chain_noun_plural in play and rs.theme.merger_noun in play
+    allowed = {
+        str(rs.bonuses.majority_multiplier),
+        str(rs.bonuses.minority_multiplier),
+        str(rs.max_stock_purchases_per_turn),
+        str(rs.founder_bonus_shares),
+        "1",  # "costs 1x"
+    }
+    assert set(re.findall(r"\d+", play)) <= allowed, re.findall(r"\d+", play)
+    assert "$" not in play
+    for name in DEFAULT_NAMES:
+        assert _no_word(play, name), name
+    for word in ("hotel", "stock", "Grand"):
+        if word not in rs.theme.chain_noun + rs.theme.share_noun:
+            assert word.lower() not in play.lower(), word
     if rs is MINI:
         assert "12 columns" not in s and "108 tiles" not in s and "$6,000" not in s
         assert "majority bonus = 8x price, minority = 4x price" in s
