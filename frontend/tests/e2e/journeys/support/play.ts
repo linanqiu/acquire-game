@@ -9,6 +9,7 @@
  */
 import { expect, type Locator, type Page } from '@playwright/test'
 import type { Journey } from './journey'
+import { openTab } from '../../support/tabs'
 
 /** Phase banner texts that need an action from this seat. */
 const ACTIONABLE =
@@ -344,14 +345,22 @@ export class Seat {
     const decisionView = this.page.getByTestId('decision-view')
     const row = decisionView.getByTestId(`merger-disposition-${defunctId}-${me}`)
     let reopened = false
+    let movedFromBoard = false
     // The view can still move on (the merger resolves, my buy comes) while this reads it: check
     // it all in one pass, reopening the result when the buy has replaced it.
     await expect(async () => {
-      if (!reopened && (await decisionView.getAttribute('data-view')) === 'buy') {
+      const quick = { timeout: 1000 }
+      // My place-tile turn can open the Board tab on a phone: go back to the decision tab.
+      if (!(await decisionView.isVisible())) {
+        movedFromBoard = true
+        await openTab(this.page, 'now')
+      }
+      // Whatever replaced the merger view (my buy, my tile, waiting), the result is one tap
+      // away through "Last merger".
+      if (!reopened && !(await row.isVisible()) && (await reopen.isVisible())) {
         await reopen.click()
         reopened = true
       }
-      const quick = { timeout: 1000 }
       await expect(row).toBeVisible(quick)
       if (sell > 0) await expect(row).toContainText(`sold ${sell}`, quick)
       if (trade > 0) await expect(row).toContainText(`traded ${trade}`, quick)
@@ -364,6 +373,8 @@ export class Seat {
     await this.shot(`disposition-${defunct}-done`)
     // Back to my buy (the result stays one tap away).
     if (reopened) await this.press(this.page.getByTestId('merger-result-dismiss'))
+    // Leave the page where the game put it (the Board, for my tile) for the next step.
+    if (movedFromBoard) await openTab(this.page, 'board')
   }
 
   /** Buy with a simple policy (cheapest chains first, keep a reserve), then end the turn. */
