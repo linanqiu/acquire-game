@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { ChainMarker } from './ChainMarker'
 import { HolderChips } from './HolderChips'
 import { SeatKindBadge } from './SeatKindBadge'
@@ -22,9 +23,6 @@ export interface MergerResultProps {
   myId?: string
   /** My sell / trade choice being prepared (while I decide). */
   draft?: DispositionDraft
-  /** Close button (a finished merger, or one reopened from the log). */
-  onDismiss?: () => void
-  dismissLabel?: string
   /** `head`: title and summary; `body`: stockholders and the survivor after; `all`: both. */
   part?: 'all' | 'head' | 'body'
 }
@@ -43,7 +41,8 @@ function bonusLabel(b: Bonus, all: Bonus[]): string {
  * stockholder of each defunct chain with what they did or still have to decide, and the
  * survivor as it will be after the merger (engine size, price, bonuses; everyone's shares with
  * the trades made so far, who is still undecided, and my position as I move the trade slider).
- * Read-only for spectators and players who are not deciding.
+ * Read-only for spectators and players who are not deciding. There is nothing to close: the
+ * page shows it while it matters (`useMergerResult`) and the log keeps it afterwards.
  */
 export function MergerResult({
   merger,
@@ -51,8 +50,6 @@ export function MergerResult({
   gameState,
   myId,
   draft,
-  onDismiss,
-  dismissLabel = 'CLOSE ✕',
   part = 'all',
 }: MergerResultProps) {
   const rules = useRules()
@@ -90,23 +87,11 @@ export function MergerResult({
         <h3 className={styles.title} data-testid="merger-result-title">
           {survivor} takes over {defunctNames}
         </h3>
-        {onDismiss && (
-          <button
-            type="button"
-            className={styles.close}
-            onClick={onDismiss}
-            data-testid="merger-result-dismiss"
-            aria-label={`Close the ${theme.merger_noun} result`}
-          >
-            {dismissLabel}
-          </button>
-        )}
       </header>
       <p className={styles.summary} data-testid="merger-result-summary">
-        {nameOf(merger.player_id)} placed {merger.tile ?? 'a tile'}.{' '}
-        {merger.complete && merger.survivor_size !== null
-          ? `${survivor} grows from ${before} to ${merger.survivor_size} tiles.`
-          : `${theme.merger_noun[0].toUpperCase()}${theme.merger_noun.slice(1)} in progress: ${survivor} grows from ${before} to ${afterSize ?? '?'} tiles.`}
+        {nameOf(merger.player_id)} placed {merger.tile ?? 'a tile'} · {survivor} {before} →{' '}
+        {(merger.complete ? merger.survivor_size : afterSize) ?? '?'} tiles
+        {!merger.complete && <span className={styles.muted}> · in progress</span>}
       </p>
     </>
   )
@@ -141,7 +126,7 @@ export function MergerResult({
         <div className={styles.defunctHead}>
           <ChainMarker chain={d.chain} variant="compact" />
           <span className={styles.muted}>
-            {d.size} tiles, {rules.money(d.price)} a {theme.share_noun}
+            {d.size} tiles · {rules.money(d.price)}
           </span>
         </div>
         {d.bonuses === null ? (
@@ -223,7 +208,7 @@ export function MergerResult({
       <div className={styles.survivor} data-testid="merger-survivor-after">
         <div className={styles.defunctHead}>
           <ChainMarker chain={merger.survivor} variant="compact" />
-          <span>after the {theme.merger_noun}:</span>
+          <span className={styles.muted}>after</span>
           <span className={styles.fact} data-testid="survivor-after-size">
             {after.size} tiles
           </span>
@@ -235,9 +220,8 @@ export function MergerResult({
             {projecting ? ` → ${after.bank - myExtra}` : ''}
           </span>
         </div>
-        <p className={styles.muted} data-testid="survivor-after-bonus">
-          At that size 1st pays {rules.money(after.majority_bonus)}, 2nd{' '}
-          {rules.money(after.minority_bonus)}.
+        <p className={styles.bonusLine} data-testid="survivor-after-bonus">
+          1st {rules.money(after.majority_bonus)} · 2nd {rules.money(after.minority_bonus)}
         </p>
         <table className={styles.table}>
           <caption className={styles.caption}>
@@ -308,7 +292,7 @@ export function MergerResult({
         <div className={styles.defunctHead}>
           <ChainMarker chain={merger.survivor} variant="compact" />
           <span className={styles.muted}>
-            now {nowInfo.size} tiles, {rules.money(nowInfo.price)}, bank{' '}
+            now {nowInfo.size} tiles · {rules.money(nowInfo.price)} · bank{' '}
             {gameState?.hotel.available_stocks[merger.survivor] ?? '?'}
           </span>
         </div>
@@ -343,34 +327,72 @@ export function MergerResult({
 export interface MergerLogProps {
   mergers: MergerRecord[]
   players: GameStateMessage['players']
-  openSeq?: number | null
-  onOpen: (seq: number) => void
+  /** For the survivor's holders in an opened entry. */
+  gameState?: GameStateMessage
+  myId?: string
+  /** Mergers shown elsewhere on the page right now are left out. */
+  hideSeq?: number | null
+  /** At most this many, newest first (the table panel shows one). */
+  limit?: number
+  /** Said before each line, e.g. "Last merger". */
+  prefix?: string
+  testId?: string
 }
 
-/** Every merger of the game, newest first; each opens in the decision tab. */
-export function MergerLog({ mergers, players, openSeq, onOpen }: MergerLogProps) {
+/**
+ * The mergers of the game, newest first, one quiet line each ("Marlowe ← Halcyon"). A line
+ * opens in place to the full result and closes again when tapped: the outcome stays findable
+ * without a view that has to be dismissed.
+ */
+export function MergerLog({
+  mergers,
+  players,
+  gameState,
+  myId,
+  hideSeq,
+  limit,
+  prefix,
+  testId = 'merger-log',
+}: MergerLogProps) {
   const rules = useRules()
-  if (mergers.length === 0) return null
+  const [open, setOpen] = useState<number | null>(null)
+  const list = [...mergers].reverse().filter((m) => m.seq !== hideSeq)
+  const shown = limit ? list.slice(0, limit) : list
+  if (shown.length === 0) return null
   return (
-    <ul className={styles.log} data-testid="merger-log">
-      {[...mergers].reverse().map((m) => (
-        <li key={m.seq}>
-          <button
-            type="button"
-            className={`${styles.logEntry} ${openSeq === m.seq ? styles.logOpen : ''}`}
-            onClick={() => onOpen(m.seq)}
-            data-testid={`merger-log-${m.seq}`}
-          >
-            {rules.name(m.survivor)} took over{' '}
-            {m.defunct.map((d) => rules.name(d.chain)).join(', ')}
-            <span className={styles.muted}>
-              {' '}
-              ({players[m.player_id ?? '']?.name ?? '?'}, {m.tile})
-              {m.complete ? '' : ' · in progress'}
-            </span>
-          </button>
-        </li>
-      ))}
+    <ul className={styles.log} data-testid={testId}>
+      {shown.map((m) => {
+        const isOpen = open === m.seq
+        return (
+          <li key={m.seq}>
+            <button
+              type="button"
+              className={`${styles.logEntry} ${isOpen ? styles.logOpen : ''}`}
+              onClick={() => setOpen(isOpen ? null : m.seq)}
+              aria-expanded={isOpen}
+              data-testid={`merger-log-${m.seq}`}
+            >
+              <span className={styles.logText}>
+                {prefix && <span className={styles.muted}>{prefix}: </span>}
+                {rules.name(m.survivor)} ← {m.defunct.map((d) => rules.name(d.chain)).join(', ')}
+                <span className={styles.muted}>
+                  {' '}
+                  ({players[m.player_id ?? '']?.name ?? '?'}, {m.tile})
+                  {m.complete ? '' : ' · in progress'}
+                </span>
+              </span>
+              <span className={styles.chevron} aria-hidden="true">
+                {isOpen ? '▾' : '▸'}
+              </span>
+            </button>
+            {isOpen && (
+              <div className={styles.logBody}>
+                <MergerResult merger={m} players={players} gameState={gameState} myId={myId} />
+              </div>
+            )}
+          </li>
+        )
+      })}
     </ul>
   )
 }

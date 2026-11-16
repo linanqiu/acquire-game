@@ -6,7 +6,11 @@ import type { ChatMessage } from '../types/api'
 
 export type GameTabId = 'board' | 'now' | 'players' | 'chains' | 'chat' | 'trades' | 'log'
 
-/** The decision tab: what needs me / what is happening now (BL-011). */
+/**
+ * The table tab of wide screens: my decision when there is one, what the table waits for, and
+ * the players matrix (BL-011, BL-013). Phones have no such tab: the same content sits under the
+ * board, in the Board tab.
+ */
 export const NOW_TAB = 'now'
 
 /** Wide screens (tablets and up): board on the left, a tabbed sidebar on the right. */
@@ -71,6 +75,8 @@ export interface EventSwitchInput {
   typing: boolean
   /** Did the Board switch fire on this same update (my place-tile turn started)? */
   boardSwitch: boolean
+  /** The tab that holds decisions: `now` on wide screens, `board` on phones. */
+  decisionTab?: string
 }
 
 /**
@@ -80,12 +86,13 @@ export interface EventSwitchInput {
  * the decision tab instead. Nothing when the decision tab is already open.
  */
 export function eventSwitch(s: EventSwitchInput): {
-  target: typeof NOW_TAB | null
+  target: string | null
   badge: boolean
 } {
-  if (s.fresh.length === 0 || s.selected === NOW_TAB) return { target: null, badge: false }
+  const tab = s.decisionTab ?? NOW_TAB
+  if (s.fresh.length === 0 || s.selected === tab) return { target: null, badge: false }
   if (s.typing || s.boardSwitch) return { target: null, badge: true }
-  return { target: NOW_TAB, badge: false }
+  return { target: tab, badge: false }
 }
 
 /** Chat messages from others newer than `seenId`. */

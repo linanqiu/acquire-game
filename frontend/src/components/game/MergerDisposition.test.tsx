@@ -108,7 +108,7 @@ describe('MergerDisposition', () => {
     const text = document.body.textContent
     expect(text).toContain(`${rs.chains[0].name} ${rs.theme.share_noun_plural}`)
     expect(text).toContain(`price at ${rs.theme.merger_noun}`)
-    expect(text).toContain(`count again only if ${rs.chains[0].name} is founded again`)
+    expect(text).toContain(`until ${rs.chains[0].name} is founded again`)
     expect(trade().closest('div').textContent).toContain(
       `TRADE 2:1 for ${rs.chains[1].name.toUpperCase()}`
     )

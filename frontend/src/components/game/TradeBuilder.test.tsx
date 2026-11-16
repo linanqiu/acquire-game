@@ -167,11 +167,10 @@ describe('TradeBuilder', () => {
     expect(screen.getByTestId('propose-trade')).toBeDisabled()
   })
 
-  it('CANCEL and the close button both leave the builder', () => {
+  it('CANCEL leaves the builder (the sheet around it has the close button)', () => {
     const { onCancel } = mount()
     fireEvent.click(screen.getByTestId('cancel-trade'))
-    fireEvent.click(screen.getByLabelText('Close'))
-    expect(onCancel).toHaveBeenCalledTimes(2)
+    expect(onCancel).toHaveBeenCalledTimes(1)
   })
 
   it('opens on a starting point (a competing offer): partner, both sides and the note; all editable', () => {

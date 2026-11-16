@@ -128,7 +128,7 @@ export function MergerDisposition({
           <div className={styles.hold} data-testid="hold-display">
             <span className={styles.holdLabel}>KEEP {rules.shares(holdCount)}</span>
             <span className={styles.holdValue}>
-              worth {rules.money(0)} now; they count again only if {defunctName} is founded again
+              {rules.money(0)} until {defunctName} is founded again
             </span>
           </div>
         </div>

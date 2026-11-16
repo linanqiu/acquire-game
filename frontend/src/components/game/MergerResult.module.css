@@ -23,25 +23,6 @@
   letter-spacing: 0.03em;
 }
 
-.close {
-  flex-shrink: 0;
-  padding: 2px var(--space-2);
-  background: none;
-  border: var(--border-default);
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  font: inherit;
-  font-size: var(--text-xs);
-  cursor: pointer;
-  min-height: 28px;
-}
-
-.close:hover,
-.close:focus-visible {
-  border-color: var(--text-accent);
-  outline: none;
-}
-
 .summary {
   margin: 0;
   color: var(--text-primary);
@@ -77,13 +58,21 @@
   vertical-align: top;
 }
 
+/* The caption names the table for screen readers; the chain line above it does for the eye. */
 .caption {
-  text-align: left;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.bonusLine {
+  margin: 0;
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding-bottom: 2px;
 }
 
 .label {
@@ -112,6 +101,11 @@
 
 .logEntry {
   width: 100%;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
   text-align: left;
   padding: 2px var(--space-2);
   background: none;
@@ -129,7 +123,23 @@
 }
 
 .logOpen {
-  border-color: var(--accent-gold);
+  border-color: var(--border);
+}
+
+.logText {
+  min-width: 0;
+}
+
+.chevron {
+  flex: none;
+  color: var(--text-secondary);
+}
+
+.logBody {
+  padding: var(--space-2);
+  border: var(--border-default);
+  border-top: none;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
 }
 
 .who {

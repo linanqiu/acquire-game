@@ -123,10 +123,14 @@ describe('host view of a running game', () => {
     renderHostPage()
     const panel = screen.getByTestId('chain-list')
     for (const [name, info] of Object.entries(view.expect.active_chains) as [string, any][]) {
-      const marker = within(panel).getByTestId(`chain-marker-${name.toLowerCase()}`)
-      expect(marker).toHaveTextContent(`${info.size} tiles`)
-      expect(marker).toHaveTextContent(money(info.price))
-      expect(marker).toHaveTextContent(`[${info.available}]`)
+      const id = name.toLowerCase()
+      const marker = within(panel).getByTestId(`chain-marker-${id}`)
+      // Three labelled columns: tiles, price, bank.
+      expect(within(panel).getByTestId(`chain-size-${id}`)).toHaveTextContent(`${info.size} tiles`)
+      expect(within(panel).getByTestId(`chain-price-${id}`)).toHaveTextContent(money(info.price))
+      expect(within(panel).getByTestId(`chain-bank-${id}`)).toHaveTextContent(
+        `${info.available} left in the bank`
+      )
       if (info.safe) expect(marker).toHaveTextContent(/safe/i)
     }
     const inactive = DEFAULT_RS.chains.find((c) => !(c.id in view.expect.active_chains))!.id
@@ -176,14 +180,16 @@ describe('host view of a running game', () => {
 })
 
 describe('host view details', () => {
-  it('the chains panel lists the biggest chain first, and marks as safe exactly the chains of the ruleset safe size or more', () => {
+  it('the chains panel lists the chains in the ruleset order (the same everywhere), and marks as safe exactly the chains of the ruleset safe size or more', () => {
     const view = snapshot('disposition-human-first')
     deliver(view.host)
     renderHostPage()
     const markers = within(screen.getByTestId('chain-list')).getAllByTestId(/^chain-marker-/)
+    const order = DEFAULT_RS.chains.map((c) => c.id)
     const sizes = Object.entries(view.expect.active_chains)
       .map(([name, c]: [string, any]) => ({ name, size: c.size, safe: c.safe }))
-      .sort((a, b) => b.size - a.size)
+      .sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name))
+    expect(sizes.length).toBeGreaterThan(1)
     expect(markers.map((m) => m.getAttribute('data-testid'))).toEqual(
       sizes.map((c) => `chain-marker-${c.name.toLowerCase()}`)
     )
@@ -204,15 +210,20 @@ describe('host view details', () => {
     const cards = within(screen.getByTestId('scoreboard')).getAllByTestId('player-card')
     for (const [id, p] of Object.entries<any>(view.host.players)) {
       const card = cards.find((c) => c.textContent!.includes(p.name))!
-      const shown = within(card).queryByTestId('player-stocks')
       const held = Object.entries<number>(p.stocks).filter(([, q]) => q > 0)
       expect(held.length).toBeGreaterThan(0)
       for (const [chain, qty] of held) {
-        expect(within(shown!).getByTestId(`player-stock-${id}-${chain}`)).toHaveTextContent(
-          String(qty)
+        expect(within(card).getByTestId(`player-stock-${id}-${chain}`)).toHaveTextContent(
+          new RegExp(`^${qty}$`)
         )
       }
-      expect(within(shown!).getAllByTestId(/^player-stock-/)).toHaveLength(held.length)
+      expect(within(card).getAllByTestId(/^player-stock-/)).toHaveLength(held.length)
+      // One cell per chain of the ruleset, in the ruleset's order, for every player.
+      expect(
+        within(card)
+          .getAllByTestId(/^matrix-cell-/)
+          .map((c) => c.getAttribute('data-testid'))
+      ).toEqual(DEFAULT_RS.chains.map((c) => `matrix-cell-${id}-${c.id}`))
       // Net worth and rank, as the server computed them.
       expect(within(card).getByTestId(`player-networth-${id}`)).toHaveTextContent(
         money(p.net_worth)

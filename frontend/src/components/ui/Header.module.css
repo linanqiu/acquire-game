@@ -89,9 +89,43 @@
   }
 }
 
-/* On a phone in game the header is full of numbers; the toggle lives on the home page there. */
+/* On a phone in game the header is full of numbers; the toggle lives on the home page there.
+   The numbers stay on one line whatever their size ($12,500 and $24,600 used to wrap, which
+   moved the whole page down): tighter type, and below 380px the brand gives way to them. */
 @media (max-width: 480px) {
   .themeToggle {
     display: none;
+  }
+
+  .header[data-numbers] .info {
+    flex-wrap: nowrap;
+    column-gap: var(--space-2);
+    white-space: nowrap;
+  }
+
+  .header[data-numbers] .cash,
+  .header[data-numbers] .worth {
+    font-size: 13px;
+    letter-spacing: -0.02em;
+  }
+
+  .header[data-numbers] .tilePool {
+    font-size: 11px;
+  }
+
+  .header[data-numbers] .logo {
+    font-size: var(--text-sm);
+    letter-spacing: 0.08em;
+  }
+}
+
+@media (max-width: 379px) {
+  .header[data-numbers] .logo {
+    display: none;
+  }
+
+  .header[data-numbers] .info {
+    flex: 1 1 auto;
+    justify-content: space-between;
   }
 }

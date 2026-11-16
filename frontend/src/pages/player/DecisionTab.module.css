@@ -1,4 +1,4 @@
-/* The decision tab (BL-011). Fills the tab panel so a pinned footer sits at its bottom. */
+/* The table panel (BL-011, BL-013): offer, decision, players matrix, last merger. */
 .decision {
   flex: 1 0 auto;
   display: flex;
@@ -7,10 +7,32 @@
   min-width: 0;
 }
 
+/* A decision with a pinned footer (buy, sell / trade / keep) is as tall as the panel, so its
+   button sits at the bottom of what is visible; the matrix follows, one scroll away. */
+.fill {
+  flex: none;
+  min-height: 100cqh;
+  display: flex;
+  flex-direction: column;
+}
+
 .section {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+}
+
+/* The title, then its hint: the full text under it, or the "?" button at the end of the line. */
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-2);
+}
+
+.titleRow > p {
+  flex: 1 0 100%;
 }
 
 .title {

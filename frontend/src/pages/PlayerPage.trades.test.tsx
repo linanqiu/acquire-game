@@ -242,7 +242,7 @@ describe('offers between two other players are public', () => {
     expect(screen.queryByTestId(`trade-cancel-${offer.trade_id}`)).toBeNull()
     // Looked at: the dot is gone, and stays gone on another tab.
     expect(screen.queryByTestId('tab-badge-trades')).toBeNull()
-    fireEvent.click(screen.getByRole('tab', { name: /Players/ }))
+    fireEvent.click(screen.getByRole('tab', { name: /Chains/ }))
     expect(screen.queryByTestId('tab-badge-trades')).toBeNull()
     // The offer was already open when I arrived: listed in the activity, no toast.
     expect(alerts()).toEqual([])
@@ -298,7 +298,7 @@ describe('offers between two other players are public', () => {
     expect(alerts()).toEqual([])
     expect(screen.queryByTestId(`trade-table-${offer.trade_id}`)).toBeNull()
     expect(screen.getByTestId('trade-table-empty')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('tab', { name: /Players/ }))
+    fireEvent.click(screen.getByRole('tab', { name: /Chains/ }))
     deliver(o.proposed)
     expect(alerts()).toEqual(['Cara offers Bob a trade'])
     expect(screen.getByTestId('tab-badge-trades')).toHaveTextContent('')
@@ -455,7 +455,7 @@ describe('proposing a trade', () => {
   it('reopening the builder after a proposal that got no answer gives a working button', () => {
     open()
     expect(screen.getByTestId('propose-trade')).toBeDisabled()
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close modal' }))
     fireEvent.click(screen.getByRole('button', { name: 'PROPOSE TRADE' }))
     expect(screen.getByTestId('propose-trade')).toBeEnabled()
   })

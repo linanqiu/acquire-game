@@ -10,6 +10,7 @@ import { Spinner } from '../components/ui/Spinner'
 import { TileRack, RackNotes, type RackTile } from '../components/game/TileRack'
 import { Standings } from '../components/game/Standings'
 import { ChainTable } from '../components/game/ChainTable'
+import { markHintSeen } from '../lib/hints'
 import { MergerLog } from '../components/game/MergerResult'
 import { StatusLine } from '../components/game/StatusLine'
 import { useMergerResult } from '../hooks/useMergerResult'
@@ -141,9 +142,12 @@ export function PlayerPage() {
   }, [turnRefused, tradeRefused])
 
   const [selectedTile, setSelectedTile] = useState<Coordinate | undefined>()
-  const mergerResult = useMergerResult(gameState?.mergers, `merger-dismissed:${room}`)
-  // Bumped when a merger is opened from the log: the decision tab shows it.
-  const [openNow, setOpenNow] = useState(0)
+  const tilesOnBoard = Object.values(gameState?.board.cells ?? {}).filter(
+    (c) => c.state !== 'empty'
+  ).length
+  const mergerResult = useMergerResult(gameState?.mergers, tilesOnBoard)
+  // Bumped by ANSWER on an offer listed in the Trades tab: the table panel shows it.
+  const [answer, setAnswer] = useState(0)
 
   // The game's ruleset (the server's until the first game_state arrives): every limit and word.
   const serverRuleset = useServerRuleset()
@@ -206,6 +210,7 @@ export function PlayerPage() {
   const handlePlaceTile = () => {
     if (!selectedTile) return
     turn.placeTile(selectedTile)
+    markHintSeen('place')
     setSelectedTile(undefined)
   }
 
@@ -314,7 +319,6 @@ export function PlayerPage() {
     disposition: !!pendingStockDisposition,
     foundChoice: !!pendingChainChoice,
     mergerInProgress: !!lastMerger && !lastMerger.complete,
-    explicitMerger: mergerResult.explicit,
   })
   const events = decisionEvents({
     turnKey: turnKey(currentTurnPlayerId, Object.keys(gameState?.board.cells ?? {}).length),
@@ -325,7 +329,6 @@ export function PlayerPage() {
       disposition: !!pendingStockDisposition,
       foundChoice: !!pendingChainChoice,
       mergerInProgress: false,
-      explicitMerger: false,
     }),
     disposition:
       pendingStockDisposition && lastMerger
@@ -341,7 +344,7 @@ export function PlayerPage() {
     currentPlayerName,
     ruleset
   )
-  const status = statusText(view === 'merger-result' ? 'waiting' : view, ruleset, {
+  const status = statusText(view, ruleset, {
     waiting,
     defunctName: pendingStockDisposition
       ? rules.name(pendingStockDisposition.defunctChain)
@@ -380,8 +383,12 @@ export function PlayerPage() {
               scope="player"
               myId={myPlayerId}
               events={events}
-              openNow={openNow}
+              openTable={answer}
               myPlaceTurn={placing}
+              deciding={
+                incomingCount > 0 || !['place', 'waiting'].includes(view) || !!mergerResult.auto
+              }
+              statusOnBoard={placing && (!!selectedTile || !!gameState.end_game_available)}
               board={
                 <Board
                   tiles={boardTileStates}
@@ -428,7 +435,7 @@ export function PlayerPage() {
                   )}
                 </StatusLine>
               )}
-              decision={(select) => (
+              table={
                 <DecisionTab
                   view={view}
                   gameState={gameState}
@@ -450,27 +457,28 @@ export function PlayerPage() {
                     )
                   }
                   rackNotes={wide ? undefined : <RackNotes tiles={rackTiles} />}
+                  standings={<Standings gameState={gameState} myPlayerId={myPlayerId} />}
                   pendingChainChoice={pendingChainChoice}
                   pendingMergerChoice={pendingMergerChoice}
                   pendingStockDisposition={pendingStockDisposition}
                   activeChains={activeChains}
                   merger={mergerResult}
                   loading={turn.loading}
-                  onFound={turn.foundChain}
-                  onSurvivor={turn.chooseSurvivor}
+                  onFound={(chain) => {
+                    markHintSeen('found')
+                    turn.foundChain(chain)
+                  }}
+                  onSurvivor={(chain) => {
+                    markHintSeen('survivor')
+                    turn.chooseSurvivor(chain)
+                  }}
                   onDispose={turn.dispose}
                   onBuy={turn.buy}
                   onDeclareEndGame={turn.declareEndGame}
-                  onShowBoard={wide ? undefined : () => select('board')}
                 />
-              )}
+              }
               wideDefault="now"
               tabs={[
-                {
-                  id: 'players',
-                  label: 'Players',
-                  content: <Standings gameState={gameState} myPlayerId={myPlayerId} />,
-                },
                 {
                   id: 'chains',
                   label: shortLabel(theme.chain_noun_plural),
@@ -502,8 +510,11 @@ export function PlayerPage() {
                           onAccept={trades.accept}
                           onReject={trades.reject}
                           onCancel={trades.cancel}
-                          onPropose={trades.openBuilder}
-                          onAnswer={() => setOpenNow((n) => n + 1)}
+                          onPropose={() => {
+                            markHintSeen('trades')
+                            trades.openBuilder()
+                          }}
+                          onAnswer={() => setAnswer((n) => n + 1)}
                           onCompete={(offer, target) =>
                             trades.openBuilderFrom(
                               competingOffer(
@@ -528,11 +539,8 @@ export function PlayerPage() {
                           <MergerLog
                             mergers={gameState.mergers ?? []}
                             players={gameState.players}
-                            openSeq={mergerResult.shown?.seq}
-                            onOpen={(seq) => {
-                              mergerResult.open(seq)
-                              setOpenNow((n) => n + 1)
-                            }}
+                            gameState={gameState}
+                            myId={myPlayerId}
                           />
                         ) : (
                           <p className={styles.hintText}>None yet.</p>
@@ -552,8 +560,9 @@ export function PlayerPage() {
           <Modal
             open={trades.builderOpen}
             onClose={trades.hideBuilder}
-            title="Propose Trade"
+            title="Propose a trade"
             cancelLabel=""
+            variant="sheet"
           >
             <TradeBuilder
               key={trades.builderKey}
@@ -566,6 +575,7 @@ export function PlayerPage() {
               players={otherPlayers}
               myHoldings={myHoldings}
               myCash={myPlayerData?.money ?? 0}
+              prices={Object.fromEntries(activeChains.map((c) => [c.name, c.price]))}
               onPropose={trades.propose}
               onCancel={trades.cancelBuilder}
               serverError={trades.error}
