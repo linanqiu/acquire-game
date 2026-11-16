@@ -21,7 +21,7 @@
   height: 8px;
   background: rgba(136, 136, 170, 0.45);
   border: 1px solid var(--text-secondary);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   box-sizing: border-box;
 }
 

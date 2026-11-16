@@ -2,14 +2,27 @@
   display: flex;
   justify-content: center;
   gap: var(--space-2);
-  padding: var(--space-2);
+  padding: 6px var(--space-2);
 }
 
-/* Responsive: ensure tiles fit on small screens */
-@media (max-width: 400px) {
+/* Phones: every tile is a thumb-sized target, as wide as the row allows. */
+@media (max-width: 480px) {
+  .rack > div {
+    flex: 1 1 0;
+    max-width: 56px;
+    height: 40px;
+    font-size: 15px;
+  }
+}
+
+/* A short phone screen (browser toolbars showing): the rack gives a few pixels to the table. */
+@media (max-width: 480px) and (max-height: 640px) {
   .rack {
-    gap: var(--space-1);
-    padding: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .rack > div {
+    height: 36px;
   }
 }
 

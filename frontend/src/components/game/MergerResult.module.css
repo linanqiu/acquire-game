@@ -19,8 +19,6 @@
   font-size: var(--text-md);
   font-weight: var(--font-bold);
   color: var(--accent-gold);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
 }
 
 .summary {
@@ -70,7 +68,7 @@
 
 .bonusLine {
   margin: 0;
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
   font-size: var(--text-xs);
   color: var(--text-secondary);
 }
@@ -85,7 +83,7 @@
   text-align: right;
   color: var(--text-positive);
   font-variant-numeric: tabular-nums;
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
   white-space: nowrap;
 }
 
@@ -101,7 +99,7 @@
 
 .logEntry {
   width: 100%;
-  min-height: 32px;
+  min-height: 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -149,7 +147,7 @@
 }
 
 .num {
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
@@ -180,6 +178,6 @@
 }
 
 .fact {
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
   font-weight: var(--font-medium);
 }

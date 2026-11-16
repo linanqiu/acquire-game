@@ -3,6 +3,7 @@ import { ChainMarker } from './ChainMarker'
 import { SeatKindBadge } from './SeatKindBadge'
 import { AiThinking } from './AiThinking'
 import { isAiThinking } from '../../lib/agents'
+import { shortNames } from '../../lib/shortNames'
 import { chainTestId } from '../../lib/ruleset'
 import { useRules } from '../../ruleset/useRules'
 import type { GameStateMessage } from '../../types/api'
@@ -21,14 +22,18 @@ export interface StandingsProps {
 const ROLE_WORD = { majority: 'most shares', minority: 'second most shares' } as const
 
 /**
- * The table at a glance (BL-013): one row per player, one column per chain, in the ruleset's
- * chain order, the same for every player, so holdings compare straight down a column. A cell is
- * the share count: filled with the chain colour for the majority holder, outlined for the
- * minority holder (`=` when the place is tied; roles are the server's `chain_holders`), a quiet
- * dot for none. Then cash + shares at current prices = net worth, with the rank under it (all
- * from the server's calculator, never added up here). The footer gives each chain's size, price
- * and shares left in the bank. Chains not on the board keep their column, dimmed. Rows are in
- * seat order so they do not jump around while the ranks change.
+ * The table at a glance (BL-013, BL-014): one row per player, one column per chain, in the
+ * ruleset's chain order, the same for every player, so holdings compare straight down a column.
+ * A row is one line: the name (the seat-kind icon and YOU next to it), the share counts, cash,
+ * and net worth with the rank in front of it (all from the server's calculator, never added up
+ * here). A cell is the share count: filled with the chain colour for the majority holder,
+ * outlined for the minority holder (`=` when the place is tied; roles are the server's
+ * `chain_holders`), a quiet dot for none. Shares at current prices (net worth minus cash) are
+ * printed where there is room (tablets, the sidebar, the host's TV) and are in the money cells'
+ * tooltips and the seat popover otherwise. The footer gives each chain's size, price and shares
+ * left in the bank, and is left out while no chain is on the board (nothing to say). Chains not
+ * on the board keep their column, dimmed. Rows are in seat order so they do not jump around
+ * while the ranks change.
  */
 export function Standings({
   gameState,
@@ -47,10 +52,17 @@ export function Standings({
   const chainInfo = (chain: string) => gameState.hotel.chains.find((c) => c.name === chain)
   const safeSize = gameState.ruleset?.safe_chain_size ?? rules.rs.safe_chain_size
   const symbol = theme.currency_symbol
+  const names = shortNames(gameState.players)
+  const stocksWord = theme.stock_label.toLowerCase()
 
   return (
     <div className={styles.standings} data-testid={testId}>
-      <table className={styles.matrix} data-testid="holdings-matrix">
+      <table
+        className={styles.matrix}
+        data-testid="holdings-matrix"
+        data-players={order.length}
+        data-footer={active.size > 0 ? 'true' : 'false'}
+      >
         <caption className={styles.srOnly}>
           Players: {theme.share_noun_plural} held in each {theme.chain_noun}, cash and net worth
         </caption>
@@ -59,8 +71,8 @@ export function Standings({
           {chains.map((c) => (
             <col key={c} />
           ))}
-          <col className={styles.colMoney} />
-          <col className={styles.colMoney} />
+          <col className={styles.colCash} />
+          <col className={styles.colWorth} />
         </colgroup>
         <thead>
           <tr>
@@ -79,12 +91,10 @@ export function Standings({
               </th>
             ))}
             <th scope="col" className={styles.moneyHead}>
-              <span>Cash</span>
-              <span className={styles.sub}>+ {theme.stock_label.toLowerCase()}</span>
+              Cash<span className={styles.wideOnly}> + {stocksWord}</span>
             </th>
             <th scope="col" className={styles.moneyHead}>
-              <span>Worth</span>
-              <span className={styles.sub}>rank</span>
+              Worth<span className={styles.srOnly}> and rank</span>
             </th>
           </tr>
         </thead>
@@ -94,6 +104,12 @@ export function Standings({
             if (!player) return null
             const isTurn = id === current
             const isMe = id === myPlayerId
+            const { head, rest } = names[id] ?? { head: player.name, rest: '' }
+            const stockValue =
+              player.stock_value !== undefined ? rules.money(player.stock_value) : ''
+            const sum = stockValue
+              ? `${player.name}: ${rules.money(player.money)} cash + ${stockValue} ${stocksWord}`
+              : undefined
             return (
               <tr
                 key={id}
@@ -103,16 +119,16 @@ export function Standings({
                 data-current-turn={isTurn ? 'true' : undefined}
               >
                 <th scope="row" className={styles.name}>
-                  <span className={styles.nameLine} title={player.name}>
+                  <span className={styles.nameLine}>
                     {isTurn && (
                       <span className={styles.turnMarker} data-testid="turn-marker" title="On turn">
-                        ▶<span className={styles.srOnly}> on turn</span>
+                        ▸<span className={styles.srOnly}> on turn</span>
                       </span>
                     )}
-                    <span className={styles.nameText}>{player.name}</span>
-                  </span>
-                  <span className={styles.tags}>
-                    {isMe && <span className={styles.you}>YOU</span>}
+                    <span className={styles.nameText} title={player.name} data-testid="player-name">
+                      {head}
+                      {rest && <span className={styles.nameRest}>{rest}</span>}
+                    </span>
                     <SeatKindBadge
                       playerId={id}
                       kind={player.kind}
@@ -120,8 +136,15 @@ export function Standings({
                       agentLabel={player.agent_label}
                       fallbacks={player.fallbacks}
                       playerName={player.name}
+                      extra={
+                        stockValue
+                          ? `Cash ${rules.money(player.money)} · ${stocksWord} ${stockValue}`
+                          : undefined
+                      }
+                      size="inline"
                     />
-                    {isAiThinking(gameState.awaiting, id) && <AiThinking />}
+                    {isMe && <span className={styles.you}>YOU</span>}
+                    {isAiThinking(gameState.awaiting, id) && <AiThinking compact />}
                   </span>
                 </th>
                 {chains.map((chain) => {
@@ -174,7 +197,7 @@ export function Standings({
                     </td>
                   )
                 })}
-                <td className={styles.money}>
+                <td className={styles.money} title={sum}>
                   <FlashValue
                     value={player.money}
                     className={styles.cash}
@@ -182,22 +205,14 @@ export function Standings({
                   >
                     {rules.money(player.money)}
                   </FlashValue>
+                  {/* Shares at current prices: printed where there is room, always in the DOM. */}
                   <span className={styles.stockValue}>
-                    <span aria-hidden="true">+</span>
-                    <span className={styles.srOnly}>{theme.stock_label}: </span>
-                    <span data-testid={`player-stockvalue-${id}`}>
-                      {player.stock_value !== undefined ? rules.money(player.stock_value) : ''}
-                    </span>
+                    <span aria-hidden="true"> +</span>
+                    <span className={styles.srOnly}> {theme.stock_label}: </span>
+                    <span data-testid={`player-stockvalue-${id}`}>{stockValue}</span>
                   </span>
                 </td>
-                <td className={styles.money}>
-                  <FlashValue
-                    value={player.net_worth}
-                    className={styles.worth}
-                    data-testid={`player-networth-${id}`}
-                  >
-                    {player.net_worth !== undefined ? rules.money(player.net_worth) : ''}
-                  </FlashValue>
+                <td className={styles.money} title={sum}>
                   <span
                     className={styles.rank}
                     data-testid={`player-rank-${id}`}
@@ -206,71 +221,106 @@ export function Standings({
                     {player.rank !== undefined
                       ? `${tied(player.rank) ? '=' : ''}#${player.rank}`
                       : ''}
-                  </span>
+                  </span>{' '}
+                  <FlashValue
+                    value={player.net_worth}
+                    className={styles.worth}
+                    data-testid={`player-networth-${id}`}
+                  >
+                    {player.net_worth !== undefined ? rules.money(player.net_worth) : ''}
+                  </FlashValue>
                 </td>
               </tr>
             )
           })}
         </tbody>
-        <tfoot>
-          <tr className={styles.footRow} data-testid="matrix-size">
-            <th scope="row">Tiles</th>
-            {chains.map((chain) => {
-              const size = active.has(chain) ? (chainInfo(chain)?.size ?? 0) : 0
-              const safe = size >= safeSize
-              return (
-                <td
-                  key={chain}
-                  className={`${active.has(chain) ? '' : styles.off} ${safe ? styles.safe : ''}`}
-                  data-testid={`matrix-size-${chainTestId(chain)}`}
-                  title={safe ? `${rules.name(chain)} is ${theme.safe_phrase}` : undefined}
-                >
-                  {size > 0 ? size : <Blank />}
-                  {safe && <span className={styles.srOnly}> ({theme.safe_phrase})</span>}
-                </td>
-              )
-            })}
-            <td colSpan={2} className={styles.footNote} rowSpan={3}>
-              <span className={styles.legend} aria-hidden="true">
-                <span className={`${styles.count} ${styles.majority} ${styles.key}`}>1st</span>
-                <span className={`${styles.count} ${styles.minority} ${styles.key}`}>2nd</span>
-                <span>= tie</span>
-              </span>
-            </td>
-          </tr>
-          <tr className={styles.footRow} data-testid="matrix-price">
-            <th scope="row">Price {symbol}</th>
-            {chains.map((chain) => {
-              const price = active.has(chain) ? (chainInfo(chain)?.price ?? 0) : 0
-              return (
+        {active.size > 0 && (
+          <tfoot>
+            <tr className={styles.footRow} data-testid="matrix-size">
+              <th scope="row">Tiles</th>
+              {chains.map((chain) => {
+                const size = active.has(chain) ? (chainInfo(chain)?.size ?? 0) : 0
+                const safe = size >= safeSize
+                return (
+                  <td
+                    key={chain}
+                    className={`${active.has(chain) ? '' : styles.off} ${safe ? styles.safe : ''}`}
+                    data-testid={`matrix-size-${chainTestId(chain)}`}
+                    title={safe ? `${rules.name(chain)} is ${theme.safe_phrase}` : undefined}
+                  >
+                    {size > 0 ? size : <Blank />}
+                    {safe && <span className={styles.srOnly}> ({theme.safe_phrase})</span>}
+                  </td>
+                )
+              })}
+              <td colSpan={2} rowSpan={3} />
+            </tr>
+            <tr className={styles.footRow} data-testid="matrix-price">
+              <th scope="row">Price {symbol}</th>
+              {chains.map((chain) => {
+                const price = active.has(chain) ? (chainInfo(chain)?.price ?? 0) : 0
+                return (
+                  <td
+                    key={chain}
+                    className={active.has(chain) ? '' : styles.off}
+                    data-testid={`matrix-price-${chainTestId(chain)}`}
+                    data-price={price}
+                    title={price > 0 ? rules.money(price) : undefined}
+                  >
+                    {price > 0 ? price : <Blank />}
+                  </td>
+                )
+              })}
+            </tr>
+            <tr className={styles.footRow} data-testid="matrix-bank">
+              <th scope="row">Bank</th>
+              {chains.map((chain) => (
                 <td
                   key={chain}
                   className={active.has(chain) ? '' : styles.off}
-                  data-testid={`matrix-price-${chainTestId(chain)}`}
-                  data-price={price}
-                  title={price > 0 ? rules.money(price) : undefined}
+                  data-testid={`matrix-bank-${chainTestId(chain)}`}
+                  title={`${rules.shares(gameState.hotel.available_stocks[chain] ?? 0)} left in the bank`}
                 >
-                  {price > 0 ? price : <Blank />}
+                  {gameState.hotel.available_stocks[chain] ?? 0}
                 </td>
-              )
-            })}
-          </tr>
-          <tr className={styles.footRow} data-testid="matrix-bank">
-            <th scope="row">Bank</th>
-            {chains.map((chain) => (
-              <td
-                key={chain}
-                className={active.has(chain) ? '' : styles.off}
-                data-testid={`matrix-bank-${chainTestId(chain)}`}
-                title={`${rules.shares(gameState.hotel.available_stocks[chain] ?? 0)} left in the bank`}
-              >
-                {gameState.hotel.available_stocks[chain] ?? 0}
-              </td>
-            ))}
-          </tr>
-        </tfoot>
+              ))}
+            </tr>
+          </tfoot>
+        )}
       </table>
     </div>
+  )
+}
+
+/**
+ * How to read the matrix (it used to be a legend under the table; now it is in the "?" of the
+ * phase bar, where it costs no height).
+ */
+export function StandingsLegend() {
+  const rules = useRules()
+  const { theme } = rules
+  return (
+    <ul className={styles.legend} data-testid="matrix-legend">
+      <li>
+        <span className={`${styles.count} ${styles.majority} ${styles.key}`}>5</span> most{' '}
+        {theme.share_noun_plural} of a {theme.chain_noun} (1st bonus)
+      </li>
+      <li>
+        <span className={`${styles.count} ${styles.minority} ${styles.key}`}>3</span> second most
+        (2nd bonus)
+      </li>
+      <li>
+        <span className={styles.keyText}>=</span> the place is tied
+      </li>
+      <li>
+        <span className={`${styles.keyText} ${styles.safe}`}>11</span> tiles underlined: the{' '}
+        {theme.chain_noun} is {theme.safe_phrase}
+      </li>
+      <li>
+        <span className={styles.keyText}>#1</span> rank by net worth (cash +{' '}
+        {theme.share_noun_plural} at current prices)
+      </li>
+    </ul>
   )
 }
 

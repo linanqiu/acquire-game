@@ -109,5 +109,5 @@
 
 .score {
   font-variant-numeric: tabular-nums;
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
 }

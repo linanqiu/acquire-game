@@ -5,6 +5,27 @@
   white-space: nowrap;
 }
 
+/* One-line rows: just the dots (the word stays for screen readers). */
+.compact {
+  flex: none;
+  font-style: normal;
+  font-weight: var(--font-bold);
+  color: var(--turn-accent);
+}
+
+.compact .dots {
+  display: inline-block;
+  width: 1.2em;
+}
+
+.compact .word {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
 .dots::after {
   content: '...';
   display: inline-block;

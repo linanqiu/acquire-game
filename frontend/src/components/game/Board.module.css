@@ -32,14 +32,27 @@
   --pad: var(--space-2);
   --fit-w: calc((100cqw - var(--label) - 2 * var(--pad) - var(--gap) * var(--cols)) / var(--cols));
   --fit-h: calc(
-    (var(--board-max-height, 400vh) - var(--label) - 2 * var(--pad) - var(--gap) * var(--rows)) /
+    (
+        var(--board-max-height, 400vh) - var(--label-top, var(--label)) - 2 * var(--pad) -
+          var(--gap) * var(--rows)
+      ) /
       var(--rows)
   );
-  --cell: max(var(--cell-min), min(var(--cell-max), var(--fit-w), var(--fit-h)));
+  /* A square is --cell wide and --cell-h tall. They are the same unless a page allows squares
+     wider than tall (--cell-stretch, the phone's Board tab): then a board short of height keeps
+     its width and only gets flatter, down to --cell-floor. */
+  --cell-h: max(
+    var(--cell-floor, var(--cell-min)),
+    min(var(--cell-max), var(--fit-w), var(--fit-h))
+  );
+  --cell: max(
+    var(--cell-min),
+    min(var(--cell-max), var(--fit-w), calc(var(--cell-h) * var(--cell-stretch, 1)))
+  );
 
   display: grid;
   grid-template-columns: var(--label) repeat(var(--cols), var(--cell));
-  grid-template-rows: var(--label) repeat(var(--rows), var(--cell));
+  grid-template-rows: var(--label-top, var(--label)) repeat(var(--rows), var(--cell-h));
   gap: var(--gap);
   padding: var(--pad);
   background-color: var(--bg-tertiary);
@@ -54,7 +67,8 @@
   align-items: center;
   justify-content: center;
   color: var(--text-secondary);
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
+  opacity: 0.8;
   font-size: clamp(8px, calc(var(--cell) * 0.32), var(--text-sm));
   line-height: 1;
   min-width: 0;
@@ -64,6 +78,7 @@
   .board {
     --gap: 1px;
     --pad: var(--space-1);
-    --label: 0.9rem;
+    --label: 13px;
+    --label-top: 12px;
   }
 }

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Header } from './Header'
+import { PhaseHelp } from './PhaseHelp'
 import styles from './PageShell.module.css'
 
 interface PageShellProps {
@@ -20,6 +21,13 @@ interface PageShellProps {
   rank?: number
   playerName?: string
   tilePool?: number | 'EMPTY'
+  /**
+   * Shown behind a "?" at the end of the phase bar (BL-014): the hint of the moment and how to
+   * read the table. It costs no height, unlike a line of instructions on the page.
+   */
+  help?: ReactNode
+  /** The "?" is drawn in the accent colour: the player has not done what it explains yet. */
+  helpFresh?: boolean
 }
 
 export function PageShell({
@@ -34,6 +42,8 @@ export function PageShell({
   rank,
   playerName,
   tilePool,
+  help,
+  helpFresh,
 }: PageShellProps) {
   return (
     <div className={`${styles.shell} ${fill ? styles.fill : ''}`}>
@@ -50,15 +60,18 @@ export function PageShell({
         />
       )}
       {phase && (
-        <div
-          className={`${styles.phase} ${turn ? styles[turn] : ''}`}
-          data-turn={turn}
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-          data-testid="game-phase"
-        >
-          {phase}
+        <div className={styles.phaseBar}>
+          <div
+            className={`${styles.phase} ${turn ? styles[turn] : ''}`}
+            data-turn={turn}
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            data-testid="game-phase"
+          >
+            {phase}
+          </div>
+          {help && <PhaseHelp fresh={helpFresh}>{help}</PhaseHelp>}
         </div>
       )}
       <main className={styles.main}>{children}</main>

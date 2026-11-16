@@ -4,7 +4,6 @@
   align-items: center;
   padding: var(--space-1) var(--space-4);
   background-color: var(--bg-secondary);
-  border-bottom: var(--border-default);
   min-height: 36px;
 }
 
@@ -12,7 +11,7 @@
   font-size: var(--text-lg);
   font-weight: var(--font-bold);
   color: var(--text-accent);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
 }
 
 .info {
@@ -34,9 +33,9 @@
 .cash {
   font-size: var(--text-md);
   font-weight: var(--font-medium);
-  color: var(--text-positive);
+  color: var(--text-primary);
   font-variant-numeric: tabular-nums;
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
 }
 
 .label {
@@ -50,7 +49,7 @@
   font-weight: var(--font-bold);
   color: var(--text-positive);
   font-variant-numeric: tabular-nums;
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
 }
 
 .rank {
@@ -61,7 +60,7 @@
   font-size: var(--text-sm);
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
 }
 
 /* Responsive adjustments */
@@ -95,6 +94,12 @@
 @media (max-width: 480px) {
   .themeToggle {
     display: none;
+  }
+
+  .header[data-numbers] {
+    min-height: 32px;
+    padding-top: 2px;
+    padding-bottom: 2px;
   }
 
   .header[data-numbers] .info {

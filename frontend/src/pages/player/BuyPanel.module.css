@@ -37,7 +37,7 @@
 }
 
 .held {
-  border-left-color: var(--text-accent);
+  border-left-color: var(--turn-accent);
 }
 
 .chain {
@@ -56,14 +56,14 @@
 }
 
 .price {
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
   font-weight: var(--font-bold);
   font-size: var(--text-sm);
 }
 
 .muted {
   color: var(--text-secondary);
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
 }
 
 .stepper {
@@ -88,7 +88,7 @@
 .bonus {
   margin-left: auto;
   font-size: var(--text-xs);
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
   color: var(--text-secondary);
   white-space: nowrap;
 }
@@ -131,7 +131,7 @@
   justify-content: space-between;
   gap: 0 var(--space-2);
   font-size: var(--text-sm);
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
 }
 
 .actions {
