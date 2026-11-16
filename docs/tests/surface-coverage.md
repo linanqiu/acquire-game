@@ -262,8 +262,8 @@ Facts learned while filling this map (2026-11-14):
 
 ## Summary (checked by the script; update when rows change)
 
-- Surfaces: 158
-- Covered: 153
+- Surfaces: 159
+- Covered: 154
 - GAP: 7
 - Journeys: 7
 
