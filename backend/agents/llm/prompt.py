@@ -202,7 +202,7 @@ Checklists (answer from the calculator lines)
 - Found: Pick a {chain} I can lead with my cash: a higher tier means bigger bonuses but dearer {shares}; with little cash pick a cheap one.
 - Survivor (tie): Keep as survivor the {chain} where my stake matters longer; the defunct one pays its bonuses now: check who they pay.
 - {Merger} {shares}: Compare the SELL / TRADE / HOLD lines. Trade when it is worth more at the post-{merger} price, or when the extra survivor {shares} win or protect a bonus position there. Sell when cash wins a race this turn. Hold only when that {chain} is likely to be founded again and you would lead it.
-- Trade offer: Accept only if what I receive is worth more to me (bonus positions, not just price) and does not give a rival a majority. Proposing is optional.
+- Trade offer: Value a trade by what it does to majority/minority positions and coming {merger} payouts for BOTH sides, not by list price (read the "Counting bonus positions" line). Never sell {a_share} that holds a bonus position for its list price: the price must cover the bonus given up. Ask a premium when the trade hands the other side a position, most of all in {a_chain} about to be absorbed. A trade that helps the other side more than me is a bad trade, worst when they lead. {Shares} the bank has run out of are worth extra; a defunct {chain}'s far less. Rules-based opponents price this in too. Proposing is optional.
 - Declare end: Am I projected rank 1 with a lead that the next round cannot erase? Then declare. If I am behind, play on and use the turns to win races.
 
 Named blunders
@@ -283,9 +283,10 @@ def build_system_prompt(ruleset: Ruleset | None = None) -> str:
 # in a way that could change play. The system prompt text is hashed in
 # automatically. Benchmark results are only comparable within one
 # ``prompt_version`` (see docs/ai/benchmarking.md).
-PROMPT_BUILDER_VERSION = 6  # 2: table talk; 3: table voice; 4: natural, low-key talk;
+PROMPT_BUILDER_VERSION = 7  # 2: table talk; 3: table voice; 4: natural, low-key talk;
 # 5: strategy playbook + share race, merger payouts for all, disposition figures;
 # 6: trade offers are public (rules text, open offers between other players)
+# 7: position-aware trade numbers in the offer + trade paragraph in the playbook
 
 
 def _sha(text: str) -> str:
@@ -755,6 +756,41 @@ def render_trade(trade: dict, calc: dict, names: dict[str, str]) -> str:
         f"(worth {money(get)} at current prices) in exchange for: "
         f"{_stock_text(trade.get('requesting_stocks'), trade.get('requesting_money'), names)} "
         f"(worth {money(give)} at current prices). trade_id = {trade.get('trade_id')}."
+        + _trade_position_text(
+            (calc.get("trades") or {}).get(trade.get("trade_id")), frm
+        )
+    )
+
+
+def _signed(n: int) -> str:
+    return ("+" if n >= 0 else "-") + money(abs(n))
+
+
+def _trade_position_text(v: dict | None, frm: str) -> str:
+    """The position-aware line of an offer (game.trade_value.trade_valuation
+    for the deciding player); "" when the pack has no valuation for it."""
+    if not v or not v.get("valid"):
+        return ""
+    me, them = v["viewer"], v["counterparty"]
+    ranks = "; ".join(
+        f"{'you' if r['player_id'] == v['viewer_id'] else frm} in {r['chain']}: "
+        f"{_STANDING.get(r['before'], r['before'])} -> "
+        f"{_STANDING.get(r['after'], r['after'])}"
+        for r in v.get("rank_changes") or []
+    )
+    return (
+        f"\nAt list prices: give {money(v['list']['give'])}, get "
+        f"{money(v['list']['get'])}. Counting bonus positions (bonuses if bought "
+        f"out now, weighted by how likely they are to be paid as they stand): net "
+        f"{_signed(me['change'])} for you (bonuses {_signed(me['bonus_change'])}), "
+        f"{_signed(them['change'])} for {frm} (bonuses "
+        f"{_signed(them['bonus_change'])}). Bonus positions that change: "
+        f"{ranks or 'none'}."
+        + (
+            f" {frm} is ahead of you in net worth."
+            if v.get("counterparty_ahead")
+            else ""
+        )
     )
 
 

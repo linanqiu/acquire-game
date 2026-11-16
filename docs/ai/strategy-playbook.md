@@ -73,6 +73,33 @@ note looks like.
 
 `PROMPT_BUILDER_VERSION` 4 -> 5.
 
+### Trading (prompt v7, 2026-11-16, [LO-010](../roadmap/stories/09-llm-opponents/LO-010.md))
+
+Owner: "They trade valuable assets at face value without considering majority minority etc. Also
+write this into the LLM strategy guide." The rules-based bot now prices bonus positions
+([bot-trading.md](bot-trading.md)); LLM seats get the same reasoning and the same numbers.
+
+The playbook's "Trade offer" checklist line (theme words from the ruleset):
+
+> Value a trade by what it does to majority/minority positions and coming merger payouts for BOTH
+> sides, not by list price (read the "Counting bonus positions" line). Never sell a share that
+> holds a bonus position for its list price: the price must cover the bonus given up. Ask a
+> premium when the trade hands the other side a position, most of all in a chain about to be
+> absorbed. A trade that helps the other side more than me is a bad trade, worst when they lead.
+> Shares the bank has run out of are worth extra; a defunct chain's far less. Rules-based
+> opponents price this in too. Proposing is optional.
+
+The offer block of a `trade_response` decision gains one line from `calc["trades"][trade_id]`
+(`game/trade_value.py`), for the seat deciding:
+
+> At list prices: give $400, get $400. Counting bonus positions (bonuses if bought out now,
+> weighted by how likely they are to be paid as they stand): net -$1,350 for you (bonuses
+> -$1,350), +$900 for Seat 1 (bonuses +$900). Bonus positions that change: you in sandpiper: sole
+> majority -> tied for minority; Seat 1 in sandpiper: sole minority -> sole majority.
+
+`PROMPT_BUILDER_VERSION` 6 -> 7. Not measured on the bench (no model calls were made for this
+change): results from v6 and earlier are not comparable with v7.
+
 ## Results (Claude Haiku 5.5, bench-v1 vs-baseline, same 24 games each)
 
 Prompt versions: baseline `v4-43d877887c`, draft `v5-e1dcbce608`, shipped `v5-4b7f5594af`.
