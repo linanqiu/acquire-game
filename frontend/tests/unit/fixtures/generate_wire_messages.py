@@ -185,6 +185,62 @@ def trade_events(client, snapshots: dict) -> dict:
         proposed = drain(ws, lambda m: m.get("type") == "trade_proposed")[-1]
         ws.send_json({"action": "cancel_trade", "trade_id": proposed["trade"]["trade_id"]})
         out["canceled"] = drain(ws, lambda m: m.get("type") == "trade_canceled")[-1]
+    out["others"] = trades_between_others(client)
+    return out
+
+
+def trades_between_others(client) -> dict:
+    """What a player receives about offers between two OTHER players (offers are public).
+
+    The human (Alice) watches; the two parties are human seats driven over HTTP, so nothing
+    is answered before the test says so."""
+    from tests.protocol.helpers import add_seat, create_room, join_room
+
+    spec = json.loads((SNAPSHOTS / "trade-between-others.json").read_text())
+    snap = spec["snapshot"]
+    offer = spec["expect"]["pending_trades"][0]
+    frm, to = offer["from_player_id"], offer["to_player_id"]
+    code, me = create_room(client, "Alice")
+    seat_map = {"p1": me}
+    for p in snap["players"]:
+        pid = p["player_id"]
+        if pid == "p1":
+            continue
+        if pid in (frm, to):
+            seat_map[pid] = join_room(client, code, p["name"])
+        else:
+            seat_map[pid] = add_seat(client, code, "scripted")["player_id"]
+
+    def act(seat, action):
+        r = client.post(f"/room/{code}/action/{seat_map[seat]}", json=action)
+        assert r.status_code == 200 and r.json().get("status") != "error", r.text
+
+    again = {
+        "action": "propose_trade",
+        "to_player_id": seat_map[to],
+        "offering_stocks": offer["offering_stocks"],
+        "requesting_money": offer["requesting_money"],
+    }
+    out: dict = {"from": seat_map[frm], "to": seat_map[to], "human": me}
+    with client.websocket_connect(f"/ws/player/{code}/{me}") as ws:
+        drain(ws, lambda m: m.get("type") == "lobby_update")
+        client.post(
+            f"/test/room/{code}/load-snapshot", json={"snapshot": snap, "seat_map": seat_map}
+        )
+        out["state"] = drain(ws, lambda m: m.get("type") == "game_state")[-1]
+        act(to, {"action": "reject_trade", "trade_id": offer["trade_id"]})
+        out["rejected"] = drain(ws, lambda m: m.get("type") == "trade_rejected")[-1]
+        act(frm, {**again, "trade_id": "trade-2"})
+        out["proposed"] = drain(ws, lambda m: m.get("type") == "trade_proposed")[-1]
+        act(frm, {"action": "cancel_trade", "trade_id": "trade-2"})
+        out["canceled"] = drain(ws, lambda m: m.get("type") == "trade_canceled")[-1]
+        act(frm, {**again, "trade_id": "trade-3"})
+        drain(ws, lambda m: m.get("type") == "trade_proposed")
+        act(to, {"action": "accept_trade", "trade_id": "trade-3"})
+        out["accepted"] = drain(ws, lambda m: m.get("type") == "trade_accepted")[-1]
+        out["state_after"] = drain(
+            ws, lambda m: m.get("type") == "game_state" and not m["pending_trades"]
+        )[-1]
     return out
 
 

@@ -5,7 +5,7 @@
  * fails here.
  */
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useGameStore } from './gameStore'
+import { TRADE_LOG_KEEP, useGameStore } from './gameStore'
 import {
   SNAPSHOT_NAMES,
   snapshot,
@@ -151,19 +151,32 @@ describe('trades', () => {
   it('a proposal shows up and is announced to the page', () => {
     store().handleMessage(t.proposed)
     expect(store().trades.map((x) => x.trade_id)).toEqual([t.proposed.trade.trade_id])
+    expect(store().publicTrades.map((x) => x.trade_id)).toEqual([t.proposed.trade.trade_id])
+    // The event carries the engine's own number for it.
+    expect(typeof t.proposed.seq).toBe('number')
     expect(store().lastTradeEvent).toMatchObject({
-      seq: 1,
+      seq: t.proposed.seq,
       kind: 'proposed',
       tradeId: t.proposed.trade.trade_id,
       byPlayerId: t.proposed.trade.from_player_id,
+      live: true,
     })
+    expect(store().tradeLog).toEqual([store().lastTradeEvent])
   })
 
-  it('the same offer proposed again is not listed twice', () => {
+  it('the same message delivered twice is one offer and one event', () => {
     store().handleMessage(t.proposed)
     store().handleMessage(t.proposed)
     expect(store().trades).toHaveLength(1)
-    expect(store().lastTradeEvent.seq).toBe(2)
+    expect(store().publicTrades).toHaveLength(1)
+    expect(store().tradeLog).toHaveLength(1)
+  })
+
+  it('a message without an event number still counts as a new event', () => {
+    const { seq: _seq, ...bare } = t.proposed
+    store().handleMessage(bare)
+    store().handleMessage({ ...bare, trade: { ...bare.trade, trade_id: 'second' } })
+    expect(store().tradeLog.map((e) => e.seq)).toEqual([1, 2])
   })
 
   it.each([
@@ -173,35 +186,124 @@ describe('trades', () => {
   ])('an offer that was %s leaves the list and says who answered', (kind, _type, who) => {
     store().handleMessage(t.proposed)
     const id = t.proposed.trade.trade_id
-    store().handleMessage({ ...t[kind], trade_id: id })
+    // (The recorded answers come from other rooms: give this one the next event number.)
+    const { trade: _terms, ...answer } = t[kind]
+    store().handleMessage({ ...answer, trade_id: id, seq: t.proposed.seq + 1 })
     expect(store().trades).toEqual([])
+    expect(store().publicTrades).toEqual([])
     expect(store().lastTradeEvent).toMatchObject({
-      seq: 2,
+      seq: t.proposed.seq + 1,
       kind,
       tradeId: id,
-      byPlayerId: t[kind][who],
+      // Accepting is always the recipient's doing; the others name who did it.
+      byPlayerId: kind === 'accepted' ? t.proposed.trade.to_player_id : t[kind][who],
     })
+    expect(store().tradeLog.map((e) => e.kind)).toEqual(['proposed', kind])
     // The resolved offer is still described, so the toast can name its terms.
     expect(store().lastTradeEvent.trade.trade_id).toBe(id)
   })
 
   it.each(['accepted', 'rejected', 'canceled'])(
-    'an answer (%s) about an offer this browser never saw still names both players',
+    'an answer (%s) about an offer this browser never saw still names both players and the terms',
     (kind) => {
       // An AI seat can answer before this page has the offer: the message itself
-      // says who proposed and who received it, so the toast can still be raised.
+      // says who proposed and who received it, and what was offered.
       const msg = t[kind]
       store().handleMessage(msg)
       expect(store().lastTradeEvent).toMatchObject({
         kind,
-        trade: undefined,
+        trade: msg.trade,
         fromPlayerId: msg.from_player,
         toPlayerId: msg.to_player,
       })
       expect(msg.from_player).toBeTruthy()
       expect(msg.to_player).toBeTruthy()
+      expect(msg.trade.trade_id).toBe(msg.trade_id)
     }
   )
+
+  it('an answer that names only the players (no terms) is still an event', () => {
+    const { trade: _terms, ...msg } = t.rejected
+    store().handleMessage(msg)
+    expect(store().lastTradeEvent).toMatchObject({
+      kind: 'rejected',
+      trade: undefined,
+      fromPlayerId: msg.from_player,
+      toPlayerId: msg.to_player,
+    })
+  })
+})
+
+describe('offers between two other players are public', () => {
+  const o = wireTrades().others
+
+  function seatHuman() {
+    store().setCurrentPlayer({ id: o.human, name: 'Alice', isHost: true })
+    store().handleMessage(o.state)
+  }
+
+  it('the open offer is listed for the table but is not one of mine; what came before is history', () => {
+    seatHuman()
+    const [offer] = o.state.pending_trades
+    expect([offer.from_player_id, offer.to_player_id]).toEqual([o.from, o.to])
+    expect(store().publicTrades).toEqual([offer])
+    expect(store().trades).toEqual([])
+    // The first state's log: listed, not announced.
+    expect(store().tradeLog).toMatchObject([{ kind: 'proposed', tradeId: offer.trade_id }])
+    expect(store().tradeLog[0].live).toBe(false)
+  })
+
+  it('a new offer between them joins the public list only, and every answer reaches me', () => {
+    seatHuman()
+    store().handleMessage(o.rejected)
+    expect(store().publicTrades).toEqual([])
+    expect(store().lastTradeEvent).toMatchObject({
+      kind: 'rejected',
+      byPlayerId: o.to,
+      fromPlayerId: o.from,
+      toPlayerId: o.to,
+      live: true,
+    })
+    store().handleMessage(o.proposed)
+    expect(store().publicTrades.map((x) => x.trade_id)).toEqual([o.proposed.trade.trade_id])
+    expect(store().trades).toEqual([])
+    store().handleMessage(o.canceled)
+    expect(store().publicTrades).toEqual([])
+    expect(store().lastTradeEvent).toMatchObject({ kind: 'canceled', reason: 'cancelled' })
+    store().handleMessage(o.accepted)
+    expect(store().lastTradeEvent).toMatchObject({ kind: 'accepted', byPlayerId: o.to })
+    expect(store().lastTradeEvent.trade).toEqual(o.accepted.trade)
+    expect(store().tradeLog.map((e) => e.kind)).toEqual([
+      'proposed',
+      'rejected',
+      'proposed',
+      'canceled',
+      'accepted',
+    ])
+  })
+
+  it('events missed while the socket was down come back with the next state, once, as live', () => {
+    seatHuman()
+    // Nothing was delivered as a message; the state after the reconnect lists it all.
+    store().handleMessage(o.state_after)
+    const log = store().tradeLog
+    expect(log.map((e) => e.seq)).toEqual(o.state_after.trade_log.map((m) => m.seq))
+    expect(log.slice(1).every((e) => e.live)).toBe(true)
+    expect(log[0].live).toBe(false) // already known from the first state
+    // The same messages arriving late change nothing.
+    store().handleMessage(o.accepted)
+    store().handleMessage(o.state_after)
+    expect(store().tradeLog).toEqual(log)
+  })
+
+  it('keeps only the most recent events', () => {
+    seatHuman()
+    for (let i = 0; i < TRADE_LOG_KEEP + 5; i++) {
+      store().handleMessage({ ...o.proposed, seq: 1000 + i })
+    }
+    expect(store().tradeLog).toHaveLength(TRADE_LOG_KEEP)
+    expect(store().tradeLog.at(-1).seq).toBe(1000 + TRADE_LOG_KEEP + 4)
+  })
 })
 
 describe('trade lists follow what the server says', () => {
@@ -232,8 +334,12 @@ describe('trade lists follow what the server says', () => {
   it('an answer about one offer removes that offer only', () => {
     const t = wireTrades()
     store().handleMessage(t.proposed)
-    store().handleMessage({ ...t.proposed, trade: { ...t.proposed.trade, trade_id: 'second' } })
-    store().handleMessage({ ...t.rejected, trade_id: 'second' })
+    store().handleMessage({
+      ...t.proposed,
+      seq: t.proposed.seq + 1,
+      trade: { ...t.proposed.trade, trade_id: 'second' },
+    })
+    store().handleMessage({ ...t.rejected, trade_id: 'second', seq: t.proposed.seq + 2 })
     expect(store().trades.map((x) => x.trade_id)).toEqual([t.proposed.trade.trade_id])
   })
 

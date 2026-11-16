@@ -132,6 +132,9 @@ export interface GameStateMessage {
   outgoing_trades?: TradeOffer[]
   /** All pending offers, public. */
   pending_trades?: TradeOffer[]
+  /** The last trade messages (offers and answers, public), oldest first: what a page that
+   *  was not connected when they were sent still shows. */
+  trade_log?: TradeLifecycleMessage[]
   /** The game's ruleset (until it arrives, the server's configured one applies). */
   ruleset?: Ruleset
   /** Majority/minority holders of every active chain (engine calculator). */
@@ -280,35 +283,52 @@ export interface TilesReplacedMessage {
   new_hand: string[]
 }
 
-export interface TradeProposedMessage {
+/**
+ * Trade messages are public: every player and the host receive each of them, with the offer's
+ * terms. `seq` is the engine event's number (the same in `game_state.trade_log`).
+ */
+interface TradeMessageBase {
+  seq?: number | null
+  trade_id?: string
+  /** The offer's proposer and recipient (null if the server no longer knows them). */
+  from_player?: string | null
+  to_player?: string | null
+}
+
+export interface TradeProposedMessage extends TradeMessageBase {
   type: 'trade_proposed'
   trade: TradeOffer
 }
 
-export interface TradeAcceptedMessage {
+export interface TradeAcceptedMessage extends TradeMessageBase {
   type: 'trade_accepted'
   trade_id: string
   from_player: string
   to_player: string
+  trade?: TradeOffer | null
 }
 
-export interface TradeRejectedMessage {
+export interface TradeRejectedMessage extends TradeMessageBase {
   type: 'trade_rejected'
   trade_id: string
   rejected_by: string
-  /** The offer's proposer and recipient (null if the server no longer knows them). */
-  from_player?: string | null
-  to_player?: string | null
+  trade?: TradeOffer | null
 }
 
-export interface TradeCanceledMessage {
+export interface TradeCanceledMessage extends TradeMessageBase {
   type: 'trade_canceled'
   trade_id: string
   canceled_by: string
-  /** The offer's proposer and recipient (null if the server no longer knows them). */
-  from_player?: string | null
-  to_player?: string | null
+  /** `cancelled` (withdrawn by the proposer) or `no_longer_valid`. */
+  reason?: string
+  trade?: TradeOffer | null
 }
+
+export type TradeLifecycleMessage =
+  | TradeProposedMessage
+  | TradeAcceptedMessage
+  | TradeRejectedMessage
+  | TradeCanceledMessage
 
 /** The rules-based bot made a decision on behalf of an LLM seat (room + host). */
 export interface AgentFallbackMessage {

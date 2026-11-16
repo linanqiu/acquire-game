@@ -267,6 +267,22 @@
       "turns_completed": 42
     },
     {
+      "actions": 29,
+      "criteria_missed": [],
+      "decision_kind": "buy_stocks",
+      "decision_player": "p1",
+      "description": "The human's turn; one opponent has proposed a trade (stock for cash) to another opponent. The human is not a party but sees the public offer.",
+      "file": "trade-between-others.json",
+      "human_decision_kinds": [
+        "buy_stocks"
+      ],
+      "human_seat": "p1",
+      "name": "trade-between-others",
+      "phase": "buy_stocks",
+      "players": 4,
+      "turns_completed": 8
+    },
+    {
       "actions": 28,
       "criteria_missed": [],
       "decision_kind": "buy_stocks",

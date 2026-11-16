@@ -104,3 +104,40 @@ for (const fixtureName of ['three-player-midgame', 'six-player-midgame']) {
     })
   }
 }
+
+/** Font size of every visible text field, with a label for the failure message. */
+async function textFieldFontSizes(page: Page) {
+  return page.evaluate(() =>
+    Array.from(
+      document.querySelectorAll<HTMLElement>(
+        'input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea, select'
+      )
+    )
+      .filter((el) => el.getClientRects().length > 0)
+      .map((el) => ({
+        field: el.getAttribute('data-testid') ?? el.getAttribute('aria-label') ?? el.tagName,
+        px: parseFloat(getComputedStyle(el).fontSize),
+      }))
+  )
+}
+
+test('phone: no text field is under 16px, so the browser does not zoom in on focus', async ({
+  page,
+  shots,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/')
+  await expect(page.getByTestId('create-name-input')).toBeVisible()
+  const home = await textFieldFontSizes(page)
+  expect(home.length, 'home page text fields found').toBeGreaterThan(0)
+  expect(home.filter((f) => f.px < 16)).toEqual([])
+  await shots.take(page, 'phone-home-fields')
+
+  await startFromSnapshot(page, 'three-player-midgame', { viewport: { width: 390, height: 844 } })
+  await openTab(page, 'chat')
+  await expect(page.getByTestId('chat-input')).toBeVisible()
+  const chat = await textFieldFontSizes(page)
+  expect(chat.length, 'chat text fields found').toBeGreaterThan(0)
+  expect(chat.filter((f) => f.px < 16)).toEqual([])
+  await shots.take(page, 'phone-chat-field')
+})

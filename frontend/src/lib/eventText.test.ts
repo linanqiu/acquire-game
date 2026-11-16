@@ -3,7 +3,14 @@
  * (tests/unit/fixtures/transcript-full.json, written by the backend) and a real trade message.
  */
 import { describe, it, expect } from 'vitest'
-import { decisionKindLabel, describeAction, describeEvents, nameOf, tradeText } from './eventText'
+import {
+  decisionKindLabel,
+  describeAction,
+  describeEvents,
+  nameOf,
+  tradeEventText,
+  tradeText,
+} from './eventText'
 import full from '../../tests/unit/fixtures/transcript-full.json'
 import { DEFAULT_RS, MINI, VALLEY } from '../../tests/unit/fixtures/rulesets'
 import { wireTrades } from '../../tests/unit/fixtures/wire'
@@ -274,17 +281,61 @@ describe('events a quiet game does not produce (field names as the engine writes
         trade: t,
         ...extra,
       }) as unknown as EngineEvent
-    expect(line(tradeEv('trade_proposed'))).toBe(
-      'Alice proposed a trade: Alice gives $500 for 1 Aurelia from Bob.'
+    // Offers are public: every line names both players and the terms.
+    expect(line(tradeEv('trade_proposed'))).toBe('Alice offers Bob $500 for 1 Aurelia.')
+    expect(line(tradeEv('trade_accepted', { player_id: t.to_player_id }))).toBe(
+      "Bob accepted Alice's offer: $500 for 1 Aurelia."
     )
-    expect(line(tradeEv('trade_accepted'))).toBe(
-      'Alice accepted the trade: Alice gives $500 for 1 Aurelia from Bob.'
+    expect(line(tradeEv('trade_rejected', { player_id: t.to_player_id }))).toBe(
+      "Bob rejected Alice's offer: $500 for 1 Aurelia."
     )
-    expect(line(tradeEv('trade_rejected'))).toBe('Alice rejected a trade offer.')
-    expect(line(tradeEv('trade_cancelled', { reason: 'merger_started' }))).toBe(
+    expect(line(tradeEv('trade_cancelled', { reason: 'cancelled' }))).toBe(
+      'Alice withdrew the offer to Bob: $500 for 1 Aurelia.'
+    )
+    expect(line(tradeEv('trade_cancelled', { reason: 'no_longer_valid' }))).toBe(
+      "Alice's offer to Bob can no longer be met and was removed: $500 for 1 Aurelia."
+    )
+  })
+
+  it('answers recorded before they carried the offer (older transcripts) still read', () => {
+    const t = wireTrades().proposed.trade
+    const names2 = { [t.from_player_id]: 'Alice', [t.to_player_id]: 'Bob' }
+    const line = (type: string, extra: Record<string, unknown> = {}) =>
+      describeEvents(
+        [
+          {
+            seq: 1,
+            type,
+            player_id: t.to_player_id,
+            private_to: null,
+            trade_id: t.trade_id,
+            ...extra,
+          } as unknown as EngineEvent,
+        ],
+        names2,
+        DEFAULT_RS
+      )[0].text
+    expect(line('trade_rejected')).toBe('Bob rejected a trade offer.')
+    expect(line('trade_cancelled', { reason: 'merger_started' })).toBe(
       'A trade offer was cancelled (merger started).'
     )
-    expect(line(tradeEv('trade_cancelled'))).toBe('A trade offer was cancelled (cancelled).')
+    expect(line('trade_cancelled')).toBe('A trade offer was cancelled (cancelled).')
+    expect(line('trade_accepted')).toBe('Bob accepted a trade offer.')
+    expect(line('trade_proposed')).toBe('Bob proposed a trade.')
+  })
+
+  it('the messages a third player receives about an offer between two others read the same', () => {
+    const o = wireTrades().others
+    const names2 = { [o.from]: 'Cara', [o.to]: 'Bob', [o.human]: 'Alice' }
+    const say = (kind: 'proposed' | 'accepted' | 'rejected' | 'canceled') =>
+      tradeEventText(kind, o[kind].trade, names2, DEFAULT_RS, {
+        by: o[kind].rejected_by ?? o[kind].canceled_by,
+        reason: o[kind].reason,
+      })
+    expect(say('proposed')).toBe('Cara offers Bob 2 Aurelia for $800.')
+    expect(say('accepted')).toBe("Bob accepted Cara's offer: 2 Aurelia for $800.")
+    expect(say('rejected')).toBe("Bob rejected Cara's offer: 2 Aurelia for $800.")
+    expect(say('canceled')).toBe('Cara withdrew the offer to Bob: 2 Aurelia for $800.')
   })
 
   it("a game that ends without standings names no winner; a standing without a name uses the player's name", () => {

@@ -18,6 +18,19 @@ Before placing a tile, the active player may propose stock trades with other pla
 - The other player may **accept or decline** any proposed trade
 - Multiple trades may occur in this phase
 - Once tile placement begins, trading closes for the turn
+- **Offers are public.** Every player sees each offer (who offers what to whom, and for
+  what) and how it was answered. Nothing about a trade is hidden from the table.
+- **Anyone may make a competing offer.** A player who sees an offer between two others may
+  offer either of them a deal of their own. That is a separate offer; the first one stays open
+  until its recipient answers or its proposer withdraws it.
+- Only the recipient of an offer may accept or decline it, and only the player who made it
+  may withdraw it.
+
+> **In the app:** offers are made in the Trades tab. Every open offer at the table is listed
+> there with "Make a competing offer" buttons; offers and answers also appear in the recent
+> trades list, on the host screen and in the game's transcript. The app accepts an offer from
+> any player at any time between the start and the end of the game (not only from the active
+> player before placing a tile), and an offer for you can be answered when it is not your turn.
 
 **Examples of valid trades:**
 - 2 Marlowe shares for 1 Aurelia share

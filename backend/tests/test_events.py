@@ -264,6 +264,22 @@ class TestTradeEvents:
         ev = new_events(game, start)
         assert types(ev) == ["trade_rejected", "trade_cancelled"]
         assert ev[1]["reason"] == "cancelled"
+        # Public events carry the whole offer, so every viewer can word them.
+        assert ev[0]["trade"] == t1.to_dict() and ev[1]["trade"] == t2.to_dict()
+        assert not any(e.get("private_to") for e in ev)
+
+    def test_only_the_parties_can_answer_or_withdraw(self):
+        game = make_game()
+        trade = self._offer(game)
+        game.propose_trade(trade)
+        start = len(game.events)
+        for outsider in ("p3", "p1"):
+            assert not game.accept_trade(outsider, trade.trade_id).success
+            assert not game.reject_trade(outsider, trade.trade_id).success
+        for outsider in ("p3", "p2"):
+            assert not game.cancel_trade(outsider, trade.trade_id).success
+        assert trade.trade_id in game.pending_trades
+        assert new_events(game, start) == []
 
     def test_stale_trade_cancelled_on_accept(self):
         game = make_game()
@@ -276,6 +292,7 @@ class TestTradeEvents:
         assert trade.trade_id not in game.pending_trades
         assert game.events[-1]["type"] == "trade_cancelled"
         assert game.events[-1]["reason"] == "no_longer_valid"
+        assert game.events[-1]["trade"]["trade_id"] == trade.trade_id
 
     def test_merger_chain_stock_cannot_be_traded_mid_merger(self):
         game = make_game()

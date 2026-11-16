@@ -49,3 +49,16 @@ h3 {
   color: var(--text-primary);
   margin: 0 0 var(--space-2) 0;
 }
+
+/*
+ * Phone browsers (Safari, Chrome on iOS) zoom the page in when a text field
+ * with text under 16px gets focus, and do not zoom back out. Text fields are
+ * never smaller than 16px on touch devices and narrow screens.
+ */
+@media (pointer: coarse), (max-width: 768px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  textarea,
+  select {
+    font-size: max(16px, 1em) !important;
+  }
+}

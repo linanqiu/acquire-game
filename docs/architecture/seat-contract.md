@@ -107,6 +107,17 @@ Out-of-turn actions (`propose_trade`, `accept_trade`, `reject_trade`,
 `cancel_trade`) are accepted from any player at any time between game start
 and game over; trade responses never block the flow decision.
 
+Trade offers are public (BL-012). The four trade events are public and carry
+the whole offer; the server sends `trade_proposed` / `trade_accepted` /
+`trade_rejected` / `trade_canceled` to every player and the host, each with
+`trade`, `trade_id`, `from_player`, `to_player` and `seq` (the event's
+number), and repeats the last 12 of them in `game_state.trade_log`. Only the
+recipient may accept or reject and only the proposer may cancel
+(`TradingMixin`); a competing offer is an ordinary `propose_trade` by a third
+player. An LLM seat sees open offers between other players in its `buy_stocks`
+prompt and can only compete through that decision's `propose_trade` option
+(no extra model call).
+
 ### No playable tile (engine-owned)
 
 The engine guarantees a way forward; drivers do nothing special.
@@ -188,8 +199,8 @@ Payloads as built (beyond `seq/type/player_id/private_to`):
 | `tile_placement_skipped` | `reason: "no_playable_tiles"` |
 | `turn_ended` | `next_player_id` |
 | `trade_proposed` / `trade_accepted` | `trade` (TradeOffer dict) |
-| `trade_rejected` | `trade_id` |
-| `trade_cancelled` | `trade_id`, `reason` (`cancelled\|no_longer_valid`) |
+| `trade_rejected` | `trade_id`, `trade` (the offer; BL-012, absent in older transcripts) |
+| `trade_cancelled` | `trade_id`, `reason` (`cancelled\|no_longer_valid`), `trade` (as above) |
 | `end_game_declared` | – |
 | `game_ended` | `reason` (`declared\|no_playable_tiles\|ended`), `final_sales: {pid: cash}`, `standings` (best first; tied players share a rank, competition ranking 1,1,3), `winner` (first of `winners`), `winners: [pid]` (every rank-1 player; several on a tie) |
 

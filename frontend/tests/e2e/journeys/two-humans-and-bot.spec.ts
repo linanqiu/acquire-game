@@ -40,7 +40,8 @@ test('two humans and a bot: join by code, play, trade accept/reject/cancel', asy
   await j.shot(a, 'alice-lobby-sees-bob')
   await expect(a.getByRole('button', { name: 'START GAME' })).toBeDisabled()
   await addBot(a, j)
-  await expectInLobby(b, ['Alice', 'Bob', await seatName(a, 'bot')])
+  const botName = await seatName(a, 'bot')
+  await expectInLobby(b, ['Alice', 'Bob', botName])
   await j.shot(b, 'bob-lobby-sees-bot')
   await startGame(a, j)
   await expect(b.getByTestId('tile-rack')).toBeVisible()
@@ -172,6 +173,27 @@ test('two humans and a bot: join by code, play, trade accept/reject/cancel', asy
     await expect(tradePanel(b)).toContainText('No offers of yours pending')
     expect(await cashBoth()).toEqual(before)
     await alice.shot('trade3-canceled')
+    // Offers are public: Bob's Trades tab keeps the story in words.
+    await expect(b.getByTestId('trade-activity')).toContainText(
+      'Alice withdrew the offer to Bob: $100 for $50.'
+    )
+  }
+
+  // --- Alice -> the bot (a poor deal, so the bot says no): Bob, who is not part of it,
+  // hears about the offer and reads it and its answer in his Trades tab ---------------
+  {
+    const before = await cashBoth()
+    await proposeTrade(alice, { partner: botName, offerCash: 50, wantCash: 100 }, 'trade4')
+    await expect(b.getByText(`Alice offers ${botName} a trade`)).toBeVisible()
+    await expect(a.getByText(`${botName} rejected your offer`)).toBeVisible()
+    const activity = b.getByTestId('trade-activity')
+    await expect(activity).toContainText(`Alice offers ${botName} $50 for $100.`)
+    await expect(activity).toContainText(`${botName} rejected Alice's offer: $50 for $100.`)
+    await expect(outgoingTo(a, botName)).toHaveCount(0)
+    await expect(b.getByTestId('trade-table-empty')).toBeVisible()
+    expect(await cashBoth()).toEqual(before)
+    await bob.shot('trade4-public-offer-seen-by-bob')
+    j.log(`(bob) saw Alice's offer to ${botName} and its rejection`)
   }
 
   // --- Play on to at least TURNS_EACH turns each ------------------------------------

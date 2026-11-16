@@ -141,12 +141,19 @@ test('host view lists a pending trade between two players', async ({ page, openH
   await expect(line).toContainText(to)
   await expect(line).toContainText('2 Sandpiper')
   await expect(line).toContainText(dollars(trade.requesting_money))
+  // The activity says it in words (offers are public, BL-012).
+  const activity = host.getByTestId('trade-activity')
+  await expect(activity).toContainText(
+    `${from} offers ${to} 2 Sandpiper for ${dollars(trade.requesting_money)}.`
+  )
   await shots.take(host, 'host-pending-trade')
 
   // Cancelling on the player page empties the host's list.
   await openTab(page, 'trades')
   await page.getByTestId(`trade-cancel-${trade.trade_id}`).click()
   await expect(host.getByTestId('pending-trades')).toHaveCount(0)
+  await expect(activity).toContainText(`${from} withdrew the offer to ${to}`)
+  await shots.take(host, 'host-trade-withdrawn')
   await playHumanTurns(page, room, 2, shots)
 })
 

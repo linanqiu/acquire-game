@@ -41,6 +41,13 @@ export interface TradeBuilderProps {
   submitting?: boolean
   /** Shown as a hint, e.g. while a merger freezes some chains. */
   notice?: string
+  /**
+   * A starting point (partner and both sides), e.g. from another player's public offer.
+   * Read when the builder mounts; the player can change everything.
+   */
+  initial?: { partnerId: string; offer: TradeOffer; want: TradeOffer }
+  /** Says where `initial` came from, e.g. "Started from Cara's offer to Bob." */
+  startedFrom?: string
 }
 
 export function TradeBuilder({
@@ -52,15 +59,18 @@ export function TradeBuilder({
   serverError,
   submitting = false,
   notice,
+  initial,
+  startedFrom,
 }: TradeBuilderProps) {
   const rules = useRules()
   const shareWord = rules.theme.share_noun_plural
-  const [partnerId, setPartnerId] = useState<string>('')
-  const [offer, setOffer] = useState<TradeOffer>({ stocks: [], cash: 0 })
-  const [want, setWant] = useState<TradeOffer>({ stocks: [], cash: 0 })
+  const [partnerId, setPartnerId] = useState<string>(initial?.partnerId ?? '')
+  const [offer, setOffer] = useState<TradeOffer>(initial?.offer ?? { stocks: [], cash: 0 })
+  const [want, setWant] = useState<TradeOffer>(initial?.want ?? { stocks: [], cash: 0 })
   const [error, setError] = useState('')
-  const [offerCashInput, setOfferCashInput] = useState('')
-  const [wantCashInput, setWantCashInput] = useState('')
+  const cashText = (n: number | undefined) => (n && n > 0 ? String(n) : '')
+  const [offerCashInput, setOfferCashInput] = useState(cashText(initial?.offer.cash))
+  const [wantCashInput, setWantCashInput] = useState(cashText(initial?.want.cash))
 
   const partner = useMemo(() => players.find((p) => p.id === partnerId), [players, partnerId])
 
@@ -171,13 +181,12 @@ export function TradeBuilder({
   return (
     <Card title="NEW TRADE" onClose={handleCancel}>
       <div className={styles.container} data-testid="trade-builder">
-        {notice && <p className={styles.hint}>{notice}</p>}
-        {(error || serverError) && (
-          <p className={styles.error} role="alert" data-testid="trade-error">
-            {error || serverError}
+        {startedFrom && (
+          <p className={styles.hint} data-testid="trade-started-from">
+            {startedFrom}
           </p>
         )}
-
+        {notice && <p className={styles.hint}>{notice}</p>}
         <div className={styles.section}>
           <label className={styles.sectionLabel}>TRADE WITH:</label>
           <div className={styles.players}>
@@ -296,12 +305,19 @@ export function TradeBuilder({
           </div>
         )}
 
+        {/* Next to the buttons: at the top of a long form the reason would be off screen. */}
+        {(error || serverError) && (
+          <p className={styles.error} role="alert" data-testid="trade-error">
+            {error || serverError}
+          </p>
+        )}
+
         <div className={styles.actions}>
           <Button variant="secondary" onClick={handleCancel} data-testid="cancel-trade">
             CANCEL
           </Button>
           <Button onClick={handleSubmit} disabled={submitting} data-testid="propose-trade">
-            PROPOSE TRADE
+            {submitting ? 'SENDING…' : 'PROPOSE TRADE'}
           </Button>
         </div>
       </div>
