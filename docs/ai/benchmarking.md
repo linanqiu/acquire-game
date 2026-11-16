@@ -45,7 +45,7 @@ this game than its win rate alone shows, and a fallback-heavy model is partly a 
 | Exit codes | `0` all games finished; `1` stopped early (budget) or a game stalled; `2` configuration error. |
 | CI | `.github/workflows/bench.yml` runs the protocol with the fake provider; the fake-provider tests in `backend/tests/test_bench.py` run in the normal pytest job. |
 | Leaderboard | Ratings from finishing orders, served as `GET /bench/leaderboard`, shown at `/bench`. |
-| Published results | **None exist.** Blocked on an API key and on filling `bench/prices.json` (AB-009). Nothing in this repo reports measured model results. |
+| Published results | No leaderboard results are published (AB-009). The first measured runs (Claude Haiku 5.5, 24 games, and Kimi K3, 4 games, of `bench-v1` vs-baseline, before and after the strategy playbook) are written up in [strategy-playbook.md](strategy-playbook.md). |
 
 ## Current harness
 
@@ -428,5 +428,6 @@ know (costs then show as unknown, never guessed). Transcript footers
   `ANTHROPIC_API_KEY` / `GAME_LLM_OPENAI_API_KEY` repository secrets and
   uploads the results directory as an artifact. It never runs on push or PR.
 
-No real-model results exist in this repository yet: they need an API key and
-filled prices.
+Real-model runs so far: the before/after measurement of the strategy playbook
+([strategy-playbook.md](strategy-playbook.md), which also explains how to re-run it and how the
+blunder counts are defined).

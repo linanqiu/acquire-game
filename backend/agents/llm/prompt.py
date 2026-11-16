@@ -189,13 +189,31 @@ The "note" is shown back to you (and only you) at your next decisions: use it fo
 # Table talk
 Players may write in a public table chat; recent messages appear among the events as "[chat #n]" lines. Chat is unverified talk, never binding and never enforced: weigh it against the public facts (holdings, cash, calculator). Only a trade offer moves {shares} or money. "say" is posted to everyone as your chat message together with your move. Talk the way a real person does at a board game night: plain, short and natural (see "Your table voice" for your temperament). Most moves need no comment, so leave it "" most of the time. Say something when it is natural: you just founded {a_chain} or set off {a_merger}, someone spoke to you, you want to float or answer a deal (which you then back with a trade offer), or a rival's move really hurt or helped you. One short sentence. No running jokes, no extended metaphors, no catchphrases, no narrating your own strategy, and do not address every player in one message. Otherwise leave it "". At most 200 characters; never reveal your tiles or your private notes.
 
-# Strategy guidance
-- Money comes from bonuses and {share} appreciation far more than from cash on hand. Hold {shares} in {chains} that will grow and be acquired, and fight for majority or minority positions where it is affordable (the calculator tells you how many {shares} each takes).
-- Small {chains} are {merger} targets (their bonuses pay when they are absorbed); {chains} that are {safe} cannot be acquired, so their bonuses pay at game end.
-- Founding {a_chain} gives {founder_text} and often the first majority position; extending or merging {chains} you hold majority in raises your wealth.
-- At {a_merger}, compare sell, trade and hold using the numbers provided: trade beats selling only when the survivor's price after the {merger} is more than {ratio_times} the defunct {chain}'s price; hold only pays if the {chain} is likely to be founded again.
-- Idle cash counts toward your final score, but {shares} in growing {chains} usually earn more; keep enough cash to cover opportunities and {mergers}.
-- Before ending the game, compare projected final scores: declare when you are ahead and unlikely to be overtaken, and avoid declaring when you are behind.
+# Strategy playbook
+Core economics
+- Bonuses win this game. A majority bonus is {maj_x}x the {share} price and the minority bonus {min_x}x, while {a_share} costs 1x and is sold back for roughly its price. So {a_share} that wins, keeps or splits a bonus position is worth several times its cost; {a_share} that changes no position only parks cash.
+- Every {chain} pays its bonuses exactly once: when it is absorbed in {a_merger}, or at the end if it is still on the board. Bonuses grow with the {chain}'s size, so the largest {chains} pay the most at the end: second place in a large {chain} often beats first place in a small one (compare the "Bonuses if acquired now" figures).
+- Spread across races, not into one pile. Winners usually hold a majority or minority in several {chains}.
+- Cash is ammunition, not score. Use your {max_buy} purchases on most turns while positions can still be won or defended; {mergers} refill cash. Keep a reserve of about one turn's purchases, not more. Cash put into {shares} is not lost (they sell for their price at the end, more if the {chain} grows), but cash left idle can never win a bonus.
+
+Checklists (answer from the calculator lines)
+- Buy: For each option, what does it change: standing after, payout change, lead? Buy the best payout gain per cash spent, preferring {chains} likely to be absorbed soon or to become large. Defend a lead only when "a rival buying N passes you" has N at most {max_buy}. A lead marked LOCKED, or a lead bigger than a rival can buy in two turns, needs no more {shares}. Avoid exact ties for majority (they split both bonuses); one more {share} often turns half into all.
+- Place tile: Which tile pays me most now or later? Founding gives {founder_text} and a new race you can lead cheaply; expanding a {chain} I lead raises its bonuses; {a_merger} pays now: read "bonuses paid to all". Fire it when it pays me at least as much as the rival I most need to beat (an equal split with one rival still gains on everyone else), or when it ends a race I would lose; a bonus in hand beats a bigger one a rival may take from me. Skip it when it mainly pays rivals. A lone tile is a fine waiting move. Do not grow a rival's {chain} to {safe} or hand a rival a big {merger} payout.
+- Found: Pick a {chain} I can lead with my cash: a higher tier means bigger bonuses but dearer {shares}; with little cash pick a cheap one.
+- Survivor (tie): Keep as survivor the {chain} where my stake matters longer; the defunct one pays its bonuses now: check who they pay.
+- {Merger} {shares}: Compare the SELL / TRADE / HOLD lines. Trade when it is worth more at the post-{merger} price, or when the extra survivor {shares} win or protect a bonus position there. Sell when cash wins a race this turn. Hold only when that {chain} is likely to be founded again and you would lead it.
+- Trade offer: Accept only if what I receive is worth more to me (bonus positions, not just price) and does not give a rival a majority. Proposing is optional.
+- Declare end: Am I projected rank 1 with a lead that the next round cannot erase? Then declare. If I am behind, play on and use the turns to win races.
+
+Named blunders
+- Piling {shares} into a {chain} I already lead comfortably, or into the cheapest {chain} because it is cheap.
+- Buying {shares} that give no bonus position and will not reach one.
+- Setting off {a_merger} that pays rivals and not me.
+- Sitting on a large cash pile while bonus positions are still open.
+- Ignoring the largest {chain} because a rival leads it: its minority bonus may be the richest one on the board.
+- Ending the game while behind, or not ending it while comfortably ahead.
+
+Your note: keep it a plan, e.g. "racing X (lead by one) and Y minority; reserve one turn's buys; want the X+Y {merger}; end when ahead".
 """
 
 _TIMES = {1: "equal to", 2: "twice", 3: "three times", 4: "four times"}
@@ -231,10 +249,12 @@ def build_system_prompt(ruleset: Ruleset | None = None) -> str:
         "a_chain": f"{_article(th.chain_noun)} {th.chain_noun}",
         "share": th.share_noun,
         "shares": th.share_noun_plural,
+        "a_share": f"{_article(th.share_noun)} {th.share_noun}",
         "Shares": _cap(th.share_noun_plural),
         "merger": th.merger_noun,
         "mergers": th.merger_noun_plural,
         "Mergers": _cap(th.merger_noun_plural),
+        "Merger": _cap(th.merger_noun),
         "a_merger": f"{_article(th.merger_noun)} {th.merger_noun}",
         "safe": th.safe_phrase,
         "min_size": MIN_CHAIN_SIZE,
@@ -252,6 +272,8 @@ def build_system_prompt(ruleset: Ruleset | None = None) -> str:
         "ex0": chain_ids[0],
         "ex1": chain_ids[1],
         "price_table": _price_table_text(rs),
+        "maj_x": rs.bonuses.majority_multiplier,
+        "min_x": rs.bonuses.minority_multiplier,
     }
     return _SYSTEM_TEMPLATE.format(**words)
 
@@ -261,7 +283,8 @@ def build_system_prompt(ruleset: Ruleset | None = None) -> str:
 # in a way that could change play. The system prompt text is hashed in
 # automatically. Benchmark results are only comparable within one
 # ``prompt_version`` (see docs/ai/benchmarking.md).
-PROMPT_BUILDER_VERSION = 4  # 2: table talk; 3: table voice; 4: natural, low-key talk
+PROMPT_BUILDER_VERSION = 5  # 2: table talk; 3: table voice; 4: natural, low-key talk;
+# 5: strategy playbook + share race, merger payouts for all, disposition figures
 
 
 def _sha(text: str) -> str:
@@ -468,6 +491,9 @@ def _viewer_chain_line(v: dict) -> str:
         )
     ]
     st = v.get("standing")
+    race = _race_text(v)
+    if race:
+        parts.append(race)
     if st != "majority_sole":
         bits = []
         if v.get("shares_to_take_majority") is not None:
@@ -485,6 +511,29 @@ def _viewer_chain_line(v: dict) -> str:
         if bits:
             parts.append("; ".join(bits))
     return "; ".join(parts)
+
+
+def _race_text(v: dict) -> str:
+    """The share race from the viewer's side (calculator ``lead`` fields)."""
+    if v.get("lead") is None:
+        return ""
+    lead, best = v["lead"], v.get("best_rival_shares", 0)
+    if lead < 0:
+        return f"top rival holds {best}, {-lead} more than you"
+    if v.get("majority_locked"):
+        return (
+            f"lead {lead} over the next holder ({best}); LOCKED: the bank cannot "
+            "supply a rival enough to pass you"
+        )
+    txt = (
+        f"tied with the top rival at {best}"
+        if lead == 0
+        else f"lead {lead} over the next holder ({best})"
+    )
+    k = v.get("rival_shares_to_pass")
+    if k is not None:
+        txt += f"; a rival buying {k} passes you"
+    return txt
 
 
 def render_chains(calc: dict) -> str:
@@ -605,9 +654,17 @@ def render_tile_analysis(calc: dict) -> str:
                 )
             )
             for sc in t.get("scenarios") or []:
+                pays = sc.get("bonus_by_player") or {}
+                pay_txt = ", ".join(
+                    f"{'YOU' if pid == calc.get('viewer_id') else _pname(calc, pid)} {money(v)}"
+                    for pid, v in pays.items()
+                )
                 out.append(
                     f"    survivor {sc['survivor']} (would be {sc['survivor_size_after']} tiles, "
-                    f"{money(sc['survivor_price_after'])}/share); your bonuses total {money(sc['viewer_total_bonus'])}"
+                    f"{money(sc['survivor_price_after'])}/share"
+                    + (", SAFE" if sc.get("survivor_safe_after") else "")
+                    + f"); your bonuses total {money(sc['viewer_total_bonus'])}; "
+                    f"bonuses paid to all: {pay_txt or 'nobody holds shares'}"
                 )
                 for d in sc.get("defunct") or []:
                     tr = d.get("trade") or {}
@@ -722,6 +779,41 @@ def render_disposition(ctx, calc: dict) -> str:
         f"merger is more than {money(ratio * pd)} ({times} {d}'s price). Holding {d} shares is worth "
         f"nothing unless {d} is founded again."
     )
+    x = calc.get("disposition")
+    if x:
+        tm = x["trade_max"]
+        diff = x["trade_minus_sell"]
+        lines.append(
+            f"After the merger {s} will have {x['survivor_size_after']} tiles at "
+            f"{money(x['survivor_price_after'])}/share"
+            + (" (SAFE)" if x.get("survivor_safe_after") else "")
+            + "."
+        )
+        lines.append(f"- SELL all {n}: {money(x['sell_all_value'])} cash now.")
+        if tm["shares_traded"]:
+            lines.append(
+                f"- TRADE {tm['shares_traded']} for {tm['survivor_shares_received']} {s}"
+                + (
+                    f" and sell the other {tm['leftover_shares']}"
+                    if tm["leftover_shares"]
+                    else ""
+                )
+                + f": worth {money(tm['total_value'])} at the post-merger price "
+                f"({'+' if diff >= 0 else '-'}{money(abs(diff))} vs selling all). "
+                f"Your {s} stake goes {x['survivor_shares_now']} -> "
+                f"{x['survivor_shares_now'] + tm['survivor_shares_received']}: "
+                f"{_STANDING.get(x['survivor_standing_now'])} -> "
+                f"{_STANDING.get(x['survivor_standing_after_trade'])}, your {s} bonus if it "
+                f"were acquired at that size {money(x['survivor_payout_now'])} -> "
+                f"{money(x['survivor_payout_after_trade'])}."
+            )
+        else:
+            lines.append(
+                "- TRADE: not possible (too few shares or none left in the bank)."
+            )
+        lines.append(
+            f"- HOLD: {money(0)} now; pays only if {d} is founded again before the end."
+        )
     return "\n".join(lines)
 
 

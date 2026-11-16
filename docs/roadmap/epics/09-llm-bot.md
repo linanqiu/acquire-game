@@ -92,9 +92,10 @@ decision (LO-004).
 | [LO-006](../stories/09-llm-opponents/LO-006.md) | Benchmark harness (built as `backend/bench`; see Epic 12) | complete (harness; rest moved to Epic 12) | LO-003 |
 | [LO-007](../stories/09-llm-opponents/LO-007.md) | Observability: per-decision log (replaced by transcripts, AB-001) | superseded by AB-001, AB-002 | LO-003 |
 | [LO-008](../stories/09-llm-opponents/LO-008.md) | Public table chat; LLM seats talk and negotiate (owner decision 2026-11-15) | complete | LO-003, LO-005, AB-001 |
+| [LO-009](../stories/09-llm-opponents/LO-009.md) | Strategy playbook and strategy figures in the prompt, measured with the bench (owner request 2026-11-15) | complete | LO-002, ES-004, AB-003 |
 
-Status as of 2026-11-15: **2 of 7 active stories complete** (LO-008 table chat; LO-006, the
-headless harness); LO-001..LO-005 are partly built (see the status note at the bottom of each story);
+Status as of 2026-11-16: **3 of 8 active stories complete** (LO-009 strategy playbook; LO-008
+table chat; LO-006, the headless harness); LO-001..LO-005 are partly built (see the status note at the bottom of each story);
 LO-007 is superseded. The benchmark as a product (protocol, standalone CLI/API contract, ratings,
 leaderboard, first results) and transcripts moved to [Epic 12](12-bench.md). Changes caused
 by the 2026-11-14 owner decisions: LO-003 (retry loop, notice, seat marker), LO-005 (fallback marker,
