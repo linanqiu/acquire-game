@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useGameStore } from '../store/gameStore'
-import type { MergerRecord } from '../types/api'
 import {
+  NOW_TAB,
   autoSwitchTarget,
+  eventSwitch,
   isTypingInChat,
   readTab,
   storageKey,
@@ -29,18 +30,21 @@ export interface GameTabsOptions {
   myPlaceTurn?: boolean
   /** The viewer's player id: their own chat lines never count as unread. */
   myId?: string
-  mergers?: MergerRecord[]
-  /** The tab that holds the merger log (it gets the "merger result arrived" dot). */
-  logTab: string
+  /**
+   * Keys of what needs me or is happening now (my decisions, offers for me, a merger starting
+   * or resolving). A key not seen before takes the page to the decision tab (once), or puts a
+   * badge on it (see `eventSwitch`).
+   */
+  events?: string[]
   /** Injected for tests; default: looks at the chat input on the page. */
   isTyping?: () => boolean
 }
 
 /**
- * Which tab is open on a game page, and the badges of the others: unread chat, a new merger,
- * my tile to place while the Board is hidden. The choice is remembered per room for the
- * session. The only automatic switch is to the Board when my place-tile turn starts on a
- * phone, and never while I am typing in the chat.
+ * Which tab is open on a game page, and the badges of the others: unread chat, something new
+ * in the decision tab, my tile to place while the Board is hidden. The choice is remembered per
+ * room for the session. Automatic switches (never while I am typing in the chat): to the Board
+ * when my place-tile turn starts on a phone, and to the decision tab once per new event.
  */
 export function useGameTabs({
   room,
@@ -49,12 +53,13 @@ export function useGameTabs({
   fallback,
   myPlaceTurn = false,
   myId,
-  mergers,
-  logTab,
+  events = [],
   isTyping = isTypingInChat,
 }: GameTabsOptions) {
   const key = storageKey(scope, room)
   const [chosen, setChosen] = useState<string | null>(() => readTab(key))
+  // A tab remembered from before a reload: what is pending now is not news (badge only).
+  const [restored] = useState(() => readTab(key) !== null)
   const selected = visibleTab(chosen, available, fallback)
   const hasBoardTab = available.includes('board')
 
@@ -64,6 +69,7 @@ export function useGameTabs({
 
   // Auto-switch on the start of my place-tile turn ("adjust state when a prop changes").
   const [wasMyPlaceTurn, setWasMyPlaceTurn] = useState(myPlaceTurn)
+  let boardSwitch = false
   if (wasMyPlaceTurn !== myPlaceTurn) {
     setWasMyPlaceTurn(myPlaceTurn)
     const target = autoSwitchTarget({
@@ -74,7 +80,26 @@ export function useGameTabs({
       typing: isTyping(),
     })
     if (target) setChosen(target)
+    boardSwitch = target !== null
   }
+
+  // New events: to the decision tab once each, or a badge on it.
+  const signature = events.join('|')
+  const [prevSignature, setPrevSignature] = useState<string | null>(null)
+  const [seen, setSeen] = useState<string[] | null>(null)
+  const [nowBadge, setNowBadge] = useState(false)
+  if (signature !== prevSignature) {
+    setPrevSignature(signature)
+    const first = seen === null
+    const known = new Set(seen ?? (restored ? events : []))
+    const fresh = events.filter((e) => !known.has(e))
+    setSeen([...known, ...fresh].slice(-200))
+    const result = eventSwitch({ fresh, selected, typing: isTyping(), boardSwitch })
+    if (result.target) setChosen(result.target)
+    if (result.badge || (first && restored && events.length > 0 && selected !== NOW_TAB))
+      setNowBadge(true)
+  }
+  if (nowBadge && selected === NOW_TAB) setNowBadge(false)
 
   // Unread chat: lines from others after the last one seen on the Chat tab.
   const messages = useGameStore((s) => s.chatMessages)
@@ -90,24 +115,12 @@ export function useGameTabs({
   useEffect(() => writeTab(seenKey, String(floor)), [seenKey, floor])
   const chatUnread = selected === 'chat' ? 0 : unreadCount(messages, floor, myId)
 
-  // A merger result arrived that the viewer has not looked at in the log yet. Mergers that
-  // were there when the page first opened count as seen.
-  const maxSeq = mergers?.length ? Math.max(...mergers.map((m) => m.seq)) : 0
-  const mergerKey = `merger-seen:${scope}:${room}`
-  const [mergerSeen, setMergerSeen] = useState<number | null>(() => readNumber(mergerKey))
-  if (mergers && (mergerSeen === null || (selected === logTab && mergerSeen < maxSeq))) {
-    setMergerSeen(maxSeq)
-  }
-  useEffect(() => {
-    if (mergerSeen !== null) writeTab(mergerKey, String(mergerSeen))
-  }, [mergerKey, mergerSeen])
-  const newMerger = mergerSeen !== null && maxSeq > mergerSeen && selected !== logTab
-
   return {
     selected,
     select: setChosen as (id: string) => void,
     chatUnread,
-    newMerger,
+    /** Something new in the decision tab that I have not looked at. */
+    nowBadge: nowBadge && selected !== NOW_TAB,
     /** My tile to place while the Board tab is not open (phones). */
     boardMarker: hasBoardTab && myPlaceTurn && selected !== 'board',
   }

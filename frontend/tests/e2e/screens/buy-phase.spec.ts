@@ -31,7 +31,7 @@ test('buy phase: prices and availability shown, 3-share cap, buy a mix', async (
     const c = active_chains[chain]
     await expect(buyRow(page, chain).getByTestId('buy-price')).toHaveText(dollars(c.price))
     await expect(buyRow(page, chain).getByTestId('buy-size')).toHaveText(`${c.size} tiles`)
-    await expect(buyRow(page, chain).getByTestId('buy-available')).toHaveText(`[${c.available}]`)
+    await expect(buyRow(page, chain).getByTestId('buy-available')).toHaveText(`${c.available} left`)
   }
 
   // A chain the bank has sold out of cannot be bought at all.

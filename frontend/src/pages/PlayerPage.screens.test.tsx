@@ -55,41 +55,42 @@ beforeEach(() => {
   useGameStore.getState().reset()
 })
 
-/** The panel the player is looking at, by the real phase and who the server waits on. */
-const PANELS = [
-  'placement-actions',
-  'chain-selector',
-  'merger-disposition',
-  'end-turn-button',
-  'waiting-message',
-  'game-over',
-]
-const visiblePanels = () => PANELS.filter((id) => screen.queryByTestId(id) !== null)
-
 describe('which screen each real game state shows', () => {
-  // [panel, phase banner]
+  // [decision view, phase banner]: the decision tab ("Now", BL-011) by the real phase and who
+  // the server waits on.
   const expected: Record<string, [string, string | RegExp]> = {
-    'opening-place-tile': ['placement-actions', 'PLACE A TILE'],
-    'dead-tile-in-hand': ['placement-actions', 'PLACE A TILE'],
-    'safe-chain-on-board': ['placement-actions', 'PLACE A TILE'],
-    'three-player-midgame': ['placement-actions', 'PLACE A TILE'],
-    'six-player-midgame': ['placement-actions', 'PLACE A TILE'],
-    'end-game-available': ['placement-actions', 'PLACE A TILE'],
-    'found-chain-choice': ['chain-selector', 'CHOOSE A HOTEL CHAIN'],
-    'merger-survivor-tie': ['chain-selector', 'CHOOSE THE SURVIVING HOTEL CHAIN'],
-    'disposition-human-first': ['merger-disposition', 'DISPOSE YOUR SHARES'],
+    'opening-place-tile': ['place', 'PLACE A TILE'],
+    'dead-tile-in-hand': ['place', 'PLACE A TILE'],
+    'safe-chain-on-board': ['place', 'PLACE A TILE'],
+    'three-player-midgame': ['place', 'PLACE A TILE'],
+    'six-player-midgame': ['place', 'PLACE A TILE'],
+    'end-game-available': ['place', 'PLACE A TILE'],
+    'found-chain-choice': ['found', 'CHOOSE A HOTEL CHAIN'],
+    'merger-survivor-tie': ['survivor', 'CHOOSE THE SURVIVING HOTEL CHAIN'],
+    'disposition-human-first': ['disposition', 'DISPOSE YOUR SHARES'],
     // Not my turn, but I am the one the table waits on.
-    'disposition-trade-limited': ['merger-disposition', 'DISPOSE YOUR SHARES'],
-    'multi-chain-merger': ['merger-disposition', 'DISPOSE YOUR SHARES'],
-    'disposition-waiting-on-other': ['waiting-message', /TURN$/],
-    'trade-incoming-not-my-turn': ['waiting-message', /TURN$/],
-    'buy-phase-multi-chain': ['end-turn-button', 'BUY STOCKS'],
-    'low-cash': ['end-turn-button', 'BUY STOCKS'],
-    'last-turn-before-game-over': ['end-turn-button', 'BUY STOCKS'],
-    'trade-incoming': ['end-turn-button', 'BUY STOCKS'],
-    'trade-outgoing-pending': ['end-turn-button', 'BUY STOCKS'],
+    'disposition-trade-limited': ['disposition', 'DISPOSE YOUR SHARES'],
+    'multi-chain-merger': ['disposition', 'DISPOSE YOUR SHARES'],
+    // Someone else decides in a merger: the whole merger, read-only.
+    'disposition-waiting-on-other': ['merger', /TURN$/],
+    'trade-incoming-not-my-turn': ['waiting', /TURN$/],
+    'buy-phase-multi-chain': ['buy', 'BUY STOCKS'],
+    'low-cash': ['buy', 'BUY STOCKS'],
+    'last-turn-before-game-over': ['buy', 'BUY STOCKS'],
+    'trade-incoming': ['buy', 'BUY STOCKS'],
+    'trade-outgoing-pending': ['buy', 'BUY STOCKS'],
     'game-over': ['game-over', 'GAME OVER'],
     'game-over-tie': ['game-over', 'GAME OVER'],
+  }
+  // The controls of each view: present in that view only.
+  const CONTROLS: Record<string, string> = {
+    place: 'placement-actions',
+    found: 'chain-selector',
+    survivor: 'chain-selector',
+    disposition: 'merger-disposition',
+    buy: 'end-turn-button',
+    merger: 'waiting-message',
+    waiting: 'waiting-message',
   }
 
   it('has a row for every recorded state', () => {
@@ -97,19 +98,31 @@ describe('which screen each real game state shows', () => {
   })
 
   it.each(Object.entries(expected))(
-    '%s shows only its own panel and banner',
-    (name, [panel, banner]) => {
+    '%s shows only its own decision and banner',
+    (name, [view, banner]) => {
       loadSnapshotAsPlayer(name)
       renderPage()
-      expect(visiblePanels()).toEqual([panel])
       const phaseBar = screen.getByTestId('game-phase')
       expect(phaseBar).toHaveTextContent(banner)
-      // "Your turn" signal: the phase bar and the action card carry the accent exactly when the
-      // table waits on me; the words say it too.
-      if (panel === 'game-over') return
-      const mine = panel !== 'waiting-message'
+      if (view === 'game-over') {
+        expect(screen.getByTestId('game-over')).toBeInTheDocument()
+        expect(screen.queryByTestId('decision-view')).not.toBeInTheDocument()
+        return
+      }
+      expect(screen.getByTestId('decision-view')).toHaveAttribute('data-view', view)
+      const present = [...new Set(Object.values(CONTROLS))].filter(
+        (id) => screen.queryByTestId(id) !== null
+      )
+      expect(present).toEqual([CONTROLS[view]])
+      // "Your turn" signal: the phase bar and the status line carry the accent exactly when
+      // the table waits on me (or an offer waits for my answer); the words say it too.
+      const mine = view !== 'merger' && view !== 'waiting'
       expect(phaseBar).toHaveAttribute('data-turn', mine ? 'mine' : 'other')
-      expect(screen.getByTestId('action-panel').className.includes('actionMine')).toBe(mine)
+      const offerForMe = name === 'trade-incoming-not-my-turn'
+      expect(screen.getByTestId('status')).toHaveAttribute(
+        'data-turn',
+        mine || offerForMe ? 'mine' : 'other'
+      )
     }
   )
 
@@ -140,10 +153,11 @@ describe('placing a tile', () => {
     expect(screen.queryByTestId('place-tile-button')).not.toBeInTheDocument()
     const pick = view.expect.human.hand[0]
     fireEvent.click(rackTile(pick))
-    expect(screen.getByText(pick, { selector: 'strong' })).toBeInTheDocument()
+    // The status line names the pick next to PLACE TILE.
+    expect(screen.getByTestId('status-line')).toHaveTextContent(`Place ${pick}?`)
     fireEvent.click(screen.getByTestId('place-tile-button'))
     expect(lastAction()).toEqual({ action: 'place_tile', tile: pick })
-    expect(screen.queryByText(pick, { selector: 'strong' })).not.toBeInTheDocument()
+    expect(screen.getByTestId('status-line')).toHaveTextContent('Your move: place a tile')
   })
 
   it('a tile the engine calls dead cannot be picked, and the rack says why', () => {
@@ -317,7 +331,7 @@ describe('buying shares', () => {
   it('a chain the bank has sold out cannot be bought; cash caps what is affordable', () => {
     loadSnapshotAsPlayer('buy-phase-multi-chain')
     renderPage()
-    expect(within(row('halcyon')).getByTestId('buy-available')).toHaveTextContent('[0]')
+    expect(within(row('halcyon')).getByTestId('buy-available')).toHaveTextContent('0 left')
     expect(within(row('halcyon')).getByTestId('stepper-increment')).toBeDisabled()
     expect(within(row('obsidian')).getByTestId('stepper-increment')).not.toBeDisabled()
   })
@@ -352,9 +366,9 @@ describe('trades', () => {
     const view = loadSnapshotAsPlayer('trade-incoming')
     renderPage()
     const [offer] = stateOf(view).incoming_trades
-    // Offers waiting for my answer are in the "now" area, whatever tab is open.
+    // Offers waiting for my answer are decisions: in the decision tab, first.
     const offers = screen.getByTestId('trade-incoming')
-    expect(within(screen.getByTestId('now-area')).getByTestId('trade-incoming')).toBe(offers)
+    expect(within(screen.getByTestId('decision-view')).getByTestId('trade-incoming')).toBe(offers)
     expect(screen.getByTestId('tab-badge-trades')).toHaveTextContent('1')
     fireEvent.click(within(offers).getByTestId(`trade-${button}-${offer.trade_id}`))
     expect(lastAction()).toEqual({ action, trade_id: offer.trade_id })

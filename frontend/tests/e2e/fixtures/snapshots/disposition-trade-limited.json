@@ -331,6 +331,48 @@
           "obsidian": 2
         },
         "survivor": "obsidian",
+        "survivor_after": {
+          "bank": 3,
+          "holders": [
+            {
+              "bonus": 7000,
+              "majority": 7000,
+              "minority": 0,
+              "player_id": "p3",
+              "received": 0,
+              "role": "majority",
+              "shares": 9,
+              "tied": false,
+              "undecided": true
+            },
+            {
+              "bonus": 3500,
+              "majority": 0,
+              "minority": 3500,
+              "player_id": "p1",
+              "received": 0,
+              "role": "minority",
+              "shares": 7,
+              "tied": false,
+              "undecided": true
+            },
+            {
+              "bonus": 0,
+              "majority": 0,
+              "minority": 0,
+              "player_id": "p2",
+              "received": 0,
+              "role": null,
+              "shares": 6,
+              "tied": false,
+              "undecided": true
+            }
+          ],
+          "majority_bonus": 7000,
+          "minority_bonus": 3500,
+          "price": 700,
+          "size": 5
+        },
         "survivor_size": null,
         "tile": "6H"
       }

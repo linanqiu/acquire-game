@@ -196,6 +196,28 @@ export interface MergerRecord {
   /** Survivor size after the merger; null while in progress. */
   survivor_size: number | null
   complete: boolean
+  /** The survivor as it will be after the merger (engine); null once complete. */
+  survivor_after?: SurvivorAfter | null
+}
+
+/** A survivor holder after the merger: shares now (trades made in this merger included). */
+export interface SurvivorAfterHolder extends ChainHolder {
+  /** Survivor shares received by trading in this merger so far. */
+  received: number
+  /** Still holds defunct shares to dispose of (may trade more). */
+  undecided: boolean
+}
+
+/** The surviving chain once the merger ends: engine size, price, bonuses at that size. */
+export interface SurvivorAfter {
+  size: number
+  price: number
+  majority_bonus: number
+  minority_bonus: number
+  /** Survivor shares left in the bank now. */
+  bank: number
+  /** Most shares first; undecided players without survivor shares last (0 shares). */
+  holders: SurvivorAfterHolder[]
 }
 
 export interface LobbyUpdateMessage {

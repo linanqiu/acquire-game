@@ -48,12 +48,11 @@ test('reload during a stock disposition: the same card with the same limits come
 
   await page.reload()
   await expect(phaseBanner(page)).toHaveText('DISPOSE YOUR SHARES')
-  await expect(
-    page.getByText(`DISPOSE OF YOUR ${legal.defunct_chain.toUpperCase()} SHARES`)
-  ).toBeVisible()
-  await expect(page.getByTestId('merger-disposition')).toContainText(
-    `You have: ${legal.stock_count}`
+  await expect(page.getByTestId('merger-disposition')).toHaveAttribute(
+    'data-defunct',
+    legal.defunct_chain
   )
+  await expect(page.getByTestId('disposition-title')).toContainText(`shares: ${legal.stock_count}`)
   await expect(
     page.getByTestId(`slider-trade-2:1-for-${legal.surviving_chain.toLowerCase()}`)
   ).toHaveAttribute('max', String(legal.max_trade))

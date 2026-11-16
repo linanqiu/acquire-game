@@ -503,6 +503,19 @@ driver, the one action path), `lifecycle.py` (start / host-forced end),
     as paid); `waiting_on` are the stockholders still to decide on the chain
     being processed (`merger_history`). The snapshot fixtures' `expect` block
     carries the same three (`net_worth`, `chain_holders`, `mergers`).
+  - Each merger also has `survivor_after` (BL-011): `null` once complete;
+    while in progress `{size, price, majority_bonus, minority_bonus, bank,
+    holders: [{player_id, shares, received, undecided, role, tied, majority,
+    minority, bonus}]}`, the surviving chain as it will be when the merger
+    ends. `size` is `Board.absorb_merger` (the engine's own finalisation) run
+    on a copy of the board, `price` and bonuses are the hotel's for that size,
+    `bank` is the survivor's stock left now. Holders are the survivor's
+    shareholders now (trades already made in this merger included; `received`
+    = survivor shares got by trading in it), plus, with 0 shares, players who
+    still hold defunct shares and may trade (`undecided: true`). Roles and
+    amounts are `Rules.calculate_bonuses` at the post-merger size with today's
+    holdings: exact once nobody still to decide trades (tier 1:
+    `test_public_table.py`).
 - Starting needs `max(room.min_players, Game.MIN_PLAYERS)` = 3 seats (the
   room said 2; starting with 2 used to 500 and leave the room stuck).
 - Disconnects: unchanged -- a closed socket is dropped; nothing is skipped on a

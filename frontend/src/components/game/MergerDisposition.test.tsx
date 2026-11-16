@@ -106,12 +106,30 @@ describe('MergerDisposition', () => {
   ])('%s: names the chains, shares and takeover in the ruleset words', (_name, rs) => {
     mount({}, rs)
     const text = document.body.textContent
-    expect(text).toContain(rs.chains[0].name.toUpperCase())
-    expect(text).toContain(rs.theme.share_noun_plural.toUpperCase())
-    expect(text).toContain(`Price at ${rs.theme.merger_noun}`)
+    expect(text).toContain(`${rs.chains[0].name} ${rs.theme.share_noun_plural}`)
+    expect(text).toContain(`price at ${rs.theme.merger_noun}`)
+    expect(text).toContain(`count again only if ${rs.chains[0].name} is founded again`)
     expect(trade().closest('div').textContent).toContain(
       `TRADE 2:1 for ${rs.chains[1].name.toUpperCase()}`
     )
+  })
+
+  it('shows the cash after the sale and the survivor shares after the trade, live', () => {
+    const drafts: unknown[] = []
+    mount({
+      sharesOwned: 10,
+      defunctPrice: 500,
+      cash: 3000,
+      survivorShares: 4,
+      onDraftChange: (d: unknown) => drafts.push(d),
+    })
+    expect(screen.getByTestId('disposition-cash-after')).toHaveTextContent('Cash after $3,000')
+    expect(screen.getByTestId('disposition-survivor-after')).toHaveTextContent(/4$/)
+    set(sell(), 2)
+    set(trade(), 6)
+    expect(screen.getByTestId('disposition-cash-after')).toHaveTextContent('Cash after $4,000')
+    expect(screen.getByTestId('disposition-survivor-after')).toHaveTextContent('4 → 7')
+    expect(drafts.at(-1)).toEqual({ sell: 2, trade: 6 })
   })
 
   it("the trade ratio is the ruleset's: at 3:1 the slider steps by three and three shares make one", () => {

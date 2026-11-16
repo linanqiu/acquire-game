@@ -80,3 +80,23 @@ export async function outsideWidth(page: Page, selector: string): Promise<string
 export async function expectFits(page: Page, ids: string[], opts: FitOptions = {}) {
   expect(await layoutProblems(page, ids, opts)).toEqual([])
 }
+
+/** Every square of the board is inside the viewport (the Board tab shows the full board). */
+export async function expectFullBoard(page: Page) {
+  const found = await page.evaluate(() => {
+    const w = document.documentElement.clientWidth
+    const h = document.documentElement.clientHeight
+    const squares = Array.from(
+      document.querySelectorAll('[data-testid="board"] [data-testid^="tile-"]')
+    )
+    return {
+      count: squares.length,
+      outside: squares
+        .map((el) => ({ id: el.getAttribute('data-testid'), r: el.getBoundingClientRect() }))
+        .filter(({ r }) => r.left < -0.5 || r.top < -0.5 || r.right > w + 0.5 || r.bottom > h + 0.5)
+        .map(({ id }) => id),
+    }
+  })
+  expect(found.count, 'board squares').toBeGreaterThan(0)
+  expect(found.outside, 'board squares outside the viewport').toEqual([])
+}

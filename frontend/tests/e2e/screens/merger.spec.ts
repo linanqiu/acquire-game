@@ -31,10 +31,13 @@ async function expectDispositionCard(page: Page, room: RoomContext) {
   const card = page.getByTestId('merger-disposition')
 
   await expect(phaseBanner(page)).toHaveText('DISPOSE YOUR SHARES')
-  await expect(page.getByText(`DISPOSE OF YOUR ${defunct.toUpperCase()} SHARES`)).toBeVisible()
-  await expect(card).toContainText(`You have: ${legal.stock_count}`)
-  await expect(card).toContainText(
-    `Price at merger: ${dollars(active_chains[defunct].price)}/share`
+  await expect(card).toHaveAttribute('data-defunct', defunct)
+  await expect(page.getByTestId('disposition-title')).toContainText(
+    `${defunct} shares: ${legal.stock_count}`,
+    { ignoreCase: true }
+  )
+  await expect(page.getByTestId('disposition-title')).toContainText(
+    `at ${dollars(active_chains[defunct].price)} (price at merger)`
   )
   await expect(card).toContainText(String(d.context.available_to_trade))
   await expect(headerCash(page)).toHaveText(dollars(human.cash))
@@ -88,9 +91,9 @@ test('merger: tie between two equal chains, human picks the survivor', async ({ 
   await page.getByTestId(`chain-button-${survivor.toLowerCase()}`).click()
   expect(human.holdings[defunct] ?? 0).toBeGreaterThan(0)
   await expect(phaseBanner(page)).toHaveText('DISPOSE YOUR SHARES')
-  await expect(page.getByText(`DISPOSE OF YOUR ${defunct.toUpperCase()} SHARES`)).toBeVisible()
-  await expect(page.getByTestId('merger-disposition')).toContainText(
-    `You have: ${human.holdings[defunct]}`
+  await expect(page.getByTestId('merger-disposition')).toHaveAttribute('data-defunct', defunct)
+  await expect(page.getByTestId('disposition-title')).toContainText(
+    `shares: ${human.holdings[defunct]}`
   )
   await shots.take(page, 'disposition-after-choice')
 

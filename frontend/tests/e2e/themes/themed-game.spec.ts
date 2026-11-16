@@ -233,7 +233,7 @@ test('themed game from the home page to the transcript', async ({ page }, testIn
       const coord = founds ?? coords[0]
       log(`turn ${turns}: place ${coord}${founds ? ' (founds)' : ''}`)
       await page.getByTestId('tile-rack').getByTestId(`tile-${coord}`).click()
-      await expect(page.getByText(`Selected: ${coord}`)).toBeVisible()
+      await expect(page.getByTestId('status-line')).toHaveText(`Place ${coord}?`)
       await shots.take(page, `t${turns}-selected-${coord}`)
       await page.getByTestId('place-tile-button').click()
       await expect(phaseBanner).not.toHaveText(PHASE.place)

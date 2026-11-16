@@ -41,7 +41,7 @@
 |------|----------|-------------------|
 | [Real-time Integration](epics/03-realtime-integration.md) | 5/6 | RT-004 (optional) |
 | [Security Hardening](epics/06-security-hardening.md) | 0/5 | SH-002..SH-005 (SH-001 after test pyramid) |
-| [Backlog](epics/08-backlog.md) | 8/10, BL-004 superseded (BL-008 game-page tabs, BL-009 visual pass, BL-010 seat names and badge done) | BL-005 |
+| [Backlog](epics/08-backlog.md) | 9/11, BL-004 superseded (BL-008 game-page tabs, BL-009 visual pass, BL-010 seat names and badge, BL-011 decision tab done) | BL-005 |
 | [LLM Opponents](epics/09-llm-bot.md) | 3/8 (LO-006 harness, LO-008 table chat, LO-009 strategy playbook done; LO-007 superseded) | LO-001..LO-005 partly built; LO-003 needs the 4-retry loop and fallback notice |
 | [Engine Seam](epics/10-engine-seam.md) | 6/6 (ES-001..ES-006) | Complete (fuzz volume: 600 games in the slow tier) |
 | [Test Pyramid](epics/11-test-pyramid.md) | 5/9 (TP-001, TP-004..TP-007) | TP-002, TP-003 partly built; TP-008 workflow written, needs a green PR run; TP-009 (remaining display-state gaps) |

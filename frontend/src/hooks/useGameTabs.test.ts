@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import { useGameTabs, type GameTabsOptions } from './useGameTabs'
 import { useGameStore } from '../store/gameStore'
-import { autoSwitchTarget, shortLabel, unreadCount, visibleTab } from '../lib/gameTabs'
-import type { ChatMessage, MergerRecord } from '../types/api'
+import { autoSwitchTarget, eventSwitch, shortLabel, unreadCount, visibleTab } from '../lib/gameTabs'
+import type { ChatMessage } from '../types/api'
 
 function msg(id: number, player_id = 'p2'): ChatMessage {
   return {
@@ -19,20 +19,7 @@ function msg(id: number, player_id = 'p2'): ChatMessage {
   }
 }
 
-function merger(seq: number): MergerRecord {
-  return {
-    seq,
-    player_id: 'p1',
-    tile: '6C',
-    survivor: 'Halcyon',
-    sizes: {},
-    defunct: [],
-    survivor_size: null,
-    complete: false,
-  }
-}
-
-const PHONE = ['board', 'players', 'chains', 'chat', 'trades']
+const PHONE = ['board', 'now', 'players', 'chains', 'chat', 'trades']
 
 function setup(over: Partial<GameTabsOptions> = {}) {
   const typing = { now: false }
@@ -42,8 +29,7 @@ function setup(over: Partial<GameTabsOptions> = {}) {
     available: PHONE,
     fallback: 'board',
     myId: 'me',
-    logTab: 'trades',
-    mergers: [],
+    events: [],
     isTyping: () => typing.now,
     ...over,
   }
@@ -72,6 +58,15 @@ describe('tab rules', () => {
     expect(autoSwitchTarget({ ...base, wasMyPlaceTurn: true })).toBeNull()
     expect(autoSwitchTarget({ ...base, isMyPlaceTurn: false })).toBeNull()
     expect(autoSwitchTarget({ ...base, selected: 'board' })).toBeNull()
+  })
+
+  it('goes to the decision tab for something new, once; a badge instead while typing or when the Board takes over', () => {
+    const base = { fresh: ['buy:p1:12'], selected: 'chains', typing: false, boardSwitch: false }
+    expect(eventSwitch(base)).toEqual({ target: 'now', badge: false })
+    expect(eventSwitch({ ...base, typing: true })).toEqual({ target: null, badge: true })
+    expect(eventSwitch({ ...base, boardSwitch: true })).toEqual({ target: null, badge: true })
+    expect(eventSwitch({ ...base, selected: 'now' })).toEqual({ target: null, badge: false })
+    expect(eventSwitch({ ...base, fresh: [] })).toEqual({ target: null, badge: false })
   })
 
   it('counts unread lines from others only', () => {
@@ -164,14 +159,53 @@ describe('useGameTabs', () => {
     expect(hook.result.current.chatUnread).toBe(1)
   })
 
-  it('dots the log tab for a merger that arrives while the page is open, until the log is opened', () => {
-    const { hook, props } = setup({ mergers: [merger(5)] })
-    expect(hook.result.current.newMerger).toBe(false) // already there on load
-    hook.rerender({ ...props, mergers: [merger(5), merger(9)] })
-    expect(hook.result.current.newMerger).toBe(true)
-    act(() => hook.result.current.select('trades'))
-    expect(hook.result.current.newMerger).toBe(false)
-    act(() => hook.result.current.select('board'))
-    expect(hook.result.current.newMerger).toBe(false)
+  it('a new decision or merger takes me to the decision tab once per event', () => {
+    const { hook, props } = setup()
+    act(() => hook.result.current.select('chains'))
+    hook.rerender({ ...props, events: ['merger:40'] })
+    expect(hook.result.current.selected).toBe('now')
+    // I leave it; the same event does not pull me back.
+    act(() => hook.result.current.select('players'))
+    hook.rerender({ ...props, events: ['merger:40', 'disposition:40:halcyon'] })
+    expect(hook.result.current.selected).toBe('now') // my disposition is a new event
+    act(() => hook.result.current.select('players'))
+    hook.rerender({ ...props, events: ['merger:40'] })
+    hook.rerender({ ...props, events: ['merger:40', 'disposition:40:halcyon'] })
+    expect(hook.result.current.selected).toBe('players') // seen before: no second yank
+    // The merger resolves: a new event.
+    hook.rerender({ ...props, events: ['merger:40', 'merger-done:40'] })
+    expect(hook.result.current.selected).toBe('now')
+  })
+
+  it('while I type in the chat: no switch, a badge on the decision tab until I open it', () => {
+    const { hook, props, typing } = setup()
+    act(() => hook.result.current.select('chat'))
+    typing.now = true
+    hook.rerender({ ...props, events: ['merger:40'] })
+    expect(hook.result.current.selected).toBe('chat')
+    expect(hook.result.current.nowBadge).toBe(true)
+    typing.now = false
+    hook.rerender({ ...props, events: ['merger:40'] })
+    expect(hook.result.current.selected).toBe('chat') // the event was handled (badge)
+    act(() => hook.result.current.select('now'))
+    expect(hook.result.current.nowBadge).toBe(false)
+  })
+
+  it('my place-tile turn wins: Board, and a badge for what arrived with it', () => {
+    const { hook, props } = setup()
+    act(() => hook.result.current.select('chains'))
+    hook.rerender({ ...props, myPlaceTurn: true, events: ['merger:40', 'merger-done:40'] })
+    expect(hook.result.current.selected).toBe('board')
+    expect(hook.result.current.nowBadge).toBe(true)
+  })
+
+  it('a decision pending on the first state opens the decision tab; after a reload, a badge', () => {
+    const first = setup({ events: ['buy:p1:12'] })
+    expect(first.hook.result.current.selected).toBe('now')
+    first.hook.unmount()
+    sessionStorage.setItem('tab:player:ABCD', 'chains')
+    const reloaded = setup({ events: ['buy:p1:12'] })
+    expect(reloaded.hook.result.current.selected).toBe('chains')
+    expect(reloaded.hook.result.current.nowBadge).toBe(true)
   })
 })

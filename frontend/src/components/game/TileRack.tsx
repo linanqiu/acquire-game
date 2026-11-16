@@ -16,6 +16,8 @@ export interface TileRackProps {
   selectedTile?: Coordinate
   onTileSelect: (coord: Coordinate) => void
   disabled?: boolean
+  /** Show why tiles cannot be played under the rack (phones show them in the decision tab). */
+  notes?: boolean
 }
 
 function playabilityToState(playability: Playability, isSelected: boolean): TileVisualState {
@@ -36,8 +38,8 @@ function isPlayable(playability: Playability): boolean {
   return playability === 'playable' || playability === 'merger'
 }
 
-export function TileRack({ tiles, selectedTile, onTileSelect, disabled = false }: TileRackProps) {
-  // One line per reason ("3F, 3I can't be played: ..."), not one per tile.
+/** Why rack tiles cannot be played, one line per reason ("3F, 3I can't be played: ..."). */
+export function RackNotes({ tiles }: { tiles: RackTile[] }) {
   const groups: Array<[string, Coordinate[]]> = []
   for (const t of tiles) {
     if (isPlayable(t.playability) || !t.reason) continue
@@ -45,7 +47,25 @@ export function TileRack({ tiles, selectedTile, onTileSelect, disabled = false }
     if (group) group[1].push(t.coordinate)
     else groups.push([t.reason, [t.coordinate]])
   }
+  if (groups.length === 0) return null
+  return (
+    <ul className={styles.notes} data-testid="rack-notes">
+      {groups.map(([reason, coords]) => (
+        <li key={reason} data-testid="rack-note" data-tiles={coords.join(' ')}>
+          <strong>{coords.join(', ')}</strong> can't be played: {reason}
+        </li>
+      ))}
+    </ul>
+  )
+}
 
+export function TileRack({
+  tiles,
+  selectedTile,
+  onTileSelect,
+  disabled = false,
+  notes = true,
+}: TileRackProps) {
   return (
     <>
       <div className={styles.rack} data-testid="tile-rack">
@@ -65,15 +85,7 @@ export function TileRack({ tiles, selectedTile, onTileSelect, disabled = false }
           )
         })}
       </div>
-      {groups.length > 0 && (
-        <ul className={styles.notes} data-testid="rack-notes">
-          {groups.map(([reason, coords]) => (
-            <li key={reason} data-testid="rack-note" data-tiles={coords.join(' ')}>
-              <strong>{coords.join(', ')}</strong> can't be played: {reason}
-            </li>
-          ))}
-        </ul>
-      )}
+      {notes && <RackNotes tiles={tiles} />}
     </>
   )
 }
