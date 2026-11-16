@@ -29,12 +29,39 @@
   background-color: var(--held-bg);
 }
 
-/* The marker line, flat (no card of its own here), wrapping instead of overflowing. */
-.head > * {
-  padding: 0;
-  background: none;
-  row-gap: 2px;
-  gap: var(--space-1) var(--space-2);
+/* The marker line: name (and SAFE), then tiles, price and bank stock in three aligned columns
+   under one header at the top of the list. */
+.head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3em 4.5em 3em;
+  align-items: center;
+  column-gap: var(--space-1);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.columns {
+  padding: 0 var(--space-1) 2px var(--space-2);
+  border-left: 2px solid transparent;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.marker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  text-align: left;
+  font-family: var(--font-sans);
+}
+
+.price {
+  color: var(--text-primary);
 }
 
 .roles {

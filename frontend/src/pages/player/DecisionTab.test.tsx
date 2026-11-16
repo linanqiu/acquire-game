@@ -197,7 +197,7 @@ describe('a merger: the whole merger in the decision tab', () => {
     expect(screen.getByTestId('survivor-after-price')).toHaveTextContent(money(exp.price))
     expect(screen.getByTestId('survivor-after-bank')).toHaveTextContent(`bank ${exp.bank}`)
     expect(screen.getByTestId('survivor-after-bonus')).toHaveTextContent(
-      `1st pays ${money(exp.majority_bonus)}, 2nd ${money(exp.minority_bonus)}`
+      `1st ${money(exp.majority_bonus)} · 2nd ${money(exp.minority_bonus)}`
     )
     for (const h of after.holders) {
       const row = screen.getByTestId(`survivor-row-${h.player_id}`)
@@ -273,7 +273,7 @@ describe('a merger: the whole merger in the decision tab', () => {
     }
   })
 
-  it('a merger that finishes while I watch stays readable in the tab until I close it', () => {
+  it('a merger that finishes while I watch stays until the next tile is placed, then goes by itself', () => {
     const view = snapshot('disposition-waiting-on-other')
     deliver(view.player, view.human)
     renderPage()
@@ -295,10 +295,32 @@ describe('a merger: the whole merger in the decision tab', () => {
       'data-merger-seq',
       String(m.seq)
     )
-    fireEvent.click(screen.getByTestId('merger-result-dismiss'))
+    // Nothing to close, and while it is shown in full the quiet line does not repeat it.
+    expect(screen.queryByTestId('merger-result-dismiss')).not.toBeInTheDocument()
+    expect(within(decision()).queryByRole('button', { name: /close/i })).not.toBeInTheDocument()
+    expect(within(decision()).queryByTestId(`merger-log-${m.seq}`)).not.toBeInTheDocument()
+    // Play moves on: the next tile is placed. The result goes by itself.
+    const empty = Object.keys(done.board.cells).find((c) => done.board.cells[c].state === 'empty')
+    const coord = empty ?? '12I'
+    const next = {
+      ...done,
+      phase: 'buy_stocks',
+      board: { cells: { ...done.board.cells, [coord]: { state: 'played', chain: null } } },
+    }
+    act(() => deliver([next], view.human))
     expect(within(decision()).queryByTestId('merger-result')).not.toBeInTheDocument()
-    // Reopen from the latest-merger link.
-    fireEvent.click(screen.getByTestId('decision-last-merger'))
-    expect(within(decision()).getByTestId('merger-result')).toBeInTheDocument()
+    // The outcome is still one tap away, in a quiet line that opens in place and closes again.
+    const line = within(screen.getByTestId('decision-last-merger')).getByTestId(
+      `merger-log-${m.seq}`
+    )
+    expect(line).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(line)
+    expect(line).toHaveAttribute('aria-expanded', 'true')
+    expect(within(decision()).getByTestId('merger-result')).toHaveAttribute(
+      'data-merger-seq',
+      String(m.seq)
+    )
+    fireEvent.click(line)
+    expect(within(decision()).queryByTestId('merger-result')).not.toBeInTheDocument()
   })
 })

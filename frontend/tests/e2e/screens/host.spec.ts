@@ -38,24 +38,30 @@ const cards = (host: Page) => host.getByTestId('player-card')
 /** The host sees the board, every active chain with size/price/stock left, every player's cash. */
 async function expectHostMatchesFixture(host: Page, room: RoomContext) {
   const { active_chains, players } = room.fixture.expect
-  // Phones: the Board, Players and Chains are tabs; wide screens: the board is always there.
+  // Phones: the Board (with the players under it) and Chains are tabs; wide screens: the board
+  // is always there, the players are the first sidebar tab.
   if ((await tab(host, 'board').count()) > 0) await openTab(host, 'board')
   await expect(host.getByTestId('board')).toBeVisible()
   await openTab(host, 'chains')
   for (const [chain, c] of Object.entries(active_chains)) {
-    const marker = host.getByTestId('chain-list').getByTestId(`chain-marker-${chain.toLowerCase()}`)
-    await expect(marker).toContainText(`${c.size} tiles`)
-    await expect(marker).toContainText(dollars(c.price))
-    await expect(marker).toContainText(`[${c.available}]`)
+    const list = host.getByTestId('chain-list')
+    const id = chain.toLowerCase()
+    await expect(list.getByTestId(`chain-marker-${id}`)).toBeVisible()
+    // Three labelled columns: tiles, price, bank.
+    await expect(list.getByTestId(`chain-size-${id}`)).toHaveText(`${c.size} tiles`)
+    await expect(list.getByTestId(`chain-price-${id}`)).toHaveText(`price ${dollars(c.price)}`)
+    await expect(list.getByTestId(`chain-bank-${id}`)).toHaveText(`${c.available} left in the bank`)
   }
-  await openTab(host, 'players')
+  await openTab(host, 'table')
   await expect(cards(host)).toHaveCount(players.length)
   for (const p of players) {
     const card = cards(host).filter({ hasText: p.name })
     await expect(card).toBeVisible()
     await expect(card.getByTestId(/^player-cash-/)).toHaveText(dollars(p.cash))
-    for (const qty of Object.values(p.holdings)) {
-      if (qty > 0) await expect(card.getByTestId('player-stocks')).toContainText(String(qty))
+    for (const [chain, qty] of Object.entries(p.holdings)) {
+      const cell = card.locator(`[data-testid^="player-stock-"][data-testid$="-${chain}"]`)
+      if (qty > 0) await expect(cell).toHaveText(String(qty))
+      else await expect(cell).toHaveCount(0)
     }
   }
 }
@@ -222,35 +228,34 @@ for (const vp of [
     if (tv) {
       // Board, players and chains at once, no tab to open; Chat and Log stay tabs.
       await expect(host.getByTestId('board')).toBeInViewport({ ratio: 1 })
-      await expect(host.getByTestId('pinned-players').getByTestId('scoreboard')).toBeInViewport()
+      await expect(host.getByTestId('pinned-now').getByTestId('scoreboard')).toBeInViewport()
       await expect(host.getByTestId('pinned-chains').getByTestId('chain-list')).toBeInViewport()
-      await expect(tab(host, 'players')).toHaveCount(0)
+      await expect(tab(host, 'now')).toHaveCount(0)
       await expect(tab(host, 'chat')).toBeVisible()
       await expect(tab(host, 'log')).toBeVisible()
-      await expectFits(host, ['board-pane', 'pinned-players', 'pinned-chains', 'tab-list'])
+      await expectFits(host, ['board-pane', 'pinned-now', 'pinned-chains', 'tab-list'])
     }
 
     await expectHostMatchesFixture(host, room)
     await expectNoHorizontalScroll(host)
 
-    const tabs: TabName[] = phone
-      ? ['board', 'players', 'chains', 'chat', 'log']
-      : tv
-        ? ['chat', 'log']
-        : ['players', 'chains', 'chat', 'log']
+    // No separate Players tab: the scoreboard is under the board (phones) or the first tab.
+    await expect(host.getByTestId('tab-players')).toHaveCount(0)
+    const tabs: TabName[] = tv ? ['chat', 'log'] : ['table', 'chains', 'chat', 'log']
     for (const name of tabs) {
       await openTab(host, name)
+      const id = name === 'table' ? (phone ? 'board' : 'now') : name
       await expectFits(host, [
         'game-phase',
         ...(phone ? ['tab-bar'] : ['board-pane', 'tab-list']),
-        `tabpanel-${name}`,
+        `tabpanel-${id}`,
       ])
       await shots.take(host, `host-${vp.label.replace(' ', '-')}-${name}`, { fullPage: false })
     }
     // Every board square and every player card is fully on screen sideways.
     if (phone) await openTab(host, 'board')
     expect(await outsideWidth(host, '[data-testid="board"] [data-testid^="tile-"]')).toEqual([])
-    await openTab(host, 'players')
+    await openTab(host, 'table')
     expect(await outsideWidth(host, '[data-testid="player-card"]')).toEqual([])
   })
 }

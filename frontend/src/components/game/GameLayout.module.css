@@ -1,4 +1,4 @@
-/* In-game layout (BL-008). Fills PageShell's main area; only the panels scroll. */
+/* In-game layout (BL-008, BL-013). Fills PageShell's main area; only the panels scroll. */
 
 /* The board fits both the width and the height of its box: the box is a size container and the
    board reads its height through --board-max-height (see Board.module.css). */
@@ -9,19 +9,46 @@
   --board-max-height: 100cqh;
 }
 
-.panel {
+/* The phone's Board tab: the board at the width of the screen, and under it the table panel
+   (my decision in place, else the players matrix), which scrolls inside itself. The panel is
+   always left some height (--under-min); on a short screen the board gets smaller for it, never
+   cut off. A decision of mine asks for more. */
+.boardTab {
   flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  container-type: size;
+  --under-min: 104px;
+  --board-max-height: calc(100cqh - var(--under-min) - var(--space-2));
+}
+
+.boardTab[data-deciding] {
+  --under-min: min(330px, 58cqh);
+}
+
+.boardBox {
+  flex: none;
+  min-width: 0;
+}
+
+/* The table panel: a scroller of its own, on phones (under the board) and in the sidebar tab. */
+.table {
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  container-type: size;
   display: flex;
   flex-direction: column;
 }
 
-/* The decision tab's content: fills the panel so a pinned footer sits at its bottom. */
-.decision {
-  flex: 1 0 auto;
+.panel {
+  flex: 1 1 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  min-width: 0;
 }
 
 /* ---- Phones ------------------------------------------------------------------------------ */
@@ -59,6 +86,19 @@
   background-color: var(--bg-secondary);
   border: var(--border-default);
   border-radius: var(--radius-md);
+}
+
+/* A short phone (an iPhone SE, a phone with the keyboard-less toolbar showing): while a decision
+   of mine is open the rack gives its row to it; the tiles are back as soon as it is made. */
+@media (max-height: 700px) {
+  .phone[data-deciding] .rack {
+    display: none;
+  }
+
+  .phone[data-deciding] .dock {
+    padding-top: 0;
+    border-top: none;
+  }
 }
 
 /* ---- Wide screens: board left, sidebar right ---------------------------------------------- */
@@ -111,6 +151,13 @@
 
 .tabs .panel {
   padding: var(--space-2) var(--space-3);
+}
+
+/* In a pinned card (the host's TV) the table panel is as tall as its content. */
+.pinnedCard .table {
+  flex: none;
+  overflow: visible;
+  container-type: normal;
 }
 
 /* A big screen (the host on a TV): Players and Chains pinned side by side, Chat and Log below. */

@@ -111,19 +111,36 @@ describe('which screen each real game state shows', () => {
         return
       }
       expect(screen.getByTestId('decision-view')).toHaveAttribute('data-view', view)
+      // The decision is in place, under the board (no tab to go to), with the players matrix.
+      const boardTab = screen.getByTestId('tabpanel-board')
+      expect(boardTab).toContainElement(screen.getByTestId('board'))
+      expect(boardTab).toContainElement(screen.getByTestId('decision-view'))
+      expect(screen.getByTestId('decision-view')).toContainElement(
+        screen.getByTestId('holdings-matrix')
+      )
+      expect(screen.queryByTestId('tab-now')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('tab-players')).not.toBeInTheDocument()
+      // Placing: the PLACE TILE bar comes with the picked tile.
+      if (view === 'place' && !screen.queryByTestId('placement-actions')) {
+        expect(screen.queryByTestId('status')).not.toBeInTheDocument()
+        fireEvent.click(within(screen.getByTestId('tile-rack')).getAllByRole('button')[0])
+      }
       const present = [...new Set(Object.values(CONTROLS))].filter(
         (id) => screen.queryByTestId(id) !== null
       )
       expect(present).toEqual([CONTROLS[view]])
-      // "Your turn" signal: the phase bar and the status line carry the accent exactly when
-      // the table waits on me (or an offer waits for my answer); the words say it too.
+      // "Your turn" signal: the phase bar carries the accent exactly when the table waits on
+      // me. On the other tabs the status line (the way back to the decision) carries it too,
+      // also when an offer waits for my answer; the words say it as well.
       const mine = view !== 'merger' && view !== 'waiting'
       expect(phaseBar).toHaveAttribute('data-turn', mine ? 'mine' : 'other')
       const offerForMe = name === 'trade-incoming-not-my-turn'
+      fireEvent.click(screen.getByTestId('tab-chains'))
       expect(screen.getByTestId('status')).toHaveAttribute(
         'data-turn',
         mine || offerForMe ? 'mine' : 'other'
       )
+      fireEvent.click(screen.getByTestId('tab-board'))
     }
   )
 
@@ -158,7 +175,9 @@ describe('placing a tile', () => {
     expect(screen.getByTestId('status-line')).toHaveTextContent(`Place ${pick}?`)
     fireEvent.click(screen.getByTestId('place-tile-button'))
     expect(lastAction()).toEqual({ action: 'place_tile', tile: pick })
-    expect(screen.getByTestId('status-line')).toHaveTextContent('Your move: place a tile')
+    // The pick is cleared: the bar that carried PLACE TILE is gone with it.
+    expect(screen.queryByTestId('place-tile-button')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('status-line')).not.toBeInTheDocument()
   })
 
   it('a tile the engine calls dead cannot be picked, and the rack says why', () => {

@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import { ChainMarker } from './ChainMarker'
-import { chainTestId } from '../../lib/ruleset'
+import { chainTestId, orderChainIds } from '../../lib/ruleset'
 import { useRules, type Rules } from '../../ruleset/useRules'
 import type { ChainHolder, ChainHolders, ChainId, GameStateMessage } from '../../types/api'
 import styles from './ChainTable.module.css'
@@ -43,17 +43,17 @@ function RoleChip({
   let who: string
   let detail: string
   let shares = 0
+  let label = ORDINAL[role]
   if (group.length > 0) {
     const tie = group.length > 1
     shares = group[0].shares
     who = names(gameState, group)
-    detail = `${shares} → ${rules.money(group[0].bonus)}${tie ? ' each (tie)' : ''}${
-      sole ? ' (sole holder: both bonuses)' : ''
-    }`
-  } else if (role === 'minority' && majorityTie) {
-    who = 'none'
-    detail = 'the tie for 1st shares both bonuses'
-  } else if (role === 'minority' && sole) {
+    // "=1st ... each": a tie splits the bonus; a tie for 1st, or a sole holder, takes both.
+    if (tie) label = `=${label}`
+    else if (sole) label = '1st+2nd'
+    detail = `${shares} → ${rules.money(group[0].bonus)}${tie ? ' each' : ''}`
+  } else if (role === 'minority' && (majorityTie || sole)) {
+    // Nobody is 2nd: the tie for 1st (or the only holder) is paid both bonuses.
     return null
   } else {
     who = 'nobody'
@@ -65,9 +65,16 @@ function RoleChip({
     <span
       className={`${styles.chip} ${isMe ? styles.chipMe : ''}`}
       data-testid={`chain-${role}-${chainTestId(chain)}`}
-      title={`${ORDINAL[role]}: ${who}, ${rules.shares(shares)}`}
+      data-tied={group.length > 1 ? 'true' : undefined}
+      title={
+        group.length > 1
+          ? `Tied for ${ORDINAL[role]}: ${who}, ${rules.shares(shares)} each; the bonus is shared`
+          : sole
+            ? `${who} is the only holder (${rules.shares(shares)}) and gets both bonuses`
+            : `${ORDINAL[role]}: ${who}, ${rules.shares(shares)}`
+      }
     >
-      <span className={styles.roleLabel}>{ORDINAL[role]}</span>
+      <span className={styles.roleLabel}>{label}</span>
       <span className={styles.who}>{who}</span>
       <span className={styles.figures}>{detail}</span>
       {shares > 0 && (
@@ -101,7 +108,7 @@ function myPosition(info: ChainHolders, me: string): string {
 }
 
 /**
- * The chains on the board, biggest first: size, price, shares left in the bank, the majority
+ * The chains on the board, in the ruleset's order (the same order everywhere): size, price, shares left in the bank, the majority
  * and minority holders with the bonuses they would be paid if the chain were bought now (from
  * the server's `chain_holders`, computed by the engine's bonus code), and on the player page
  * the viewer's own shares and position. Chains the viewer holds that are not on the board are
@@ -110,14 +117,18 @@ function myPosition(info: ChainHolders, me: string): string {
 export function ChainTable({ gameState, myPlayerId }: ChainTableProps) {
   const rules = useRules()
   const safeSize = gameState.ruleset?.safe_chain_size ?? rules.rs.safe_chain_size
-  const active = gameState.hotel.chains
-    .filter((c) => gameState.hotel.active_chains.includes(c.name))
-    .sort((a, b) => b.size - a.size)
+  const activeIds = orderChainIds(rules.rs, gameState.hotel.active_chains)
+  const active = activeIds
+    .map((id) => gameState.hotel.chains.find((c) => c.name === id))
+    .filter((c) => c !== undefined)
   const me = myPlayerId ? gameState.players[myPlayerId] : undefined
-  const heldOff = me
-    ? Object.entries(me.stocks).filter(
-        ([c, n]) => n > 0 && !gameState.hotel.active_chains.includes(c)
-      )
+  const heldOff: [string, number][] = me
+    ? orderChainIds(
+        rules.rs,
+        Object.keys(me.stocks).filter(
+          (c) => me.stocks[c] > 0 && !gameState.hotel.active_chains.includes(c)
+        )
+      ).map((c) => [c, me.stocks[c]])
     : []
 
   const holdsNothing = !!me && Object.values(me.stocks).every((n) => !n)
@@ -138,6 +149,14 @@ export function ChainTable({ gameState, myPlayerId }: ChainTableProps) {
 
   return (
     <div className={styles.table} data-testid="chain-list">
+      {active.length > 0 && (
+        <div className={`${styles.head} ${styles.columns}`} aria-hidden="true">
+          <span />
+          <span>Tiles</span>
+          <span>Price</span>
+          <span>Bank</span>
+        </div>
+      )}
       {active.map((chain) => {
         const info = gameState.chain_holders?.[chain.name]
         const mine = me?.stocks[chain.name] ?? 0
@@ -149,14 +168,21 @@ export function ChainTable({ gameState, myPlayerId }: ChainTableProps) {
             data-testid={`chain-row-${id}`}
           >
             <div className={styles.head}>
-              <ChainMarker
-                chain={chain.name}
-                size={chain.size}
-                price={chain.price}
-                available={chain.stocks_available}
-                safe={chain.size >= safeSize}
-                variant="full"
-              />
+              <span className={styles.marker}>
+                <ChainMarker chain={chain.name} variant="compact" safe={chain.size >= safeSize} />
+              </span>
+              <span data-testid={`chain-size-${id}`}>
+                {chain.size}
+                <span className={styles.srOnly}> tiles</span>
+              </span>
+              <span data-testid={`chain-price-${id}`} className={styles.price}>
+                <span className={styles.srOnly}>price </span>
+                {rules.money(chain.price)}
+              </span>
+              <span data-testid={`chain-bank-${id}`}>
+                {chain.stocks_available}
+                <span className={styles.srOnly}> left in the bank</span>
+              </span>
             </div>
             <div className={styles.roles}>
               {info &&
@@ -213,7 +239,7 @@ export function ChainTable({ gameState, myPlayerId }: ChainTableProps) {
       {heldOff.length > 0 && (
         <div className={styles.offBoard}>
           <span className={styles.offTitle}>
-            Held, not on the board (worth {rules.money(0)} until founded again)
+            Yours, off the board · {rules.money(0)} until founded again
           </span>
           {heldOff.map(([chain, n]) => (
             <div

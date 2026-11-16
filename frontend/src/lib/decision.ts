@@ -1,5 +1,5 @@
 /**
- * The decision tab ("Now", BL-011): which view it shows, the events that bring the page to it,
+ * The table panel (BL-011, BL-013): which view it shows, the events that bring it into view,
  * and the status line's words. Pure functions over what the server sent.
  */
 import type { GamePhase, MergerRecord } from '../types/api'
@@ -7,14 +7,13 @@ import type { Ruleset } from '../types/ruleset'
 import { withArticle } from './ruleset'
 
 export type DecisionView =
-  | 'merger-result' // a merger opened from the log
   | 'survivor' // my survivor choice (tied merger)
   | 'disposition' // my sell / trade / keep inside the merger view
   | 'merger' // a merger in progress, someone else deciding (read-only)
   | 'found' // my founding choice
   | 'buy' // my buy
-  | 'place' // my tile to place (the Board tab is where)
-  | 'waiting' // someone else's move (and the last merger result, if not closed)
+  | 'place' // my tile to place
+  | 'waiting' // someone else's move (and a merger that just ended, until play moves on)
 
 export interface DecisionState {
   phase: GamePhase | string
@@ -23,13 +22,10 @@ export interface DecisionState {
   disposition: boolean
   foundChoice: boolean
   mergerInProgress: boolean
-  /** A merger was opened from the log. */
-  explicitMerger: boolean
 }
 
-/** What the decision tab shows: the decision on me first, else what is happening. */
+/** What the table panel shows: the decision on me first, else what is happening. */
 export function decisionView(s: DecisionState): DecisionView {
-  if (s.explicitMerger) return 'merger-result'
   if (s.survivorChoice) return 'survivor'
   if (s.disposition) return 'disposition'
   if (s.mergerInProgress) return 'merger'

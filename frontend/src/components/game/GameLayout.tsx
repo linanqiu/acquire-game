@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { TabList, TabPanels, type TabItem } from '../ui/Tabs'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { useGameTabs } from '../../hooks/useGameTabs'
@@ -12,18 +12,29 @@ export interface GameLayoutProps {
   board: ReactNode
   /** The tile rack (player page). */
   rack?: ReactNode
-  /** The decision tab ("Now", BL-011): what needs me / what is happening, with its context. */
-  decision: ReactNode | ((select: (tab: string) => void) => ReactNode)
-  decisionLabel?: string
-  /** One slim line naming what is needed (under the board, or in the phone dock); tapping it
-   *  opens the decision tab. */
+  /**
+   * The table panel (BL-013): my decision when there is one, what the table waits for, a merger
+   * while it runs, and the players matrix. Phones: under the board, in the Board tab. Wide
+   * screens: the first sidebar tab, next to the board.
+   */
+  table: ReactNode
+  /** Label of the table tab on wide screens. */
+  tableLabel?: string
+  /**
+   * A decision of mine is in the table panel: on a phone it is given at least half of the
+   * Board tab (the board gets smaller on a short screen, but stays whole).
+   */
+  deciding?: boolean
+  /** One slim line naming what is needed; tapping it opens the tab with the decision. Under
+   *  the board on wide screens; on phones in the dock of the other tabs (the way back). */
   status?: (openDecision: () => void) => ReactNode
-  /** Event keys that take the page to the decision tab (see `useGameTabs`). */
+  /** Phones: show the status line on the Board tab too (it carries PLACE TILE). */
+  statusOnBoard?: boolean
+  /** Event keys that bring the decision into view (see `useGameTabs`). */
   events?: string[]
-  /** Bumped to open the decision tab (a merger opened from the log). */
-  openNow?: number
-  /** Reference tabs (Players, Chains, Chat, Trades or Log); the decision tab comes first and
-   *  phones add the Board before it. */
+  /** Bumped to bring the table panel into view (ANSWER on an offer in the Trades tab). */
+  openTable?: number
+  /** Reference tabs (Chains, Chat, Trades or Log). */
   tabs: TabItem[]
   /** Tab open by default on wide screens. */
   wideDefault: string
@@ -36,25 +47,27 @@ export interface GameLayoutProps {
 }
 
 /**
- * The in-game layout of the player and host pages (BL-008, BL-011).
+ * The in-game layout of the player and host pages (BL-008, BL-011, BL-013).
  *
- * Phones: the selected tab fills the screen between the phase bar and a slim dock (one status
- * line and the rack) above the tab bar: Board, Now (the decision tab), then the reference tabs.
- * Wide screens: the board (status line and rack under it) on the left, always visible; on the
- * right the tabs, Now first. Decisions and their context live in the Now tab only: no action
- * card and no merger card on top of other tabs. The page itself never scrolls; the selected
- * tab scrolls inside itself.
+ * Phones: the Board tab is the game: the board, and under it the table panel (the decision in
+ * place when there is one, otherwise the players matrix), then the rack and the tab bar. The
+ * other tabs are reference: Chains, Chat, Trades (or Log). Wide screens: the board (status line
+ * and rack under it) on the left, always visible; on the right the tabs, the table panel first.
+ * There is no pop-up and nothing to close: a decision replaces the top of the table panel and
+ * goes when it is made. The page itself never scrolls; panels scroll inside themselves.
  */
 export function GameLayout({
   room,
   scope,
   board,
   rack,
-  decision,
-  decisionLabel = 'Now',
+  table,
+  tableLabel = 'Table',
+  deciding = false,
   status,
+  statusOnBoard = false,
   events,
-  openNow = 0,
+  openTable = 0,
   tabs,
   wideDefault,
   pin = [],
@@ -64,48 +77,74 @@ export function GameLayout({
 }: GameLayoutProps) {
   const wide = useMediaQuery(WIDE_QUERY)
   const pinning = useMediaQuery(pinQuery) && wide
+  const tablePinned = pinning && pin.includes(NOW_TAB)
   const pinned = pinning ? tabs.filter((t) => pin.includes(t.id)) : []
   const reference = tabs.filter((t) => !pinned.includes(t))
-  const ids = [...(wide ? [] : ['board']), NOW_TAB, ...reference.map((t) => t.id)]
-  const fallback = wide ? (ids.includes(wideDefault) ? wideDefault : NOW_TAB) : 'board'
+  const decisionTab = wide ? (tablePinned ? null : NOW_TAB) : 'board'
+  const ids = [
+    ...(wide ? (tablePinned ? [] : [NOW_TAB]) : ['board']),
+    ...reference.map((t) => t.id),
+  ]
+  const fallback = wide ? (ids.includes(wideDefault) ? wideDefault : ids[0]) : 'board'
 
   const state = useGameTabs({
     room,
     scope,
     available: ids,
     fallback,
+    decisionTab,
     myPlaceTurn,
     myId,
     events,
   })
+
   const { select } = state
   useEffect(() => {
-    if (openNow > 0) select(NOW_TAB)
-  }, [openNow, select])
+    if (openTable > 0 && decisionTab) select(decisionTab)
+  }, [openTable, decisionTab, select])
 
-  const nowTab: TabItem = {
-    id: NOW_TAB,
-    label: decisionLabel,
-    content: (
-      <div className={styles.decision}>
-        {typeof decision === 'function' ? decision(select) : decision}
-      </div>
-    ),
-  }
-  const boardTab: TabItem = {
-    id: 'board',
-    label: 'Board',
-    content: <div className={styles.boardFit}>{board}</div>,
-  }
-  const all = [...(wide ? [] : [boardTab]), nowTab, ...reference]
+  // Something new needs me: it is at the top of the table panel, so show the top.
+  const scroller = useRef<HTMLDivElement>(null)
+  const signature = (events ?? []).join('|')
+  useEffect(() => {
+    if (scroller.current) scroller.current.scrollTop = 0
+  }, [signature, openTable])
+
+  const tablePanel = (
+    <div
+      ref={scroller}
+      className={styles.table}
+      data-testid="table-panel"
+      data-deciding={deciding ? 'true' : undefined}
+    >
+      {table}
+    </div>
+  )
+
+  const first: TabItem = wide
+    ? { id: NOW_TAB, label: tableLabel, content: tablePanel }
+    : {
+        id: 'board',
+        label: 'Board',
+        content: (
+          <div className={styles.boardTab} data-deciding={deciding ? 'true' : undefined}>
+            <div className={styles.boardBox}>{board}</div>
+            {tablePanel}
+          </div>
+        ),
+      }
+  const all = [...(tablePinned ? [] : [first]), ...reference]
 
   // Badges computed here join the page's own (pending offers on Trades).
   const withBadges = all.map((t): TabItem => {
     if (t.id === 'chat' && state.chatUnread > 0)
       return { ...t, badge: state.chatUnread, badgeLabel: `${state.chatUnread} unread` }
-    if (t.id === NOW_TAB && state.nowBadge) return { ...t, badge: 'dot', badgeLabel: 'new' }
-    if (t.id === 'board' && state.boardMarker)
-      return { ...t, badge: 'dot', badgeLabel: 'your tile to place' }
+    if (t.id === decisionTab && (state.nowBadge || state.boardMarker))
+      return {
+        ...t,
+        badge: 'dot',
+        badgeLabel: state.boardMarker ? 'your tile to place' : 'new',
+      }
     return t
   })
 
@@ -129,15 +168,24 @@ export function GameLayout({
       testId={wide ? 'tab-list' : 'tab-bar'}
     />
   )
-  const statusLine = status?.(() => state.select(NOW_TAB))
+  const statusLine = status?.(() => {
+    if (decisionTab) state.select(decisionTab)
+  })
 
   if (!wide) {
+    // On the Board tab the phase bar and the panel under the board already say what is needed.
+    const showStatus = statusLine && (state.selected !== 'board' || statusOnBoard)
     return (
-      <div className={styles.phone} data-testid="game-layout" data-layout="phone">
+      <div
+        className={styles.phone}
+        data-testid="game-layout"
+        data-layout="phone"
+        data-deciding={deciding && state.selected === 'board' ? 'true' : undefined}
+      >
         <div className={styles.content}>{panels}</div>
-        {(statusLine || rack) && (
+        {(showStatus || rack) && (
           <div className={styles.dock} data-testid="dock">
-            {statusLine}
+            {showStatus && statusLine}
             {rack && <div className={styles.rack}>{rack}</div>}
           </div>
         )}
@@ -148,7 +196,7 @@ export function GameLayout({
 
   return (
     <div
-      className={`${styles.wide} ${pinned.length ? styles.pinning : ''}`}
+      className={`${styles.wide} ${pinning ? styles.pinning : ''}`}
       data-testid="game-layout"
       data-layout="wide"
     >
@@ -158,8 +206,18 @@ export function GameLayout({
         {rack && <div className={styles.rackUnderBoard}>{rack}</div>}
       </section>
       <div className={styles.sidebar}>
-        {pinned.length > 0 && (
+        {(tablePinned || pinned.length > 0) && (
           <div className={styles.pinned}>
+            {tablePinned && (
+              <section
+                className={styles.pinnedCard}
+                aria-label={tableLabel}
+                data-testid={`pinned-${NOW_TAB}`}
+              >
+                <h2 className={styles.pinnedTitle}>{tableLabel}</h2>
+                {table}
+              </section>
+            )}
             {pinned.map((t) => (
               <section
                 key={t.id}

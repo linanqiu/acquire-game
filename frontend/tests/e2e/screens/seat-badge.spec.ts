@@ -13,7 +13,7 @@
 import type { Locator, Page } from '@playwright/test'
 import { test, expect } from './support/test'
 import { loadFixture } from './support/fixtures'
-import { openTab, tabPanel } from '../support/tabs'
+import { openTab, tablePanel } from '../support/tabs'
 
 const MODEL = 'Fake LLM (test)'
 
@@ -80,8 +80,8 @@ async function checkBadges(
   seats: Awaited<ReturnType<typeof badgeRoom>>,
   opts: { touch: boolean }
 ) {
-  await openTab(page, 'players')
-  const panel = tabPanel(page, 'players')
+  await openTab(page, 'table')
+  const panel = tablePanel(page)
   const rowOf = (id: string) => panel.locator(`[data-testid="player-row"][data-player-id="${id}"]`)
   const llmRow = rowOf(seats.llm.player_id)
   const botRow = rowOf(seats.bot.player_id)

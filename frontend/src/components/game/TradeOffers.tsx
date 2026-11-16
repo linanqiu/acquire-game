@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button } from '../ui/Button'
+import { Hint } from '../ui/Hint'
 import { ChainMarker } from './ChainMarker'
 import { SeatKindBadge } from './SeatKindBadge'
 import { incomingBlockReason, nonZero, type TradeParty } from '../../lib/trades'
@@ -227,22 +228,24 @@ export function TradeOffers({
 
       {part === 'mine' && (
         <div className={styles.table} data-testid="trade-table">
-          <h5 className={styles.subtitle}>
-            Open offers at the table
-            {atTable.length > 0 && (
-              <span className={styles.tableCount} data-testid="trade-table-count">
-                {atTable.length}
-              </span>
-            )}
-          </h5>
-          <p className={styles.note}>
-            Offers are public: everyone sees them, and anyone can make a competing offer.
-          </p>
-          {atTable.length === 0 && (
-            <p className={styles.note} data-testid="trade-table-empty">
-              No open offers from other players.
-            </p>
-          )}
+          <div className={styles.subtitleRow}>
+            <h5 className={styles.subtitle}>
+              Open offers at the table
+              {atTable.length > 0 && (
+                <span className={styles.tableCount} data-testid="trade-table-count">
+                  {atTable.length}
+                </span>
+              )}
+              {atTable.length === 0 && (
+                <span className={styles.none} data-testid="trade-table-empty">
+                  none
+                </span>
+              )}
+            </h5>
+            <Hint id="trades">
+              Offers are public: everyone sees them, and anyone can make a competing offer.
+            </Hint>
+          </div>
           {atTable.map((offer) => {
             const proposer = players[offer.from_player_id]
             const target = players[offer.to_player_id]
@@ -280,7 +283,7 @@ export function TradeOffers({
                   </div>
                 ) : (
                   <div className={styles.compete}>
-                    <span className={styles.sideLabel}>Make a competing offer</span>
+                    <span className={styles.sideLabel}>Compete</span>
                     <span className={styles.competeButtons}>
                       <Button
                         variant="secondary"

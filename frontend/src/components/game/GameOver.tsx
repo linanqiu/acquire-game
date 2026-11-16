@@ -103,8 +103,8 @@ export function GameOver({
                 >
                   <span className={styles.rank}>
                     {isWinner && (
-                      <span className={styles.crownIcon} aria-label="Winner">
-                        &#x1F451;
+                      <span className={styles.crownIcon} role="img" aria-label="Winner">
+                        ★
                       </span>
                     )}
                     {rank}.

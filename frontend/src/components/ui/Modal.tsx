@@ -9,6 +9,12 @@ interface ModalProps {
   title: string
   cancelLabel?: string
   dismissible?: boolean
+  /**
+   * `sheet`: for a form. Fills a phone screen (`dvh`, so the browser toolbar never covers the
+   * buttons) and is a taller dialog on wide screens; the body does not scroll itself, so the
+   * content can keep a footer in view over its own scrolling part.
+   */
+  variant?: 'dialog' | 'sheet'
   children: React.ReactNode
 }
 
@@ -18,6 +24,7 @@ export function Modal({
   title,
   cancelLabel = 'Cancel',
   dismissible = true,
+  variant = 'dialog',
   children,
 }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null)
@@ -82,14 +89,15 @@ export function Modal({
 
   return createPortal(
     <div
-      className={styles.backdrop}
+      className={`${styles.backdrop} ${variant === 'sheet' ? styles.sheetBackdrop : ''}`}
       onClick={handleBackdropClick}
       onKeyDown={handleKeyDown}
       data-testid="modal-backdrop"
     >
       <div
         ref={modalRef}
-        className={styles.modal}
+        className={`${styles.modal} ${variant === 'sheet' ? styles.sheet : ''}`}
+        data-variant={variant}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

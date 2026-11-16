@@ -56,7 +56,7 @@ for (const fixtureName of ['three-player-midgame', 'six-player-midgame']) {
       await expect(headerCash(page)).toHaveText(dollars(human.cash))
 
       // Every seat has its card with the right cash; the human's is marked YOU.
-      await openTab(page, 'players')
+      await openTab(page, 'table')
       await expect(playerRows(page)).toHaveCount(players.length)
       for (const p of players) {
         const row = playerRows(page).filter({ hasText: p.name })
@@ -89,7 +89,7 @@ for (const fixtureName of ['three-player-midgame', 'six-player-midgame']) {
         })
       }
       await expectWithinViewportWidth(page, '[data-testid="tile-rack"] > *', 'rack tiles')
-      await openTab(page, 'players')
+      await openTab(page, 'table')
       await expectWithinViewportWidth(page, '[data-testid="player-row"]', 'player cards')
       await openTab(page, 'trades')
       await expectWithinViewportWidth(page, '[data-testid="trade-offers"]', 'trade panel')
@@ -98,7 +98,7 @@ for (const fixtureName of ['three-player-midgame', 'six-player-midgame']) {
       // The layout holds up through real turns too (buy phase, other seats' moves).
       await playHumanTurns(page, room, 3, shots)
       await expectNoHorizontalScroll(page)
-      await openTab(page, 'players')
+      await openTab(page, 'table')
       await expectWithinViewportWidth(page, '[data-testid="player-row"]', 'player cards')
       await shots.take(page, `${vp.label}-after-turns`)
     })

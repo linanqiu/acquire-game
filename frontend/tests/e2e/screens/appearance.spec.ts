@@ -170,7 +170,7 @@ for (const scheme of ['light', 'dark'] as const) {
     })
     await expect(page.getByTestId('board')).toBeVisible()
     await expect(page.getByTestId('theme-toggle')).toHaveAttribute('data-theme-current', scheme)
-    for (const t of ['players', 'chains', 'trades'] as const) {
+    for (const t of ['table', 'chains', 'trades'] as const) {
       await openTab(page, t)
       await shots.take(page, `game-${t}`, { fullPage: false })
     }

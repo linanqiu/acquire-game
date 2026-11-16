@@ -31,7 +31,7 @@ export async function proposeTrade(seat: Seat, spec: TradeSpec, label: string): 
   await expect(builder).toBeVisible()
   await seat.shot(`${label}-builder-open`)
   await seat.press(builder.locator('[data-testid^="player-select-"]', { hasText: spec.partner }))
-  await expect(builder.getByText(`YOU WANT FROM ${spec.partner.toUpperCase()}:`)).toBeVisible()
+  await expect(builder.getByText(`YOU WANT FROM ${spec.partner.toUpperCase()}`)).toBeVisible()
   for (const [chain, n] of Object.entries(spec.offerStocks ?? {})) {
     const row = builder.getByTestId(`offer-stock-${chain}`)
     for (let i = 0; i < n; i++) await seat.press(row.getByTestId('stepper-increment'))

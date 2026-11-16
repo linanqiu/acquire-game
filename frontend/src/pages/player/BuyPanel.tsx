@@ -80,7 +80,6 @@ export function BuyPanel({
 
   return (
     <section className={styles.buy} aria-label={buyPhaseText(rules.rs)} data-testid="buy-panel">
-      <h3 className={styles.title}>{buyPhaseText(rules.rs)}</h3>
       {chains.length === 0 ? (
         <p className={styles.note}>No active {theme.chain_noun_plural} to buy into</p>
       ) : (

@@ -95,6 +95,27 @@
   background-color: var(--text-accent);
 }
 
+/* Bottom bar: the badge sits in the tab's corner, so a count never squeezes the label
+   ("TRAD…"). */
+.bar .count,
+.bar .dot {
+  position: absolute;
+  top: 5px;
+  right: max(2px, calc(50% - 30px));
+}
+
+.bar .count {
+  min-width: 14px;
+  padding: 0 3px;
+  font-size: 9px;
+  line-height: 14px;
+}
+
+.bar .dot {
+  width: 6px;
+  height: 6px;
+}
+
 .panel {
   min-height: 0;
   min-width: 0;

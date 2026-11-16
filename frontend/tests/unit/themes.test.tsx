@@ -261,9 +261,12 @@ describe.each(THEMED)('%s ruleset', (_name, rs) => {
     expect(screen.getByTestId('game-phase')).toHaveTextContent(
       `DISPOSE YOUR ${t.share_noun_plural.toUpperCase()}`
     )
+    // The status line (the way back from another tab) names it in the ruleset's words.
+    fireEvent.click(screen.getByTestId('tab-chains'))
     expect(screen.getByTestId('status-line')).toHaveTextContent(
       `Your move: sell, trade or keep your ${defunct.name} ${t.share_noun_plural}`
     )
+    fireEvent.click(screen.getByTestId('status-line'))
     const form = screen.getByTestId('merger-disposition')
     expect(form).toHaveTextContent(`(price at ${t.merger_noun})`)
     expect(form).toHaveTextContent(`Your ${defunct.abbreviation}`)

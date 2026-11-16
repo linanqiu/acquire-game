@@ -128,7 +128,7 @@ describe('placing a tile', () => {
     const view = loadSnapshotAsPlayer('trade-incoming-not-my-turn')
     renderPage()
     fireEvent.click(rackTile(view.expect.human.hand[0]))
-    expect(screen.getByTestId('status-line')).not.toHaveTextContent(/^Place /)
+    expect(screen.queryByTestId('placement-actions')).not.toBeInTheDocument()
     expect(screen.queryByTestId('place-tile-button')).not.toBeInTheDocument()
   })
 })
@@ -136,35 +136,41 @@ describe('placing a tile', () => {
 describe('tabs on a phone', () => {
   const tab = (name: RegExp) => screen.getByRole('tab', { name })
 
-  it('the board is a tab; my decision opens the decision tab; the dock is a status line and the rack', () => {
+  it('my decision is in place under the board; from another tab the status line leads back', () => {
     loadSnapshotAsPlayer('found-chain-choice')
     renderPage()
-    expect(tab(/Now/)).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByTestId('tabpanel-now')).toContainElement(
-      screen.getByTestId('chain-selector')
-    )
-    expect(screen.getByTestId('tabpanel-board')).toContainElement(screen.getByTestId('board'))
-    fireEvent.click(tab(/Players/))
-    expect(screen.getByTestId('tabpanel-now')).not.toBeVisible()
-    expect(screen.getByTestId('tabpanel-players')).toBeVisible()
+    // Four tabs: no Now tab to be sent to, no Players tab to toggle with.
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
+      'Board',
+      'Chains',
+      'Chat',
+      'Trades',
+    ])
+    expect(tab(/Board/)).toHaveAttribute('aria-selected', 'true')
+    const board = screen.getByTestId('tabpanel-board')
+    expect(board).toContainElement(screen.getByTestId('board'))
+    expect(board).toContainElement(screen.getByTestId('chain-selector'))
+    expect(board).toContainElement(screen.getByTestId('holdings-matrix'))
+    // On the Board tab the dock is the rack alone (the decision is right above it).
     const dock = screen.getByTestId('dock')
     expect(dock).toContainElement(screen.getByTestId('tile-rack'))
     expect(dock).not.toContainElement(screen.getByTestId('chain-selector'))
-    // The status line names the decision and opens the decision tab.
+    expect(screen.queryByTestId('status-line')).not.toBeInTheDocument()
+    // Elsewhere the status line names the decision and leads back to it.
+    fireEvent.click(tab(/Chains/))
+    expect(board).not.toBeVisible()
     expect(screen.getByTestId('status-line')).toHaveTextContent('Your move: found a hotel chain')
     fireEvent.click(screen.getByTestId('status-line'))
-    expect(tab(/Now/)).toHaveAttribute('aria-selected', 'true')
+    expect(tab(/Board/)).toHaveAttribute('aria-selected', 'true')
   })
 
-  it('placing a tile: the Board is open, the decision tab points to it with the rack notes', () => {
+  it('placing a tile: the Board is open, with the rack notes and the players under it', () => {
     loadSnapshotAsPlayer('dead-tile-in-hand')
     renderPage()
     expect(tab(/Board/)).toHaveAttribute('aria-selected', 'true')
-    const now = screen.getByTestId('tabpanel-now')
-    expect(now).toContainElement(screen.getByTestId('rack-notes'))
-    fireEvent.click(tab(/Now/))
-    fireEvent.click(screen.getByTestId('decision-show-board'))
-    expect(tab(/Board/)).toHaveAttribute('aria-selected', 'true')
+    const board = screen.getByTestId('tabpanel-board')
+    expect(board).toContainElement(screen.getByTestId('rack-notes'))
+    expect(board).toContainElement(screen.getByTestId('holdings-matrix'))
   })
 
   it('marks the Board when my tile is to be placed and another tab is open', () => {
