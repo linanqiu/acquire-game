@@ -4,6 +4,9 @@ import { useGameStore, type TradeEvent } from '../../store/gameStore'
 import type { ChainId, GameAction, GameStateMessage, TradeOffer } from '../../types/api'
 import type { TradePrefill } from '../../lib/trades'
 
+/** How long the builder waits for the server to confirm a proposal. */
+export const PROPOSE_TIMEOUT_MS = 8000
+const NO_ANSWER = 'The server did not confirm the offer. Check the Trades tab, then try again.'
 const NOT_CONNECTED = 'Not connected to the game. Try again in a moment.'
 
 type TradeSide = { stocks: { chain: ChainId; quantity: number }[]; cash: number }
@@ -66,6 +69,17 @@ export function usePlayerTrades({
     setSeenAtTable((prev) => (ids.every((id) => prev.includes(id)) ? prev : ids))
   }, [othersKey])
 
+  // A proposal the server never confirms (the connection dropped on the way) must not
+  // leave the send button disabled for good: give up waiting and say so.
+  useEffect(() => {
+    if (!proposing) return
+    const timer = setTimeout(() => {
+      setProposing(false)
+      setError(NO_ANSWER)
+    }, PROPOSE_TIMEOUT_MS)
+    return () => clearTimeout(timer)
+  }, [proposing])
+
   /** A server refusal arrived; if it answers my proposal, show it in the builder. */
   const onRefused = useCallback((message: string) => {
     if (proposingRef.current) {
@@ -76,6 +90,7 @@ export function usePlayerTrades({
 
   const openBuilder = useCallback(() => {
     setError('')
+    setProposing(false)
     setPrefill(null)
     setBuilderKey((k) => k + 1)
     setBuilderOpen(true)
@@ -84,6 +99,7 @@ export function usePlayerTrades({
   /** Open the builder on my own offer, started from another player's public offer. */
   const openBuilderFrom = useCallback((start: TradePrefill) => {
     setError('')
+    setProposing(false)
     setPrefill(start)
     setBuilderKey((k) => k + 1)
     setBuilderOpen(true)

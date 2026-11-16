@@ -187,12 +187,6 @@ export function TradeBuilder({
           </p>
         )}
         {notice && <p className={styles.hint}>{notice}</p>}
-        {(error || serverError) && (
-          <p className={styles.error} role="alert" data-testid="trade-error">
-            {error || serverError}
-          </p>
-        )}
-
         <div className={styles.section}>
           <label className={styles.sectionLabel}>TRADE WITH:</label>
           <div className={styles.players}>
@@ -311,12 +305,19 @@ export function TradeBuilder({
           </div>
         )}
 
+        {/* Next to the buttons: at the top of a long form the reason would be off screen. */}
+        {(error || serverError) && (
+          <p className={styles.error} role="alert" data-testid="trade-error">
+            {error || serverError}
+          </p>
+        )}
+
         <div className={styles.actions}>
           <Button variant="secondary" onClick={handleCancel} data-testid="cancel-trade">
             CANCEL
           </Button>
           <Button onClick={handleSubmit} disabled={submitting} data-testid="propose-trade">
-            PROPOSE TRADE
+            {submitting ? 'SENDING…' : 'PROPOSE TRADE'}
           </Button>
         </div>
       </div>

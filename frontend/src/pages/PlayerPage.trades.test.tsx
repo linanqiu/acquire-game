@@ -8,6 +8,7 @@ import { render, screen, act, fireEvent, within } from '@testing-library/react'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { PlayerPage } from './PlayerPage'
+import { PROPOSE_TIMEOUT_MS } from './player/usePlayerTrades'
 import { ToastProvider } from '../components/ui/ToastProvider'
 import { useGameStore } from '../store/gameStore'
 import {
@@ -433,6 +434,30 @@ describe('proposing a trade', () => {
     })
     expect(screen.queryByTestId('trade-builder')).not.toBeInTheDocument()
     expect(screen.getByTestId('trade-outgoing-new')).toBeInTheDocument()
+  })
+
+  it('while the server has not answered the button says SENDING; with no answer it is usable again', () => {
+    vi.useFakeTimers()
+    try {
+      open()
+      expect(screen.getByTestId('propose-trade')).toBeDisabled()
+      expect(screen.getByTestId('propose-trade')).toHaveTextContent('SENDING')
+      act(() => {
+        vi.advanceTimersByTime(PROPOSE_TIMEOUT_MS + 10)
+      })
+      expect(screen.getByTestId('propose-trade')).toBeEnabled()
+      expect(screen.getByTestId('trade-error')).toHaveTextContent('did not confirm')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('reopening the builder after a proposal that got no answer gives a working button', () => {
+    open()
+    expect(screen.getByTestId('propose-trade')).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    fireEvent.click(screen.getByRole('button', { name: 'PROPOSE TRADE' }))
+    expect(screen.getByTestId('propose-trade')).toBeEnabled()
   })
 
   it('during a merger the builder warns that the shares involved cannot be traded', () => {
