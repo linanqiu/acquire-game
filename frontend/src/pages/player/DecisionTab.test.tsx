@@ -12,7 +12,7 @@ import { ToastProvider } from '../../components/ui/ToastProvider'
 import { useGameStore } from '../../store/gameStore'
 import { deliver, loadSnapshotAsPlayer, snapshot } from '../../../tests/unit/fixtures/wire'
 import { decisionEvents, decisionView, turnKey } from '../../lib/decision'
-import { lobbyPhaseText, waitingPhaseText } from '../../lib/phaseText'
+import { lobbyPhaseText, orderPhaseText, waitingPhaseText } from '../../lib/phaseText'
 import { changeText, placeOf, placeText } from '../../lib/standing'
 import { DEFAULT_RS } from '../../../tests/unit/fixtures/rulesets'
 
@@ -376,11 +376,9 @@ describe('a merger: the whole merger in the decision tab', () => {
         ).toHaveAttribute('data-shares', String(h.shares))
       }
     }
-    // The status line and the event that brings the page to this panel.
-    expect(statusText('order', DEFAULT_RS, { waiting: '' })).toEqual({
-      text: 'Your move: choose which hotel chain is absorbed first',
-      mine: true,
-    })
+    // The phase bar names the decision (said once: no status line repeats it, BL-017), and the
+    // event brings the page to this panel.
+    expect(orderPhaseText(DEFAULT_RS)).toBe('CHOOSE THE MERGER ORDER')
     const key = turnKey(gs.current_player, Object.keys(gs.board.cells).length)
     expect(decisionEvents({ turnKey: key, view: 'order', mergers: gs.mergers })).toEqual([
       `order:${key}:0`,

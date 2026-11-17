@@ -6,6 +6,7 @@ import type { GamePhase, MergerRecord } from '../types/api'
 
 export type DecisionView =
   | 'survivor' // my survivor choice (tied merger)
+  | 'order' // my choice of which same-size defunct chain is absorbed next
   | 'disposition' // my sell / trade / keep inside the merger view
   | 'merger' // a merger in progress, someone else deciding (read-only)
   | 'found' // my founding choice
@@ -17,6 +18,7 @@ export interface DecisionState {
   phase: GamePhase | string
   isMyTurn: boolean
   survivorChoice: boolean
+  orderChoice?: boolean
   disposition: boolean
   foundChoice: boolean
   mergerInProgress: boolean
@@ -25,6 +27,7 @@ export interface DecisionState {
 /** What the table panel shows: the decision on me first, else what is happening. */
 export function decisionView(s: DecisionState): DecisionView {
   if (s.survivorChoice) return 'survivor'
+  if (s.orderChoice) return 'order'
   if (s.disposition) return 'disposition'
   if (s.mergerInProgress) return 'merger'
   if (s.isMyTurn && s.phase === 'found_chain' && s.foundChoice) return 'found'
@@ -53,6 +56,12 @@ export interface EventInput {
 export function decisionEvents(i: EventInput): string[] {
   const out: string[] = []
   if (i.view === 'survivor') out.push(`survivor:${i.turnKey}`)
+  if (i.view === 'order') {
+    // One per question: a three-way tie asks again after the first chain is done.
+    const last = i.mergers?.[i.mergers.length - 1]
+    const done = last?.defunct.filter((d) => d.bonuses !== null).length ?? 0
+    out.push(`order:${i.turnKey}:${done}`)
+  }
   if (i.view === 'found') out.push(`found:${i.turnKey}`)
   if (i.view === 'buy') out.push(`buy:${i.turnKey}`)
   if (i.disposition) out.push(`disposition:${i.disposition.seq}:${i.disposition.chain}`)
