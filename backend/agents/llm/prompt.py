@@ -198,7 +198,7 @@ Core economics
 
 Checklists (answer from the calculator lines)
 - Buy: For each option, what does it change: standing after, payout change, lead? Buy the best payout gain per cash spent, preferring {chains} likely to be absorbed soon or to become large. Defend a lead only when "a rival buying N passes you" has N at most {max_buy}. A lead marked LOCKED, or a lead bigger than a rival can buy in two turns, needs no more {shares}. Avoid exact ties for majority (they split both bonuses); one more {share} often turns half into all.
-- Place tile: Which tile pays me most now or later? Founding gives {founder_text} and a new race you can lead cheaply; expanding a {chain} I lead raises its bonuses; {a_merger} pays now: read "bonuses paid to all". Fire it when it pays me at least as much as the rival I most need to beat (an equal split with one rival still gains on everyone else), or when it ends a race I would lose; a bonus in hand beats a bigger one a rival may take from me. Skip it when it mainly pays rivals. A lone tile is a fine waiting move. Do not grow a rival's {chain} to {safe} or hand a rival a big {merger} payout.
+- Place tile: Which tile pays me most now or later? Founding gives {founder_text} and a new race you can lead cheaply; expanding a {chain} I lead raises its bonuses; {a_merger} pays now: read "bonuses paid to all". Fire it when it pays me at least as much as the rival I most need to beat (an equal split with one rival still gains on everyone else), or when it ends a race I would lose; a bonus in hand beats a bigger one a rival may take from me. Before placing a merging tile, check who collects: skip it when it mainly pays rivals, and never fire one marked "pays only rivals" unless every other tile is worse (then play the least harmful). A lone tile is a fine waiting move. Do not grow a rival's {chain} to {safe} or hand a rival a big {merger} payout.
 - Found: Pick a {chain} I can lead with my cash: a higher tier means bigger bonuses but dearer {shares}; with little cash pick a cheap one.
 - Survivor (tie): Keep as survivor the {chain} where my stake matters longer; the defunct one pays its bonuses now: check who they pay.
 - {Merger} {shares}: Compare the SELL / TRADE / HOLD lines. Trade when it is worth more at the post-{merger} price, or when the extra survivor {shares} win or protect a bonus position there. Sell when cash wins a race this turn. Hold only when that {chain} is likely to be founded again and you would lead it.
@@ -283,13 +283,15 @@ def build_system_prompt(ruleset: Ruleset | None = None) -> str:
 # in a way that could change play. The system prompt text is hashed in
 # automatically. Benchmark results are only comparable within one
 # ``prompt_version`` (see docs/ai/benchmarking.md).
-PROMPT_BUILDER_VERSION = 8  # 2: table talk; 3: table voice; 4: natural, low-key talk;
+PROMPT_BUILDER_VERSION = 9  # 2: table talk; 3: table voice; 4: natural, low-key talk;
 # 5: strategy playbook + share race, merger payouts for all, disposition figures;
 # 6: trade offers are public (rules text, open offers between other players)
 # 7: position-aware trade numbers in the offer + trade paragraph in the playbook
 # 8: cost (docs/ai/cost.md): static per-kind answer schema, compact event log,
 #    three notes, chains off the board on one line, purchase counts with the
 #    same outcome on one line, shorter player lines
+# 9: merging tiles that pay only rivals are marked "pays only rivals"; playbook
+#    tile line: check who collects before firing (docs/ai/bot-tiles.md)
 
 
 def _sha(text: str) -> str:
@@ -778,6 +780,11 @@ def render_tile_analysis(calc: dict) -> str:
                     + (", SAFE" if sc.get("survivor_safe_after") else "")
                     + f"); your bonuses total {money(sc['viewer_total_bonus'])}; "
                     f"bonuses paid to all: {pay_txt or 'nobody holds shares'}"
+                    + (
+                        f" (you {money(0)}: pays only rivals)"
+                        if pays and not sc.get("viewer_total_bonus")
+                        else ""
+                    )
                 )
                 for d in sc.get("defunct") or []:
                     tr = d.get("trade") or {}

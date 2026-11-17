@@ -100,6 +100,25 @@ The offer block of a `trade_response` decision gains one line from `calc["trades
 `PROMPT_BUILDER_VERSION` 6 -> 7. Not measured on the bench (no model calls were made for this
 change): results from v6 and earlier are not comparable with v7.
 
+### Mergers that pay only rivals (prompt v9, 2026-11-17, [LO-012](../roadmap/stories/09-llm-opponents/LO-012.md))
+
+Owner: "Bots keep doing suicide merge moves like this." The rules-based bot now values a tile by
+who collects ([bot-tiles.md](bot-tiles.md)); LLM seats get the same reasoning. The playbook's
+"Place tile" line gains (theme words from the ruleset):
+
+> Before placing a merging tile, check who collects: skip it when it mainly pays rivals, and never
+> fire one marked "pays only rivals" unless every other tile is worse (then play the least
+> harmful).
+
+and in the per-turn tile list, a merge scenario that pays the seat nothing while paying someone
+else ends with a mark (per-turn part only, so the static prefix stays cacheable):
+
+> survivor sandpiper (would be 8 tiles, $600/share); your bonuses total $0; bonuses paid to all:
+> Seat 2 $4,000, Seat 3 $2,000 (you $0: pays only rivals)
+
+`PROMPT_BUILDER_VERSION` 8 -> 9. Not measured on the bench (no model calls were made for this
+change): results from v8 and earlier are not comparable with v9.
+
 ## Results (Claude Haiku 5.5, bench-v1 vs-baseline, same 24 games each)
 
 Prompt versions: baseline `v4-43d877887c`, draft `v5-e1dcbce608`, shipped `v5-4b7f5594af`.

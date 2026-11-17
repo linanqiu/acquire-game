@@ -17,6 +17,7 @@ from __future__ import annotations
 import random
 
 from agents.base import DecisionContext
+from agents.bot_versions import get_policy
 from game.board import Board, TileState
 from game.bot import Bot
 from game.hotel import Hotel
@@ -55,6 +56,41 @@ def _rebuild(ctx: DecisionContext) -> tuple[Board, Hotel, Player]:
     return board, hotel, player
 
 
+def _table_players(ctx: DecisionContext, me: Player) -> list[Player]:
+    """Every seat's public cash and shares, in seat order (``me`` for the
+    viewer), for the tile valuation."""
+    rs = ruleset_from_state(ctx.state)
+    out = []
+    for p in ctx.state.get("players", []):
+        pid = p.get("player_id")
+        if pid == ctx.player_id:
+            out.append(me)
+            continue
+        other = Player(pid, p.get("name", ""), rs)
+        other._money = int(p.get("money", 0))
+        for chain, n in (p.get("stocks") or {}).items():
+            if chain in other._stocks:
+                other._stocks[chain] = int(n)
+        out.append(other)
+    return out if any(p is me for p in out) else [me, *out]
+
+
+# "medium" varies its tile only among tiles worth within this much (money) of
+# the best one, and never plays a negative tile while a non-negative one exists.
+MEDIUM_TILE_MARGIN = 100
+
+
+def pick_tile(scored: list[tuple], agent: HeuristicAgent):
+    """``scored``: ``(score, index, tile)`` best first. "hard" takes the best;
+    "medium" a random one of the near-best (see ``MEDIUM_TILE_MARGIN``); when
+    every tile is harmful both take the least harmful."""
+    best = scored[0][0]
+    if agent.difficulty != "medium" or best < 0:
+        return scored[0][2]
+    near = [s for s in scored if s[0] >= best - MEDIUM_TILE_MARGIN and s[0] >= 0]
+    return agent.rng.choice(near)[2]
+
+
 def _is_winning(ctx: DecisionContext) -> bool:
     """True when the calculator says this seat would win if the game ended now."""
     for p in (ctx.calc or {}).get("players", []):
@@ -73,10 +109,14 @@ class HeuristicAgent:
         name: str = "Bot",
         difficulty: str = "medium",
         seed: int | str | None = None,
+        version: str | None = None,
     ):
         self.name = name
         self.difficulty = difficulty
         self.rng = random.Random(seed if seed is not None else name)
+        # The bot generation (agents/bot_versions.py); default: the best one.
+        self.policy = get_policy(version)
+        self.version = self.policy.version
 
     async def decide(self, ctx: DecisionContext) -> dict:
         return self.choose(ctx)
@@ -129,15 +169,29 @@ class HeuristicAgent:
         tiles = [board.tile_from_string(t) for t in options]
         if self.difficulty == "easy":
             return {"action": "place_tile", "tile": str(self.rng.choice(tiles))}
+        if self.policy.tile == "legacy":
+            scored = sorted(
+                (
+                    (bot._score_tile_v1(t, board, hotel), i, t)
+                    for i, t in enumerate(tiles)
+                ),
+                key=lambda x: (-x[0], x[1]),
+            )
+            if self.difficulty == "medium":
+                return {
+                    "action": "place_tile",
+                    "tile": str(self.rng.choice(scored[:3])[2]),
+                }
+            return {"action": "place_tile", "tile": str(scored[0][2])}
+        players = _table_players(ctx, bot.player)
         scored = sorted(
-            ((bot._score_tile(t, board, hotel), i, t) for i, t in enumerate(tiles)),
+            (
+                (bot._score_tile(t, board, hotel, players), i, t)
+                for i, t in enumerate(tiles)
+            ),
             key=lambda x: (-x[0], x[1]),
         )
-        if self.difficulty == "medium":
-            pick = self.rng.choice(scored[:3])[2]
-        else:
-            pick = scored[0][2]
-        return {"action": "place_tile", "tile": str(pick)}
+        return {"action": "place_tile", "tile": str(pick_tile(scored, self))}
 
     def _disposition(self, ctx, bot: Bot, board: Board, hotel: Hotel) -> dict:
         legal = ctx.legal

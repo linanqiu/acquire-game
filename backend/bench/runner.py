@@ -100,8 +100,10 @@ def build_agent(spec: SeatSpec, *, pos: int, seed: int) -> Agent:
     """A fresh agent for seat ``pos`` of game ``seed`` (deterministic RNGs)."""
     name = f"Seat {pos + 1}"
     if isinstance(spec, str):
-        if spec == "bot":
-            return HeuristicAgent(name=name, seed=f"{seed}:{pos}")
+        if spec == "bot" or spec.startswith("bot:"):
+            # "bot:v1" etc.: a bot generation (agents/bot_versions.py)
+            version = spec.split(":", 1)[1] if ":" in spec else None
+            return HeuristicAgent(name=name, seed=f"{seed}:{pos}", version=version)
         return registry.create(spec, name=name)
     if isinstance(spec, tuple):
         return spec[1]()

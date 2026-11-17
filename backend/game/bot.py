@@ -6,6 +6,7 @@ from typing import Optional
 from game.board import Board, Tile
 from game.hotel import Hotel
 from game.player import Player
+from game.tile_value import table_from_parts, tile_valuation
 
 
 class Bot:
@@ -31,47 +32,47 @@ class Bot:
         if difficulty not in ("easy", "medium", "hard"):
             raise ValueError(f"Invalid difficulty: {difficulty}")
 
-    def _score_tile(self, tile: Tile, board: Board, hotel: Hotel) -> float:
-        """Score a tile based on strategic value."""
-        score = 0.0
+    def _score_tile(
+        self,
+        tile: Tile,
+        board: Board,
+        hotel: Hotel,
+        players: Optional[list[Player]] = None,
+    ) -> float:
+        """Score a tile in money: what placing it gains this seat minus what it
+        hands rivals (``game.tile_value.tile_valuation``, docs/ai/bot-tiles.md).
 
+        ``players`` is the whole table in seat order (this bot's player
+        included); without it only this seat's own holdings are known."""
+        table = table_from_parts(
+            board, hotel, players if players else [self.player], board.ruleset
+        )
+        return float(tile_valuation(table, tile, self.player.player_id)["score"])
+
+    def _score_tile_v1(self, tile: Tile, board: Board, hotel: Hotel) -> float:
+        """Bot v1's tile points (agents/bot_versions.py), kept unchanged so
+        that version stays playable. Ignores who collects merger bonuses."""
+        score = 0.0
         adjacent_played = board.get_adjacent_played_tiles(tile)
         adjacent_chains = board.get_adjacent_chains(tile)
-
-        # Check if this tile would found a new chain
         if len(adjacent_played) > 0 and len(adjacent_chains) == 0:
-            # Would connect with lone tiles to found a chain
-            inactive_chains = hotel.get_inactive_chains()
-            if inactive_chains:
-                score += 100  # High priority for founding
-
-        # Check if this expands a chain we have stock in
+            if hotel.get_inactive_chains():
+                score += 100  # founding
         if len(adjacent_chains) == 1:
-            chain_name = adjacent_chains[0]
-            stock_count = self.player.get_stock_count(chain_name)
+            stock_count = self.player.get_stock_count(adjacent_chains[0])
             if stock_count > 0:
-                score += 50 + stock_count * 5  # Bonus for expanding owned chains
-
-        # Check if this triggers a merger
+                score += 50 + stock_count * 5  # expanding an owned chain
         if len(adjacent_chains) >= 2:
-            # Find which chain would survive (largest)
             chain_sizes = [(c, board.get_chain_size(c)) for c in adjacent_chains]
             chain_sizes.sort(key=lambda x: x[1], reverse=True)
-
-            # Check if we have stock in the surviving chain
-            surviving_chain = chain_sizes[0][0]
-            surviving_stock = self.player.get_stock_count(surviving_chain)
-
-            # Check total stock in defunct chains (for bonuses)
+            surviving_stock = self.player.get_stock_count(chain_sizes[0][0])
             defunct_stock = sum(
                 self.player.get_stock_count(c) for c, _ in chain_sizes[1:]
             )
-
             if surviving_stock > 0:
-                score += 30 + surviving_stock * 3  # Good if we own the survivor
+                score += 30 + surviving_stock * 3
             if defunct_stock > 0:
-                score += 20 + defunct_stock * 2  # Bonuses from defunct chains
-
+                score += 20 + defunct_stock * 2
         return score
 
     def choose_chain_to_found(self, available_chains: list[str], board: Board) -> str:
