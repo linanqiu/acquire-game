@@ -301,6 +301,9 @@ class TestMultiChainMerger:
         assert result["defunct"] == ["marlowe", "sandpiper"]  # sorted by id
         started = t.events("merger_started")[0]
         assert started["defunct"] == ["marlowe", "sandpiper"]  # resolution order
+        # Different sizes: nobody is asked for the order.
+        assert t.events("defunct_order_chosen") == []
+        assert t.decision().kind == "stock_disposition"
 
         # marlowe first: bonuses at marlowe's size (3 tiles: price $300)
         paid = t.events("bonuses_paid")
@@ -332,7 +335,7 @@ class TestMultiChainMerger:
         assert t.size("halcyon") == 4 + 3 + 2 + 1
         assert t.game.hotel.get_active_chains() == ["halcyon"]
 
-    def test_three_way_tie_mergemaker_picks_and_equal_defuncts_go_in_board_order(
+    def test_three_way_tie_mergemaker_picks_survivor_then_the_defunct_order(
         self,
     ):
         """sandpiper 3E-4E, marlowe 6E-7E and halcyon 5C-5D (2 tiles each) all
@@ -349,6 +352,11 @@ class TestMultiChainMerger:
         assert r["tied_chains"] == ["halcyon", "marlowe", "sandpiper"]
         t.act("p1", action="merger_choice", surviving_chain="halcyon")
         assert t.events("merger_started")[0]["defunct"] == ["marlowe", "sandpiper"]
+        # Same size: the mergemaker picks which is resolved first
+        # (tests/gameplay/test_merger_order.py covers this decision).
+        d = t.decision()
+        assert (d.kind, d.player_id) == ("choose_defunct_order", "p1")
+        t.act("p1", action="merger_order", defunct_chain="marlowe")
         d = t.decision()
         assert (d.player_id, d.context["defunct_chain"]) == ("p1", "marlowe")
         t.dispose("p1", "marlowe", hold=1)

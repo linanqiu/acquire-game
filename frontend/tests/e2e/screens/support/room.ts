@@ -178,6 +178,11 @@ export async function startFromSnapshot(
           action: 'merger_choice',
           surviving_chain: c,
         }))
+      } else if (pa?.type === 'choose_defunct_order') {
+        candidates = (pa.tied_chains as string[]).map((c) => ({
+          action: 'merger_order',
+          defunct_chain: c,
+        }))
       } else if (pa?.type === 'found_chain') {
         candidates = (pa.available_chains as string[]).map((c) => ({
           action: 'found_chain',

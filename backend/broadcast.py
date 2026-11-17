@@ -18,7 +18,8 @@ Messages (shapes unchanged from the pre-seat server unless noted):
   ``mergers`` (every merger so far, with bonuses and dispositions); all from
   ``game.calculator``.
 * ``lobby_update`` - players carry ``kind`` and ``agent_label`` (new).
-* ``choose_chain`` / ``choose_merger_survivor`` / ``stock_disposition_required``
+* ``choose_chain`` / ``choose_merger_survivor`` / ``choose_merger_order`` /
+  ``stock_disposition_required``
   - sent to the human whose decision just became pending.
 * ``can_end_game`` - to the human whose turn just started when declaring is legal.
 * ``all_tiles_unplayable`` (room) / ``tiles_replaced`` (that player).
@@ -297,6 +298,12 @@ def prompt_for(game: Game, decision: Decision) -> dict | None:
         return {
             "type": "choose_merger_survivor",
             "tied_chains": ctx.get("tied_chains", []),
+        }
+    if decision.kind == "choose_defunct_order":
+        return {
+            "type": "choose_merger_order",
+            "tied_chains": ctx.get("tied_chains", []),
+            "surviving_chain": ctx.get("surviving_chain"),
         }
     if decision.kind == "stock_disposition":
         return {

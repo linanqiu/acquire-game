@@ -209,6 +209,11 @@ describe('events a quiet game does not produce (field names as the engine writes
     expect(text(ev('survivor_chosen', { survivor: 'marlowe' }))).toBe(
       'Alice chose Marlowe to survive the tie.'
     )
+    expect(
+      text(
+        ev('defunct_order_chosen', { chain: 'sandpiper', tied_chains: ['marlowe', 'sandpiper'] })
+      )
+    ).toBe('Alice chose Sandpiper to be absorbed first.')
   })
 
   it('unplayable tiles are replaced, or the placement is skipped', () => {
@@ -512,6 +517,7 @@ describe('describeAction and decisionKindLabel', () => {
     expect(decisionKindLabel('buy_stocks', MINI)).toBe('Buy shares')
     expect(decisionKindLabel('stock_disposition', DEFAULT_RS)).toBe('Merger shares')
     expect(decisionKindLabel('choose_survivor', DEFAULT_RS)).toBe('Choose survivor')
+    expect(decisionKindLabel('choose_defunct_order', DEFAULT_RS)).toBe('Merger order')
     expect(decisionKindLabel('trade_response', DEFAULT_RS)).toBe('Answer a trade')
     expect(decisionKindLabel('something_else', DEFAULT_RS)).toBe('something else')
   })

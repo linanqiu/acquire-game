@@ -160,6 +160,8 @@ export interface GameStoreState {
   // Pending actions
   pendingChainChoice: ChainId[] | null
   pendingMergerChoice: ChainId[] | null
+  /** Same-size defunct chains I must put in order (I placed the merging tile). */
+  pendingMergerOrder: { tiedChains: ChainId[]; survivingChain: ChainId } | null
   pendingStockDisposition: {
     defunctChain: ChainId
     survivingChain: ChainId
@@ -221,6 +223,7 @@ const initialState = {
   chatHistoryId: 0,
   pendingChainChoice: null,
   pendingMergerChoice: null,
+  pendingMergerOrder: null,
   pendingStockDisposition: null,
 }
 
@@ -299,7 +302,11 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           set({ pendingChainChoice: null })
         }
         if (message.phase !== 'merger' && message.phase !== 'stock_disposition') {
-          set({ pendingMergerChoice: null, pendingStockDisposition: null })
+          set({
+            pendingMergerChoice: null,
+            pendingMergerOrder: null,
+            pendingStockDisposition: null,
+          })
         } else {
           // The merger goes on after my answer (e.g. another human now disposes of their
           // stock): once the table waits on a different flow decision, my prompt is done
@@ -311,6 +318,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             const mine = awaiting.player_id === me
             if (!(mine && awaiting.decision === 'choose_survivor')) {
               set({ pendingMergerChoice: null })
+            }
+            if (!(mine && awaiting.decision === 'choose_defunct_order')) {
+              set({ pendingMergerOrder: null })
             }
             if (!(mine && awaiting.decision === 'stock_disposition')) {
               set({ pendingStockDisposition: null })
@@ -325,6 +335,15 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
       case 'choose_merger_survivor':
         store.setPendingMergerChoice(message.tied_chains)
+        break
+
+      case 'choose_merger_order':
+        set({
+          pendingMergerOrder: {
+            tiedChains: message.tied_chains,
+            survivingChain: message.surviving_chain,
+          },
+        })
         break
 
       case 'stock_disposition_required':

@@ -237,6 +237,7 @@ slow.json --slow-only` (the report then shows the slow-only kills per module).
 | Turn structure, seating order, draw, empty bag, end of tiles (gameplay.md, tiles.md) | `tests/gameplay/test_turn_flow.py` |
 | Lone tiles, founding, expansion, founder shares, 8th chain (tiles.md, chains.md) | `tests/gameplay/test_founding.py` |
 | Survivor, tie choice, disposition order, sell/trade/hold, multi-chain order, merged board, frozen trades (mergers.md) | `tests/gameplay/test_mergers.py` |
+| Merger order: the mergemaker picks among same-size defunct chains, one pick at a time; never asked when sizes differ; the order decides who trades first (mergers.md, BL-015) | `tests/gameplay/test_merger_order.py` |
 | Majority/minority bonuses, ties, rounding, final bonuses (mergers.md, endgame.md) | `tests/gameplay/test_bonuses.py` |
 | Buying stock: limits, prices, money, bank, defunct chains (stocks.md) | `tests/gameplay/test_stock_trading.py` |
 | Declaring the end, final scoring, standings (endgame.md) | `tests/gameplay/test_end_game.py` (+ `test_ties.py`) |

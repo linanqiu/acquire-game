@@ -43,7 +43,12 @@ import type { ChainId, GameStateMessage } from '../types/api'
 import { RulesetScope } from '../ruleset/RulesetScope'
 import { rulesFor, useServerRuleset } from '../ruleset/useRules'
 import { orderChainIds } from '../lib/ruleset'
-import { dispositionPhaseText, playerPhaseText, survivorPhaseText } from '../lib/phaseText'
+import {
+  dispositionPhaseText,
+  orderPhaseText,
+  playerPhaseText,
+  survivorPhaseText,
+} from '../lib/phaseText'
 import type { Coordinate } from '../types/game'
 import { DecisionTab } from './player/DecisionTab'
 import { LobbyPanel } from './player/LobbyPanel'
@@ -88,6 +93,7 @@ export function PlayerPage() {
     tilePlayability,
     pendingChainChoice,
     pendingMergerChoice,
+    pendingMergerOrder,
     pendingStockDisposition,
     trades: myTrades,
     publicTrades,
@@ -303,6 +309,7 @@ export function PlayerPage() {
   // Is it on me to act right now (turn signal)?
   const myDecision =
     !!pendingMergerChoice ||
+    !!pendingMergerOrder ||
     !!pendingStockDisposition ||
     (isMyTurn && phase !== 'merger' && phase !== 'stock_disposition')
 
@@ -316,6 +323,7 @@ export function PlayerPage() {
     phase,
     isMyTurn,
     survivorChoice: !!pendingMergerChoice,
+    orderChoice: !!pendingMergerOrder,
     disposition: !!pendingStockDisposition,
     foundChoice: !!pendingChainChoice,
     mergerInProgress: !!lastMerger && !lastMerger.complete,
@@ -326,6 +334,7 @@ export function PlayerPage() {
       phase,
       isMyTurn,
       survivorChoice: !!pendingMergerChoice,
+      orderChoice: !!pendingMergerOrder,
       disposition: !!pendingStockDisposition,
       foundChoice: !!pendingChainChoice,
       mergerInProgress: false,
@@ -361,9 +370,11 @@ export function PlayerPage() {
             ? undefined
             : pendingMergerChoice
               ? survivorPhaseText(ruleset)
-              : pendingStockDisposition
-                ? dispositionPhaseText(ruleset)
-                : playerPhaseText(ruleset, phase, isMyTurn, currentPlayerName)
+              : pendingMergerOrder
+                ? orderPhaseText(ruleset)
+                : pendingStockDisposition
+                  ? dispositionPhaseText(ruleset)
+                  : playerPhaseText(ruleset, phase, isMyTurn, currentPlayerName)
         }
         turn={unavailable || !inGame ? undefined : myDecision ? 'mine' : 'other'}
         roomCode={room}
@@ -473,6 +484,8 @@ export function PlayerPage() {
                   standings={<Standings gameState={gameState} myPlayerId={myPlayerId} />}
                   pendingChainChoice={pendingChainChoice}
                   pendingMergerChoice={pendingMergerChoice}
+                  pendingMergerOrder={pendingMergerOrder}
+                  onMergerOrder={turn.chooseMergerOrder}
                   pendingStockDisposition={pendingStockDisposition}
                   activeChains={activeChains}
                   merger={mergerResult}

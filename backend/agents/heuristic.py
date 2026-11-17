@@ -112,6 +112,17 @@ class HeuristicAgent:
             if choice not in chains:
                 choice = chains[0] if chains else None
             return {"action": "merger_choice", "surviving_chain": choice}
+        if kind == "choose_defunct_order":
+            chains = list(legal.get("chains", []))
+            calc_chains = (ctx.calc or {}).get("chains") or {}
+            own_bonus = {
+                c: ((calc_chains.get(c) or {}).get("payouts") or {})
+                .get(ctx.player_id, {})
+                .get("total", 0)
+                for c in chains
+            }
+            choice = bot.choose_defunct_order(chains, own_bonus) if chains else None
+            return {"action": "merger_order", "defunct_chain": choice}
         if kind == "stock_disposition":
             return self._disposition(ctx, bot, board, hotel)
         if kind == "buy_stocks":
