@@ -104,6 +104,27 @@ async function expectBuyRows(page: Page, room: RoomContext) {
     await expect(row.getByTestId('buy-bonus')).toHaveCount(0)
   }
   await expect(page.getByTestId('buy-head')).toHaveText('PriceTilesBankYouBuy')
+  // Each heading sits over its own column: its centre is inside the cell below it, row by row.
+  const misplaced = await page.evaluate(() => {
+    const head = document.querySelector('[data-testid="buy-head"]')
+    const rows = document.querySelectorAll('[data-testid^="buy-row-"]')
+    const bad: string[] = []
+    if (!head) return ['no header']
+    const labels = Array.from(head.children).slice(1)
+    rows.forEach((row) => {
+      const cells = Array.from(row.children).slice(1, 6)
+      labels.forEach((label, i) => {
+        const l = label.getBoundingClientRect()
+        const c = cells[i].getBoundingClientRect()
+        const mid = l.left + l.width / 2
+        if (mid < c.left - 1 || mid > c.right + 1) {
+          bad.push(`${label.textContent} over ${Math.round(c.left)}..${Math.round(c.right)}`)
+        }
+      })
+    })
+    return bad
+  })
+  expect(misplaced, 'buy headings over their columns').toEqual([])
 }
 
 for (const vp of SIZES) {

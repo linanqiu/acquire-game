@@ -21,6 +21,20 @@
   flex-direction: column;
 }
 
+/* The header and every chain row share one set of columns (subgrid): with a grid per row, the
+   header's short "Buy" column was narrower than a row's stepper and the headings slid right. */
+@supports (grid-template-columns: subgrid) {
+  .rows {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 50px 30px 30px 44px auto;
+  }
+
+  .rows > .row {
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+  }
+}
+
 /* One line per chain: name | price | tiles | bank | mine | stepper. The header row names the
    columns once. A second line (how my purchase moves me, the bonuses, every holder) opens
    under the row I am buying in, or under one whose name is tapped. */
