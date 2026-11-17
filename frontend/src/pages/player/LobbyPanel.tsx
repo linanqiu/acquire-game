@@ -29,17 +29,22 @@ export function LobbyPanel({
   loading,
   onStart,
 }: LobbyPanelProps) {
+  const free = maxPlayers - players.length
   return (
-    <div className={styles.lobbyContent}>
-      <h2 className={styles.lobbyTitle}>WAITING FOR PLAYERS</h2>
-      <p className={styles.roomInfo}>
-        Room Code: <span className={styles.roomCode}>{room}</span>
-      </p>
-      <div className={styles.playerList}>
+    <div className={styles.lobbyContent} data-testid="lobby">
+      {/* What the room waits for is said once, in the phase bar (`lobbyPhaseText`). */}
+      <h2 className={styles.roomInfo}>
+        Room code{' '}
+        <span className={styles.roomCode} data-testid="lobby-room-code">
+          {room}
+        </span>
+      </h2>
+      <div className={styles.playerList} role="list" aria-label="Players in the room">
         {players.map((p) => (
           <div
             key={p.player_id}
             className={styles.lobbyPlayer}
+            role="listitem"
             data-testid={`lobby-player-${p.player_id}`}
           >
             <span>{p.name}</span>
@@ -58,28 +63,23 @@ export function LobbyPanel({
           </div>
         ))}
       </div>
-      <p className={styles.playerCount}>
-        {players.length}/{maxPlayers} players
+      {/* The list shows who is in; this line adds only what it cannot: the seats left. */}
+      <p className={styles.playerCount} data-testid="seats-free">
+        {free > 0 ? `${free} seat${free > 1 ? 's' : ''} free` : 'Table full'}
       </p>
-      {isHost ? (
-        <>
-          <div className={styles.hostActions}>
-            <AddAiControl room={room} disabled={players.length >= maxPlayers || loading} />
-            <Button
-              variant="accent"
-              onClick={onStart}
-              disabled={!canStart || loading}
-              loading={loading}
-            >
-              START GAME
-            </Button>
-          </div>
-          <p className={styles.waitingText} data-testid="start-hint">
-            {startHint(players.length, minPlayers)}
-          </p>
-        </>
-      ) : (
-        <p className={styles.waitingText}>Waiting for host to start...</p>
+      {isHost && (
+        <div className={styles.hostActions}>
+          <AddAiControl room={room} disabled={players.length >= maxPlayers || loading} />
+          <Button
+            variant="accent"
+            onClick={onStart}
+            disabled={!canStart || loading}
+            loading={loading}
+            title={canStart ? undefined : startHint(players.length, minPlayers)}
+          >
+            START GAME
+          </Button>
+        </div>
       )}
     </div>
   )

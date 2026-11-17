@@ -19,7 +19,7 @@ import {
 } from './support/lobby'
 
 async function joinAttempt(page: Page, name: string, code: string) {
-  await page.getByTestId('join-name-input').fill(name)
+  await page.getByTestId('name-input').fill(name)
   await page.getByTestId('join-room-input').fill(code)
   await page.getByTestId('join-button').click()
 }
@@ -27,6 +27,11 @@ async function joinAttempt(page: Page, name: string, code: string) {
 function joinError(page: Page) {
   // The inline error under the room-code field.
   return page.locator('#join-room-error')
+}
+
+function nameError(page: Page) {
+  // The name is asked once for both ways in (BL-017); its error sits under the name field.
+  return page.locator('#player-name-error')
 }
 
 test('@ci entry errors: validation, bad codes, duplicate name, full room, started game, bad URLs', async ({
@@ -46,21 +51,22 @@ test('@ci entry errors: validation, bad codes, duplicate name, full room, starte
   // --- Create-game validation --------------------------------------------------------
   await openHome(b, j, 'p2')
   await b.getByTestId('create-button').click()
-  await expect(b.locator('#create-name-error')).toHaveText('Name is required')
+  await expect(nameError(b)).toHaveText('Name is required')
   await j.shot(b, 'create-empty-name')
-  await b.getByTestId('create-name-input').fill('   ')
+  await b.getByTestId('name-input').fill('   ')
   await b.getByTestId('create-button').click()
   await expect(b.getByText('Name is required')).toBeVisible()
   expect(b.url()).toMatch(/\/$/)
-  await b.getByTestId('create-name-input').fill('')
-  await b.getByTestId('create-name-input').pressSequentially('ABCDEFGHIJKLMNOPQRSTUVWXY')
-  await expect(b.getByTestId('create-name-input')).toHaveValue('ABCDEFGHIJKLMNOPQRST')
+  await b.getByTestId('name-input').fill('')
+  await b.getByTestId('name-input').pressSequentially('ABCDEFGHIJKLMNOPQRSTUVWXY')
+  await expect(b.getByTestId('name-input')).toHaveValue('ABCDEFGHIJKLMNOPQRST')
   await j.shot(b, 'create-long-name-truncated')
   j.log('create: empty and blank names refused; long name capped at 20 characters')
 
   // --- Join validation and bad codes ------------------------------------------------
   await joinAttempt(b, '', 'ABCD')
-  await expect(joinError(b)).toHaveText('Name is required')
+  await expect(nameError(b)).toHaveText('Name is required')
+  await expect(joinError(b)).toHaveCount(0)
   await joinAttempt(b, 'Bob', 'AB')
   await expect(joinError(b)).toHaveText('Room code must be 4 characters')
   await j.shot(b, 'join-short-code')
@@ -75,25 +81,28 @@ test('@ci entry errors: validation, bad codes, duplicate name, full room, starte
   const room = await createGame(host, j, 'Hana')
   const start = host.getByRole('button', { name: 'START GAME' })
   await expect(start).toBeDisabled()
-  await expect(host.getByTestId('start-hint')).toHaveText('Need 2 more players to start')
+  // What the room waits for is said once, in the phase bar (BL-017).
+  await expect(host.getByTestId('game-phase')).toHaveText('NEED 2 MORE PLAYERS TO START')
   await j.shot(host, 'host-cannot-start-alone')
 
   // --- Duplicate name (case-insensitive) ----------------------------------------------
   await joinAttempt(b, 'hana', room)
-  await expect(joinError(b)).toHaveText('Player name already taken')
+  // A refusal about the name is said at the name field, not under the room code.
+  await expect(nameError(b)).toHaveText('Player name already taken')
+  await expect(joinError(b)).toHaveCount(0)
   await j.shot(b, 'join-duplicate-name')
   j.log('join: duplicate name refused')
 
   // --- Fill the room to 6 with AI seats; a 7th person is refused --------------------
   await addBot(host, j)
-  await expect(host.getByTestId('start-hint')).toHaveText('Need 1 more player to start')
+  await expect(host.getByTestId('game-phase')).toHaveText('NEED 1 MORE PLAYER TO START')
   await addBot(host, j)
   await expect(start).toBeEnabled()
-  await expect(host.getByTestId('start-hint')).toHaveText('Ready to start!')
+  await expect(host.getByTestId('game-phase')).toHaveText('START WHEN EVERYONE IS IN')
   await addBot(host, j)
   await addBot(host, j)
   await addAi(host, j, 'llm:fake')
-  await expect(host.getByText('6/6 players')).toBeVisible()
+  await expect(host.locator('[data-testid^="lobby-player-"]')).toHaveCount(6)
   await expect(host.getByTestId('add-bot-button')).toBeDisabled()
   await expect(host.getByTestId('add-ai-button')).toBeDisabled()
   await j.shot(host, 'host-room-full')
@@ -107,7 +116,7 @@ test('@ci entry errors: validation, bad codes, duplicate name, full room, starte
   const llmName = await seatName(host, 'llm')
   const bot4 = host.locator('[data-testid^="lobby-player-"]', { hasText: bot4Name })
   await bot4.getByRole('button', { name: `Remove ${bot4Name}` }).click()
-  await expect(host.getByText('5/6 players')).toBeVisible()
+  await expect(host.locator('[data-testid^="lobby-player-"]')).toHaveCount(5)
   await expect(bot4).toHaveCount(0)
   await expect(host.getByTestId('add-bot-button')).toBeEnabled()
   await j.shot(host, 'host-removed-bot4')
@@ -157,7 +166,7 @@ test('@ci entry errors: validation, bad codes, duplicate name, full room, starte
   await c.waitForURL(/\/$/)
 
   // The game itself was not disturbed by any of this.
-  await expect(host.getByTestId('game-phase')).not.toHaveText('WAITING FOR HOST')
+  await expect(host.getByTestId('game-phase')).not.toHaveText(/TO START|EVERYONE IS IN/)
   await ctxB.close()
   await ctxC.close()
 })

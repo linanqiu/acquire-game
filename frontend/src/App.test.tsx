@@ -65,7 +65,10 @@ describe('App', () => {
     useGameStore.setState({ connectionStatus: 'connected' })
     window.history.pushState({}, '', '/play/abcd')
     const { unmount } = render(<App />)
-    expect(await screen.findByText('WAITING FOR PLAYERS')).toBeInTheDocument()
+    // A guest's lobby: the phase bar says what the room waits for.
+    expect(await screen.findByTestId('game-phase')).toHaveTextContent(
+      'WAITING FOR THE HOST TO START'
+    )
     expect(screen.getByText('ABCD')).toBeInTheDocument()
     unmount()
 

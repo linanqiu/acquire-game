@@ -119,21 +119,20 @@ export function TradeOffers({
       data-testid={part === 'incoming' ? 'trade-incoming' : 'trade-offers'}
       aria-label={part === 'incoming' ? 'Trade offers for you' : 'Your trade offers'}
     >
-      {part === 'incoming' ? (
+      {/* An offer for me names itself ("Cara offers you a trade"): no title over it. The
+          Trades tab starts with the one line an empty table needs, and the way to propose. */}
+      {part === 'mine' && (
         <header className={styles.header}>
-          <h4 className={styles.title}>
-            TRADE OFFER{incoming.length > 1 ? 'S' : ''} FOR YOU
-            <span className={styles.count} data-testid="trade-incoming-count">
-              {incoming.length} NEW
+          {outgoing.length === 0 && atTable.length === 0 ? (
+            <span className={styles.empty} data-testid="trade-table-empty">
+              No open offers
             </span>
-          </h4>
-        </header>
-      ) : (
-        <header className={styles.header}>
-          <h4 className={styles.title}>TRADES</h4>
-          {outgoing.length === 0 && (
-            <span className={styles.empty}>No offers of yours pending</span>
+          ) : (
+            <span className={styles.empty} />
           )}
+          <Hint id="trades">
+            Offers are public: everyone sees them, and anyone can make a competing offer.
+          </Hint>
           <Button variant="secondary" size="sm" onClick={onPropose}>
             PROPOSE TRADE
           </Button>
@@ -155,9 +154,9 @@ export function TradeOffers({
                 <PlayerName id={offer.from_player_id} party={proposer} />
                 <span className={styles.verb}>offers you a trade</span>
               </div>
-              <Side label="They give" stocks={offer.offering_stocks} money={offer.offering_money} />
+              <Side label="You get" stocks={offer.offering_stocks} money={offer.offering_money} />
               <Side
-                label="They want"
+                label="You give"
                 stocks={offer.requesting_stocks}
                 money={offer.requesting_money}
               />
@@ -226,26 +225,8 @@ export function TradeOffers({
           )
         })}
 
-      {part === 'mine' && (
-        <div className={styles.table} data-testid="trade-table">
-          <div className={styles.subtitleRow}>
-            <h5 className={styles.subtitle}>
-              Open offers at the table
-              {atTable.length > 0 && (
-                <span className={styles.tableCount} data-testid="trade-table-count">
-                  {atTable.length}
-                </span>
-              )}
-              {atTable.length === 0 && (
-                <span className={styles.none} data-testid="trade-table-empty">
-                  none
-                </span>
-              )}
-            </h5>
-            <Hint id="trades">
-              Offers are public: everyone sees them, and anyone can make a competing offer.
-            </Hint>
-          </div>
+      {part === 'mine' && atTable.length > 0 && (
+        <div className={styles.table} data-testid="trade-table" aria-label="Offers at the table">
           {atTable.map((offer) => {
             const proposer = players[offer.from_player_id]
             const target = players[offer.to_player_id]

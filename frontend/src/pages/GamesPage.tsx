@@ -195,9 +195,10 @@ function GameRow({ game }: { game: GameSummary }) {
           ))}
         </div>
         <div className={styles.rowBottom}>
+          {/* A live game has its LIVE badge; the outcome line is for games that have one. */}
           <span data-testid="game-winner">
             {game.status === 'live'
-              ? 'In progress'
+              ? ''
               : winnerNames.length
                 ? `Winner: ${winnerNames.join(' & ')}`
                 : game.status === 'abandoned'

@@ -16,7 +16,7 @@ import {
   seatName,
   startGame,
 } from './support/lobby'
-import { Seat, installObservers, observed } from './support/play'
+import { Seat, installObservers, myCash, observed } from './support/play'
 import { outgoingTo, proposeTrade } from './support/trade'
 import { openTab } from '../support/tabs'
 
@@ -58,17 +58,21 @@ test('@ci solo vs AI: full game from the home page to game over and play again',
       els.map((e) => (e.getAttribute('data-testid') ?? '').replace('seat-kind-', ''))
     )
   expect(aiIds).toHaveLength(2)
-  await expect(page.getByText('3/6 players')).toBeVisible()
+  await expect(page.locator('[data-testid^="lobby-player-"]')).toHaveCount(3)
   await j.shot(page, 'lobby-with-ai-seats')
 
   // --- Table chat with the Fake LLM (UI only) ----------------------------------------------
   // In the lobby the chat is under the content, no tab to open.
   const chat = page.getByTestId('chat-panel')
   await expect(chat).toBeVisible()
-  await expect(page.getByTestId('chat-readers')).toContainText(
-    `AI that reads chat and may answer: ${LLM}.`
+  // Who reads the chat at this table, in one line; what holds at every table is behind "?".
+  await expect(page.getByTestId('chat-readers')).toHaveText(
+    `${LLM} (AI) reads the chat and may answer.`
   )
-  await expect(page.getByTestId('chat-readers')).toContainText('Rules-based bots do not chat.')
+  await page.getByTestId('chat-about-button').click()
+  await expect(page.getByTestId('chat-about')).toContainText(
+    'Rules-based bots never read or write chat.'
+  )
   const hello = `Hello ${LLM}, I take the majority in the first chain, deal?`
   j.log(`chat: "${hello}"`)
   await page.getByTestId('chat-input').fill(hello)
@@ -129,9 +133,7 @@ test('@ci solo vs AI: full game from the home page to game over and play again',
         )
         await expect(page.getByText(`${LLM} accepted your offer`)).toBeVisible({ timeout: 20_000 })
         await expect(outgoingTo(page, LLM)).toHaveCount(0)
-        await expect(page.getByTestId('header-cash')).toHaveText(
-          `$${(cashBefore + 100).toLocaleString('en-US')}`
-        )
+        await expect(myCash(page)).toHaveText(`$${(cashBefore + 100).toLocaleString('en-US')}`)
         const after = await seat.holdings(myId)
         expect(after[chain] ?? 0).toBe(holdings[chain] - 1)
         await seat.shot('trade-llm-accepted')
@@ -227,12 +229,12 @@ test('@ci solo vs AI: full game from the home page to game over and play again',
   // --- Play again ----------------------------------------------------------------------
   await page.getByTestId('play-again').click()
   await page.waitForURL(/\/$/)
-  await expect(page.getByTestId('create-name-input')).toBeVisible()
+  await expect(page.getByTestId('name-input')).toBeVisible()
   await j.shot(page, 'after-play-again-home')
-  await page.getByTestId('create-name-input').fill('Alice')
+  await page.getByTestId('name-input').fill('Alice')
   await page.getByTestId('create-button').click()
   await page.waitForURL(/\/play\/[A-Z]{4}\?is_host=1$/)
-  await expect(page.getByText('WAITING FOR PLAYERS')).toBeVisible()
-  await expect(page.getByText('1/6 players')).toBeVisible()
+  await expect(page.getByTestId('lobby')).toBeVisible()
+  await expect(page.locator('[data-testid^="lobby-player-"]')).toHaveCount(1)
   await j.shot(page, 'second-game-lobby')
 })

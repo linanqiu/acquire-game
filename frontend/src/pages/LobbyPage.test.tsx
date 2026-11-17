@@ -43,12 +43,13 @@ function mount() {
     </BrowserRouter>
   )
 }
+// The name is asked once, for both ways in (BL-017).
 const create = (name: string) => {
-  fireEvent.change(screen.getByTestId('create-name-input'), { target: { value: name } })
+  fireEvent.change(screen.getByTestId('name-input'), { target: { value: name } })
   fireEvent.click(screen.getByTestId('create-button'))
 }
 const join = (name: string, code: string) => {
-  fireEvent.change(screen.getByTestId('join-name-input'), { target: { value: name } })
+  fireEvent.change(screen.getByTestId('name-input'), { target: { value: name } })
   fireEvent.change(screen.getByTestId('join-room-input'), { target: { value: code } })
   fireEvent.click(screen.getByTestId('join-button'))
 }
@@ -56,6 +57,7 @@ const join = (name: string, code: string) => {
 beforeEach(() => {
   mockNavigate.mockClear()
   sessionStorage.clear()
+  localStorage.clear()
 })
 afterEach(async () => {
   vi.unstubAllGlobals()
@@ -112,9 +114,9 @@ describe('create a game', () => {
     mount()
     create('')
     expect(await screen.findByText('Name is required')).toBeInTheDocument()
-    fireEvent.change(screen.getByTestId('create-name-input'), { target: { value: 'A' } })
+    fireEvent.change(screen.getByTestId('name-input'), { target: { value: 'A' } })
     expect(screen.queryByText('Name is required')).not.toBeInTheDocument()
-    fireEvent.keyDown(screen.getByTestId('create-name-input'), { key: 'Enter' })
+    fireEvent.keyDown(screen.getByTestId('name-input'), { key: 'Enter' })
     await waitFor(() => expect(post(fn, '/api/create')).toBeDefined())
   })
 })
@@ -166,10 +168,95 @@ describe('join a game', () => {
   it('Enter in the room-code field joins', async () => {
     const fn = serve({ '/api/join': home.join })
     mount()
-    fireEvent.change(screen.getByTestId('join-name-input'), { target: { value: 'Bob' } })
+    fireEvent.change(screen.getByTestId('name-input'), { target: { value: 'Bob' } })
     fireEvent.change(screen.getByTestId('join-room-input'), { target: { value: 'ABCD' } })
     fireEvent.keyDown(screen.getByTestId('join-room-input'), { key: 'Enter' })
     await waitFor(() => expect(post(fn, '/api/join')).toBeDefined())
+  })
+
+  it('Enter in the name field joins when a code has been typed (and does not create a game)', async () => {
+    const fn = serve({ '/api/join': home.join })
+    mount()
+    fireEvent.change(screen.getByTestId('name-input'), { target: { value: 'Bob' } })
+    fireEvent.change(screen.getByTestId('join-room-input'), { target: { value: 'ABCD' } })
+    fireEvent.keyDown(screen.getByTestId('name-input'), { key: 'Enter' })
+    await waitFor(() => expect(post(fn, '/api/join')).toBeDefined())
+    expect(post(fn, '/api/create')).toBeUndefined()
+  })
+
+  it('each problem is said at the control it is about: the name at the name, the room at the code', async () => {
+    serve({ '/api/join': home.join_duplicate_name })
+    mount()
+    const name = screen.getByTestId('name-input')
+    const code = screen.getByTestId('join-room-input')
+    // A missing name, asked for by JOIN: at the name field, which takes the focus.
+    join('', 'ABCD')
+    expect(name).toHaveAccessibleDescription('Name is required')
+    expect(code).not.toHaveAttribute('aria-invalid')
+    expect(name).toHaveFocus()
+    // A bad code: at the code field.
+    join('Bob', 'AB')
+    expect(code).toHaveAccessibleDescription('Room code must be 4 characters')
+    expect(name).not.toHaveAttribute('aria-invalid')
+    // The server refuses the name: back at the name field.
+    join('Bob', 'ABCD')
+    await waitFor(() => expect(name).toHaveAccessibleDescription('Player name already taken'))
+    expect(code).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('the server refusing the room is said at the code field', async () => {
+    serve({ '/api/join': home.join_unknown_room })
+    mount()
+    join('Bob', 'ABCD')
+    const code = screen.getByTestId('join-room-input')
+    await waitFor(() => expect(code).toHaveAccessibleDescription('Room not found'))
+    expect(screen.getByTestId('name-input')).not.toHaveAttribute('aria-invalid')
+  })
+})
+
+describe('one name, two ways in', () => {
+  it('asks the name once, with an accessible name on every control and no repeated label', () => {
+    serve({})
+    mount()
+    expect(screen.getAllByRole('textbox')).toHaveLength(2)
+    expect(screen.getByRole('textbox', { name: 'Your name' })).toBe(
+      screen.getByTestId('name-input')
+    )
+    expect(screen.getByRole('textbox', { name: 'or join with a code' })).toBe(
+      screen.getByTestId('join-room-input')
+    )
+    expect(screen.getAllByText(/your name/i)).toHaveLength(1)
+    expect(screen.queryByPlaceholderText(/enter your name/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'CREATE GAME' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'JOIN' })).toBeInTheDocument()
+  })
+
+  it('remembers the last name used and offers it again; the join uses the same name', async () => {
+    const fn = serve({ '/api/create': home.create, '/api/join': home.join })
+    const first = mount()
+    create('Ada')
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalled())
+    first.unmount()
+    mount()
+    expect(screen.getByTestId('name-input')).toHaveValue('Ada')
+    fireEvent.change(screen.getByTestId('join-room-input'), { target: { value: 'ABCD' } })
+    fireEvent.click(screen.getByTestId('join-button'))
+    await waitFor(() => expect(post(fn, '/api/join')).toBeDefined())
+    expect(form(fn, '/api/join').get('player_name')).toBe('Ada')
+  })
+
+  it('a failed attempt is not remembered, and a browser without storage still works', async () => {
+    serve({ '/api/create': { status: 500, body: { detail: 'Failed to create room' } } })
+    const first = mount()
+    create('Nobody')
+    expect(await screen.findByTestId('create-error')).toHaveTextContent('Failed to create room')
+    first.unmount()
+    const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('storage is off')
+    })
+    mount()
+    expect(screen.getByTestId('name-input')).toHaveValue('')
+    getItem.mockRestore()
   })
 })
 

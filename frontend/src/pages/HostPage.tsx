@@ -210,7 +210,12 @@ export function HostPage() {
         </Button>
       </div>
 
-      <p className={styles.minPlayers}>{startHint(lobbyPlayers.length, minPlayers)}</p>
+      {/* Said only while the game cannot start; an enabled START GAME needs no caption. */}
+      {startHint(lobbyPlayers.length, minPlayers) && (
+        <p className={styles.minPlayers} data-testid="start-hint">
+          {startHint(lobbyPlayers.length, minPlayers)}
+        </p>
+      )}
     </div>
   )
 
@@ -219,7 +224,6 @@ export function HostPage() {
       <GameOver
         scores={buildFinalScores(gameState, gameOver)}
         onPlayAgain={() => navigate('/')}
-        onBackToLobby={() => navigate('/')}
         variant="host"
         gameId={gameState?.game_id}
       />
@@ -236,9 +240,13 @@ export function HostPage() {
         deciding={!!nowMerger}
         table={
           <div className={styles.nowTab} data-testid="host-now">
-            <p className={styles.nowLine} data-testid="host-waiting">
-              {waitingMessage(gameState.awaiting, gameState.players, currentPlayerName, ruleset)}
-            </p>
+            {/* The phase bar names the player on turn and the step. This line is for the other
+                case only: the table waits on someone else (a stockholder during a merger). */}
+            {gameState.awaiting && gameState.awaiting.player_id !== gameState.current_player && (
+              <p className={styles.nowLine} data-testid="host-waiting">
+                {waitingMessage(gameState.awaiting, gameState.players, currentPlayerName, ruleset)}
+              </p>
+            )}
             {nowMerger && (
               <MergerResult merger={nowMerger} players={gameState.players} gameState={gameState} />
             )}

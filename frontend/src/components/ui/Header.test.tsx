@@ -39,4 +39,23 @@ describe('Header', () => {
     expect(screen.getByTestId('header-cash')).toHaveTextContent('$0')
     expect(screen.getByTestId('header-tile-pool')).toHaveTextContent('[EMPTY]')
   })
+
+  it('in a game the header keeps its compact form with or without my numbers, so tabs do not move the page (BL-017)', () => {
+    // The Board tab: my cash and worth are in the players table, the header has room and bag.
+    const { rerender, container } = render(<Header inGame roomCode="WXYZ" tilePool={30} />)
+    const header = container.querySelector('header')!
+    expect(header).toHaveAttribute('data-numbers', 'true')
+    expect(header).not.toHaveAttribute('data-mine')
+    expect(screen.getByTestId('header-room')).toHaveTextContent('Room WXYZ')
+    expect(screen.queryByTestId('header-cash')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('header-networth')).not.toBeInTheDocument()
+    // Another tab: my numbers; the same compact form.
+    rerender(<Header inGame roomCode="WXYZ" tilePool={30} cash={12500} netWorth={24600} rank={1} />)
+    expect(header).toHaveAttribute('data-numbers', 'true')
+    expect(header).toHaveAttribute('data-mine', 'true')
+    expect(screen.getByTestId('header-cash')).toHaveTextContent('$12,500')
+    expect(screen.getByTestId('header-networth')).toHaveTextContent('$24,600')
+    expect(screen.getByTestId('header-rank')).toHaveTextContent('#1')
+    expect(screen.getByTestId('header-tile-pool')).toHaveTextContent('[30]')
+  })
 })

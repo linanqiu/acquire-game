@@ -40,6 +40,7 @@ When you discover a potential improvement while using the app:
 | [BL-014](../stories/08-backlog/BL-014.md) | The Board tab fits a real phone screen (390x675: one line per player, small seat icon, the board yields what the table needs, nothing scrolls); a calmer neutral theme with one accent | high | L | completed |
 | [BL-015](../stories/08-backlog/BL-015.md) | Merger order: the player who placed the merging tile picks which same-size defunct chain is absorbed first (engine decision, every seat kind, decision panel) | high | L | completed |
 | [BL-016](../stories/08-backlog/BL-016.md) | Softer chain colours: lower chroma, same hues, apart for colour-vision deficiencies and from the orphan grey, clearer against the light board | medium | M | completed |
+| [BL-017](../stories/08-backlog/BL-017.md) | Say each thing once (name asked once on the home page, one "what now" line, header vs my row, quiet empty states, chat note behind "?", merger numbers once); one 44px buy row per chain, all seven with the board at 390x675 | high | L | completed |
 
 ## Promotion Process
 

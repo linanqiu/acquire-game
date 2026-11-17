@@ -80,6 +80,8 @@ export function MergerResult({
   const after = merger.survivor_after ?? null
   const afterSize = merger.survivor_size ?? after?.size ?? null
   const sid = chainTestId(merger.survivor)
+  // Around my own sell / trade / keep controls, which already give the defunct price.
+  const deciding = part === 'body'
 
   const head = (
     <>
@@ -91,7 +93,6 @@ export function MergerResult({
       <p className={styles.summary} data-testid="merger-result-summary">
         {nameOf(merger.player_id)} placed {merger.tile ?? 'a tile'} · {survivor} {before} →{' '}
         {(merger.complete ? merger.survivor_size : afterSize) ?? '?'} tiles
-        {!merger.complete && <span className={styles.muted}> · in progress</span>}
       </p>
     </>
   )
@@ -126,7 +127,7 @@ export function MergerResult({
         <div className={styles.defunctHead}>
           <ChainMarker chain={d.chain} variant="compact" />
           <span className={styles.muted}>
-            {d.size} tiles · {rules.money(d.price)}
+            {d.size} tiles{deciding ? '' : ` · ${rules.money(d.price)}`}
           </span>
         </div>
         {d.bonuses === null ? (
@@ -164,15 +165,7 @@ export function MergerResult({
                     <td>{who(p)}</td>
                     <td className={styles.num}>{held(p)}</td>
                     {bonus(p)}
-                    <td className={styles.muted}>
-                      {i === 0
-                        ? p === myId && draft
-                          ? `deciding: sell ${draft.sell}, trade ${draft.trade}, keep ${
-                              held(p) - draft.sell - draft.trade
-                            }`
-                          : 'deciding…'
-                        : 'to decide'}
-                    </td>
+                    <td className={styles.muted}>{i === 0 ? 'deciding…' : 'to decide'}</td>
                   </tr>
                 ))}
               {later.map((p) => (
@@ -209,9 +202,6 @@ export function MergerResult({
         <div className={styles.defunctHead}>
           <ChainMarker chain={merger.survivor} variant="compact" />
           <span className={styles.muted}>after</span>
-          <span className={styles.fact} data-testid="survivor-after-size">
-            {after.size} tiles
-          </span>
           <span className={styles.fact} data-testid="survivor-after-price">
             {rules.money(after.price)}
           </span>

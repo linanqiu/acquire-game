@@ -1,7 +1,7 @@
 import { test, expect } from './support/test'
 import { startFromSnapshot } from './support/room'
 import { dollars } from './support/fixtures'
-import { headerCash, phaseBanner, playHumanTurns } from './support/ui'
+import { myCash, phaseBanner, playHumanTurns } from './support/ui'
 
 // A page reload on a restored state must land on the same screen: the browser keeps its
 // credentials in sessionStorage, reconnects, and the server re-sends state and the pending prompt.
@@ -24,7 +24,7 @@ test('reload while choosing a chain: same selector, same options, still answerab
   for (const chain of offered) {
     await expect(page.getByTestId(`chain-button-${chain.toLowerCase()}`)).toBeEnabled()
   }
-  await expect(headerCash(page)).toHaveText(dollars(room.fixture.expect.human.cash))
+  await expect(myCash(page)).toHaveText(dollars(room.fixture.expect.human.cash))
   await shots.take(page, 'after-reload')
 
   await page.getByTestId(`chain-button-${offered[0].toLowerCase()}`).click()
@@ -56,7 +56,7 @@ test('reload during a stock disposition: the same card with the same limits come
   await expect(
     page.getByTestId(`slider-trade-2:1-for-${legal.surviving_chain.toLowerCase()}`)
   ).toHaveAttribute('max', String(legal.max_trade))
-  await expect(headerCash(page)).toHaveText(dollars(room.fixture.expect.human.cash))
+  await expect(myCash(page)).toHaveText(dollars(room.fixture.expect.human.cash))
   await shots.take(page, 'after-reload')
 
   // Answer it after the reload: sell everything.
@@ -77,13 +77,13 @@ test('reload with a trade offer waiting: the offer is still there and can be ans
 
   await page.reload()
   await expect(page.getByTestId(`trade-offer-${trade.trade_id}`)).toBeVisible()
-  await expect(page.getByTestId('trade-incoming-count')).toHaveText('1 NEW')
-  await expect(headerCash(page)).toHaveText(dollars(room.fixture.expect.human.cash))
+  await expect(page.locator('[data-testid^="trade-offer-"]')).toHaveCount(1)
+  await expect(myCash(page)).toHaveText(dollars(room.fixture.expect.human.cash))
   await shots.take(page, 'after-reload')
 
   await page.getByTestId(`trade-accept-${trade.trade_id}`).click()
   await expect(page.getByTestId(`trade-offer-${trade.trade_id}`)).toHaveCount(0)
-  await expect(headerCash(page)).toHaveText(
+  await expect(myCash(page)).toHaveText(
     dollars(room.fixture.expect.human.cash - trade.requesting_money)
   )
   await playHumanTurns(page, room, 2, shots)

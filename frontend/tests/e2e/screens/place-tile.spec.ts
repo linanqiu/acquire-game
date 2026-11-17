@@ -4,7 +4,7 @@ import { dollars } from './support/fixtures'
 import {
   boardTile,
   clickableRackTiles,
-  headerCash,
+  myCash,
   phaseBanner,
   playHumanTurns,
   playerRows,
@@ -24,7 +24,7 @@ const REASON_TEXT: Record<string, RegExp> = {
 async function expectRackMatchesFixture(page: Page, room: RoomContext) {
   const { human } = room.fixture.expect
   await expect(phaseBanner(page)).toHaveText('PLACE A TILE')
-  await expect(headerCash(page)).toHaveText(dollars(human.cash))
+  await expect(myCash(page)).toHaveText(dollars(human.cash))
   await expect(rack(page).locator('[data-testid^="tile-"]')).toHaveCount(human.hand.length)
   for (const t of human.hand) await expect(rackTile(page, t)).toBeVisible()
   const blocked = Object.keys(human.unplayable_tiles)

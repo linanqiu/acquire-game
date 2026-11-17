@@ -11,7 +11,7 @@
 import type { Page } from '@playwright/test'
 import { test, expect } from './support/journey'
 import { addBot, createGame, joinGame, seatName, startGame } from './support/lobby'
-import { Seat, installObservers, playTogether } from './support/play'
+import { Seat, installObservers, myCash, playTogether } from './support/play'
 import { incomingFrom, outgoingTo, proposeTrade } from './support/trade'
 
 interface Snapshot {
@@ -45,9 +45,7 @@ async function reloadAndCompare(seat: Seat, myId: string, label: string): Promis
   await seat.page.reload()
   await expect(seat.phase()).toHaveText(before.phase)
   await expect.poll(() => rackTiles(seat.page)).toEqual(before.rack)
-  await expect(seat.page.getByTestId('header-cash')).toHaveText(
-    `$${before.cash.toLocaleString('en-US')}`
-  )
+  await expect(myCash(seat.page)).toHaveText(`$${before.cash.toLocaleString('en-US')}`)
   expect(await seat.holdings(myId)).toEqual(before.holdings)
   await seat.shot(`${label}-after-reload`)
   return before
@@ -106,9 +104,7 @@ test('reconnect and refresh: reloads mid-turn and with a pending offer, offline/
   const cashBefore = await alice.cash()
   await incomingFrom(a, 'Bob').getByRole('button', { name: 'ACCEPT' }).click()
   await expect(b.getByText('Alice accepted your offer')).toBeVisible()
-  await expect(a.getByTestId('header-cash')).toHaveText(
-    `$${(cashBefore + 100).toLocaleString('en-US')}`
-  )
+  await expect(myCash(a)).toHaveText(`$${(cashBefore + 100).toLocaleString('en-US')}`)
   await expect(outgoingTo(b, 'Alice')).toHaveCount(0)
   await alice.shot('offer-accepted-after-reload')
 

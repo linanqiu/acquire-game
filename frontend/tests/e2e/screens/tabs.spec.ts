@@ -37,7 +37,7 @@ const STATES = [
   {
     state: 'waiting',
     fixture: 'disposition-waiting-on-other',
-    banner: /'s TURN$/i,
+    banner: /^.+ IS DISPOSING OF SHARES$/,
     idle: ['p2'],
   },
 ]
@@ -53,7 +53,7 @@ const WIDE = [
 /**
  * Answer the prompts the other seats' moves bring (a disposition, a chain choice) until it is my
  * turn to place a tile. With `stayOn` (I am typing in the chat there) the page must not switch
- * by itself: the Board tab gets a badge and the status line takes me to the decision, as a
+ * by itself: the Board tab gets a badge and the phase bar takes me to the decision, as a
  * player would tap it; then back to `stayOn`.
  */
 async function untilMyPlaceTurn(
@@ -68,7 +68,7 @@ async function untilMyPlaceTurn(
     if (stayOn && typing) {
       await expect(tab(page, stayOn)).toHaveAttribute('aria-selected', 'true')
       await expect(tabBadge(page, 'board')).toBeVisible()
-      await page.getByTestId('status-line').click()
+      await page.getByTestId('phase-link').click()
     } else if (stayOn) {
       // Not typing: the page comes back to the board and the decision under it by itself.
       await expect(tab(page, 'board')).toHaveAttribute('aria-selected', 'true')
@@ -126,7 +126,7 @@ async function checkEveryTab(
   room: RoomContext,
   shots: Shots,
   label: string,
-  opts: { rackHidden: boolean }
+  opts: { rackHidden: boolean; mine: boolean }
 ) {
   const phone = (await tab(page, 'board').count()) > 0
   const ids = await page
@@ -159,11 +159,31 @@ async function checkEveryTab(
       await expect(page.getByTestId('tile-rack')).toBeInViewport({ ratio: 1 })
     }
     if (phone && which !== 'table') {
-      // The decision is not on top of the reference tabs; the status line leads back to it.
+      // The decision is not on top of the reference tabs.
       await expect(page.getByTestId('decision-view')).toBeHidden()
-      await expect(page.getByTestId('status')).toBeInViewport({ ratio: 1 })
     }
-    if (!phone) await expect(page.getByTestId('status')).toBeInViewport({ ratio: 1 })
+    // Said once (BL-017). With the table panel open, the header leaves my cash and worth to
+    // the players table and the phase bar is plain text. On another tab the header carries
+    // my numbers, and while my move waits the phase bar itself is the way back, naming the
+    // tab it leads to. No second "your move" line anywhere.
+    const link = page.getByTestId('phase-link')
+    if (which === 'table') {
+      await expect(link).toHaveCount(0)
+      await expect(page.getByTestId('header-cash')).toHaveCount(0)
+      await expect(page.getByTestId('header-room')).toBeInViewport({ ratio: 1 })
+    } else {
+      await expect(page.getByTestId('header-cash')).toBeInViewport({ ratio: 1 })
+      await expect(page.getByTestId('header-networth')).toBeInViewport({ ratio: 1 })
+      await expect(page.getByTestId('header-rank')).toBeInViewport({ ratio: 1 })
+      if (opts.mine) {
+        await expect(link).toBeInViewport({ ratio: 1 })
+        await expect(link).toHaveAttribute('data-go', phone ? 'Board' : 'Table')
+      } else {
+        await expect(link).toHaveCount(0)
+      }
+    }
+    await expect(page.getByText(/^Your move/)).toHaveCount(0)
+    await expect(page.getByTestId('header-tile-pool')).toBeInViewport({ ratio: 1 })
     await shots.take(page, `${label}-${which}`, { fullPage: false })
   }
   await openTab(page, 'table')
@@ -188,6 +208,7 @@ for (const vp of [...PHONES, ...WIDE]) {
       const deciding = s.state === 'buy' || s.state === 'disposition' || s.state === 'waiting'
       await checkEveryTab(page, room, shots, s.state.replace(' ', '-'), {
         rackHidden: deciding && vp.height <= 700,
+        mine: s.state !== 'waiting',
       })
 
       // The decision's main button is on screen with the board, without scrolling.
@@ -234,10 +255,10 @@ test('phone: unread chat badge, Chat tab content, and no tab switch while typing
     'psst, want to trade?'
   )
 
-  // Write a draft, then end the turn (the status line leads back to the decision): my next
+  // Write a draft, then end the turn (the phase bar leads back to the decision): my next
   // decisions and my place-tile turn would switch tabs, but not while I am writing.
   await page.getByTestId('chat-input').fill('let me think')
-  await page.getByTestId('status-line').click()
+  await page.getByTestId('phase-link').click()
   await expect(tab(page, 'board')).toHaveAttribute('aria-selected', 'true')
   await page.getByTestId('end-turn-button').click()
   await expect(phaseBanner(page)).not.toHaveText('BUY STOCKS')
@@ -266,12 +287,15 @@ test('phone: my place-tile turn opens the Board when I am on another tab; the ch
   await expect(page.getByTestId('game-phase')).toBeVisible()
   // Remembered for the session, per room.
   await expect(tab(page, 'chains')).toHaveAttribute('aria-selected', 'true')
-  // The buy still waiting for me is not news after a reload: a badge, and the status line.
+  // The buy still waiting for me is not news after a reload: a badge, and the phase bar, which
+  // names the move and is the way to it.
   await expect(tabBadge(page, 'board')).toBeVisible()
-  await expect(page.getByTestId('status-line')).toHaveText(/Your move: buy shares/)
+  await expect(page.getByTestId('phase-link')).toHaveText('BUY STOCKS')
+  await expect(page.getByTestId('phase-link')).toHaveAccessibleName('BUY STOCKS. Go to Board')
+  await expect(page.getByTestId('status-line')).toHaveCount(0)
   await shots.take(page, 'chains-after-reload', { fullPage: false })
 
-  await page.getByTestId('status-line').click()
+  await page.getByTestId('phase-link').click()
   await expect(tab(page, 'board')).toHaveAttribute('aria-selected', 'true')
   await expect(tabBadge(page, 'board')).toHaveCount(0)
   await page.getByTestId('end-turn-button').click()

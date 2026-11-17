@@ -1,7 +1,7 @@
 import { test, expect } from './support/test'
 import { startFromSnapshot } from './support/room'
 import { dollars } from './support/fixtures'
-import { headerCash, phaseBanner, playHumanTurns } from './support/ui'
+import { myCash, phaseBanner, playHumanTurns } from './support/ui'
 
 const ALL_CHAINS = ['sandpiper', 'marlowe', 'halcyon', 'meridian', 'juniper', 'obsidian', 'aurelia']
 
@@ -15,7 +15,9 @@ test('found chain: only the chains not on the board are offered; founder gets a 
   await shots.take(page, 'chain-selector')
 
   await expect(phaseBanner(page)).toHaveText('CHOOSE A HOTEL CHAIN')
-  await expect(page.getByRole('heading', { name: 'Found a hotel chain' })).toBeVisible()
+  // The phase bar is the title; the choice is a named region, with no second heading.
+  await expect(page.getByRole('region', { name: 'Found a hotel chain' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /hotel chain/i })).toHaveCount(0)
   await expect(page.getByTestId('chain-selector')).toBeVisible()
 
   // Exactly the engine's available chains are enabled; everything else is shown as ACTIVE.
@@ -44,7 +46,7 @@ test('found chain: only the chains not on the board are offered; founder gets a 
   await expect(row).toContainText(String(before + 1))
   await expect(page.getByTestId(`buy-row-${chosen.toLowerCase()}`)).toBeVisible()
   // The founder's share is free: cash unchanged.
-  await expect(headerCash(page)).toHaveText(dollars(human.cash))
+  await expect(myCash(page)).toHaveText(dollars(human.cash))
   await shots.take(page, 'founded-buy-phase')
 
   // Finish this turn and play two more.

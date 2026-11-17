@@ -4,7 +4,7 @@ import { startFromSnapshot } from './support/room'
 import { dollars } from './support/fixtures'
 import {
   clickableRackTiles,
-  headerCash,
+  myCash,
   phaseBanner,
   playHumanTurns,
   playerRows,
@@ -53,7 +53,7 @@ for (const fixtureName of ['three-player-midgame', 'six-player-midgame']) {
       await shots.take(page, `${vp.label}-loaded`)
 
       await expect(phaseBanner(page)).toHaveText('PLACE A TILE')
-      await expect(headerCash(page)).toHaveText(dollars(human.cash))
+      await expect(myCash(page)).toHaveText(dollars(human.cash))
 
       // Every seat has its card with the right cash; the human's is marked YOU.
       await openTab(page, 'table')
@@ -127,7 +127,7 @@ test('phone: no text field is under 16px, so the browser does not zoom in on foc
 }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')
-  await expect(page.getByTestId('create-name-input')).toBeVisible()
+  await expect(page.getByTestId('name-input')).toBeVisible()
   const home = await textFieldFontSizes(page)
   expect(home.length, 'home page text fields found').toBeGreaterThan(0)
   expect(home.filter((f) => f.px < 16)).toEqual([])

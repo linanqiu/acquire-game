@@ -42,7 +42,7 @@ async function aiRoom(
   const seats = (fixture.snapshot.players as Array<{ player_id: string }>).map((p) => p.player_id)
   await page.setViewportSize(viewport)
   await page.goto('/')
-  await page.getByTestId('create-name-input').fill('Linan')
+  await page.getByTestId('name-input').fill('Linan')
   await page.getByTestId('create-button').click()
   await page.waitForURL(/\/play\/[A-Z0-9]{4}/)
   const code = /\/play\/([A-Z0-9]{4})/.exec(page.url())![1]
@@ -175,7 +175,8 @@ async function expectBoardTabFits(page: Page, players: number, opts: { footer: b
   await expectFullBoard(page)
   expect(
     await layoutProblems(page, [
-      'header-networth',
+      'header-room',
+      'header-tile-pool',
       'game-phase',
       'board',
       'table-panel',
@@ -183,7 +184,10 @@ async function expectBoardTabFits(page: Page, players: number, opts: { footer: b
       'tab-bar',
     ])
   ).toEqual([])
-  for (const id of ['header-networth', 'game-phase', 'tile-rack', 'tab-bar']) {
+  // The table under the board has my cash, worth and rank: the header does not repeat them.
+  await expect(page.getByTestId('header-cash')).toHaveCount(0)
+  await expect(page.getByTestId('header-networth')).toHaveCount(0)
+  for (const id of ['header-room', 'header-tile-pool', 'game-phase', 'tile-rack', 'tab-bar']) {
     await expect(page.getByTestId(id)).toBeInViewport({ ratio: 1 })
   }
 }
@@ -236,8 +240,9 @@ for (const vp of [IPHONE, IPHONE_SE]) {
     await expect(phaseBanner(page)).toHaveText('BUY STOCKS')
     await shots.take(page, `${label}-mid-buy`, { fullPage: false })
     await page.getByTestId('end-turn-button').click()
-    await expect(phaseBanner(page)).toHaveText(/BOB'S TURN/i)
-    await expect(page.getByTestId('waiting-message')).toBeVisible()
+    // Who the table waits for is in the phase bar, once: no line of the panel is spent on it.
+    await expect(phaseBanner(page)).toHaveText(/^BOB IS /)
+    await expect(page.getByTestId('waiting-message')).toHaveCount(0)
     await shots.take(page, `${label}-mid-four-players`, { fullPage: false })
     await expectBoardTabFits(page, 4, { footer: true })
     const m = await measure(page)

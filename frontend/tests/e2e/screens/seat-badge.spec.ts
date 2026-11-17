@@ -23,7 +23,7 @@ async function badgeRoom(page: Page, viewport: { width: number; height: number }
   const human = fixture.expect.players.find((p) => p.player_id === fixture.human_seat)!.name
   await page.setViewportSize(viewport)
   await page.goto('/')
-  await page.getByTestId('create-name-input').fill(human)
+  await page.getByTestId('name-input').fill(human)
   await page.getByTestId('create-button').click()
   await page.waitForURL(/\/play\/[A-Z0-9]{4}/)
   const code = /\/play\/([A-Z0-9]{4})/.exec(page.url())![1]

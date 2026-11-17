@@ -9,6 +9,8 @@ export interface SliderProps {
   onChange: (value: number) => void
   displayValue?: string
   disabled?: boolean
+  /** Test id of the readout next to the label. */
+  valueTestId?: string
 }
 
 export function Slider({
@@ -20,6 +22,7 @@ export function Slider({
   onChange,
   displayValue,
   disabled = false,
+  valueTestId,
 }: SliderProps) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(Number(e.target.value))
@@ -31,7 +34,11 @@ export function Slider({
     <div className={`${styles.sliderContainer} ${disabled ? styles.disabled : ''}`}>
       <label className={styles.label}>
         <span className={styles.labelText}>{label}</span>
-        {displayValue && <span className={styles.displayValue}>{displayValue}</span>}
+        {displayValue && (
+          <span className={styles.displayValue} data-testid={valueTestId}>
+            {displayValue}
+          </span>
+        )}
       </label>
       <input
         type="range"

@@ -7,6 +7,10 @@ export interface StockStepperProps {
   max: number
   onChange: (value: number) => void
   disabled?: boolean
+  /** What is being counted ("Marlowe shares to buy"): the spinbutton's accessible name. */
+  label?: string
+  /** Tighter, for a table row. */
+  compact?: boolean
 }
 
 export function StockStepper({
@@ -15,6 +19,8 @@ export function StockStepper({
   max,
   onChange,
   disabled = false,
+  label,
+  compact = false,
 }: StockStepperProps) {
   const canDecrement = value > min && !disabled
   const canIncrement = value < max && !disabled
@@ -31,8 +37,9 @@ export function StockStepper({
 
   return (
     <div
-      className={styles.stepper}
+      className={`${styles.stepper} ${compact ? styles.compact : ''}`}
       role="spinbutton"
+      aria-label={label}
       aria-valuenow={value}
       aria-valuemin={min}
       aria-valuemax={max}

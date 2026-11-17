@@ -1,7 +1,7 @@
 import { test, expect } from './support/test'
 import { startFromSnapshot } from './support/room'
 import { dollars } from './support/fixtures'
-import { headerCash, phaseBanner, playHumanTurns } from './support/ui'
+import { myCash, phaseBanner, playHumanTurns } from './support/ui'
 
 const buyRow = (page: import('@playwright/test').Page, chain: string) =>
   page.getByTestId(`buy-row-${chain.toLowerCase()}`)
@@ -21,7 +21,7 @@ test('buy phase: prices and availability shown, 3-share cap, buy a mix', async (
   await shots.take(page, 'buy-phase')
 
   await expect(phaseBanner(page)).toHaveText('BUY STOCKS')
-  await expect(headerCash(page)).toHaveText(dollars(human.cash))
+  await expect(myCash(page)).toHaveText(dollars(human.cash))
   await expect(page.getByTestId('end-turn-button')).toHaveText('SKIP & END TURN')
   await expect(page.getByTestId('purchase-shares')).toHaveText('(0/3 shares)')
 
@@ -60,7 +60,7 @@ test('buy phase: prices and availability shown, 3-share cap, buy a mix', async (
   await page.getByTestId('end-turn-button').click()
   await expect(phaseBanner(page)).not.toHaveText('BUY STOCKS')
   // Cash and holdings reflect the purchase; the numbers come from the fixture.
-  await expect(headerCash(page)).toHaveText(dollars(human.cash - cost))
+  await expect(myCash(page)).toHaveText(dollars(human.cash - cost))
   await expect(page.getByTestId(`portfolio-row-${first.toLowerCase()}`)).toContainText(
     String((human.holdings[first] ?? 0) + 2)
   )
@@ -81,7 +81,7 @@ test('buy phase: skip buying keeps cash and ends the turn', async ({ page, shots
   await shots.take(page, 'buy-phase')
   await page.getByTestId('end-turn-button').click()
   await expect(phaseBanner(page)).not.toHaveText('BUY STOCKS')
-  await expect(headerCash(page)).toHaveText(dollars(human.cash))
+  await expect(myCash(page)).toHaveText(dollars(human.cash))
   await shots.take(page, 'skipped')
   await playHumanTurns(page, room, 2, shots)
 })
@@ -96,7 +96,7 @@ test('low cash: cannot afford any stock, steppers locked, skipping still works',
   await shots.take(page, 'low-cash')
 
   await expect(phaseBanner(page)).toHaveText('BUY STOCKS')
-  await expect(headerCash(page)).toHaveText(dollars(human.cash))
+  await expect(myCash(page)).toHaveText(dollars(human.cash))
   // Every chain is shown with its price, but none can be increased.
   for (const chain of chains) {
     await expect(buyRow(page, chain).getByTestId('buy-price')).toHaveText(
