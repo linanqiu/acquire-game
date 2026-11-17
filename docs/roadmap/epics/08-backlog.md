@@ -39,6 +39,7 @@ When you discover a potential improvement while using the app:
 | [BL-013](../stories/08-backlog/BL-013.md) | Phone UX pass: players matrix with one chain order, standings and decisions under the board (no Now / Players tabs), merger result that goes by itself, fewer words, trade builder as a sheet | high | L | completed |
 | [BL-014](../stories/08-backlog/BL-014.md) | The Board tab fits a real phone screen (390x675: one line per player, small seat icon, the board yields what the table needs, nothing scrolls); a calmer neutral theme with one accent | high | L | completed |
 | [BL-015](../stories/08-backlog/BL-015.md) | Merger order: the player who placed the merging tile picks which same-size defunct chain is absorbed first (engine decision, every seat kind, decision panel) | high | L | completed |
+| [BL-016](../stories/08-backlog/BL-016.md) | Softer chain colours: lower chroma, same hues, apart for colour-vision deficiencies and from the orphan grey, clearer against the light board | medium | M | completed |
 
 ## Promotion Process
 

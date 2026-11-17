@@ -207,13 +207,13 @@ def test_default_matches_previous_constants():
     assert [c.id for c in rs.chains] == DEFAULT_NAMES
     assert [c.name for c in rs.chains] == [n.capitalize() for n in DEFAULT_NAMES]
     assert {c.id: c.color for c in rs.chains} == {
-        "sandpiper": "#CBBA2F",
-        "marlowe": "#F797AC",
-        "halcyon": "#41CBE6",
-        "meridian": "#DF8528",
-        "juniper": "#7FAD74",
-        "obsidian": "#64A1FD",
-        "aurelia": "#B78AC8",
+        "sandpiper": "#B99E42",
+        "marlowe": "#D9809E",
+        "halcyon": "#1CB0C2",
+        "meridian": "#B26D32",
+        "juniper": "#749770",
+        "obsidian": "#5B8CD0",
+        "aurelia": "#A26FA3",
     }
     assert (
         rs.stocks_per_chain,
@@ -325,7 +325,7 @@ BAD = [
     ),
     (
         "duplicate colour",
-        _set(["chains", 1, "color"], "#cbba2f"),
+        _set(["chains", 1, "color"], "#b99e42"),
         "colors must be unique",
     ),
     ("bad colour", _set(["chains", 0, "color"], "gold"), "#RRGGBB"),

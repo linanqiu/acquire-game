@@ -277,7 +277,7 @@ All keys are required and unknown keys are rejected (at every level).
   ],
   "chains": [                            // order = display/state order
     {"id": "sandpiper", "name": "Sandpiper", "tier": "cheap",
-     "color": "#CBBA2F", "abbreviation": "SP"}  // id is the state/wire key
+     "color": "#B99E42", "abbreviation": "SP"}  // id is the state/wire key
   ],
   "bonuses": {"majority_multiplier": 10, "minority_multiplier": 5,
               "tie_round_up_to": 100},   // tie splits round UP to this step

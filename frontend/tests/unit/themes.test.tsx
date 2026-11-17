@@ -452,12 +452,12 @@ describe('chain colours are readable', () => {
     })
   }
 
-  // Calm, balanced palettes (BL-009): similar perceived lightness, so no chain glows or
-  // recedes, and still distinct for normal vision and the common colour-vision deficiencies
-  // (OKLab distance after Machado 2009 simulation; the abbreviation on the board and in every
-  // marker means colour is never the only cue). Numbers measured when the palettes were set:
-  // default 0.124 / 0.079 / 0.078 / 0.078, valley 0.113 / 0.071 / 0.070 / 0.070,
-  // mini 0.171 / 0.110 / 0.107 / 0.107 (normal / protan / deutan / tritan).
+  // Calm, balanced palettes (BL-009, softened in BL-016): similar perceived lightness, so no
+  // chain glows or recedes, and still distinct for normal vision and the common colour-vision
+  // deficiencies (OKLab distance after Machado 2009 simulation; the abbreviation on the board
+  // and in every marker means colour is never the only cue). Numbers measured when the palettes
+  // were set (BL-016): default 0.110 / 0.071 / 0.071 / 0.072, valley 0.103 / 0.067 / 0.067 /
+  // 0.067, mini 0.114 / 0.076 / 0.073 / 0.084 (normal / protan / deutan / tritan).
   for (const [name, rs] of Object.entries(ALL_RULESETS)) {
     it(`${name}: chain colours share a lightness band and stay apart under colour-vision deficiencies`, () => {
       const colors = rs.chains.map((c) => c.color)
@@ -467,6 +467,48 @@ describe('chain colours are readable', () => {
       for (const v of VISIONS.filter((v) => v !== 'normal')) {
         expect(minDistance(colors, v), v).toBeGreaterThanOrEqual(0.065)
       }
+    })
+  }
+
+  // Soft palettes (BL-016) must not fade into the board. The empty square of each theme comes
+  // from tokens.css (first --board-square is the dark theme, the others the light one).
+  // Dark: every fill at least 3:1 against the empty square. Light: at least 2.5:1 (3:1 for
+  // every chain cannot be had together with the colour-vision distances above and calm
+  // chroma; the old palettes were 1.9:1 there). Numbers measured when set (dark / light
+  // minimum): default 4.07 / 2.53, valley 4.15 / 2.50, mini 3.30 / 3.01.
+  const tokens = readFileSync(join(__dirname, '..', '..', 'src', 'styles', 'tokens.css'), 'utf8')
+  const squares = [...tokens.matchAll(/--board-square:\s*(#[0-9a-fA-F]{6})/g)].map((m) => m[1])
+  const [darkSquare, lightSquare] = [squares[0], squares[squares.length - 1]]
+  it('reads the empty-square colours of both themes from tokens.css', () => {
+    expect(squares.length).toBeGreaterThanOrEqual(2)
+    expect(contrastRatio(darkSquare, '#000000')).toBeLessThan(contrastRatio(lightSquare, '#000000'))
+  })
+  for (const [name, rs] of Object.entries(ALL_RULESETS)) {
+    it(`${name}: every chain stands out from an empty square in both themes`, () => {
+      for (const c of rs.chains) {
+        expect(contrastRatio(c.color, darkSquare), `${c.name} on dark`).toBeGreaterThanOrEqual(3)
+        expect(contrastRatio(c.color, lightSquare), `${c.name} on light`).toBeGreaterThanOrEqual(
+          2.5
+        )
+      }
+    })
+  }
+
+  // A tile played outside any chain is grey (--chain-orphan); a soft chain colour must not look
+  // like it. Same OKLab distance as between chains for normal vision, at least 0.05 under the
+  // simulated deficiencies (measured when set, BL-016: default 0.109 / 0.062 / 0.072 / 0.099,
+  // valley 0.102 / 0.077 / 0.077 / 0.075, mini 0.113 / 0.072 / 0.101 / 0.072).
+  const orphans = [...tokens.matchAll(/--chain-orphan:\s*(#[0-9a-fA-F]{6})/g)].map((m) => m[1])
+  for (const [name, rs] of Object.entries(ALL_RULESETS)) {
+    it(`${name}: no chain colour looks like a tile in no chain`, () => {
+      expect(orphans.length).toBeGreaterThanOrEqual(2)
+      for (const c of rs.chains)
+        for (const o of orphans)
+          for (const v of VISIONS) {
+            expect(minDistance([c.color, o], v), `${c.name} vs ${o} (${v})`).toBeGreaterThanOrEqual(
+              v === 'normal' ? 0.1 : 0.05
+            )
+          }
     })
   }
 
