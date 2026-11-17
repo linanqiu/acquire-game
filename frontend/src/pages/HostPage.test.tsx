@@ -46,7 +46,8 @@ describe('host lobby', () => {
     renderHostPage('WXYZ')
     expect(screen.getByTestId('host-title')).toHaveTextContent('BUYOUT')
     expect(screen.getByText('WXYZ')).toBeInTheDocument()
-    expect(screen.getByText(`${window.location.origin}/play/WXYZ`)).toBeInTheDocument()
+    // The join link opens the home page's code step (BL-018); /play/WXYZ only works for seated players.
+    expect(screen.getByText(`${window.location.origin}/?code=WXYZ`)).toBeInTheDocument()
     const [human, bot, scripted] = lobby().players
     expect(screen.getByText('PLAYERS (3/6)')).toBeInTheDocument()
     expect(screen.getByText(human.name)).toBeInTheDocument()
@@ -119,7 +120,7 @@ describe('host view of a running game', () => {
     expect(screen.getByTestId('game-phase')).toHaveAttribute('data-turn', 'other')
   })
 
-  it('the chains panel lists the active chains with size, price and shares left; the rest are not listed', () => {
+  it('the chains panel lists the active chains with size, price and shares left; the rest are one quiet line', () => {
     const view = snapshot('buy-phase-multi-chain')
     deliver(view.host)
     renderHostPage()
@@ -137,6 +138,19 @@ describe('host view of a running game', () => {
     }
     const inactive = DEFAULT_RS.chains.find((c) => !(c.id in view.expect.active_chains))!.id
     expect(within(panel).queryByTestId(`chain-marker-${inactive}`)).not.toBeInTheDocument()
+    expect(
+      within(panel).queryByTestId(`chain-row-${inactive.toLowerCase()}`)
+    ).not.toBeInTheDocument()
+    // BL-018: the chains not on the board are named once, quietly, at the foot.
+    const off = within(screen.getByTestId('chains-off-board')).getByTestId(
+      `chain-off-${inactive.toLowerCase()}`
+    )
+    expect(
+      within(off).getByRole('img', {
+        hidden: true, // the Chains tab is not the open one
+        name: DEFAULT_RS.chains.find((c) => c.id === inactive)!.name,
+      })
+    ).toBeInTheDocument()
   })
 
   it('before any chain exists it says so', () => {

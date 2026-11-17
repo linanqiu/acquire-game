@@ -1,16 +1,16 @@
 /*
- * The home page: a small board motif in the ruleset's chain colours, the brand, the theme and
- * its tagline; one form (the name once, then create or join with a code); then the other ways in (watch bots, games &
- * transcripts, bench) as a row of entry cards.
+ * The home page (BL-018): the board motif and the brand, then one question at a time in a
+ * centred column (the name with NEW GAME / JOIN GAME; or the room code), and the other
+ * destinations as one quiet row of links at the bottom.
  */
-.lobby {
+.home {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   min-height: 100vh;
-  padding: var(--space-8) var(--space-4) var(--space-6);
+  min-height: 100dvh;
+  padding: var(--space-8) var(--space-4) var(--space-4);
   box-sizing: border-box;
 }
 
@@ -24,90 +24,140 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: var(--space-6);
+  margin: var(--space-4) 0 var(--space-6);
 }
 
 .hero :global(.board-motif) {
-  max-width: min(220px, 70vw);
+  max-width: min(168px, 50vw);
   height: auto;
   margin-bottom: var(--space-4);
 }
 
 .title {
   font-family: var(--font-sans);
-  font-size: 44px;
+  font-size: 36px;
   font-weight: var(--font-bold);
   color: var(--text-accent);
   margin: 0;
-  margin-bottom: var(--space-1);
   letter-spacing: 0.18em;
   text-align: center;
 }
 
 .theme {
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   color: var(--text-secondary);
-  margin: 0;
-  margin-bottom: var(--space-2);
+  margin: var(--space-1) 0 0;
   letter-spacing: 0.25em;
   text-transform: uppercase;
   text-align: center;
 }
 
-.subtitle {
-  font-size: var(--text-lg);
-  color: var(--text-primary);
-  margin: 0;
-  text-align: center;
+.tagline {
   max-width: 34ch;
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  text-align: center;
 }
 
-/* One name, then the two ways in: create, or join with a code. */
-.entryForm {
+/* One step: a narrow column, no card around it. */
+.step {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
   width: 100%;
-  max-width: 360px;
-  padding: var(--space-4);
-  box-sizing: border-box;
-  background-color: var(--bg-secondary);
-  border: var(--border-default);
-  border-radius: var(--radius-md);
+  max-width: 340px;
+}
+
+.nameInput {
+  min-height: 48px;
+  font-size: var(--text-lg);
+}
+
+/* The room code: four large letters, spaced like the code the lobby shows. */
+.codeInput {
+  min-height: 64px;
+  font-family: var(--font-num);
+  font-size: 32px;
+  font-weight: var(--font-bold);
+  letter-spacing: 0.5em;
+  text-indent: 0.5em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.codeInput::placeholder {
+  color: var(--text-muted, var(--text-secondary));
+  opacity: 0.35;
+}
+
+.asLine {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.asName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asLine strong {
+  color: var(--text-primary);
+  font-weight: var(--font-bold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.textButton {
+  margin-left: auto;
+  padding: var(--space-1) 0;
+  background: none;
+  border: none;
+  font: inherit;
+  color: var(--text-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.back {
+  align-self: center;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.back:hover {
+  color: var(--text-primary);
 }
 
 .formError {
   margin: 0;
   font-size: var(--text-sm);
   color: var(--text-negative);
+  text-align: center;
 }
 
-.joinRow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--space-2);
-  align-items: start;
-  padding-top: var(--space-3);
-  border-top: var(--border-default);
-}
-
-.joinLabel {
-  grid-column: 1 / -1;
+.note {
+  margin: 0 0 var(--space-4);
   font-size: var(--text-sm);
   color: var(--text-secondary);
+  text-align: center;
 }
 
-.codeInput {
-  font-family: var(--font-num);
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-}
-
-.joinButton {
-  min-width: 88px;
-}
-
-/* The two ways to start: the accent, so the first thing to press is obvious. */
+/* The one main action of each step. */
 .cta {
   background-color: var(--turn-accent);
   border-color: var(--turn-accent);
@@ -120,72 +170,53 @@
   filter: brightness(1.08);
 }
 
-.meta {
-  margin: var(--space-4) 0 0;
-  font-family: var(--font-num);
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  text-align: center;
-}
-
-.explore {
-  margin-top: var(--space-6);
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-3);
-  width: 100%;
-  max-width: 640px;
-}
-
-.entry {
+/* The other destinations: one quiet line at the foot of the page. */
+.more {
+  margin-top: auto;
+  padding-top: var(--space-8);
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: var(--space-3);
-  text-align: left;
-  color: var(--text-primary);
-  background-color: var(--bg-secondary);
-  border: var(--border-default);
-  border-radius: var(--radius-md);
-  transition:
-    border-color var(--duration-fast) var(--ease-default),
-    background-color var(--duration-fast) var(--ease-default);
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  column-gap: var(--space-1);
+  font-size: var(--text-sm);
 }
 
-.entry:hover {
-  color: var(--text-primary);
-  border-color: var(--turn-accent);
+.moreLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-1);
+  background: none;
+  border: none;
+  font: inherit;
+  color: var(--text-secondary);
+  text-decoration: none;
+  cursor: pointer;
 }
 
-.entry:disabled {
+.moreLink:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.moreLink:disabled {
   opacity: 0.6;
   cursor: progress;
 }
 
-.entryTitle {
-  font-size: var(--text-sm);
-  font-weight: var(--font-bold);
-}
-
-.entryHint {
-  font-size: var(--text-xs);
+.dot {
   color: var(--text-secondary);
+  opacity: 0.6;
 }
 
-/* Phones: one column. */
-@media (max-width: 768px) {
-  .lobby {
-    justify-content: flex-start;
-    padding-top: var(--space-8);
+/* Wide screens: the column sits a little higher than the middle. */
+@media (min-width: 769px) {
+  .home {
+    padding-top: 10vh;
   }
 
   .title {
-    font-size: 34px;
-  }
-
-  .explore {
-    grid-template-columns: 1fr;
-    max-width: 360px;
+    font-size: 44px;
   }
 }

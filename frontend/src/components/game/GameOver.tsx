@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Card } from '../ui/Card'
 import { Button } from '../ui/Button'
 import styles from './GameOver.module.css'
 import { useRules } from '../../ruleset/useRules'
@@ -70,8 +69,9 @@ export function GameOver({
   const hasBreakdown = scores.every((s) => s.bonuses !== undefined && s.stockSales !== undefined)
 
   return (
-    // No card title: the phase bar of the page says GAME OVER.
-    <Card>
+    // No card and no title: the phase bar of the page says GAME OVER (BL-018: one column, the
+    // standings as plain rows, PLAY AGAIN the one main button).
+    <div className={styles.frame}>
       <div className={styles.container} data-testid="game-over">
         {/* The winner by name; every total is in the standings right under it. */}
         <div className={styles.winner} data-testid="winner-announcement">
@@ -199,27 +199,37 @@ export function GameOver({
           </div>
         )}
 
+        <div className={styles.actions}>
+          <Button
+            variant="accent"
+            size="lg"
+            fullWidth
+            onClick={onPlayAgain}
+            data-testid="play-again"
+          >
+            PLAY AGAIN
+          </Button>
+          {onBackToLobby && (
+            <Button
+              variant="secondary"
+              fullWidth
+              onClick={onBackToLobby}
+              data-testid="back-to-lobby"
+            >
+              BACK TO LOBBY
+            </Button>
+          )}
+        </div>
         {gameId && (
           <Link
             to={`/games/${encodeURIComponent(gameId)}`}
             className={styles.transcriptLink}
             data-testid="view-transcript-link"
           >
-            View full transcript
+            View the transcript
           </Link>
         )}
-
-        <div className={styles.actions}>
-          <Button onClick={onPlayAgain} data-testid="play-again">
-            PLAY AGAIN
-          </Button>
-          {onBackToLobby && (
-            <Button variant="secondary" onClick={onBackToLobby} data-testid="back-to-lobby">
-              BACK TO LOBBY
-            </Button>
-          )}
-        </div>
       </div>
-    </Card>
+    </div>
   )
 }

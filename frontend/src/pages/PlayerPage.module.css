@@ -5,36 +5,32 @@
   flex: 1;
 }
 
-/* Lobby Content */
+/* Lobby (BL-018): one centred column as wide as the home page's: the room code and its invite,
+   the seats, then the host's controls. */
 .lobbyContent {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: var(--space-6);
-  text-align: center;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-4) 0;
+  box-sizing: border-box;
 }
 
-.roomInfo {
-  font-weight: var(--font-normal, 400);
-  font-size: var(--text-md);
-  color: var(--text-secondary);
-  margin: 0 0 var(--space-4);
-}
-
-.roomCode {
-  font-family: var(--font-mono);
-  font-size: var(--text-xl);
-  font-weight: var(--font-bold);
-  color: var(--text-accent);
-  letter-spacing: 4px;
+/* Content under the lobby / game over (the chat): the same column. */
+.column {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 0 var(--space-4) var(--space-4);
+  box-sizing: border-box;
 }
 
 .playerList {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  margin-bottom: var(--space-4);
-  min-width: 200px;
+  border-top: var(--border-default);
 }
 
 .lobbyPlayer {
@@ -42,9 +38,16 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  background-color: var(--bg-secondary);
-  border-radius: var(--radius-sm);
+  min-height: 48px;
+  padding: 0 var(--space-1);
+  border-bottom: var(--border-default);
+}
+
+.seatName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .seatTags {
@@ -54,14 +57,22 @@
 }
 
 .playerCount {
+  margin: 0;
+  padding: var(--space-2) var(--space-1) 0;
   font-size: var(--text-sm);
   color: var(--text-secondary);
-  margin: 0 0 var(--space-4);
 }
 
+/* ADD BOT / ADD AI side by side, START GAME under them, full width. */
 .hostActions {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
   gap: var(--space-3);
+}
+
+.hostActions > :first-child {
+  align-self: stretch;
 }
 
 .waitingText {
@@ -120,23 +131,6 @@
 @media (max-width: 767px) {
   .content {
     gap: var(--space-3);
-  }
-
-  .lobbyContent {
-    padding: var(--space-4);
-  }
-
-  .hostActions {
-    flex-direction: column;
-    width: 100%;
-  }
-}
-
-/* Extra small screens */
-@media (max-width: 375px) {
-  .roomCode {
-    font-size: var(--text-lg);
-    letter-spacing: 2px;
   }
 }
 

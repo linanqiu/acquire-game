@@ -1,0 +1,62 @@
+/* The lobby's room code and its invite button, on one line. */
+.share {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  width: 100%;
+}
+
+.code {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--font-normal, 400);
+  color: var(--text-secondary);
+}
+
+.label {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: var(--text-xs);
+}
+
+.letters {
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+  color: var(--text-accent);
+  letter-spacing: 4px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: var(--border-default);
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
+  text-decoration: none;
+}
+
+.button:hover {
+  border-color: var(--turn-accent);
+  color: var(--text-primary);
+}
+
+.outcome {
+  flex: 1 0 100%;
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  text-align: right;
+  overflow-wrap: anywhere;
+}

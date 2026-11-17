@@ -34,6 +34,13 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
           id={inputId}
           className={`${styles.input} ${error ? styles.error : ''} ${className || ''}`.trim()}
           onChange={handleChange}
+          autoCapitalize={
+            typeof autoCapitalize === 'string'
+              ? autoCapitalize
+              : autoCapitalize
+                ? 'characters'
+                : undefined
+          }
           aria-invalid={error ? 'true' : undefined}
           aria-describedby={error ? `${inputId}-error` : undefined}
           {...props}

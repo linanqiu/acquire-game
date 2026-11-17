@@ -49,12 +49,19 @@ export async function joinGame(
 ): Promise<void> {
   await openHome(page, j, who)
   await page.getByTestId('name-input').fill(name)
-  // Type the code in lower case: the input upper-cases it like a user would see.
-  await page.getByTestId('join-room-input').pressSequentially(room.toLowerCase())
-  await expect(page.getByTestId('join-room-input')).toHaveValue(room)
-  await j.shot(page, `${who}-home-join-filled`)
-  j.log(`(${who}) join room ${room} as "${name}"`)
+  // One question at a time (BL-018): the name, JOIN GAME, then the room code alone.
   await page.getByTestId('join-button').click()
+  await page.waitForURL(/\/\?join/)
+  const code = page.getByTestId('join-room-input')
+  await expect(code).toBeFocused()
+  await expect(page.getByTestId('join-as')).toContainText(name)
+  // Type the code in lower case: the input upper-cases it like a user would see. The fourth
+  // letter joins, so the first three are checked before it.
+  await code.pressSequentially(room.slice(0, 3).toLowerCase())
+  await expect(code).toHaveValue(room.slice(0, 3))
+  await j.shot(page, `${who}-home-join-code`)
+  j.log(`(${who}) join room ${room} as "${name}"`)
+  await code.press(room[3].toLowerCase())
   await page.waitForURL(new RegExp(`/play/${room}$`))
   await expectInLobby(page, [name])
   // A guest reads what the room waits for in the phase bar (said once, BL-017).
