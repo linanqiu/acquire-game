@@ -19,11 +19,20 @@ from game.game import Game, GamePhase
 class HeuristicTable:
     """One deterministic heuristic agent per seat (seeded by player id)."""
 
-    def __init__(self, game: Game, difficulty: str = "medium", seed: int = 0):
+    def __init__(
+        self,
+        game: Game,
+        difficulty: str = "medium",
+        seed: int = 0,
+        version: str | None = None,
+    ):
         self.game = game
         self.agents = {
             p.player_id: HeuristicAgent(
-                name=p.player_id, difficulty=difficulty, seed=f"{seed}:{p.player_id}"
+                name=p.player_id,
+                difficulty=difficulty,
+                seed=f"{seed}:{p.player_id}",
+                version=version,
             )
             for p in game.players
         }

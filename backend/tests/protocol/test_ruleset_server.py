@@ -78,6 +78,34 @@ def test_protocol_validation_uses_the_configured_ruleset(mini_server):
     assert err is None
 
 
+def _found_when_possible(human, state):
+    """The human plays a tile that founds a chain when its hand has one (the
+    bot founds chains eagerly too, so a first-tile human may never get to),
+    otherwise the default first playable tile. Founding is read from the
+    public board: a tile touching a lone tile and no chain."""
+    if state["awaiting"]["decision"] != "place_tile" or state.get("end_game_available"):
+        return None
+    cells = state["board"]["cells"]
+    play = state.get("tile_playability") or {}
+    for t in state["your_hand"]:
+        if not play.get(t, {}).get("playable", True):
+            continue
+        col, row = int(t[:-1]), t[-1]
+        near = [
+            cells.get(f"{c}{r}")
+            for c, r in (
+                (col - 1, row),
+                (col + 1, row),
+                (col, chr(ord(row) - 1)),
+                (col, chr(ord(row) + 1)),
+            )
+        ]
+        near = [n for n in near if n]
+        if near and all(n.get("chain") is None for n in near):
+            return {"action": "place_tile", "tile": t}
+    return None
+
+
 @pytest.mark.slow
 def test_mini_server_plays_full_game_with_human_bot_and_scripted(
     app_client, mini_server
@@ -94,7 +122,7 @@ def test_mini_server_plays_full_game_with_human_bot_and_scripted(
         human = HumanClient(ws, me)
         assert human.recv()["type"] == "lobby_update"
         start(client, code)
-        final = human.play(max_actions=800)
+        final = human.play(max_actions=800, on_state=_found_when_possible)
 
     assert final["phase"] == "game_over"
     assert human.errors == []

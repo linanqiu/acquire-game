@@ -18,10 +18,24 @@ import {
   startGame,
 } from './support/lobby'
 
+/**
+ * From either home step: back to the name step, the name, JOIN GAME, then the code. Four
+ * letters join on their own (BL-018); a shorter code needs the JOIN button.
+ */
 async function joinAttempt(page: Page, name: string, code: string) {
+  const back = page.getByTestId('join-back')
+  if (await back.isVisible()) {
+    await back.click()
+    await expect(page.getByTestId('create-button')).toBeVisible()
+  }
   await page.getByTestId('name-input').fill(name)
-  await page.getByTestId('join-room-input').fill(code)
   await page.getByTestId('join-button').click()
+  if (!name.trim()) return
+  const input = page.getByTestId('join-room-input')
+  await expect(input).toBeFocused()
+  await input.fill('')
+  await input.fill(code)
+  if (code.length < 4) await page.getByTestId('join-submit-button').click()
 }
 
 function joinError(page: Page) {
@@ -30,7 +44,7 @@ function joinError(page: Page) {
 }
 
 function nameError(page: Page) {
-  // The name is asked once for both ways in (BL-017); its error sits under the name field.
+  // The name is asked first (BL-018); its error sits under the name field.
   return page.locator('#player-name-error')
 }
 
@@ -66,14 +80,15 @@ test('@ci entry errors: validation, bad codes, duplicate name, full room, starte
   // --- Join validation and bad codes ------------------------------------------------
   await joinAttempt(b, '', 'ABCD')
   await expect(nameError(b)).toHaveText('Name is required')
-  await expect(joinError(b)).toHaveCount(0)
+  await expect(b.getByTestId('join-room-input')).toHaveCount(0)
   await joinAttempt(b, 'Bob', 'AB')
-  await expect(joinError(b)).toHaveText('Room code must be 4 characters')
+  await expect(joinError(b)).toHaveText('Room code must be 4 letters')
   await j.shot(b, 'join-short-code')
   await joinAttempt(b, 'Bob', 'qzqz')
   await expect(joinError(b)).toHaveText('Room not found')
-  await expect(b.getByRole('alert').filter({ hasText: 'Room not found' }).first()).toBeVisible()
-  expect(b.url()).toMatch(/\/$/)
+  // Said once, at the code field (no toast repeating it).
+  await expect(b.getByText('Room not found')).toHaveCount(1)
+  expect(b.url()).toMatch(/\/\?join/)
   await j.shot(b, 'join-wrong-code')
   j.log('join: empty name, short code and unknown room refused')
 
@@ -87,11 +102,16 @@ test('@ci entry errors: validation, bad codes, duplicate name, full room, starte
 
   // --- Duplicate name (case-insensitive) ----------------------------------------------
   await joinAttempt(b, 'hana', room)
-  // A refusal about the name is said at the name field, not under the room code.
-  await expect(nameError(b)).toHaveText('Player name already taken')
-  await expect(joinError(b)).toHaveCount(0)
+  // Every refusal is said at the code field; one about the name offers to change it.
+  await expect(joinError(b)).toHaveText('Player name already taken')
   await j.shot(b, 'join-duplicate-name')
-  j.log('join: duplicate name refused')
+  await b.getByTestId('join-name-taken-change').click()
+  await expect(nameError(b)).toHaveText('That name is taken in this room: pick another')
+  await expect(b.getByTestId('name-input')).toBeFocused()
+  await expect(b.getByTestId('name-input')).toHaveValue('hana')
+  expect(b.url()).toMatch(/\/$/)
+  await j.shot(b, 'join-duplicate-name-change')
+  j.log('join: duplicate name refused; back on the name step to change it')
 
   // --- Fill the room to 6 with AI seats; a 7th person is refused --------------------
   await addBot(host, j)

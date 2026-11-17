@@ -374,16 +374,16 @@ export function PlayerPage() {
         : pendingMergerOrder
           ? orderPhaseText(ruleset)
           : pendingStockDisposition
-          ? dispositionPhaseText(ruleset)
-          : myDecision || phase === 'game_over'
-            ? playerPhaseText(ruleset, phase, isMyTurn, currentPlayerName)
-            : waitingPhaseText(
-                ruleset,
-                gameState?.awaiting,
-                gameState?.players ?? {},
-                currentPlayerName,
-                (id) => names[id]?.head
-              )
+            ? dispositionPhaseText(ruleset)
+            : myDecision || phase === 'game_over'
+              ? playerPhaseText(ruleset, phase, isMyTurn, currentPlayerName)
+              : waitingPhaseText(
+                  ruleset,
+                  gameState?.awaiting,
+                  gameState?.players ?? {},
+                  currentPlayerName,
+                  (id) => names[id]?.head
+                )
   // What the placement line says next to its buttons (nothing to press: no line).
   const placementText = !placing
     ? null
@@ -603,7 +603,11 @@ export function PlayerPage() {
           )
         )}
         {/* Lobby, game over and the waiting screens: chat under the content. */}
-        {!unavailable && outOfGame && <ChatPanel room={room} />}
+        {!unavailable && outOfGame && (
+          <div className={styles.column}>
+            <ChatPanel room={room} />
+          </div>
+        )}
 
         {trades.builderOpen && (
           <Modal

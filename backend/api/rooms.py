@@ -124,7 +124,7 @@ def _add_seat(
         raise HTTPException(status_code=400, detail="Player name already taken")
     try:
         opts = {"script": script} if script is not None else {}
-        if agent_id == "bot":
+        if agent_id == "bot" or agent_id.startswith("bot:"):
             opts["seed"] = session_manager.bot_seed(room_code)
         if strict:
             opts["strict"] = True

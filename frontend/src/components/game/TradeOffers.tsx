@@ -115,28 +115,29 @@ export function TradeOffers({
 
   return (
     <section
-      className={`${styles.panel} ${part === 'incoming' ? styles.attention : ''}`}
+      className={part === 'incoming' ? `${styles.panel} ${styles.attention}` : styles.section}
       data-testid={part === 'incoming' ? 'trade-incoming' : 'trade-offers'}
       aria-label={part === 'incoming' ? 'Trade offers for you' : 'Your trade offers'}
     >
       {/* An offer for me names itself ("Cara offers you a trade"): no title over it. The
           Trades tab starts with the one line an empty table needs, and the way to propose. */}
       {part === 'mine' && (
-        <header className={styles.header}>
-          {outgoing.length === 0 && atTable.length === 0 ? (
-            <span className={styles.empty} data-testid="trade-table-empty">
+        <>
+          <header className={styles.header}>
+            <h4 className={styles.title}>Offers</h4>
+            <Hint id="trades">
+              Offers are public: everyone sees them, and anyone can make a competing offer.
+            </Hint>
+            <Button variant="secondary" onClick={onPropose} className={styles.propose}>
+              PROPOSE TRADE
+            </Button>
+          </header>
+          {outgoing.length === 0 && atTable.length === 0 && (
+            <p className={styles.empty} data-testid="trade-table-empty">
               No open offers
-            </span>
-          ) : (
-            <span className={styles.empty} />
+            </p>
           )}
-          <Hint id="trades">
-            Offers are public: everyone sees them, and anyone can make a competing offer.
-          </Hint>
-          <Button variant="secondary" size="sm" onClick={onPropose}>
-            PROPOSE TRADE
-          </Button>
-        </header>
+        </>
       )}
 
       {part === 'incoming' &&

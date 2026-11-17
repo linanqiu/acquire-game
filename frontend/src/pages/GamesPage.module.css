@@ -1,32 +1,30 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
   padding: var(--space-2) 0 var(--space-8);
 }
 
 .head {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-1);
 }
 
 .title {
   margin: 0;
   font-size: var(--text-xl);
   font-weight: var(--font-bold);
-  color: var(--text-accent);
-  letter-spacing: 0.1em;
+  color: var(--text-primary);
 }
 
 .lede {
   margin: 0;
-  max-width: 640px;
   color: var(--text-secondary);
-  font-size: var(--text-md);
-  line-height: var(--line-height-normal);
+  font-size: var(--text-sm);
 }
 
+/* Filters as small chips on one line, Refresh at its end. */
 .filters {
   display: flex;
   flex-wrap: wrap;
@@ -37,14 +35,12 @@
 .filter {
   font-family: var(--font-primary);
   font-size: var(--text-sm);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   color: var(--text-secondary);
-  background: var(--bg-secondary);
+  background: none;
   border: var(--border-default);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2) var(--space-3);
-  min-height: 36px;
+  border-radius: var(--radius-full);
+  padding: 0 var(--space-3);
+  min-height: 32px;
   cursor: pointer;
 }
 
@@ -53,9 +49,10 @@
 }
 
 .filterActive {
-  color: var(--text-accent);
-  border-color: var(--text-secondary);
-  background: var(--primary-hover);
+  color: var(--text-primary);
+  border-color: var(--turn-accent);
+  background: var(--bg-secondary);
+  font-weight: var(--font-bold);
 }
 
 .filter:focus-visible,
@@ -76,34 +73,34 @@
   padding: var(--space-2);
 }
 
+/* One row per game, divided by rules (no card per game). */
 .list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  border-top: var(--border-default);
 }
 
 .row {
-  background: var(--bg-secondary);
-  border: var(--border-default);
-  border-radius: var(--radius-md);
+  border-bottom: var(--border-default);
+  border-left: 3px solid transparent;
 }
 
 .row:hover {
-  border-color: var(--text-secondary);
+  background: var(--bg-secondary);
 }
 
 .row[data-status='live'] {
-  border-left: 3px solid var(--text-positive);
+  border-left-color: var(--text-positive);
 }
 
 .rowLink {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
   color: inherit;
   text-decoration: none;
 }
@@ -113,18 +110,12 @@
   outline-offset: -2px;
 }
 
-.rowTop,
-.rowBottom {
+.rowTop {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: var(--space-3);
   flex-wrap: wrap;
-}
-
-.rowBottom {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
 }
 
 .badges {
@@ -133,16 +124,34 @@
   gap: var(--space-2);
 }
 
-.room,
-.when {
+.room {
   font-size: var(--text-sm);
+  color: var(--text-primary);
+  font-weight: var(--font-medium);
+}
+
+.when {
+  font-size: var(--text-xs);
   color: var(--text-secondary);
+  font-family: var(--font-num);
 }
 
 .seats {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2) var(--space-5);
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.outcome {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.outcome:empty {
+  display: none;
 }
 
 .empty,

@@ -148,16 +148,14 @@ afterEach(() => {
 describe.each(THEMED)('%s ruleset', (_name, rs) => {
   const BRAND = 'Buyout' // the product name (server setting GAME_BRAND_NAME), the same in every theme
 
-  it('home page: title, tagline, players, board and chain count', () => {
+  it('home page: title, theme and its tagline, in the ruleset colours', () => {
     useServerRuleset(rs)
     renderAt('/', [{ path: '/', element: <LobbyPage /> }])
     expect(screen.getByRole('heading', { name: BRAND.toUpperCase() })).toBeInTheDocument()
     expect(screen.getByTestId('home-theme')).toHaveTextContent(rs.title)
     expect(screen.getByTestId('home-tagline')).toHaveTextContent(rs.theme.tagline)
-    const meta = screen.getByTestId('home-meta')
-    expect(meta).toHaveTextContent(`${rs.min_players}-${rs.max_players} players`)
-    expect(meta).toHaveTextContent(`${rs.board.columns}×${rs.board.rows} board`)
-    expect(meta).toHaveTextContent(`${rs.chains.length} ${rs.theme.chain_noun_plural}`)
+    // BL-018: one quiet line of pitch; the numbers line (players, board, chains) is gone.
+    expect(screen.queryByTestId('home-meta')).not.toBeInTheDocument()
     expect(screen.getByTestId('bench-link')).toHaveTextContent(`${BRAND} Bench`)
     // The board motif is drawn in this ruleset's chain colours (and no other).
     const fills = new Set(

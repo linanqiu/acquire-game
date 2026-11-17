@@ -75,6 +75,15 @@ class Board:
         self._grid: dict[tuple[int, str], BoardCell] = {}
         self._initialize_grid()
 
+    def __deepcopy__(self, memo) -> "Board":
+        """Copy the cells; share the ruleset (frozen, immutable). Much faster
+        than a generic deep copy, which the calculator does per tile."""
+        new = Board.__new__(Board)
+        memo[id(self)] = new
+        new.__dict__.update(self.__dict__)
+        new._grid = {k: BoardCell(c.state, c.chain) for k, c in self._grid.items()}
+        return new
+
     @property
     def spec(self) -> BoardSpec:
         return self.ruleset.board

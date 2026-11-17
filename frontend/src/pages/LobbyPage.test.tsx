@@ -4,7 +4,7 @@
  */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { BrowserRouter } from 'react-router-dom'
+import { MemoryRouter } from 'react-router-dom'
 import { LobbyPage } from './LobbyPage'
 import { ToastProvider } from '../components/ui/ToastProvider'
 import { wireHome } from '../../tests/unit/fixtures/wire'
@@ -34,24 +34,26 @@ const post = (fn: ReturnType<typeof serve>, path: string) =>
 const form = (fn: ReturnType<typeof serve>, path: string) =>
   post(fn, path)![1].body as URLSearchParams
 
-function mount() {
+function mount(url = '/') {
   return render(
-    <BrowserRouter>
+    <MemoryRouter initialEntries={[url]}>
       <ToastProvider>
         <LobbyPage />
       </ToastProvider>
-    </BrowserRouter>
+    </MemoryRouter>
   )
 }
-// The name is asked once, for both ways in (BL-017).
+// The name is asked first; then NEW GAME or JOIN GAME (BL-018).
 const create = (name: string) => {
   fireEvent.change(screen.getByTestId('name-input'), { target: { value: name } })
   fireEvent.click(screen.getByTestId('create-button'))
 }
+/** Mount the home page, give the name, JOIN GAME, type the code (the fourth letter joins). */
 const join = (name: string, code: string) => {
+  mount()
   fireEvent.change(screen.getByTestId('name-input'), { target: { value: name } })
-  fireEvent.change(screen.getByTestId('join-room-input'), { target: { value: code } })
   fireEvent.click(screen.getByTestId('join-button'))
+  fireEvent.change(screen.getByTestId('join-room-input'), { target: { value: code } })
 }
 
 beforeEach(() => {
@@ -122,24 +124,40 @@ describe('create a game', () => {
 })
 
 describe('join a game', () => {
-  it('needs a name and a four-character room code', async () => {
+  it('JOIN GAME needs a name first, then opens the code step with the cursor in the code field', () => {
     const fn = serve({})
     mount()
-    join('', 'ABCD')
-    expect(await screen.findByText('Name is required')).toBeInTheDocument()
-    join('Bob', 'ABC')
-    expect(await screen.findByText('Room code must be 4 characters')).toBeInTheDocument()
-    join('Bob', 'ABCDE')
-    expect(screen.getByText('Room code must be 4 characters')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('join-button'))
+    expect(screen.getByTestId('name-input')).toHaveAccessibleDescription('Name is required')
+    expect(screen.queryByTestId('join-room-input')).not.toBeInTheDocument()
+    fireEvent.change(screen.getByTestId('name-input'), { target: { value: 'Bob' } })
+    fireEvent.click(screen.getByTestId('join-button'))
+    // One question at a time: the name is now a quiet line, the code the only field.
+    expect(screen.queryByTestId('name-input')).not.toBeInTheDocument()
+    expect(screen.getByTestId('join-as')).toHaveTextContent('Joining as Bob')
+    expect(screen.getByTestId('join-room-input')).toHaveFocus()
+    expect(screen.getAllByRole('textbox')).toHaveLength(1)
     expect(post(fn, '/api/join')).toBeUndefined()
   })
 
-  it('the room code is shown upper-case as typed and sent upper-case, trimmed; the player lands in the room', async () => {
+  it('a short code is refused at the code field; nothing is sent', async () => {
+    const fn = serve({})
+    mount('/?join')
+    fireEvent.change(screen.getByTestId('name-input'), { target: { value: 'Bob' } })
+    fireEvent.change(screen.getByTestId('join-room-input'), { target: { value: 'ABC' } })
+    fireEvent.click(screen.getByTestId('join-submit-button'))
+    expect(screen.getByTestId('join-room-input')).toHaveAccessibleDescription(
+      'Room code must be 4 letters'
+    )
+    expect(post(fn, '/api/join')).toBeUndefined()
+  })
+
+  it('the fourth letter joins: the code is upper-cased, letters only, and sent with the trimmed name', async () => {
     const fn = serve({ '/api/join': home.join })
-    mount()
-    fireEvent.change(screen.getByTestId('join-room-input'), { target: { value: 'ubqo' } })
-    expect(screen.getByTestId('join-room-input')).toHaveValue('UBQO')
-    join(' Bob ', ' ubqo ')
+    join(' Bob ', 'ub')
+    expect(screen.getByTestId('join-room-input')).toHaveValue('UB')
+    expect(post(fn, '/api/join')).toBeUndefined()
+    fireEvent.change(screen.getByTestId('join-room-input'), { target: { value: 'ub-q1o' } })
     await waitFor(() =>
       expect(mockNavigate).toHaveBeenCalledWith(`/play/${home.join.body.room_code}`)
     )
@@ -155,80 +173,107 @@ describe('join a game', () => {
     ['join_duplicate_name', 'Player name already taken'],
     ['join_full_room', 'Room is full'],
     ['join_started_game', 'Game already started'],
-  ] as const)('the server\'s refusal "%s" is shown as the server worded it', async (key, text) => {
+  ] as const)('the server\'s refusal "%s" is said once, at the code field', async (key, text) => {
     serve({ '/api/join': home[key] })
-    mount()
     join('Bob', 'ABCD')
-    await waitFor(() => expect(screen.getAllByText(text).length).toBeGreaterThan(0))
+    const code = screen.getByTestId('join-room-input')
+    await waitFor(() => expect(code).toHaveAccessibleDescription(text))
+    expect(screen.getAllByText(text)).toHaveLength(1)
     expect(home[key].body.detail).toBe(text)
     expect(mockNavigate).not.toHaveBeenCalled()
     expect(sessionStorage.getItem('player_id')).toBeNull()
   })
 
-  it('Enter in the room-code field joins', async () => {
-    const fn = serve({ '/api/join': home.join })
-    mount()
-    fireEvent.change(screen.getByTestId('name-input'), { target: { value: 'Bob' } })
+  it('a taken name offers to change it: back on the name step, the name field explains why', async () => {
+    serve({ '/api/join': home.join_duplicate_name })
+    // Opened from a join link (from the name step, the browser goes back in history instead).
+    localStorage.setItem('player_name_last', 'Bob')
+    mount('/?join')
     fireEvent.change(screen.getByTestId('join-room-input'), { target: { value: 'ABCD' } })
-    fireEvent.keyDown(screen.getByTestId('join-room-input'), { key: 'Enter' })
-    await waitFor(() => expect(post(fn, '/api/join')).toBeDefined())
+    fireEvent.click(await screen.findByTestId('join-name-taken-change'))
+    const name = screen.getByTestId('name-input')
+    expect(name).toHaveValue('Bob')
+    expect(name).toHaveFocus()
+    expect(name).toHaveAccessibleDescription('That name is taken in this room: pick another')
+    // Join again: the code typed before is kept.
+    fireEvent.change(name, { target: { value: 'Bobby' } })
+    fireEvent.click(screen.getByTestId('join-button'))
+    expect(screen.getByTestId('join-room-input')).toHaveValue('ABCD')
   })
 
-  it('Enter in the name field joins when a code has been typed (and does not create a game)', async () => {
+  it('a refusal about the room does not offer to change the name', async () => {
+    serve({ '/api/join': home.join_unknown_room })
+    join('Bob', 'ABCD')
+    await waitFor(() =>
+      expect(screen.getByTestId('join-room-input')).toHaveAccessibleDescription('Room not found')
+    )
+    expect(screen.queryByTestId('join-name-taken-change')).not.toBeInTheDocument()
+  })
+
+  it('Enter in the room-code field joins', async () => {
     const fn = serve({ '/api/join': home.join })
-    mount()
+    mount('/?code=ABCD')
     fireEvent.change(screen.getByTestId('name-input'), { target: { value: 'Bob' } })
-    fireEvent.change(screen.getByTestId('join-room-input'), { target: { value: 'ABCD' } })
-    fireEvent.keyDown(screen.getByTestId('name-input'), { key: 'Enter' })
+    fireEvent.keyDown(screen.getByTestId('join-room-input'), { key: 'Enter' })
     await waitFor(() => expect(post(fn, '/api/join')).toBeDefined())
     expect(post(fn, '/api/create')).toBeUndefined()
   })
 
-  it('each problem is said at the control it is about: the name at the name, the room at the code', async () => {
-    serve({ '/api/join': home.join_duplicate_name })
-    mount()
-    const name = screen.getByTestId('name-input')
-    const code = screen.getByTestId('join-room-input')
-    // A missing name, asked for by JOIN: at the name field, which takes the focus.
-    join('', 'ABCD')
-    expect(name).toHaveAccessibleDescription('Name is required')
-    expect(code).not.toHaveAttribute('aria-invalid')
-    expect(name).toHaveFocus()
-    // A bad code: at the code field.
-    join('Bob', 'AB')
-    expect(code).toHaveAccessibleDescription('Room code must be 4 characters')
-    expect(name).not.toHaveAttribute('aria-invalid')
-    // The server refuses the name: back at the name field.
-    join('Bob', 'ABCD')
-    await waitFor(() => expect(name).toHaveAccessibleDescription('Player name already taken'))
-    expect(code).not.toHaveAttribute('aria-invalid')
+  it('a join link opens the code step with the code filled in; with a name known, one tap joins', async () => {
+    localStorage.setItem('player_name_last', 'Ada')
+    const fn = serve({ '/api/join': home.join })
+    mount('/?code=ubqo')
+    expect(screen.getByTestId('join-room-input')).toHaveValue('UBQO')
+    expect(screen.getByTestId('join-room-input')).toHaveFocus()
+    expect(screen.getByTestId('join-as')).toHaveTextContent('Joining as Ada')
+    fireEvent.click(screen.getByTestId('join-submit-button'))
+    await waitFor(() => expect(post(fn, '/api/join')).toBeDefined())
+    expect(form(fn, '/api/join').get('player_name')).toBe('Ada')
+    expect(form(fn, '/api/join').get('room_code')).toBe('UBQO')
   })
 
-  it('the server refusing the room is said at the code field', async () => {
-    serve({ '/api/join': home.join_unknown_room })
-    mount()
-    join('Bob', 'ABCD')
-    const code = screen.getByTestId('join-room-input')
-    await waitFor(() => expect(code).toHaveAccessibleDescription('Room not found'))
-    expect(screen.getByTestId('name-input')).not.toHaveAttribute('aria-invalid')
+  it('a join link with no name known asks the name on the code step', () => {
+    const fn = serve({})
+    mount('/?code=ABCD')
+    expect(screen.getByTestId('name-input')).toHaveValue('')
+    fireEvent.click(screen.getByTestId('join-submit-button'))
+    expect(screen.getByTestId('name-input')).toHaveAccessibleDescription('Name is required')
+    expect(screen.getByTestId('name-input')).toHaveFocus()
+    expect(post(fn, '/api/join')).toBeUndefined()
+  })
+
+  it('Back returns to the name step', () => {
+    serve({})
+    mount('/?join')
+    fireEvent.click(screen.getByTestId('join-back'))
+    expect(screen.getByTestId('create-button')).toBeInTheDocument()
+    expect(screen.queryByTestId('join-room-input')).not.toBeInTheDocument()
   })
 })
 
-describe('one name, two ways in', () => {
-  it('asks the name once, with an accessible name on every control and no repeated label', () => {
+describe('one question at a time', () => {
+  it('step one asks only the name, with two choices; the other destinations are quiet links', () => {
     serve({})
     mount()
-    expect(screen.getAllByRole('textbox')).toHaveLength(2)
+    expect(screen.getAllByRole('textbox')).toHaveLength(1)
     expect(screen.getByRole('textbox', { name: 'Your name' })).toBe(
       screen.getByTestId('name-input')
     )
-    expect(screen.getByRole('textbox', { name: 'or join with a code' })).toBe(
+    expect(screen.getAllByText(/your name/i)).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'NEW GAME' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'JOIN GAME' })).toBeInTheDocument()
+    const more = screen.getByRole('navigation', { name: 'More' })
+    expect(more).toContainElement(screen.getByTestId('watch-bots-button'))
+    expect(more).toContainElement(screen.getByTestId('games-link'))
+    expect(more).toContainElement(screen.getByTestId('bench-link'))
+  })
+
+  it('the code step labels its field "Room code"', () => {
+    serve({})
+    mount('/?join')
+    expect(screen.getByRole('textbox', { name: 'Room code' })).toBe(
       screen.getByTestId('join-room-input')
     )
-    expect(screen.getAllByText(/your name/i)).toHaveLength(1)
-    expect(screen.queryByPlaceholderText(/enter your name/i)).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'CREATE GAME' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'JOIN' })).toBeInTheDocument()
   })
 
   it('remembers the last name used and offers it again; the join uses the same name', async () => {
@@ -239,8 +284,8 @@ describe('one name, two ways in', () => {
     first.unmount()
     mount()
     expect(screen.getByTestId('name-input')).toHaveValue('Ada')
-    fireEvent.change(screen.getByTestId('join-room-input'), { target: { value: 'ABCD' } })
     fireEvent.click(screen.getByTestId('join-button'))
+    fireEvent.change(screen.getByTestId('join-room-input'), { target: { value: 'ABCD' } })
     await waitFor(() => expect(post(fn, '/api/join')).toBeDefined())
     expect(form(fn, '/api/join').get('player_name')).toBe('Ada')
   })
