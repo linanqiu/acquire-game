@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useConnectionLifecycle } from '../hooks/useConnectionLifecycle'
 import { startGame, startHint } from '../lib/lobby'
+import { joinLink } from '../lib/joinLink'
 import { useNavigate } from 'react-router-dom'
 import { useRoom } from '../hooks/useRoom'
 import { useHostWebSocket } from '../hooks/useHostWebSocket'
@@ -143,7 +144,8 @@ export function HostPage() {
     }
   }, [room, toast, addActivityLog])
 
-  const joinUrl = `${window.location.origin}/play/${room}`
+  // A friend opens this on their phone: the home page's join step with the code filled in.
+  const joinUrl = joinLink(window.location.origin, room)
 
   const brand = useBrand()
   const renderLobbyView = () => (

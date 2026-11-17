@@ -46,7 +46,8 @@ describe('host lobby', () => {
     renderHostPage('WXYZ')
     expect(screen.getByTestId('host-title')).toHaveTextContent('BUYOUT')
     expect(screen.getByText('WXYZ')).toBeInTheDocument()
-    expect(screen.getByText(`${window.location.origin}/play/WXYZ`)).toBeInTheDocument()
+    // The join link opens the home page's code step (BL-018); /play/WXYZ only works for seated players.
+    expect(screen.getByText(`${window.location.origin}/?code=WXYZ`)).toBeInTheDocument()
     const [human, bot, scripted] = lobby().players
     expect(screen.getByText('PLAYERS (3/6)')).toBeInTheDocument()
     expect(screen.getByText(human.name)).toBeInTheDocument()
