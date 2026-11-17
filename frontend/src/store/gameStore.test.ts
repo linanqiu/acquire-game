@@ -80,6 +80,26 @@ describe('decision prompts', () => {
     expect(store().pendingMergerChoice).toEqual(tied)
   })
 
+  it('a merger-order choice arrives as the same-size defunct chains and the survivor', () => {
+    const view = loadSnapshotAsPlayer('merger-order-tie')
+    const p = view.player.find((m) => m.type === 'choose_merger_order')
+    expect(p.tied_chains.length).toBeGreaterThanOrEqual(2)
+    expect(store().pendingMergerOrder).toEqual({
+      tiedChains: p.tied_chains,
+      survivingChain: p.surviving_chain,
+    })
+    // It stays while the table still waits on me for it...
+    const state = view.player.find((m) => m.type === 'game_state')
+    store().handleMessage(state)
+    expect(store().pendingMergerOrder).not.toBeNull()
+    // ...and goes once the merger moved on to the first chain's holders.
+    store().handleMessage({
+      ...state,
+      awaiting: { player_id: 'bob', kind: 'human', decision: 'stock_disposition' },
+    })
+    expect(store().pendingMergerOrder).toBeNull()
+  })
+
   it('a stock disposition prompt keeps the shares owned and what the bank can still trade', () => {
     const view = loadSnapshotAsPlayer('disposition-trade-limited')
     const p = view.player.find((m) => m.type === 'stock_disposition_required')
@@ -130,10 +150,16 @@ describe('decision prompts', () => {
   it('every prompt is cleared when the game is back in an ordinary phase', () => {
     loadSnapshotAsPlayer('disposition-human-first')
     store().handleMessage({ type: 'choose_chain', available_chains: ['sandpiper'] })
+    store().handleMessage({
+      type: 'choose_merger_order',
+      tied_chains: ['sandpiper', 'marlowe'],
+      surviving_chain: 'halcyon',
+    })
     const buy = snapshot('buy-phase-multi-chain')
     store().handleMessage(buy.player.find((m) => m.type === 'game_state'))
     expect(store().pendingStockDisposition).toBeNull()
     expect(store().pendingMergerChoice).toBeNull()
+    expect(store().pendingMergerOrder).toBeNull()
     expect(store().pendingChainChoice).toBeNull()
   })
 

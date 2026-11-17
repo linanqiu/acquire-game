@@ -17,6 +17,10 @@ export function survivorPhaseText(rs: Ruleset): string {
   return up(`Choose the surviving ${rs.theme.chain_noun}`)
 }
 
+export function orderPhaseText(rs: Ruleset): string {
+  return up(`Choose the ${rs.theme.merger_noun} order`)
+}
+
 export function dispositionPhaseText(rs: Ruleset): string {
   return up(`Dispose your ${rs.theme.share_noun_plural}`)
 }

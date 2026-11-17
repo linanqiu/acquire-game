@@ -21,6 +21,7 @@ const MY_DECISION_BANNERS = [
   'PLACE A TILE',
   'CHOOSE A HOTEL CHAIN',
   'CHOOSE THE SURVIVING HOTEL CHAIN',
+  'CHOOSE THE MERGER ORDER',
   'DISPOSE YOUR SHARES',
   'BUY STOCKS',
 ]
@@ -88,6 +89,12 @@ async function playHumanTurn(
       await page.locator('[data-testid^="chain-button-"]:not([disabled])').first().click()
       await expect(page.getByTestId('chain-selector')).toBeHidden()
       // The banner follows the server's answer; do not act again on the stale one.
+      await expect(phaseBanner(page)).not.toHaveText(banner)
+    } else if (banner === 'CHOOSE THE MERGER ORDER') {
+      await openDecision(page)
+      await shots?.take(page, `${label}-merger-order`)
+      await page.getByTestId('merger-order').getByRole('button').first().click()
+      await expect(page.getByTestId('merger-order')).toBeHidden()
       await expect(phaseBanner(page)).not.toHaveText(banner)
     } else if (banner === 'DISPOSE YOUR SHARES') {
       await openDecision(page)

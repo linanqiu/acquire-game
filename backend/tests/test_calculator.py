@@ -566,6 +566,10 @@ def _finish_merger(game, tile_player_id, survivor, sell_all=None, trade_all=None
         pa = game.pending_action
         if pa["type"] == "choose_survivor":
             game.choose_merger_survivor(tile_player_id, survivor)
+        elif pa["type"] == "choose_defunct_order":
+            # Board order, as the calculator's scenarios list the defunct chains.
+            res = game.choose_defunct_order(tile_player_id, pa["tied_chains"][0])
+            assert res.success, res.error
         elif pa["type"] == "stock_disposition":
             pid, n = pa["player_id"], pa["stock_count"]
             if pid == tile_player_id and sell_all:

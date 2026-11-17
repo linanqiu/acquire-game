@@ -2324,6 +2324,13 @@
       },
       {
         "action": {
+          "action": "merger_order",
+          "defunct_chain": "halcyon"
+        },
+        "player_id": "p3"
+      },
+      {
+        "action": {
           "action": "merger_disposition",
           "defunct_chain": "halcyon",
           "disposition": {
@@ -6182,6 +6189,19 @@
         "type": "merger_started"
       },
       {
+        "chain": "halcyon",
+        "player_id": "p3",
+        "private_to": null,
+        "seq": 375,
+        "size": 5,
+        "survivor": "meridian",
+        "tied_chains": [
+          "halcyon",
+          "marlowe"
+        ],
+        "type": "defunct_order_chosen"
+      },
+      {
         "bonuses": {
           "p1": {
             "majority": 0,
@@ -6201,7 +6221,7 @@
         "final": false,
         "player_id": null,
         "private_to": null,
-        "seq": 375,
+        "seq": 376,
         "type": "bonuses_paid"
       },
       {
@@ -6211,7 +6231,7 @@
         "private_to": null,
         "sale_proceeds": 3600,
         "sell": 6,
-        "seq": 376,
+        "seq": 377,
         "surviving_chain": "meridian",
         "survivor_shares_received": 0,
         "trade": 0,

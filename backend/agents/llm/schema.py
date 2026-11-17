@@ -39,6 +39,7 @@ ACTION_ORDER = (
     "place_tile",
     "found_chain",
     "merger_choice",
+    "merger_order",
     "merger_disposition",
     "buy_stocks",
     "end_turn",
@@ -101,6 +102,11 @@ def _action_variant(
         if not chains:
             return None
         return _obj({**head, "surviving_chain": _enum_str(chains)})
+    if action_type == "merger_order":
+        chains = list(legal.get("chains", []))
+        if not chains:
+            return None
+        return _obj({**head, "defunct_chain": _enum_str(chains)})
     if action_type == "merger_disposition":
         n = int(legal.get("stock_count", 0))
         max_trade = int(legal.get("max_trade", 0))
@@ -209,6 +215,7 @@ KIND_ACTIONS: dict[str, tuple[str, ...]] = {
     "place_tile": ("place_tile", "declare_end_game"),
     "found_chain": ("found_chain",),
     "choose_survivor": ("merger_choice",),
+    "choose_defunct_order": ("merger_order",),
     "stock_disposition": ("merger_disposition",),
     "buy_stocks": ("buy_stocks", "end_turn", "declare_end_game", "propose_trade"),
     "trade_response": ("accept_trade", "reject_trade"),
@@ -232,6 +239,8 @@ def _static_variant(action_type: str, chains: tuple[str, ...], max_buy: int) -> 
         return _obj({**head, "chain": _enum_str(list(chains))})
     if action_type == "merger_choice":
         return _obj({**head, "surviving_chain": _enum_str(list(chains))})
+    if action_type == "merger_order":
+        return _obj({**head, "defunct_chain": _enum_str(list(chains))})
     if action_type == "merger_disposition":
         return _obj(
             {
@@ -309,6 +318,7 @@ _ACTION_KEYS: dict[str, tuple[str, ...]] = {
     "place_tile": ("tile",),
     "found_chain": ("chain",),
     "merger_choice": ("surviving_chain",),
+    "merger_order": ("defunct_chain",),
     "merger_disposition": ("defunct_chain", "disposition"),
     "buy_stocks": ("purchases",),
     "end_turn": (),
@@ -490,6 +500,15 @@ def check_against_legal(
         if action.get("surviving_chain") not in chains:
             return (
                 f"surviving_chain {action.get('surviving_chain')!r} is not one of the "
+                f"tied chains {chains}"
+            )
+        return None
+
+    if t == "merger_order":
+        chains = legal.get("chains", [])
+        if action.get("defunct_chain") not in chains:
+            return (
+                f"defunct_chain {action.get('defunct_chain')!r} is not one of the "
                 f"tied chains {chains}"
             )
         return None

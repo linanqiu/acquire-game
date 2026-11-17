@@ -185,6 +185,10 @@ def step(game: Game, ctx: dict):
             )
             r = game.choose_merger_survivor(cur.player_id, choice)
             return {"action": "choose_survivor", **r.to_dict()}
+        if pa["type"] == "choose_defunct_order":
+            choice = bot.choose_defunct_order(pa["tied_chains"])
+            r = game.choose_defunct_order(cur.player_id, choice)
+            return {"action": "choose_defunct_order", **r.to_dict()}
         assert pa["type"] == "stock_disposition"
         pid = pa["player_id"]
         d = game.bots[pid].choose_stock_disposition(

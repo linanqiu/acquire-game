@@ -96,6 +96,7 @@ class HumanClient:
             if t in (
                 "choose_chain",
                 "choose_merger_survivor",
+                "choose_merger_order",
                 "stock_disposition_required",
             ):
                 self.prompts[t] = msg
@@ -130,6 +131,11 @@ class HumanClient:
                 "surviving_chain": self.prompts["choose_merger_survivor"][
                     "tied_chains"
                 ][0],
+            }
+        if decision == "choose_defunct_order":
+            return {
+                "action": "merger_order",
+                "defunct_chain": self.prompts["choose_merger_order"]["tied_chains"][0],
             }
         if decision == "stock_disposition":
             p = self.prompts["stock_disposition_required"]

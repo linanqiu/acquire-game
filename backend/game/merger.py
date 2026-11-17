@@ -10,7 +10,11 @@ from typing import Optional
 
 from game.board import Tile
 from game.phase import GamePhase
-from game.responses import ChooseMergerSurvivorResult, StockDispositionResult
+from game.responses import (
+    ChooseDefunctOrderResult,
+    ChooseMergerSurvivorResult,
+    StockDispositionResult,
+)
 from game.rules import Rules
 
 
@@ -94,7 +98,23 @@ class MergerMixin:
             self._finalize_merger()
             return
 
-        defunct = self._merger.defunct_queue.pop(0)
+        # Defunct chains are resolved largest first. Chains of the same size:
+        # the player who placed the merging tile picks which goes next.
+        queue = self._merger.defunct_queue
+        top_size = self.board.get_chain_size(queue[0])
+        tied = [c for c in queue if self.board.get_chain_size(c) == top_size]
+        if len(tied) > 1:
+            self.pending_action = {
+                "type": "choose_defunct_order",
+                "tied_chains": tied,
+            }
+            return
+
+        self._resolve_defunct_chain(queue[0])
+
+    def _resolve_defunct_chain(self, defunct: str):
+        """Pay ``defunct``'s bonuses and start its stock dispositions."""
+        self._merger.defunct_queue.remove(defunct)
         self._merger.current_defunct = defunct
 
         self._pay_bonuses(defunct, final=False)
@@ -191,6 +211,58 @@ class MergerMixin:
             success=True,
             survivor=chain_name,
             defunct=defunct,
+            next_action=self.pending_action.get("type")
+            if self.pending_action
+            else "buy_stocks",
+        )
+
+    def choose_defunct_order(
+        self, player_id: str, chain_name: str
+    ) -> ChooseDefunctOrderResult:
+        """Choose which of the same-size defunct chains is resolved next.
+
+        Args:
+            player_id: ID of player making the choice (the tile placer)
+            chain_name: The tied defunct chain to resolve next
+
+        Returns:
+            ChooseDefunctOrderResult with result
+        """
+        if self.phase != GamePhase.MERGING:
+            return ChooseDefunctOrderResult(success=False, error="Not in merging phase")
+
+        if (
+            not self.pending_action
+            or self.pending_action.get("type") != "choose_defunct_order"
+        ):
+            return ChooseDefunctOrderResult(
+                success=False, error="No pending merger order choice"
+            )
+
+        player = self.get_player(player_id)
+        if not player or player.player_id != self.get_current_player().player_id:
+            return ChooseDefunctOrderResult(success=False, error="Not your turn")
+
+        tied_chains = self.pending_action.get("tied_chains", [])
+        if chain_name not in tied_chains:
+            return ChooseDefunctOrderResult(
+                success=False, error=f"Chain {chain_name} not in tied chains"
+            )
+
+        self.pending_action = None
+        self._emit(
+            "defunct_order_chosen",
+            player_id,
+            chain=chain_name,
+            tied_chains=list(tied_chains),
+            survivor=self._merger.survivor,
+            size=self.board.get_chain_size(chain_name),
+        )
+        self._resolve_defunct_chain(chain_name)
+
+        return ChooseDefunctOrderResult(
+            success=True,
+            defunct_chain=chain_name,
             next_action=self.pending_action.get("type")
             if self.pending_action
             else "buy_stocks",

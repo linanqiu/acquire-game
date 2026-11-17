@@ -8,7 +8,11 @@ import type { Purchases } from './BuyPanel'
 
 const NOT_CONNECTED = 'Not connected to the game. Try again in a moment.'
 
-type Prompt = 'pendingChainChoice' | 'pendingMergerChoice' | 'pendingStockDisposition'
+type Prompt =
+  | 'pendingChainChoice'
+  | 'pendingMergerChoice'
+  | 'pendingMergerOrder'
+  | 'pendingStockDisposition'
 
 interface Options {
   room: string
@@ -75,6 +79,7 @@ export function useTurnActions({ room, sendAction, gameState }: Options) {
       const saved = {
         pendingChainChoice: store.pendingChainChoice,
         pendingMergerChoice: store.pendingMergerChoice,
+        pendingMergerOrder: store.pendingMergerOrder,
         pendingStockDisposition: store.pendingStockDisposition,
       }
       setLoading(true)
@@ -102,6 +107,12 @@ export function useTurnActions({ room, sendAction, gameState }: Options) {
   const chooseSurvivor = useCallback(
     (chain: ChainId) =>
       answerPrompt({ action: 'merger_choice', surviving_chain: chain }, 'pendingMergerChoice'),
+    [answerPrompt]
+  )
+
+  const chooseMergerOrder = useCallback(
+    (chain: ChainId) =>
+      answerPrompt({ action: 'merger_order', defunct_chain: chain }, 'pendingMergerOrder'),
     [answerPrompt]
   )
 
@@ -137,6 +148,7 @@ export function useTurnActions({ room, sendAction, gameState }: Options) {
     placeTile,
     foundChain,
     chooseSurvivor,
+    chooseMergerOrder,
     dispose,
     buy,
     declareEndGame,

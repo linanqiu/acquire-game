@@ -792,6 +792,12 @@ def merger_history(game) -> list[dict]:
                 (d for d in current["defunct"] if d["chain"] == e["chain"]), None
             )
             if row is not None:
+                # Keep the engine's processing order: among same-size chains
+                # the tile placer picks it (``defunct_order_chosen``).
+                rows = current["defunct"]
+                done = sum(1 for d in rows if d["bonuses"] is not None)
+                rows.remove(row)
+                rows.insert(done, row)
                 # Largest payment first, then seat order (the event's dict order
                 # does not survive a snapshot round trip).
                 row["bonuses"] = sorted(
