@@ -9,7 +9,7 @@
  */
 import type { Page } from '@playwright/test'
 import { test, expect } from './support/journey'
-import { addBot, createGame, expectInLobby, joinGame, seatName, startGame } from './support/lobby'
+import { addAi, createGame, expectInLobby, joinGame, seatName, startGame } from './support/lobby'
 import { Seat, installObservers, parseMoney, playTogether } from './support/play'
 import { incomingFrom, outgoingTo, proposeTrade, tradePanel } from './support/trade'
 import { openTab } from '../support/tabs'
@@ -39,7 +39,10 @@ test('two humans and a bot: join by code, play, trade accept/reject/cancel', asy
   await expect(a.getByText('2/6 players')).toBeVisible()
   await j.shot(a, 'alice-lobby-sees-bob')
   await expect(a.getByRole('button', { name: 'START GAME' })).toBeDisabled()
-  await addBot(a, j)
+  // Bot generation v1 (test-mode AI menu entry): on this deal its play leads to a tied
+  // merger for Bob, so the survivor choice is exercised (LO-012; later generations play
+  // the deal differently).
+  await addAi(a, j, 'bot:v1')
   const botName = await seatName(a, 'bot')
   await expectInLobby(b, ['Alice', 'Bob', botName])
   await j.shot(b, 'bob-lobby-sees-bot')
@@ -198,12 +201,21 @@ test('two humans and a bot: join by code, play, trade accept/reject/cancel', asy
 
   // --- Play on to at least TURNS_EACH turns each ------------------------------------
   const rest = TURNS_EACH - alice.turnsCompleted
-  const stillPlaying = await playTogether([alice, bob], Math.max(rest, 0))
+  let stillPlaying = await playTogether([alice, bob], Math.max(rest, 0))
+  // Then on until a human has chosen a survivor and disposed of stock: which turn
+  // brings them depends on the deal and on the bot's play (LO-012), so loop with a
+  // hard cap instead of assuming a turn.
+  const needsMore = () =>
+    alice.stats.survivorChoices.length + bob.stats.survivorChoices.length === 0 ||
+    alice.stats.dispositions.length + bob.stats.dispositions.length === 0
+  for (let extra = 0; stillPlaying && needsMore(); extra++) {
+    if (extra >= 30) throw new Error('no survivor choice and disposition in 30 more turns each')
+    stillPlaying = await playTogether([alice, bob], 1)
+  }
   j.log(
     `turns: alice ${alice.turnsCompleted}, bob ${bob.turnsCompleted}; still playing ${stillPlaying}; ` +
       `alice ${JSON.stringify(alice.stats)}; bob ${JSON.stringify(bob.stats)}`
   )
-  // Seeded path: Bob picks a surviving chain in a tie and both dispose of stock.
   expect(
     alice.stats.survivorChoices.length + bob.stats.survivorChoices.length,
     'a survivor choice happened'

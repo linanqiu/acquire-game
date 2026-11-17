@@ -69,9 +69,13 @@ test('mobile player: 8 turns at phone size with trade panel and disposition', as
   const seen = new Set<string>()
   let traded = false
 
-  while (seat.turnsCompleted < 8) {
+  // 8 turns, then on until the disposition screen and the trade have come up: which
+  // turn brings a merger the player holds stock in depends on the bots (LO-012), so
+  // loop with a hard cap instead of assuming a turn.
+  while (seat.turnsCompleted < 8 || !seen.has('DISPOSE YOUR SHARES') || !traded) {
+    if (seat.turnsCompleted >= 30) throw new Error('no disposition/trade on mobile in 30 turns')
     const phase = await seat.waitActionable()
-    if (phase === 'GAME OVER') throw new Error('game ended before 8 turns on mobile')
+    if (phase === 'GAME OVER') throw new Error('game ended before the mobile checks were done')
     await noHorizontalScroll(page, phase)
     seen.add(phase)
     switch (phase) {

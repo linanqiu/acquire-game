@@ -11,7 +11,8 @@ Carlo who wins. And then add new rules."
 
 Every generation stays playable: a seat picks one with `bot:v1`, `bot:v2`, ... (catalog id for
 `agents.registry.create` and bench seat specs) or `HeuristicAgent(version=...)`; plain `bot` is
-`DEFAULT_VERSION`, the strongest accepted version. Difficulty (easy / medium / hard) works on top
+`DEFAULT_VERSION`, the strongest accepted version (v8). With `GAME_TEST_MODE=1` the lobby's AI
+menu also offers every other generation as "Bot vN" (production menus unchanged). Difficulty (easy / medium / hard) works on top
 of every version. v1 is exactly the bot on `main` before this story: 16 fixed-seed games (seeds
 1-8, medium and hard) give the same action sequence and final money on `main` and as `bot:v1`.
 

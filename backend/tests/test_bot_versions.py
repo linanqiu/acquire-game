@@ -45,6 +45,16 @@ def test_version_choice_and_default():
         registry.create("bot:v0", name="x")
 
 
+def test_test_mode_catalog_offers_the_other_generations(monkeypatch):
+    monkeypatch.delenv("GAME_TEST_MODE", raising=False)
+    assert not any(e["id"].startswith("bot:") for e in registry.catalog())
+    monkeypatch.setenv("GAME_TEST_MODE", "1")
+    ids = {e["id"] for e in registry.catalog()}
+    assert {f"bot:{v}" for v in VERSIONS if v != DEFAULT_VERSION} <= ids
+    assert f"bot:{DEFAULT_VERSION}" not in ids  # that one is "+ ADD BOT"
+    assert registry.entry("bot:v1")["kind"] == "bot"
+
+
 def test_tournament_harness_runs_a_tiny_pairing(capsys):
     first, second = DEFAULT_VERSION, "v1"
     assert bt.main([first, second, "--seeds", "3"]) == 0

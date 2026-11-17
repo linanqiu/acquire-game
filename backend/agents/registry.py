@@ -62,7 +62,26 @@ def catalog() -> list[dict]:
     entries.extend(_llm_entries())
     if test_mode():
         entries.append(dict(SCRIPTED_ENTRY))
+        entries.extend(_bot_version_entries())
     return entries
+
+
+def _bot_version_entries() -> list[dict]:
+    """Test mode: every bot generation other than the default, as "bot:vN"
+    (agents/bot_versions.py), so a journey can seat a given generation."""
+    from agents.bot_versions import DEFAULT_VERSION, VERSIONS
+
+    return [
+        {
+            "id": f"bot:{v}",
+            "kind": "bot",
+            "label": f"Bot {v}",
+            "description": f"Test mode: rules-based bot generation {v}. {p.summary}",
+            "available": True,
+        }
+        for v, p in VERSIONS.items()
+        if v != DEFAULT_VERSION
+    ]
 
 
 def entry(agent_id: str) -> dict | None:

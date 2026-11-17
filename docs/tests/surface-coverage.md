@@ -67,7 +67,7 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | ID | Surface | Notes | Covered by | Tier |
 |----|---------|-------|------------|------|
 | PL-01 | Player lobby: room code, player list, "WAITING FOR HOST" | host and guest views (`LobbyPanel`) | `screens/home-entry.spec.ts : names are trimmed`; `screens/lobby.spec.ts : lobby: AI menu`; `journeys/two-humans-and-bot.spec.ts : two humans and a bot` | 3, 4 |
-| PL-02 | Add AI control (catalog list and "+ ADD BOT") | `AddAiControl` | `screens/lobby.spec.ts : lobby: AI menu`; `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 3, 4 |
+| PL-02 | Add AI control (catalog list and "+ ADD BOT"; in test mode also every non-default bot generation, `bot:vN`, LO-012) | `AddAiControl` | `screens/lobby.spec.ts : lobby: AI menu`; `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI`; `journeys/two-humans-and-bot.spec.ts : two humans and a bot` | 3, 4 |
 | PL-03 | Add AI: unavailable catalog entry shown disabled; failed catalog leaves only ADD BOT | | `screens/server-faults.spec.ts : AI menu: unavailable entries are disabled`; `screens/lobby.spec.ts : lobby: AI menu` | 3 |
 | PL-04 | Remove AI seat in lobby (host only, not for humans) | `RemoveSeatButton` | `screens/lobby.spec.ts : lobby: AI menu`; `journeys/entry-errors.spec.ts : entry errors` | 3, 4 |
 | PL-05 | START GAME enabled only with enough players, with the "Need N more players" hint | `start-hint` | `screens/lobby.spec.ts : lobby: AI menu`; `journeys/entry-errors.spec.ts : entry errors` | 3, 4 |
