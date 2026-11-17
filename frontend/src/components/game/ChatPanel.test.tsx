@@ -103,12 +103,25 @@ describe('ChatPanel', () => {
     expect(within(lines[0]).queryByRole('button')).not.toBeInTheDocument()
   })
 
-  it('says which seats are AI that read the chat, and that rules-based bots do not', () => {
+  it('says which seats are AI that read the chat; what holds at every table is behind the "?"', () => {
     render(<ChatPanel room="ABCD" />)
     const readers = screen.getByTestId('chat-readers')
-    expect(readers).toHaveTextContent('AI that reads chat and may answer: Lady Ledger.')
-    expect(readers).toHaveTextContent('Rules-based bots do not chat.')
+    expect(readers).toHaveTextContent('Lady Ledger (AI) reads the chat and may answer.')
     expect(readers).not.toHaveTextContent('Baron Brick')
+    // The constant part is not on the page until asked for.
+    expect(screen.queryByTestId('chat-about')).not.toBeInTheDocument()
+    const about = screen.getByRole('button', { name: 'About the chat' })
+    expect(about).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(about)
+    expect(about).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByTestId('chat-about')).toHaveTextContent(
+      'Talk is not binding: deals happen through trade offers.'
+    )
+    expect(screen.getByTestId('chat-about')).toHaveTextContent(
+      'Rules-based bots never read or write chat.'
+    )
+    fireEvent.click(about)
+    expect(screen.queryByTestId('chat-about')).not.toBeInTheDocument()
   })
 
   it('sends on Enter over HTTP and clears the input', async () => {

@@ -17,10 +17,8 @@ export interface MergerDispositionProps {
   sharesOwned: number
   defunctPrice: number
   survivorStockAvailable: number
-  /** My cash now: the summary shows the cash after the sale. */
+  /** My cash now: the line over the button shows the cash after the sale. */
   cash?: number
-  /** My survivor shares now: the summary shows them after the trade. */
-  survivorShares?: number
   onConfirm: (sell: number, trade: number, hold: number) => void
   /** Every change of the sliders (the merger view projects my position from it). */
   onDraftChange?: (draft: DispositionDraft) => void
@@ -31,8 +29,9 @@ export interface MergerDispositionProps {
 }
 
 /**
- * My sell / trade / keep choice for a defunct chain's shares, with the resulting cash and
- * survivor shares. In the decision tab (BL-011) the merger view goes around it: its title in
+ * My sell / trade / keep choice for a defunct chain's shares. Each number is said once
+ * (BL-015): what a slider gives is next to that slider, the cash after the sale is over the
+ * button, and my survivor shares after the trade are in the survivor's holder table. In the decision tab (BL-011) the merger view goes around it: its title in
  * `header`, who holds what and the survivor after the merger in `children`, so the confirm
  * button can stay pinned at the bottom of the whole view.
  */
@@ -43,7 +42,6 @@ export function MergerDisposition({
   defunctPrice,
   survivorStockAvailable,
   cash,
-  survivorShares,
   onConfirm,
   onDraftChange,
   header,
@@ -97,9 +95,9 @@ export function MergerDisposition({
         <h4 className={styles.title} data-testid="disposition-title">
           Your <ChainMarker chain={defunctChain} variant="compact" /> {theme.share_noun_plural}:{' '}
           <strong>{sharesOwned}</strong>
-          <span className={styles.muted}>
+          <span className={styles.muted} title={`The price at the ${theme.merger_noun}`}>
             {' '}
-            at {rules.money(defunctPrice)} (price at {theme.merger_noun})
+            at {rules.money(defunctPrice)}
           </span>
         </h4>
 
@@ -112,6 +110,7 @@ export function MergerDisposition({
             step={1}
             onChange={handleSellChange}
             displayValue={`${rules.shares(sellCount)} → ${rules.money(cashFromSell)}`}
+            valueTestId="disposition-sell"
           />
 
           <Slider
@@ -123,6 +122,7 @@ export function MergerDisposition({
             onChange={handleTradeChange}
             displayValue={`${rules.shares(tradeCount)} → ${sharesFromTrade} ${survivorName.toUpperCase()}`}
             disabled={!canTrade}
+            valueTestId="disposition-trade"
           />
 
           <div className={styles.hold} data-testid="hold-display">
@@ -137,27 +137,13 @@ export function MergerDisposition({
 
       {/* Last child of the whole view, so it can stay at the bottom while the tab scrolls. */}
       <div className={styles.confirm}>
-        <div className={styles.summary} data-testid="disposition-summary">
-          <span>
-            SELL {sellCount} (+{rules.money(cashFromSell)}) | TRADE {tradeCount} (+
-            {sharesFromTrade} {survivorName.toUpperCase()}) | HOLD {holdCount}
-          </span>
-          {(cash !== undefined || survivorShares !== undefined) && (
-            <span className={styles.after}>
-              {cash !== undefined && (
-                <span data-testid="disposition-cash-after">
-                  Cash after {rules.money(cash + cashFromSell)}
-                </span>
-              )}
-              {survivorShares !== undefined && (
-                <span data-testid="disposition-survivor-after">
-                  {survivorName} {survivorShares}
-                  {sharesFromTrade > 0 ? ` → ${survivorShares + sharesFromTrade}` : ''}
-                </span>
-              )}
+        {cash !== undefined && (
+          <div className={styles.summary}>
+            <span data-testid="disposition-cash-after">
+              Cash after {rules.money(cash + cashFromSell)}
             </span>
-          )}
-        </div>
+          </div>
+        )}
         <Button
           variant="accent"
           fullWidth

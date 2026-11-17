@@ -30,11 +30,17 @@ interface BuyPanelProps {
   onDeclareEndGame: () => void
 }
 
+const ROLE_WORD = { majority: 'most shares', minority: 'second most shares' } as const
+
 /**
- * The buy decision (BL-011): one row per chain on the board with its price, bank stock, who
- * holds it (1st / 2nd from the engine, everyone else, me) and what 1st and 2nd would be paid
- * now, a stepper limited by the per-turn cap, the bank and cash, and how my purchase would move
- * me among the holders. The total, cash after and the buttons stay pinned at the bottom.
+ * The buy decision (BL-011, BL-015): one compact row per chain on the board, under one header
+ * row that names the columns once: price, tiles, shares left in the bank, my shares (marked as
+ * in the players table: filled for the most shares, outlined for the second most, "=" for a
+ * tie; "3→5" while I buy) and a stepper limited by the per-turn cap, the bank and my cash. The
+ * row I am buying in opens a second line: how the purchase moves me among the holders and what
+ * 1st and 2nd are paid. Tapping a chain's name opens the same line with every holder, so each
+ * number stays one tap away without being printed seven times. The total, cash after and the
+ * buttons stay pinned at the bottom.
  */
 export function BuyPanel({
   chains,
@@ -52,6 +58,8 @@ export function BuyPanel({
   const { theme } = rules
   const maxPurchases = rules.rs.max_stock_purchases_per_turn
   const [purchases, setPurchases] = useState<Purchases>({})
+  // The chain whose holders and bonuses are opened by a tap on its name.
+  const [opened, setOpened] = useState<ChainId | null>(null)
 
   const priceOf = (chain: string) => chains.find((c) => c.name === chain)?.price ?? 0
   const totalCost = Object.entries(purchases).reduce<number>(
@@ -83,7 +91,16 @@ export function BuyPanel({
       {chains.length === 0 ? (
         <p className={styles.note}>No active {theme.chain_noun_plural} to buy into</p>
       ) : (
-        <div className={styles.rows}>
+        <div className={styles.rows} data-table-core>
+          {/* Column names, once. Each cell also carries its own words for screen readers. */}
+          <div className={`${styles.row} ${styles.head}`} aria-hidden="true" data-testid="buy-head">
+            <span />
+            <span>Price</span>
+            <span>Tiles</span>
+            <span>Bank</span>
+            <span>You</span>
+            <span className={styles.headBuy}>Buy</span>
+          </div>
           {chains.map((chain) => {
             const available = bank[chain.name] ?? 0
             const currentQty = purchases[chain.name] ?? 0
@@ -99,33 +116,75 @@ export function BuyPanel({
             const mine = me?.stocks[chain.name] ?? 0
             const id = chainTestId(chain.name)
             const change = myId ? changeText(holders, myId, mine, currentQty) : ''
+            const myHolder = holders.find((h) => h.player_id === myId)
+            const role = mine > 0 ? (myHolder?.role ?? null) : null
+            const tied = !!role && !!myHolder?.tied
+            const open = opened === chain.name
+            const name = rules.name(chain.name)
 
             return (
               <div
                 key={chain.name}
-                className={`${styles.row} ${mine > 0 ? styles.held : ''}`}
+                className={`${styles.row} ${currentQty > 0 ? styles.buying : ''}`}
                 data-testid={`buy-row-${id}`}
                 data-price={chain.price}
                 data-available={available}
                 data-mine={mine}
               >
-                <span className={styles.chain}>
+                <button
+                  type="button"
+                  className={styles.chain}
+                  onClick={() => setOpened(open ? null : chain.name)}
+                  aria-expanded={open}
+                  aria-label={`${name}: holders and bonuses`}
+                  data-testid={`buy-details-${id}`}
+                >
                   <ChainMarker chain={chain.name} variant="compact" />
+                </button>
+                <span className={styles.price} data-testid="buy-price">
+                  {rules.money(chain.price)}
                 </span>
-                <span className={styles.facts}>
-                  <span className={styles.price} data-testid="buy-price">
-                    {rules.money(chain.price)}
-                  </span>
-                  <span className={styles.muted} data-testid="buy-size">
-                    {chain.size} tiles
-                  </span>
+                <span className={styles.num} data-testid="buy-size">
+                  {chain.size}
+                  <span className={styles.srOnly}> tiles</span>
+                </span>
+                <span
+                  className={`${styles.num} ${available === 0 ? styles.soldOut : ''}`}
+                  data-testid="buy-available"
+                  title={`${theme.share_noun_plural} left in the bank`}
+                >
+                  {available}
+                  <span className={styles.srOnly}> left</span>
+                </span>
+                <span
+                  className={styles.mine}
+                  data-testid="buy-mine"
+                  title={`You hold ${rules.shares(mine)}${
+                    role ? `, ${tied ? 'tied for ' : ''}${ROLE_WORD[role]}` : ''
+                  }`}
+                >
+                  <span className={styles.srOnly}>you hold </span>
                   <span
-                    className={styles.muted}
-                    data-testid="buy-available"
-                    title={`${theme.share_noun_plural} left in the bank`}
+                    className={`${styles.count} ${role ? styles[role] : ''}`}
+                    style={role ? rules.style(chain.name) : undefined}
                   >
-                    {available} left
+                    {tied && <span aria-hidden="true">=</span>}
+                    {mine}
                   </span>
+                  {role && (
+                    <span className={styles.srOnly}>
+                      {' '}
+                      {tied ? 'tied for ' : ''}
+                      {ROLE_WORD[role]}
+                    </span>
+                  )}
+                  {currentQty > 0 && (
+                    <span className={styles.next} data-testid="buy-mine-next">
+                      <span aria-hidden="true">→</span>
+                      <span className={styles.srOnly}> becomes </span>
+                      {mine + currentQty}
+                    </span>
+                  )}
                 </span>
                 <span className={styles.stepper}>
                   <StockStepper
@@ -133,60 +192,65 @@ export function BuyPanel({
                     max={maxBuyable}
                     onChange={(qty) => setQuantity(chain.name, qty)}
                     disabled={!isMyTurn}
+                    label={`${name} ${theme.share_noun_plural} to buy`}
+                    compact
                   />
                 </span>
-                <span className={styles.holders}>
-                  <HolderChips
-                    holders={holders}
-                    players={gameState.players}
-                    me={myId}
-                    myNext={mine + currentQty}
-                    testId={`buy-holders-${id}`}
-                  />
-                  {change && (
-                    <span className={styles.change} data-testid="buy-projection">
-                      {change}
-                    </span>
-                  )}
-                  {info && (
-                    <span className={styles.bonus} data-testid="buy-bonus">
-                      1st {rules.money(info.majority_bonus)} · 2nd{' '}
-                      {rules.money(info.minority_bonus)}
-                    </span>
-                  )}
-                </span>
+                {(open || currentQty > 0) && (
+                  <span className={styles.detail} data-testid={`buy-detail-${id}`}>
+                    {change && (
+                      <span className={styles.change} data-testid="buy-projection">
+                        {change}
+                      </span>
+                    )}
+                    {info && (
+                      <span className={styles.bonus} data-testid="buy-bonus">
+                        1st {rules.money(info.majority_bonus)} · 2nd{' '}
+                        {rules.money(info.minority_bonus)}
+                      </span>
+                    )}
+                    {open && (
+                      <HolderChips
+                        holders={holders}
+                        players={gameState.players}
+                        me={myId}
+                        myNext={mine + currentQty}
+                        testId={`buy-holders-${id}`}
+                      />
+                    )}
+                  </span>
+                )}
               </div>
             )
           })}
         </div>
       )}
-      {(cannotAffordAny || !canAfford || !validPurchase) && (
-        <div className={styles.notes}>
-          {cannotAffordAny && (
-            <p className={styles.error} data-testid="buy-note-no-cash">
-              You can&apos;t afford any {theme.share_noun_plural} right now.
-            </p>
-          )}
-          {!canAfford && (
-            <p className={styles.error} data-testid="buy-error-cash">
-              Not enough cash
-            </p>
-          )}
-          {!validPurchase && (
-            <p className={styles.error}>
-              Maximum {maxPurchases} {theme.share_noun_plural} per turn
-            </p>
-          )}
-        </div>
-      )}
       {/* Pinned at the bottom of the tab while the rows scroll. */}
-      <div className={styles.footer}>
+      <div className={styles.footer} data-table-core>
         <div className={styles.summary}>
-          <span data-testid="purchase-total">Total: {rules.money(totalCost)}</span>
-          <span data-testid="purchase-shares">
-            ({totalShares}/{maxPurchases} {theme.share_noun_plural})
+          <span>
+            <span data-testid="purchase-total">Total: {rules.money(totalCost)}</span>{' '}
+            <span className={styles.muted} data-testid="purchase-shares">
+              ({totalShares}/{maxPurchases} {theme.share_noun_plural})
+            </span>
           </span>
           <span data-testid="purchase-cash-after">Cash after {rules.money(cash - totalCost)}</span>
+          {/* Why the steppers stop, next to the totals (no line of its own over the button). */}
+          {cannotAffordAny && (
+            <span className={styles.error} data-testid="buy-note-no-cash">
+              Can&apos;t afford any {theme.share_noun_plural}
+            </span>
+          )}
+          {!canAfford && (
+            <span className={styles.error} data-testid="buy-error-cash">
+              Not enough cash
+            </span>
+          )}
+          {!validPurchase && (
+            <span className={styles.error}>
+              Maximum {maxPurchases} {theme.share_noun_plural} per turn
+            </span>
+          )}
         </div>
         <div className={styles.actions}>
           <Button

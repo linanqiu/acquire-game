@@ -11,7 +11,8 @@ import { PlayerPage } from '../PlayerPage'
 import { ToastProvider } from '../../components/ui/ToastProvider'
 import { useGameStore } from '../../store/gameStore'
 import { deliver, loadSnapshotAsPlayer, snapshot } from '../../../tests/unit/fixtures/wire'
-import { decisionEvents, decisionView, statusText, turnKey } from '../../lib/decision'
+import { decisionEvents, decisionView, turnKey } from '../../lib/decision'
+import { lobbyPhaseText, waitingPhaseText } from '../../lib/phaseText'
 import { changeText, placeOf, placeText } from '../../lib/standing'
 import { DEFAULT_RS } from '../../../tests/unit/fixtures/rulesets'
 
@@ -121,24 +122,42 @@ describe('which view and which events, from recorded states', () => {
     ).toEqual([`buy:${key}`, 'disposition:3:halcyon', 'trade:t1'])
   })
 
-  it('the status line names what is needed', () => {
-    const opts = { waiting: 'Waiting for Bob to buy shares...' }
-    expect(statusText('buy', DEFAULT_RS, opts)).toEqual({
-      text: 'Your move: buy shares',
-      mine: true,
-    })
-    expect(statusText('waiting', DEFAULT_RS, opts)).toEqual({
-      text: 'Waiting for Bob to buy shares',
-      mine: false,
-    })
-    expect(statusText('waiting', DEFAULT_RS, { ...opts, offerFrom: 'Cara' }).text).toBe(
-      'Trade offer from Cara: answer it'
-    )
+  it('the phase bar names who the table waits on and what they are doing', () => {
+    const players = { p2: { name: 'Bob' }, p3: { name: 'Goldie Gains' } }
+    const waitingOn = (player_id: string, decision: string) =>
+      waitingPhaseText(DEFAULT_RS, { player_id, decision } as never, players, 'Alice')
+    expect(waitingOn('p2', 'buy_stocks')).toBe('BOB IS BUYING SHARES')
+    expect(waitingOn('p2', 'place_tile')).toBe('BOB IS PLACING A TILE')
+    expect(waitingOn('p2', 'found_chain')).toBe('BOB IS FOUNDING A HOTEL CHAIN')
+    expect(waitingOn('p2', 'choose_survivor')).toBe('BOB IS CHOOSING THE SURVIVING HOTEL CHAIN')
+    expect(waitingOn('p2', 'stock_disposition')).toBe('BOB IS DISPOSING OF SHARES')
+    expect(waitingOn('p2', 'trade_response')).toBe('BOB IS ANSWERING A TRADE OFFER')
+    // The short name a narrow row prints, when the page has one.
+    expect(
+      waitingPhaseText(
+        DEFAULT_RS,
+        { player_id: 'p3', decision: 'buy_stocks' } as never,
+        players,
+        'Alice',
+        () => 'Goldie'
+      )
+    ).toBe('GOLDIE IS BUYING SHARES')
+    // Nothing known about who is awaited, or a decision this page does not know: whose turn.
+    expect(waitingPhaseText(DEFAULT_RS, null, players, 'Alice')).toBe("Alice's TURN")
+    expect(waitingOn('p2', 'something_new')).toBe("Alice's TURN")
+    expect(waitingOn('p9', 'buy_stocks')).toBe("Alice's TURN")
+  })
+
+  it('the lobby banner: what the room waits for, for the host and for a guest', () => {
+    expect(lobbyPhaseText(false, 1, 3)).toBe('WAITING FOR THE HOST TO START')
+    expect(lobbyPhaseText(true, 1, 3)).toBe('NEED 2 MORE PLAYERS TO START')
+    expect(lobbyPhaseText(true, 2, 3)).toBe('NEED 1 MORE PLAYER TO START')
+    expect(lobbyPhaseText(true, 3, 3)).toBe('START WHEN EVERYONE IS IN')
   })
 })
 
-describe('buying: every chain with its holders, my shares and the stepper', () => {
-  it('shows the engine holders and bonuses per chain, and how my purchase moves me', () => {
+describe('buying: one compact row per chain, the rest one tap away', () => {
+  it('shows price, tiles, bank and my shares per chain; holders and bonuses open on a tap; my purchase shows how it moves me', () => {
     const view = loadSnapshotAsPlayer('buy-phase-multi-chain')
     renderPage()
     const gs = stateOf(view)
@@ -148,6 +167,31 @@ describe('buying: every chain with its holders, my shares and the stepper', () =
       const info = gs.chain_holders[chain]
       const mine = gs.players[view.human].stocks[chain] ?? 0
       expect(row).toHaveAttribute('data-mine', String(mine))
+      // The row itself: the numbers of the decision, once each, under the shared header.
+      expect(within(row).getByTestId('buy-price')).toHaveTextContent(money(info.price))
+      expect(within(row).getByTestId('buy-size')).toHaveTextContent(`${info.size} tiles`)
+      expect(within(row).getByTestId('buy-available')).toHaveTextContent(
+        `${gs.hotel.available_stocks[chain]} left`
+      )
+      // My shares, marked as in the players table (the engine's role for me in this chain).
+      const myHolder = info.holders.find((h) => h.player_id === view.human)
+      const role = mine > 0 ? (myHolder?.role ?? null) : null
+      const cell = within(row).getByTestId('buy-mine')
+      expect(cell).toHaveTextContent(String(mine))
+      if (role) {
+        expect(cell).toHaveTextContent(
+          `${myHolder.tied ? 'tied for ' : ''}${role === 'majority' ? 'most shares' : 'second most shares'}`
+        )
+      } else {
+        expect(cell).not.toHaveTextContent('most shares')
+      }
+      // Holders and bonuses are not printed in every row: a tap on the chain opens them.
+      expect(within(row).queryByTestId('buy-bonus')).toBeNull()
+      expect(within(row).queryByTestId(`buy-holders-${chain}`)).toBeNull()
+      const toggle = within(row).getByTestId(`buy-details-${chain}`)
+      expect(toggle).toHaveAttribute('aria-expanded', 'false')
+      fireEvent.click(toggle)
+      expect(toggle).toHaveAttribute('aria-expanded', 'true')
       expect(within(row).getByTestId('buy-bonus')).toHaveTextContent(
         `1st ${money(info.majority_bonus)} · 2nd ${money(info.minority_bonus)}`
       )
@@ -163,16 +207,30 @@ describe('buying: every chain with its holders, my shares and the stepper', () =
         String(mine)
       )
     }
-    // Step up a chain with stock left: my chip shows the count after and the position change.
+    // One chain is open at a time: the last one tapped. Close it.
+    const last = gs.hotel.active_chains.at(-1)
+    fireEvent.click(screen.getByTestId(`buy-details-${last}`))
+    expect(screen.queryAllByTestId('buy-bonus')).toHaveLength(0)
+    // The header names the columns once.
+    expect(screen.getAllByTestId('buy-head')).toHaveLength(1)
+    expect(screen.getByTestId('buy-head')).toHaveTextContent('PriceTilesBankYouBuy')
+    // Step up a chain with stock left: the row says what my count becomes, how that moves
+    // me among the holders, and what 1st and 2nd are paid, without a tap.
     const chain = gs.hotel.active_chains.find(
       (c: string) => gs.hotel.available_stocks[c] > 0 && gs.chain_holders[c].price <= 3000
     )
     const row = screen.getByTestId(`buy-row-${chain}`)
     const mine = gs.players[view.human].stocks[chain] ?? 0
     fireEvent.click(within(row).getByTestId('stepper-increment'))
-    expect(within(row).getByTestId(`buy-holders-${chain}-${view.human}`)).toHaveTextContent(
-      `${mine}→${mine + 1}`
+    expect(within(row).getByTestId('buy-mine')).toHaveTextContent(String(mine))
+    expect(within(row).getByTestId('buy-mine-next')).toHaveTextContent(String(mine + 1))
+    expect(within(row).getByTestId('buy-bonus')).toHaveTextContent(
+      `1st ${money(gs.chain_holders[chain].majority_bonus)}`
     )
+    expect(screen.getAllByTestId('buy-bonus')).toHaveLength(1)
+    expect(
+      within(row).getByRole('spinbutton', { name: new RegExp(`shares to buy$`) })
+    ).toHaveAttribute('aria-valuenow', '1')
     expect(within(row).getByTestId('buy-projection')).toHaveTextContent(
       changeText(gs.chain_holders[chain].holders, view.human, mine, 1)
     )
@@ -193,7 +251,9 @@ describe('a merger: the whole merger in the decision tab', () => {
     const exp = view.expect.mergers.at(-1).survivor_after
     expect(after.size).toBe(exp.size)
     expect(decision()).toHaveAttribute('data-view', 'disposition')
-    expect(screen.getByTestId('survivor-after-size')).toHaveTextContent(`${exp.size} tiles`)
+    // The survivor's size after the merger is said once, in the summary line.
+    expect(screen.getByTestId('merger-result-summary')).toHaveTextContent(`→ ${exp.size} tiles`)
+    expect(screen.queryByTestId('survivor-after-size')).toBeNull()
     expect(screen.getByTestId('survivor-after-price')).toHaveTextContent(money(exp.price))
     expect(screen.getByTestId('survivor-after-bank')).toHaveTextContent(`bank ${exp.bank}`)
     expect(screen.getByTestId('survivor-after-bonus')).toHaveTextContent(
@@ -226,9 +286,16 @@ describe('a merger: the whole merger in the decision tab', () => {
     expect(screen.getByTestId('survivor-my-place')).toHaveTextContent(
       changeText(after.holders, view.human, me.shares, got)
     )
+    // My row among the stockholders says I am deciding; the numbers of my choice are at the
+    // sliders, once.
     expect(screen.getByTestId(`merger-waiting-${d.chain}-${view.human}`)).toHaveTextContent(
-      `deciding: sell 0, trade ${max}`
+      'deciding…'
     )
+    expect(screen.getByTestId(`merger-waiting-${d.chain}-${view.human}`)).not.toHaveTextContent(
+      'trade'
+    )
+    expect(screen.getByTestId('disposition-trade')).toHaveTextContent(`${max} shares → ${got} `)
+    expect(screen.queryByTestId('disposition-summary')).toBeNull()
     fireEvent.click(screen.getByTestId('confirm-disposition'))
     expect(sendAction.mock.calls.at(-1)?.[0]).toEqual({
       action: 'merger_disposition',
@@ -246,9 +313,16 @@ describe('a merger: the whole merger in the decision tab', () => {
     renderPage()
     const gs = stateOf(view)
     expect(decision()).toHaveAttribute('data-view', 'merger')
-    expect(screen.getByTestId('waiting-message')).toHaveTextContent(
-      `Waiting for ${gs.players[gs.awaiting.player_id].name}`
+    // Who the table waits on: the phase bar, once (and "deciding…" in their row below).
+    expect(screen.getByTestId('game-phase')).toHaveTextContent(
+      `${gs.players[gs.awaiting.player_id].name.toUpperCase()} IS DISPOSING OF SHARES`
     )
+    expect(screen.queryByTestId('waiting-message')).toBeNull()
+    expect(
+      screen.getByTestId(
+        `merger-waiting-${gs.mergers.at(-1).defunct[0].chain}-${gs.awaiting.player_id}`
+      )
+    ).toHaveTextContent('deciding…')
     expect(within(decision()).getByTestId('merger-result')).toBeInTheDocument()
     expect(within(decision()).getByTestId('merger-survivor-after')).toBeInTheDocument()
     expect(screen.queryByTestId('merger-disposition')).not.toBeInTheDocument()

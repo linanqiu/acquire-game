@@ -182,9 +182,9 @@ describe.each(THEMED)('%s ruleset', (_name, rs) => {
       lobbyPlayers: [{ player_id: 'p1', name: 'Alice', is_bot: false }],
     })
     renderPlayer('?is_host=1')
-    expect(screen.getByText(`1/${rs.max_players} players`)).toBeInTheDocument()
+    expect(screen.getByTestId('seats-free')).toHaveTextContent(`${rs.max_players - 1} seats free`)
     const need = rs.min_players - 1
-    expect(screen.getByTestId('start-hint')).toHaveTextContent(`Need ${need} more player`)
+    expect(screen.getByTestId('game-phase')).toHaveTextContent(`NEED ${need} MORE PLAYER`)
     expect(screen.getByTestId('header-title')).toHaveTextContent(BRAND.toUpperCase())
     expectNoDefaultLeaks()
   })
@@ -261,14 +261,15 @@ describe.each(THEMED)('%s ruleset', (_name, rs) => {
     expect(screen.getByTestId('game-phase')).toHaveTextContent(
       `DISPOSE YOUR ${t.share_noun_plural.toUpperCase()}`
     )
-    // The status line (the way back from another tab) names it in the ruleset's words.
+    // From another tab the phase bar is the way back, in the ruleset's words.
     fireEvent.click(screen.getByTestId('tab-chains'))
-    expect(screen.getByTestId('status-line')).toHaveTextContent(
-      `Your move: sell, trade or keep your ${defunct.name} ${t.share_noun_plural}`
+    expect(screen.getByTestId('phase-link')).toHaveTextContent(
+      `DISPOSE YOUR ${t.share_noun_plural.toUpperCase()}`
     )
-    fireEvent.click(screen.getByTestId('status-line'))
+    fireEvent.click(screen.getByTestId('phase-link'))
     const form = screen.getByTestId('merger-disposition')
-    expect(form).toHaveTextContent(`(price at ${t.merger_noun})`)
+    expect(form).toHaveAccessibleName(`Your ${defunct.name} ${t.share_noun_plural}`)
+    expect(within(form).getByTitle(`The price at the ${t.merger_noun}`)).toBeInTheDocument()
     expect(form).toHaveTextContent(`Your ${defunct.abbreviation}`)
     const r = rs.merger_trade_ratio
     expect(
@@ -310,7 +311,8 @@ describe.each(THEMED)('%s ruleset', (_name, rs) => {
     })
     renderPlayer()
     // Final money is the state's (10x starting cash for Alice in this fixture)
-    expect(screen.getByTestId('winner-announcement')).toHaveTextContent(
+    expect(screen.getByTestId('winner-announcement')).toHaveTextContent('Alice')
+    expect(screen.getByTestId('rank-p1')).toHaveTextContent(
       `${rs.theme.currency_symbol}${(rs.starting_cash * 10).toLocaleString('en-US')}`
     )
     expect(screen.getByTestId('breakdown')).toHaveTextContent(`${rs.theme.stock_label} sold`)

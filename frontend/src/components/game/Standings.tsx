@@ -116,6 +116,7 @@ export function Standings({
                 className={`${styles.row} ${isTurn ? styles.turn : ''} ${isMe ? styles.me : ''}`}
                 data-testid={rowTestId}
                 data-player-id={id}
+                data-me={isMe ? 'true' : undefined}
                 data-current-turn={isTurn ? 'true' : undefined}
               >
                 <th scope="row" className={styles.name}>

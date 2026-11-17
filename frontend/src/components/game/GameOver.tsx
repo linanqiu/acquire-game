@@ -26,7 +26,8 @@ export interface GameOverProps {
   scores: FinalScore[]
   myPlayerId?: string
   onPlayAgain: () => void
-  onBackToLobby: () => void
+  /** A second way out, when it leads somewhere else than PLAY AGAIN does. */
+  onBackToLobby?: () => void
   variant?: 'player' | 'host'
   /** Transcript id; when present a "View full transcript" link is shown. */
   gameId?: string | null
@@ -69,20 +70,20 @@ export function GameOver({
   const hasBreakdown = scores.every((s) => s.bonuses !== undefined && s.stockSales !== undefined)
 
   return (
-    <Card title="GAME OVER">
+    // No card title: the phase bar of the page says GAME OVER.
+    <Card>
       <div className={styles.container} data-testid="game-over">
+        {/* The winner by name; every total is in the standings right under it. */}
         <div className={styles.winner} data-testid="winner-announcement">
           {isTie ? (
             <>
               <span className={styles.crown}>TIE GAME!</span>
               <p className={styles.winnerNames}>{winners.map((w) => w.name).join(' & ')}</p>
-              <p className={styles.winnerTotal}>{rules.money(winners[0].total)} each</p>
             </>
           ) : (
             <>
               <span className={styles.crown}>WINNER</span>
               <p className={styles.winnerNames}>{winners[0].name}</p>
-              <p className={styles.winnerTotal}>{rules.money(winners[0].total)}</p>
             </>
           )}
         </div>
@@ -125,36 +126,33 @@ export function GameOver({
           </div>
         </div>
 
-        {variant === 'player' && myScore && (
+        {!hasBreakdown && (
+          <p className={styles.note} data-testid="totals-note">
+            Totals are final cash: bonuses and {rules.theme.share_noun} sales are included.
+          </p>
+        )}
+
+        {variant === 'player' && myScore && hasBreakdown && (
           <div className={styles.breakdown} data-testid="breakdown">
             <h3 className={styles.sectionTitle}>YOUR BREAKDOWN</h3>
             <table className={styles.breakdownTable}>
               <tbody>
-                {hasBreakdown ? (
-                  <>
-                    <tr>
-                      <td>Cash on hand:</td>
-                      <td className={styles.amount}>{rules.money(myScore.cash)}</td>
-                    </tr>
-                    <tr>
-                      <td>Final bonuses:</td>
-                      <td className={styles.amount} data-testid="breakdown-bonuses">
-                        +{rules.money(myScore.bonuses ?? 0)}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>{rules.theme.stock_label} sold:</td>
-                      <td className={styles.amount} data-testid="breakdown-stock-sales">
-                        +{rules.money(myScore.stockSales ?? 0)}
-                      </td>
-                    </tr>
-                  </>
-                ) : (
-                  <tr>
-                    <td>Final cash (bonuses and {rules.theme.share_noun} sales included):</td>
-                    <td className={styles.amount}>{rules.money(myScore.cash)}</td>
-                  </tr>
-                )}
+                <tr>
+                  <td>Cash on hand:</td>
+                  <td className={styles.amount}>{rules.money(myScore.cash)}</td>
+                </tr>
+                <tr>
+                  <td>Final bonuses:</td>
+                  <td className={styles.amount} data-testid="breakdown-bonuses">
+                    +{rules.money(myScore.bonuses ?? 0)}
+                  </td>
+                </tr>
+                <tr>
+                  <td>{rules.theme.stock_label} sold:</td>
+                  <td className={styles.amount} data-testid="breakdown-stock-sales">
+                    +{rules.money(myScore.stockSales ?? 0)}
+                  </td>
+                </tr>
                 <tr className={styles.totalRow}>
                   <td>TOTAL:</td>
                   <td className={styles.amount}>{rules.money(myScore.total)}</td>
@@ -164,7 +162,7 @@ export function GameOver({
           </div>
         )}
 
-        {variant === 'host' && (
+        {variant === 'host' && hasBreakdown && (
           <div className={styles.fullBreakdown} data-testid="full-breakdown">
             <h3 className={styles.sectionTitle}>FULL BREAKDOWN</h3>
             <table className={styles.fullTable}>
@@ -172,8 +170,8 @@ export function GameOver({
                 <tr>
                   <th>Player</th>
                   <th>Cash</th>
-                  {hasBreakdown && <th>Bonuses</th>}
-                  {hasBreakdown && <th>{rules.theme.stock_label} sold</th>}
+                  <th>Bonuses</th>
+                  <th>{rules.theme.stock_label} sold</th>
                   <th>Total</th>
                 </tr>
               </thead>
@@ -186,8 +184,8 @@ export function GameOver({
                     <tr key={score.playerId} className={isWinner ? styles.winnerRow : ''}>
                       <td>{score.name}</td>
                       <td>{rules.money(score.cash)}</td>
-                      {hasBreakdown && <td>+{rules.money(score.bonuses ?? 0)}</td>}
-                      {hasBreakdown && <td>+{rules.money(score.stockSales ?? 0)}</td>}
+                      <td>+{rules.money(score.bonuses ?? 0)}</td>
+                      <td>+{rules.money(score.stockSales ?? 0)}</td>
                       <td className={styles.totalCell}>{rules.money(score.total)}</td>
                     </tr>
                   )
@@ -215,9 +213,11 @@ export function GameOver({
           <Button onClick={onPlayAgain} data-testid="play-again">
             PLAY AGAIN
           </Button>
-          <Button variant="secondary" onClick={onBackToLobby} data-testid="back-to-lobby">
-            BACK TO LOBBY
-          </Button>
+          {onBackToLobby && (
+            <Button variant="secondary" onClick={onBackToLobby} data-testid="back-to-lobby">
+              BACK TO LOBBY
+            </Button>
+          )}
         </div>
       </div>
     </Card>

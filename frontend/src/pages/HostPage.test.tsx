@@ -67,7 +67,9 @@ describe('host lobby', () => {
     deliver(lobby())
     renderHostPage()
     expect(screen.getByText('START GAME')).toBeEnabled()
-    expect(screen.getByText('Ready to start!')).toBeInTheDocument()
+    // An enabled START GAME needs no caption saying it is ready (BL-015).
+    expect(screen.queryByTestId('start-hint')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Ready to start/)).not.toBeInTheDocument()
   })
 
   it("the brand on top, then the server ruleset's theme and seat limit: Acquihire 3/6, Harborline 3/5", () => {
@@ -280,7 +282,7 @@ describe('starting the game from the host screen', () => {
 })
 
 describe('host view of the end of the game', () => {
-  it('shows the final standings with the full breakdown, and the ways out', () => {
+  it('shows the final standings with the full breakdown, and one way out', () => {
     const view = snapshot('game-over')
     deliver(view.host)
     deliver(view.player.find((m) => m.type === 'game_over')!)
@@ -291,8 +293,9 @@ describe('host view of the end of the game', () => {
       expect(table).toHaveTextContent(p.name)
       expect(table).toHaveTextContent(money(p.money))
     }
+    // PLAY AGAIN goes home; a second button to the same place is not offered (BL-015).
     expect(screen.getByTestId('play-again')).toBeInTheDocument()
-    expect(screen.getByTestId('back-to-lobby')).toBeInTheDocument()
+    expect(screen.queryByTestId('back-to-lobby')).not.toBeInTheDocument()
   })
 })
 

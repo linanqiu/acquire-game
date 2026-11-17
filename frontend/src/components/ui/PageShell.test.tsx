@@ -91,4 +91,34 @@ describe('PageShell', () => {
     )
     expect(screen.queryByTestId('phase-help')).not.toBeInTheDocument()
   })
+
+  it('the phase bar is the way to a waiting move: one button, named for the phase and where it leads (BL-015)', () => {
+    let opened = 0
+    const { rerender } = render(
+      <PageShell
+        phase="BUY STOCKS"
+        turn="mine"
+        phaseLink={{ label: 'Board', onOpen: () => (opened += 1) }}
+      >
+        <p>chat</p>
+      </PageShell>
+    )
+    const status = screen.getByRole('status')
+    const link = screen.getByRole('button', { name: 'BUY STOCKS. Go to Board' })
+    expect(status).toContainElement(link)
+    expect(status).toHaveAttribute('data-turn', 'mine')
+    expect(link).toHaveAttribute('data-go', 'Board')
+    // The announced text is the phase alone.
+    expect(status).toHaveTextContent(/^BUY STOCKS$/)
+    fireEvent.click(link)
+    expect(opened).toBe(1)
+    // Without a link the bar is text again.
+    rerender(
+      <PageShell phase="BUY STOCKS" turn="mine">
+        <p>board</p>
+      </PageShell>
+    )
+    expect(screen.queryByTestId('phase-link')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(/^BUY STOCKS$/)
+  })
 })

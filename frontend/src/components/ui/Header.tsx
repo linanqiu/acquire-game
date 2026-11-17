@@ -11,14 +11,31 @@ interface HeaderProps {
   rank?: number
   playerName?: string
   tilePool?: number | 'EMPTY'
+  /**
+   * In a game: the phone header keeps one height and one type size whether it shows my numbers
+   * (tabs without the players table) or the room code (the Board tab, where the table has them).
+   */
+  inGame?: boolean
 }
 
-export function Header({ roomCode, cash, netWorth, rank, playerName, tilePool }: HeaderProps) {
+export function Header({
+  roomCode,
+  cash,
+  netWorth,
+  rank,
+  playerName,
+  tilePool,
+  inGame = false,
+}: HeaderProps) {
   // Product name: the brand; amounts: the ruleset in effect (a game's own).
   const brand = useBrand()
   const rules = useRules()
   return (
-    <header className={styles.header} data-numbers={netWorth !== undefined ? 'true' : undefined}>
+    <header
+      className={styles.header}
+      data-numbers={inGame || netWorth !== undefined ? 'true' : undefined}
+      data-mine={cash !== undefined ? 'true' : undefined}
+    >
       <div className={styles.logo} data-testid="header-title">
         {brand.toUpperCase()}
       </div>

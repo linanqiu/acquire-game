@@ -139,12 +139,13 @@ test('your-turn signal: accent while the table waits on me, calm after', async (
   await shots.take(page, 'my-turn', { fullPage: false })
   await page.getByTestId('end-turn-button').click()
   await expect(phaseBanner(page)).not.toHaveText('BUY STOCKS')
-  // The scripted seats play on; whenever it is not on me, the bar is calm (and says whose turn).
+  // The scripted seats play on; whenever it is not on me, the bar is calm (and says who the
+  // table waits for).
   await expect
     .poll(async () => {
       const turn = await phaseBanner(page).getAttribute('data-turn')
       const text = (await phaseBanner(page).innerText()).trim()
-      return turn === 'other' ? /TURN/.test(text) : turn === 'mine'
+      return turn === 'other' ? / IS /.test(text) : turn === 'mine'
     })
     .toBe(true)
   await shots.take(page, 'after-my-turn', { fullPage: false })

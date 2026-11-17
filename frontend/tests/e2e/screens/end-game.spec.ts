@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test'
 import { test, expect } from './support/test'
 import { startFromSnapshot, type RoomContext } from './support/room'
 import { dollars } from './support/fixtures'
-import { headerCash, phaseBanner, playHumanTurns } from './support/ui'
+import { myCash, phaseBanner, playHumanTurns } from './support/ui'
 
 interface Standing {
   name: string
@@ -81,7 +81,7 @@ test('last turn before game over: declare from the buy phase', async ({ page, sh
   const room = await startFromSnapshot(page, 'last-turn-before-game-over')
   const { human } = room.fixture.expect
   await expect(phaseBanner(page)).toHaveText('BUY STOCKS')
-  await expect(headerCash(page)).toHaveText(dollars(human.cash))
+  await expect(myCash(page)).toHaveText(dollars(human.cash))
   await expect(page.getByTestId('end-game-button')).toBeVisible()
   await shots.take(page, 'buy-phase-end-game')
 
@@ -109,11 +109,20 @@ test('game over: standings, single winner, play again returns to the home page',
   await expect(phaseBanner(page)).toHaveText('GAME OVER')
   await expect(page.getByTestId('winner-announcement')).toContainText('WINNER')
   await expect(page.getByTestId('winner-announcement')).toContainText(standings[0].name)
-  await expect(page.getByTestId('winner-announcement')).toContainText(dollars(standings[0].money))
   await expect(page.getByTestId('winner-announcement')).not.toContainText('TIE')
   await expectStandings(page, standings)
-  // My own line: the human is Alice, the winner here.
-  await expect(page.getByTestId('breakdown')).toContainText(dollars(standings[0].money))
+  // The winner's total is said once on the screen: in the standings (the human is Alice, the
+  // winner here). Not again under the name, in a one-line "breakdown", or in the header.
+  await expect(page.getByText(dollars(standings[0].money), { exact: true })).toHaveCount(1)
+  await expect(page.getByTestId('rankings').getByText(dollars(standings[0].money))).toBeVisible()
+  await expect(page.getByTestId('header-cash')).toHaveCount(0)
+  // A snapshot carries no breakdown of the final payouts: the page says what the totals are.
+  await expect(page.getByTestId('breakdown')).toHaveCount(0)
+  await expect(page.getByTestId('totals-note')).toHaveText(
+    'Totals are final cash: bonuses and share sales are included.'
+  )
+  // The phase bar says GAME OVER; the card does not repeat it as its title.
+  await expect(page.getByText('GAME OVER', { exact: true })).toHaveCount(1)
   // Nothing from the in-game screen is left over.
   await expect(page.getByTestId('tile-rack')).toHaveCount(0)
   await expect(page.getByTestId('end-turn-button')).toHaveCount(0)
@@ -135,7 +144,8 @@ test('game over with a tie: both leaders announced, ranked equally', async ({ pa
   await expect(announcement).toContainText('TIE GAME')
   await expect(announcement).toContainText(first.name)
   await expect(announcement).toContainText(second.name)
-  await expect(announcement).toContainText(`${dollars(first.money)} each`)
+  // What each of them ends with is in their rows of the standings.
+  await expect(announcement).not.toContainText('$')
   await expectStandings(page, standings)
   // Both tied players show rank 1.
   const rows = page.getByTestId('rankings').locator('[data-testid^="rank-"]')
@@ -143,7 +153,9 @@ test('game over with a tie: both leaders announced, ranked equally', async ({ pa
   await expect(rows.nth(1)).toContainText('1.')
   await expect(rows.nth(2)).toContainText('3.')
 
-  await page.getByTestId('back-to-lobby').click()
+  // One way out: PLAY AGAIN goes home (a second button to the same place is gone, BL-015).
+  await expect(page.getByTestId('back-to-lobby')).toHaveCount(0)
+  await page.getByTestId('play-again').click()
   await page.waitForURL((url) => url.pathname === '/')
   await expect(page.getByTestId('create-button')).toBeVisible()
 })

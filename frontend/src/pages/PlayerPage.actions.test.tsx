@@ -144,7 +144,7 @@ describe('placing a tile', () => {
 describe('tabs on a phone', () => {
   const tab = (name: RegExp) => screen.getByRole('tab', { name })
 
-  it('my decision is in place under the board; from another tab the status line leads back', () => {
+  it('my decision is in place under the board; from another tab the phase bar leads back', () => {
     loadSnapshotAsPlayer('found-chain-choice')
     renderPage()
     // Four tabs: no Now tab to be sent to, no Players tab to toggle with.
@@ -164,12 +164,20 @@ describe('tabs on a phone', () => {
     expect(dock).toContainElement(screen.getByTestId('tile-rack'))
     expect(dock).not.toContainElement(screen.getByTestId('chain-selector'))
     expect(screen.queryByTestId('status-line')).not.toBeInTheDocument()
-    // Elsewhere the status line names the decision and leads back to it.
+    // The phase bar names the decision; on the Board tab it is text, not a control.
+    const phase = screen.getByTestId('game-phase')
+    expect(phase).toHaveTextContent('CHOOSE A HOTEL CHAIN')
+    expect(within(phase).queryByRole('button')).not.toBeInTheDocument()
+    // Elsewhere the same bar leads back to it, and says where it leads. No second line
+    // repeats "your move" over the rack (BL-015).
     fireEvent.click(tab(/Chains/))
     expect(board).not.toBeVisible()
-    expect(screen.getByTestId('status-line')).toHaveTextContent('Your move: found a hotel chain')
-    fireEvent.click(screen.getByTestId('status-line'))
+    expect(screen.queryByTestId('status-line')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Your move/)).not.toBeInTheDocument()
+    const back = within(phase).getByRole('button', { name: 'CHOOSE A HOTEL CHAIN. Go to Board' })
+    fireEvent.click(back)
     expect(tab(/Board/)).toHaveAttribute('aria-selected', 'true')
+    expect(within(phase).queryByRole('button')).not.toBeInTheDocument()
   })
 
   it('placing a tile: the Board is open, with the rack notes and the players under it', () => {

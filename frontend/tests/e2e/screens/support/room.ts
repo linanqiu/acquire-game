@@ -80,7 +80,7 @@ export async function startFromSnapshot(
 
   // 1. Home page -> create game, as a user would.
   await page.goto('/')
-  await page.getByTestId('create-name-input').fill(nameOf(fixture.human_seat))
+  await page.getByTestId('name-input').fill(nameOf(fixture.human_seat))
   await page.getByTestId('create-button').click()
   await page.waitForURL(/\/play\/[A-Z0-9]{4}/)
   const code = /\/play\/([A-Z0-9]{4})/.exec(page.url())![1]

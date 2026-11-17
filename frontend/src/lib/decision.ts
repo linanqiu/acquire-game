@@ -1,10 +1,8 @@
 /**
- * The table panel (BL-011, BL-013): which view it shows, the events that bring it into view,
- * and the status line's words. Pure functions over what the server sent.
+ * The table panel (BL-011, BL-013): which view it shows and the events that bring it into
+ * view. Pure functions over what the server sent.
  */
 import type { GamePhase, MergerRecord } from '../types/api'
-import type { Ruleset } from '../types/ruleset'
-import { withArticle } from './ruleset'
 
 export type DecisionView =
   | 'survivor' // my survivor choice (tied merger)
@@ -70,35 +68,4 @@ export function decisionEvents(i: EventInput): string[] {
 /** "p2:31": whose turn and how many tiles are on the board (one placement per turn). */
 export function turnKey(currentPlayer: string | undefined, boardCells: number): string {
   return `${currentPlayer ?? '-'}:${boardCells}`
-}
-
-/** The status line: what is needed now, in the ruleset's words. */
-export function statusText(
-  view: DecisionView,
-  rs: Ruleset,
-  opts: { waiting: string; defunctName?: string; offerFrom?: string }
-): { text: string; mine: boolean } {
-  const t = rs.theme
-  switch (view) {
-    case 'survivor':
-      return { text: `Your move: choose the surviving ${t.chain_noun}`, mine: true }
-    case 'disposition':
-      return {
-        text: `Your move: sell, trade or keep your ${opts.defunctName ?? ''} ${t.share_noun_plural}`.replace(
-          /\s+/g,
-          ' '
-        ),
-        mine: true,
-      }
-    case 'found':
-      return { text: `Your move: found ${withArticle(t.chain_noun)}`, mine: true }
-    case 'buy':
-      return { text: `Your move: buy ${t.share_noun_plural}`, mine: true }
-    case 'place':
-      return { text: 'Your move: place a tile', mine: true }
-    default:
-      if (opts.offerFrom)
-        return { text: `Trade offer from ${opts.offerFrom}: answer it`, mine: true }
-      return { text: opts.waiting.replace(/\.\.\.$/, ''), mine: false }
-  }
 }

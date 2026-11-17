@@ -10,7 +10,7 @@ const toast = (page: Page, text: string | RegExp) =>
 
 async function createGame(page: Page, name: string): Promise<string> {
   await page.goto('/')
-  await page.getByTestId('create-name-input').fill(name)
+  await page.getByTestId('name-input').fill(name)
   await page.getByTestId('create-button').click()
   await page.waitForURL(/\/play\/[A-Z0-9]{4}/)
   return /\/play\/([A-Z0-9]{4})/.exec(page.url())![1]
@@ -27,7 +27,7 @@ test('lobby: AI menu, START GAME needs three seats, removing a seat, then a real
 }) => {
   const code = await createGame(page, 'Alice')
   await expect(page.getByText(code, { exact: true })).toBeVisible()
-  await expect(page.getByText('1/6 players')).toBeVisible()
+  await expect(page.locator('[data-testid^="lobby-player-"]')).toHaveCount(1)
   await expect(page.getByRole('button', { name: 'START GAME' })).toBeDisabled()
   await shots.take(page, 'lobby-alone')
 
@@ -53,10 +53,10 @@ test('lobby: AI menu, START GAME needs three seats, removing a seat, then a real
 
   // Two seats are not enough; the third enables START.
   await page.getByTestId('ai-option-scripted').click()
-  await expect(page.getByText('2/6 players')).toBeVisible()
+  await expect(page.locator('[data-testid^="lobby-player-"]')).toHaveCount(2)
   await expect(page.getByRole('button', { name: 'START GAME' })).toBeDisabled()
   await addScripted(page)
-  await expect(page.getByText('3/6 players')).toBeVisible()
+  await expect(page.locator('[data-testid^="lobby-player-"]')).toHaveCount(3)
   await expect(page.getByRole('button', { name: 'START GAME' })).toBeEnabled()
   // Two scripted seats: each with its icon badge, whose accessible name says what it is.
   await expect(page.getByRole('button', { name: /^Scripted test seat/ })).toHaveCount(2)
@@ -70,7 +70,7 @@ test('lobby: AI menu, START GAME needs three seats, removing a seat, then a real
 
   // Remove a seat: back to two, START disabled again.
   await page.locator('[data-testid^="remove-seat-"]').first().click()
-  await expect(page.getByText('2/6 players')).toBeVisible()
+  await expect(page.locator('[data-testid^="lobby-player-"]')).toHaveCount(2)
   await expect(page.getByRole('button', { name: 'START GAME' })).toBeDisabled()
   await addScripted(page)
   await expect(page.getByRole('button', { name: 'START GAME' })).toBeEnabled()
@@ -100,7 +100,7 @@ test('failures show a toast: create game, add bot, start game', async ({ page, g
     route.fulfill({ status: 500, json: { detail: 'Server exploded' } })
   )
   await page.goto('/')
-  await page.getByTestId('create-name-input').fill('Alice')
+  await page.getByTestId('name-input').fill('Alice')
   await page.getByTestId('create-button').click()
   await expect(toast(page, 'Server exploded')).toBeVisible()
   await expect(page).toHaveURL(/\/$/)
@@ -116,7 +116,7 @@ test('failures show a toast: create game, add bot, start game', async ({ page, g
   await page.unroute('**/api/room/*/add-bot')
   await page.getByTestId('add-bot-button').click()
   await page.getByTestId('add-bot-button').click()
-  await expect(page.getByText('3/6 players')).toBeVisible()
+  await expect(page.locator('[data-testid^="lobby-player-"]')).toHaveCount(3)
   await page.route('**/api/room/*/start', (route) => route.fulfill({ status: 500, json: {} }))
   await page.getByRole('button', { name: 'START GAME' }).click()
   await expect(toast(page, 'Failed to start game')).toBeVisible()

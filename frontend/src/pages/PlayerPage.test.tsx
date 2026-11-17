@@ -38,10 +38,12 @@ describe('PlayerPage lobby', () => {
     useGameStore.setState({ connectionStatus: 'connected' })
   })
 
-  it('shows the room code, every seat (AI seats marked) and how many of the maximum are taken', () => {
+  it('shows the room code, every seat (AI seats marked) and how many seats are left', () => {
     useGameStore.getState().handleMessage(lobby())
     renderPlayerPage('ABCD')
-    expect(screen.getByText('WAITING FOR PLAYERS')).toBeInTheDocument()
+    // One statement of what the room waits for: the phase bar (no second heading).
+    expect(screen.getByTestId('game-phase')).toHaveTextContent('WAITING FOR THE HOST TO START')
+    expect(screen.queryByText('WAITING FOR PLAYERS')).not.toBeInTheDocument()
     expect(screen.getByText('ABCD')).toBeInTheDocument()
     for (const p of lobby().players) {
       expect(screen.getByTestId(`lobby-player-${p.player_id}`)).toHaveTextContent(p.name)
@@ -52,20 +54,23 @@ describe('PlayerPage lobby', () => {
     expect(
       screen.queryByTestId(`seat-kind-${lobby().players[0].player_id}`)
     ).not.toBeInTheDocument()
-    expect(screen.getByText('3/6 players')).toBeInTheDocument()
+    // The list shows the three seats taken; the line under it adds the seats left of six.
+    expect(screen.getByTestId('seats-free')).toHaveTextContent('3 seats free')
   })
 
-  it("the maximum is the server ruleset's: 3/5 on the small ruleset", () => {
+  it("the maximum is the server ruleset's: 2 of 5 seats left on the small ruleset", () => {
     serverRuleset('mini')
     useGameStore.getState().handleMessage(lobby())
     renderPlayerPage()
-    expect(screen.getByText('3/5 players')).toBeInTheDocument()
+    expect(screen.getByTestId('seats-free')).toHaveTextContent('2 seats free')
   })
 
   it('a guest waits for the host and cannot start or add seats', () => {
     useGameStore.getState().handleMessage(lobby())
     renderPlayerPage()
-    expect(screen.getByText('Waiting for host to start...')).toBeInTheDocument()
+    expect(screen.getByTestId('game-phase')).toHaveTextContent('WAITING FOR THE HOST TO START')
+    // Said once: no second line under the list.
+    expect(screen.queryByText(/Waiting for host/i)).not.toBeInTheDocument()
     expect(screen.queryByText('START GAME')).not.toBeInTheDocument()
     expect(screen.queryByText('+ ADD BOT')).not.toBeInTheDocument()
     expect(screen.queryByTestId('start-hint')).not.toBeInTheDocument()
@@ -75,7 +80,9 @@ describe('PlayerPage lobby', () => {
     useGameStore.getState().handleMessage(lobby())
     renderPlayerPage('TEST', '?is_host=1')
     expect(screen.getByText('START GAME')).toBeEnabled()
-    expect(screen.getByTestId('start-hint')).toHaveTextContent('Ready to start!')
+    // The enabled button says it can start; the phase bar says whose move that is.
+    expect(screen.getByTestId('game-phase')).toHaveTextContent('START WHEN EVERYONE IS IN')
+    expect(screen.queryByText(/Ready to start/)).not.toBeInTheDocument()
   })
 
   it('the host sees why START is off: how many more players are needed (3 in default, 2 in mini)', () => {
@@ -83,12 +90,16 @@ describe('PlayerPage lobby', () => {
     useGameStore.getState().handleMessage(one)
     const { unmount } = renderPlayerPage('TEST', '?is_host=1')
     expect(screen.getByText('START GAME')).toBeDisabled()
-    expect(screen.getByTestId('start-hint')).toHaveTextContent('Need 2 more players to start')
+    expect(screen.getByTestId('game-phase')).toHaveTextContent('NEED 2 MORE PLAYERS TO START')
+    expect(screen.getByText('START GAME').closest('button')).toHaveAttribute(
+      'title',
+      'Need 2 more players to start'
+    )
     unmount()
     serverRuleset('mini')
     useGameStore.getState().handleMessage(one)
     renderPlayerPage('TEST', '?is_host=1')
-    expect(screen.getByTestId('start-hint')).toHaveTextContent('Need 1 more player to start')
+    expect(screen.getByTestId('game-phase')).toHaveTextContent('NEED 1 MORE PLAYER TO START')
   })
 })
 

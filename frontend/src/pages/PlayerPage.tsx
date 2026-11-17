@@ -26,10 +26,10 @@ import { ChatPanel } from '../components/game/ChatPanel'
 import { GameLayout } from '../components/game/GameLayout'
 import { WIDE_QUERY, shortLabel } from '../lib/gameTabs'
 import { useMediaQuery } from '../hooks/useMediaQuery'
-import { decisionEvents, decisionView, statusText, turnKey } from '../lib/decision'
+import { decisionEvents, decisionView, turnKey } from '../lib/decision'
+import { shortNames } from '../lib/shortNames'
 import { buildFinalScores } from '../lib/finalScores'
 import { roomUnavailable } from '../lib/roomAvailability'
-import { waitingMessage } from '../lib/waiting'
 import { useGameStore } from '../store/gameStore'
 import { useFallbackToasts } from '../hooks/useFallbackToasts'
 import { useErrorHandler } from '../hooks/useErrorHandler'
@@ -43,7 +43,13 @@ import type { ChainId, GameStateMessage } from '../types/api'
 import { RulesetScope } from '../ruleset/RulesetScope'
 import { rulesFor, useServerRuleset } from '../ruleset/useRules'
 import { orderChainIds } from '../lib/ruleset'
-import { dispositionPhaseText, playerPhaseText, survivorPhaseText } from '../lib/phaseText'
+import {
+  dispositionPhaseText,
+  lobbyPhaseText,
+  playerPhaseText,
+  survivorPhaseText,
+  waitingPhaseText,
+} from '../lib/phaseText'
 import type { Coordinate } from '../types/game'
 import { DecisionTab } from './player/DecisionTab'
 import { LobbyPanel } from './player/LobbyPanel'
@@ -146,8 +152,12 @@ export function PlayerPage() {
     (c) => c.state !== 'empty'
   ).length
   const mergerResult = useMergerResult(gameState?.mergers, tilesOnBoard)
-  // Bumped by ANSWER on an offer listed in the Trades tab: the table panel shows it.
+  // Bumped to bring the table panel into view: ANSWER on an offer listed in the Trades tab,
+  // and the phase bar while my move waits on another tab.
   const [answer, setAnswer] = useState(0)
+  // Is the table panel (my decision, the players table) on screen? What it shows is not said
+  // again by the header (my cash, worth, rank) or by a second status line (BL-015).
+  const [tableVisible, setTableVisible] = useState(true)
 
   // The game's ruleset (the server's until the first game_state arrives): every limit and word.
   const serverRuleset = useServerRuleset()
@@ -279,7 +289,6 @@ export function PlayerPage() {
           scores={buildFinalScores(gameState, gameOver)}
           myPlayerId={myPlayerId}
           onPlayAgain={() => navigate('/')}
-          onBackToLobby={() => navigate('/')}
           variant="player"
           gameId={gameState?.game_id}
         />
@@ -338,40 +347,64 @@ export function PlayerPage() {
     mergers,
     live: mergerResult.live,
   })
-  const waiting = waitingMessage(
-    gameState?.awaiting,
-    gameState?.players ?? {},
-    currentPlayerName,
-    ruleset
-  )
-  const status = statusText(view, ruleset, {
-    waiting,
-    defunctName: pendingStockDisposition
-      ? rules.name(pendingStockDisposition.defunctChain)
-      : undefined,
-    offerFrom: incoming[0] ? gameState?.players[incoming[0].from_player_id]?.name : undefined,
-  })
   const placing = isMyTurn && phase === 'place_tile'
+  // My cash, worth and rank are in my row of the players table, which is always in the table
+  // panel (under my decision when there is one). The header shows them on the other tabs only:
+  // what it shows changes with the tab, never mid-turn on the same tab.
+  const showMyNumbers = inGame && !outOfGame && !tableVisible
+  // The trade log without the offers that are still open: those are listed as offers.
+  const pastTrades = useMemo(() => {
+    const open = new Set([...myTrades, ...publicTrades].map((t) => t.trade_id))
+    return tradeLog.filter((e) => !(e.kind === 'proposed' && open.has(e.tradeId)))
+  }, [tradeLog, myTrades, publicTrades])
+
+  // The phase bar: the one place that says what the game waits for.
+  const names = useMemo(() => shortNames(gameState?.players ?? {}), [gameState?.players])
+  const phaseText = unavailable
+    ? undefined
+    : phase === 'lobby'
+      ? lobbyPhaseText(isHost, lobbyPlayers.length, ruleset.min_players)
+      : pendingMergerChoice
+        ? survivorPhaseText(ruleset)
+        : pendingStockDisposition
+          ? dispositionPhaseText(ruleset)
+          : myDecision || phase === 'game_over'
+            ? playerPhaseText(ruleset, phase, isMyTurn, currentPlayerName)
+            : waitingPhaseText(
+                ruleset,
+                gameState?.awaiting,
+                gameState?.players ?? {},
+                currentPlayerName,
+                (id) => names[id]?.head
+              )
+  // What the placement line says next to its buttons (nothing to press: no line).
+  const placementText = !placing
+    ? null
+    : selectedTile
+      ? `Place ${selectedTile}?`
+      : gameState?.end_game_available
+        ? 'The game can end now'
+        : null
 
   return (
     <RulesetScope ruleset={gameState?.ruleset}>
       <PageShell
-        phase={
-          unavailable
-            ? undefined
-            : pendingMergerChoice
-              ? survivorPhaseText(ruleset)
-              : pendingStockDisposition
-                ? dispositionPhaseText(ruleset)
-                : playerPhaseText(ruleset, phase, isMyTurn, currentPlayerName)
-        }
+        phase={phaseText}
         turn={unavailable || !inGame ? undefined : myDecision ? 'mine' : 'other'}
-        roomCode={room}
-        cash={myPlayerData?.money}
-        netWorth={inGame ? myPlayerData?.net_worth : undefined}
-        rank={inGame ? myPlayerData?.rank : undefined}
+        // The lobby shows the room code large and game over shows the final cash; in a game the
+        // header shows my numbers only while the players table (which has them) is not open.
+        roomCode={inGame ? room : undefined}
+        cash={showMyNumbers ? myPlayerData?.money : undefined}
+        netWorth={showMyNumbers ? myPlayerData?.net_worth : undefined}
+        rank={showMyNumbers ? myPlayerData?.rank : undefined}
         playerName={currentPlayer?.name}
-        tilePool={gameState?.tiles_remaining ?? undefined}
+        tilePool={inGame ? (gameState?.tiles_remaining ?? undefined) : undefined}
+        inGame={inGame && !outOfGame}
+        phaseLink={
+          inGame && !outOfGame && myDecision && !tableVisible
+            ? { label: wide ? 'Table' : 'Board', onOpen: () => setAnswer((n) => n + 1) }
+            : undefined
+        }
         fill={!outOfGame}
         helpFresh={placing && !hintSeen('place')}
         help={
@@ -400,7 +433,7 @@ export function PlayerPage() {
               deciding={
                 incomingCount > 0 || !['place', 'waiting'].includes(view) || !!mergerResult.auto
               }
-              statusOnBoard={placing && (!!selectedTile || !!gameState.end_game_available)}
+              onTableVisible={setTableVisible}
               board={
                 <Board
                   tiles={boardTileStates}
@@ -414,13 +447,9 @@ export function PlayerPage() {
                 />
               }
               rack={rack}
-              status={(openDecision) => (
-                <StatusLine
-                  text={placing && selectedTile ? `Place ${selectedTile}?` : status.text}
-                  mine={status.mine}
-                  onOpen={placing ? undefined : openDecision}
-                >
-                  {placing && (
+              status={
+                placementText && (
+                  <StatusLine text={placementText} mine>
                     <span className={styles.placementActions} data-testid="placement-actions">
                       {selectedTile && (
                         <Button
@@ -445,16 +474,15 @@ export function PlayerPage() {
                         </Button>
                       )}
                     </span>
-                  )}
-                </StatusLine>
-              )}
+                  </StatusLine>
+                )
+              }
               table={
                 <DecisionTab
                   view={view}
                   gameState={gameState}
                   myId={myPlayerId}
                   isMyTurn={isMyTurn}
-                  waiting={waiting}
                   incoming={
                     myPlayerId && (
                       <TradeOffers
@@ -540,25 +568,24 @@ export function PlayerPage() {
                           }
                         />
                       )}
-                      {tradeLog.length > 0 && (
+                      {pastTrades.length > 0 && (
                         <section aria-label="Recent trades">
                           <h4 className={styles.refTitle}>Recent trades</h4>
-                          <TradeActivity events={tradeLog} players={gameState.players} />
+                          <TradeActivity events={pastTrades} players={gameState.players} />
                         </section>
                       )}
-                      <section aria-label="Activity">
-                        <h4 className={styles.refTitle}>{theme.merger_noun_plural}</h4>
-                        {(gameState.mergers?.length ?? 0) > 0 ? (
+                      {/* No heading over nothing: the section appears with the first one. */}
+                      {(gameState.mergers?.length ?? 0) > 0 && (
+                        <section aria-label={theme.merger_noun_plural}>
+                          <h4 className={styles.refTitle}>{theme.merger_noun_plural}</h4>
                           <MergerLog
                             mergers={gameState.mergers ?? []}
                             players={gameState.players}
                             gameState={gameState}
                             myId={myPlayerId}
                           />
-                        ) : (
-                          <p className={styles.hintText}>None yet.</p>
-                        )}
-                      </section>
+                        </section>
+                      )}
                     </div>
                   ),
                 },

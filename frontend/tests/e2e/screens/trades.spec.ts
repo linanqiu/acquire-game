@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test'
 import { test, expect } from './support/test'
 import { startFromSnapshot, type RoomContext } from './support/room'
 import { dollars, loadFixture } from './support/fixtures'
-import { headerCash, phaseBanner, playHumanTurns } from './support/ui'
+import { myCash, phaseBanner, playHumanTurns } from './support/ui'
 import { layoutProblems } from './support/layout'
 import { openTab, tabBadge } from '../support/tabs'
 
@@ -27,7 +27,9 @@ async function expectIncomingCard(page: Page, room: RoomContext) {
     room.names[room.seatMap[trade.from_player_id]]
   )
   await expect(tabBadge(page, 'trades')).toHaveText('1')
-  await expect(page.getByTestId('trade-incoming-count')).toHaveText('1 NEW')
+  // One offer, one card: the card names who offers (no count or title over it, BL-015).
+  await expect(page.locator('[data-testid^="trade-offer-"]')).toHaveCount(1)
+  await expect(card).toContainText('offers you a trade')
   await expect(card).toContainText(room.names[room.seatMap[trade.from_player_id]])
   for (const [chain, qty] of Object.entries(trade.offering_stocks)) {
     await expect(card.getByTestId(`trade-stock-${chain}`)).toContainText(`×${qty}`)
@@ -52,7 +54,7 @@ test('incoming offer on my turn: accept it, cash and shares change, turn goes on
   await expect(page.getByTestId(`trade-offer-${trade.trade_id}`)).toHaveCount(0)
   await expect(page.getByTestId('trade-incoming')).toHaveCount(0)
   await expect(tabBadge(page, 'trades')).toHaveCount(0)
-  await expect(headerCash(page)).toHaveText(dollars(human.cash - trade.requesting_money))
+  await expect(myCash(page)).toHaveText(dollars(human.cash - trade.requesting_money))
   for (const [chain, qty] of Object.entries(trade.offering_stocks)) {
     await expect(page.getByTestId(`portfolio-row-${chain.toLowerCase()}`)).toContainText(
       String((human.holdings[chain] ?? 0) + qty)
@@ -77,7 +79,7 @@ test('incoming offer on my turn: reject it, nothing changes', async ({ page, sho
   await expect(page.getByTestId('trade-incoming')).toHaveCount(0)
   await expect(tabBadge(page, 'trades')).toHaveCount(0)
   await expect(toast(page, 'Offer rejected')).toBeVisible()
-  await expect(headerCash(page)).toHaveText(dollars(human.cash))
+  await expect(myCash(page)).toHaveText(dollars(human.cash))
   await openTab(page, 'chains')
   await expect(page.getByTestId('portfolio-empty')).toBeVisible()
   await shots.take(page, 'rejected')
@@ -89,20 +91,22 @@ test('incoming offer while another player is on turn: accept', async ({ page, sh
   const room = await startFromSnapshot(page, 'trade-incoming-not-my-turn', { idle: ['p3'] })
   const { human, current_player } = room.fixture.expect
   const trade = await expectIncomingCard(page, room)
-  await expect(phaseBanner(page)).toHaveText(`${room.names[room.seatMap[current_player]]}'s TURN`)
+  const onTurn = new RegExp(`^${room.names[room.seatMap[current_player]].toUpperCase()} IS `)
+  await expect(phaseBanner(page)).toHaveText(onTurn)
+  await expect(phaseBanner(page)).toHaveAttribute('data-turn', 'other')
   await expect(page.getByTestId('end-turn-button')).toHaveCount(0) // not my buy phase
   await shots.take(page, 'offer-not-my-turn')
 
   await page.getByTestId(`trade-accept-${trade.trade_id}`).click()
   await expect(page.getByTestId(`trade-offer-${trade.trade_id}`)).toHaveCount(0)
-  await expect(headerCash(page)).toHaveText(dollars(human.cash - trade.requesting_money))
+  await expect(myCash(page)).toHaveText(dollars(human.cash - trade.requesting_money))
   for (const [chain, qty] of Object.entries(trade.offering_stocks)) {
     await expect(page.getByTestId(`portfolio-row-${chain.toLowerCase()}`)).toContainText(
       String((human.holdings[chain] ?? 0) + qty)
     )
   }
   // Accepting did not take anyone's turn: it is still the same player's.
-  await expect(phaseBanner(page)).toHaveText(`${room.names[room.seatMap[current_player]]}'s TURN`)
+  await expect(phaseBanner(page)).toHaveText(onTurn)
   await shots.take(page, 'accepted-not-my-turn')
   await playHumanTurns(page, room, 2, shots)
 })
@@ -114,7 +118,7 @@ test('incoming offer while another player is on turn: reject', async ({ page, sh
   await page.getByTestId(`trade-reject-${trade.trade_id}`).click()
   await expect(page.getByTestId(`trade-offer-${trade.trade_id}`)).toHaveCount(0)
   await expect(toast(page, 'Offer rejected')).toBeVisible()
-  await expect(headerCash(page)).toHaveText(dollars(human.cash))
+  await expect(myCash(page)).toHaveText(dollars(human.cash))
   await shots.take(page, 'rejected-not-my-turn')
   await playHumanTurns(page, room, 2, shots)
 })
@@ -135,16 +139,18 @@ test('outgoing offer stays pending until cancelled', async ({ page, shots }) => 
     await expect(card.getByTestId(`trade-stock-${chain}`)).toContainText(`×${qty}`)
   }
   await expect(card).toContainText(dollars(trade.requesting_money))
-  await expect(page.getByTestId('trade-incoming-count')).toHaveCount(0)
+  await expect(page.getByTestId('trade-incoming')).toHaveCount(0)
   await shots.take(page, 'pending')
 
   // Pending means pending: still there, nothing moved.
-  await expect(headerCash(page)).toHaveText(dollars(human.cash))
+  await expect(myCash(page)).toHaveText(dollars(human.cash))
   await page.getByTestId(`trade-cancel-${trade.trade_id}`).click()
   await expect(card).toHaveCount(0)
   await expect(toast(page, 'Offer canceled')).toBeVisible()
-  await expect(page.getByText('No offers of yours pending')).toBeVisible()
-  await expect(headerCash(page)).toHaveText(dollars(human.cash))
+  // Nothing of mine and nothing at the table: one quiet line.
+  await expect(page.locator('[data-testid^="trade-outgoing-"]')).toHaveCount(0)
+  await expect(page.getByTestId('trade-table-empty')).toHaveText('No open offers')
+  await expect(myCash(page)).toHaveText(dollars(human.cash))
   await shots.take(page, 'cancelled')
   await playHumanTurns(page, room, 3, shots)
 })
@@ -159,7 +165,7 @@ test('outgoing offer: a scripted opponent accepts it', async ({ page, shots }) =
   await expect(toast(page, `${peer} accepted your offer`)).toBeVisible()
   await expect(page.getByTestId(`trade-outgoing-${trade.trade_id}`)).toHaveCount(0)
   // I gave the shares and received the cash.
-  await expect(headerCash(page)).toHaveText(dollars(human.cash + trade.requesting_money))
+  await expect(myCash(page)).toHaveText(dollars(human.cash + trade.requesting_money))
   for (const [chain, qty] of Object.entries(trade.offering_stocks)) {
     const left = (human.holdings[chain] ?? 0) - qty
     if (left > 0) {
@@ -184,7 +190,7 @@ test('outgoing offer: a scripted opponent rejects it (the default answer)', asyn
   const peer = room.names[room.seatMap[trade.to_player_id]]
   await expect(toast(page, `${peer} rejected your offer`)).toBeVisible()
   await expect(page.getByTestId(`trade-outgoing-${trade.trade_id}`)).toHaveCount(0)
-  await expect(headerCash(page)).toHaveText(dollars(human.cash))
+  await expect(myCash(page)).toHaveText(dollars(human.cash))
   await shots.take(page, 'rejected')
   await playHumanTurns(page, room, 3, shots)
 })
@@ -224,16 +230,19 @@ test('an offer between two other players: I see it, read-only, and can make a co
   await expect(card).toContainText(recipient)
   await expect(card.getByTestId(`trade-stock-${chain}`)).toContainText(`×${qty}`)
   await expect(card).toContainText(dollars(trade.requesting_money))
-  await expect(page.getByTestId('trade-table')).toContainText('Offers are public')
+  await expect(page.getByTestId('trade-offers')).toContainText('Offers are public')
+  // The card is the count and the title: no "open offers: 1" over it, no "none" for mine.
+  await expect(page.getByTestId('trade-table-empty')).toHaveCount(0)
+  await expect(page.getByTestId('trade-offers')).not.toContainText(/pending|open offers/i)
   // Read-only for me: it is not mine to answer or withdraw.
   await expect(page.getByTestId(`trade-accept-${trade.trade_id}`)).toHaveCount(0)
   await expect(page.getByTestId(`trade-reject-${trade.trade_id}`)).toHaveCount(0)
   await expect(page.getByTestId(`trade-cancel-${trade.trade_id}`)).toHaveCount(0)
   await expect(tabBadge(page, 'trades')).toHaveCount(0) // looked at
-  // The public activity says it in words, with the terms.
-  await expect(page.getByTestId('trade-activity')).toContainText(
-    `${proposer} offers ${recipient} ${qty} ${chain[0].toUpperCase()}${chain.slice(1)} for ${dollars(trade.requesting_money)}.`
-  )
+  // While the offer is open it is said once, by its card; the activity log takes it over
+  // (in words, with the terms) once it is answered. See the end of this test.
+  const inWords = `${proposer} offers ${recipient} ${qty} ${chain[0].toUpperCase()}${chain.slice(1)} for ${dollars(trade.requesting_money)}.`
+  await expect(page.getByText(inWords)).toHaveCount(0)
   await shots.take(page, 'offer-between-others')
 
   // A competing offer to the recipient: the builder opens on them with the terms filled in
@@ -281,7 +290,7 @@ test('an offer between two other players: I see it, read-only, and can make a co
   expect(accepted.status, JSON.stringify(accepted)).not.toBe('error')
   await expect(toast(page, `${recipient} accepted your offer`)).toBeVisible()
   await expect(outgoing).toHaveCount(0)
-  await expect(headerCash(page)).toHaveText(dollars(human.cash + price))
+  await expect(myCash(page)).toHaveText(dollars(human.cash + price))
   const withdrawn = await room.act(room.seatMap[trade.from_player_id], {
     action: 'cancel_trade',
     trade_id: trade.trade_id,
@@ -291,6 +300,7 @@ test('an offer between two other players: I see it, read-only, and can make a co
   await expect(page.getByTestId('trade-table-empty')).toBeVisible()
   const activity = page.getByTestId('trade-activity')
   await expect(activity).toContainText(`${proposer} withdrew the offer to ${recipient}`)
+  await expect(activity).toContainText(inWords)
   await expect(activity).toContainText(`${recipient} accepted ${human.name}'s offer`)
   await shots.take(page, 'activity-after-answers')
   await playHumanTurns(page, room, 2, shots)
@@ -355,7 +365,8 @@ test('propose a trade through the builder: validation, then the offer shows as p
   const existing = room.fixture.expect.pending_trades[0]
   await openTab(page, 'trades')
   await page.getByTestId(`trade-cancel-${existing.trade_id}`).click()
-  await expect(page.getByText('No offers of yours pending')).toBeVisible()
+  await expect(page.locator('[data-testid^="trade-outgoing-"]')).toHaveCount(0)
+  await expect(page.getByTestId('trade-table-empty')).toBeVisible()
   const { human, players } = room.fixture.expect
   const partnerSeat = 'p3'
   const partner = players.find((p) => p.player_id === partnerSeat)!
@@ -442,7 +453,7 @@ test('server refuses a trade mid-merger: reason shown in the builder and as a to
   await page.getByTestId('cancel-trade').click()
   await expect(page.getByTestId('trade-builder')).toHaveCount(0)
   await expect(page.locator('[data-testid^="trade-outgoing-"]')).toHaveCount(0)
-  await expect(headerCash(page)).toHaveText(dollars(human.cash))
+  await expect(myCash(page)).toHaveText(dollars(human.cash))
 
   // The merger carries on once the idle seat answers.
   expect(await room.driveIdle()).toBe(true)
@@ -547,7 +558,8 @@ test('a hint is read once: after I have proposed a trade it is a "?" that brings
 }) => {
   await startFromSnapshot(page, 'trade-outgoing-pending', { idle: ['p2', 'p3', 'p4'] })
   await openTab(page, 'trades')
-  const table = page.getByTestId('trade-table')
+  // The hint sits in the Trades header, next to PROPOSE TRADE (BL-015).
+  const table = page.getByTestId('trade-offers')
   await expect(table.getByTestId('hint-trades')).toContainText('Offers are public')
   await shots.take(page, 'hint-first-time')
   // Doing the thing retires the hint (remembered in this browser).

@@ -3,7 +3,7 @@
  * stock label). Default: "CHOOSE A HOTEL CHAIN", "DISPOSE YOUR SHARES", "BUY STOCKS".
  */
 
-import type { GamePhase } from '../types/api'
+import type { AwaitingDecision, GamePhase } from '../types/api'
 import type { Ruleset } from '../types/ruleset'
 import { withArticle } from './ruleset'
 
@@ -23,6 +23,46 @@ export function dispositionPhaseText(rs: Ruleset): string {
 
 export function buyPhaseText(rs: Ruleset): string {
   return up(`Buy ${rs.theme.stock_label}`)
+}
+
+/**
+ * The player page's banner in the lobby (BL-015): the one line that says what the room waits
+ * for. The host reads how many players are missing, or that the start is theirs to press; a
+ * guest reads that the host starts.
+ */
+export function lobbyPhaseText(isHost: boolean, players: number, minPlayers: number): string {
+  if (!isHost) return 'WAITING FOR THE HOST TO START'
+  const missing = minPlayers - players
+  if (missing > 0) return `NEED ${missing} MORE PLAYER${missing > 1 ? 'S' : ''} TO START`
+  return 'START WHEN EVERYONE IS IN'
+}
+
+/**
+ * The player page's banner while the table waits on someone else (BL-015): who, and what they
+ * are doing ("CARA IS BUYING SHARES"). It names the player the engine waits on, who is not
+ * always the player on turn (a merger asks each stockholder). `shortName` is what a narrow row
+ * prints for that seat. An unknown decision falls back to "<NAME>'s TURN".
+ */
+export function waitingPhaseText(
+  rs: Ruleset,
+  awaiting: AwaitingDecision | null | undefined,
+  players: Record<string, { name: string }>,
+  currentPlayerName: string,
+  shortName?: (playerId: string) => string | undefined
+): string {
+  const t = rs.theme
+  const doing: Record<string, string> = {
+    place_tile: 'placing a tile',
+    found_chain: `founding ${withArticle(t.chain_noun)}`,
+    choose_survivor: `choosing the surviving ${t.chain_noun}`,
+    stock_disposition: `disposing of ${t.share_noun_plural}`,
+    buy_stocks: `buying ${t.share_noun_plural}`,
+    trade_response: 'answering a trade offer',
+  }
+  const awaited = awaiting ? players[awaiting.player_id] : undefined
+  const what = awaited && awaiting ? doing[awaiting.decision] : undefined
+  if (!awaited || !awaiting || !what) return `${currentPlayerName}'s TURN`
+  return up(`${shortName?.(awaiting.player_id) ?? awaited.name} is ${what}`)
 }
 
 /** The player page's banner. */

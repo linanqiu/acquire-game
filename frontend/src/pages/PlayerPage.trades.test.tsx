@@ -244,11 +244,17 @@ describe('offers between two other players are public', () => {
     expect(screen.queryByTestId('tab-badge-trades')).toBeNull()
     fireEvent.click(screen.getByRole('tab', { name: /Chains/ }))
     expect(screen.queryByTestId('tab-badge-trades')).toBeNull()
-    // The offer was already open when I arrived: listed in the activity, no toast.
+    // The offer was already open when I arrived: no toast. While it is open it is listed once,
+    // as the offer; the activity log takes it over when it is answered (BL-015).
     expect(alerts()).toEqual([])
+    expect(screen.queryByTestId('trade-activity')).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: /Trades/ }))
+    deliver(o.rejected)
+    expect(screen.queryByTestId(`trade-table-${offer.trade_id}`)).toBeNull()
     expect(screen.getByTestId('trade-activity')).toHaveTextContent(
       'Cara offers Bob 2 Aurelia for $800.'
     )
+    expect(screen.getAllByTestId('trade-activity-rejected')).toHaveLength(1)
   })
 
   it.each([

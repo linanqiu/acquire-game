@@ -25,14 +25,15 @@ export function roomFromUrl(page: Page): string {
 export async function createGame(page: Page, j: Journey, name: string): Promise<string> {
   await openHome(page, j)
   await j.shot(page, 'home')
-  await page.getByTestId('create-name-input').fill(name)
+  await page.getByTestId('name-input').fill(name)
   await j.shot(page, 'home-create-name-filled')
   j.log(`create game as "${name}"`)
   await page.getByTestId('create-button').click()
   await page.waitForURL(/\/play\/[A-Z]{4}\?is_host=1$/)
   const room = roomFromUrl(page)
   await expectInLobby(page, [name])
-  await expect(page.getByText(`Room Code: ${room}`)).toBeVisible()
+  await expect(page.getByTestId('lobby-room-code')).toHaveText(room)
+  await expect(page.getByTestId('lobby-room-code')).toBeVisible()
   j.log(`room ${room} created; in lobby`)
   await j.shot(page, 'lobby-created')
   return room
@@ -47,7 +48,7 @@ export async function joinGame(
   who = 'p2'
 ): Promise<void> {
   await openHome(page, j, who)
-  await page.getByTestId('join-name-input').fill(name)
+  await page.getByTestId('name-input').fill(name)
   // Type the code in lower case: the input upper-cases it like a user would see.
   await page.getByTestId('join-room-input').pressSequentially(room.toLowerCase())
   await expect(page.getByTestId('join-room-input')).toHaveValue(room)
@@ -56,17 +57,19 @@ export async function joinGame(
   await page.getByTestId('join-button').click()
   await page.waitForURL(new RegExp(`/play/${room}$`))
   await expectInLobby(page, [name])
-  await expect(page.getByText('Waiting for host to start...')).toBeVisible()
+  // A guest reads what the room waits for in the phase bar (said once, BL-015).
+  await expect(page.getByTestId('game-phase')).toHaveText('WAITING FOR THE HOST TO START')
+  await expect(page.getByRole('button', { name: 'START GAME' })).toHaveCount(0)
   await j.shot(page, `${who}-lobby-joined`)
 }
 
 async function lobbyCount(page: Page): Promise<number> {
-  const text = (await page.getByText(/^\d\/6 players$/).textContent()) ?? ''
-  return Number(text.split('/')[0])
+  // The lobby lists every seat; the list is the count.
+  return page.locator('[data-testid^="lobby-player-"]').count()
 }
 
 export async function expectInLobby(page: Page, names: string[]): Promise<void> {
-  await expect(page.getByText('WAITING FOR PLAYERS')).toBeVisible()
+  await expect(page.getByTestId('lobby')).toBeVisible()
   for (const n of names) {
     await expect(page.locator('[data-testid^="lobby-player-"]', { hasText: n })).toBeVisible()
   }
@@ -77,7 +80,7 @@ export async function addBot(page: Page, j: Journey): Promise<number> {
   const before = await lobbyCount(page)
   j.log(`add bot (seats ${before} -> ${before + 1})`)
   await page.getByTestId('add-bot-button').click()
-  await expect(page.getByText(`${before + 1}/6 players`)).toBeVisible()
+  await expect(page.locator('[data-testid^="lobby-player-"]')).toHaveCount(before + 1)
   return before + 1
 }
 
@@ -92,7 +95,7 @@ export async function addAi(page: Page, j: Journey, agentId: string): Promise<nu
   await expect(option).toBeEnabled()
   await j.shot(page, `ai-menu-${agentId.replace(/[^a-z0-9]+/gi, '-')}`)
   await option.click()
-  await expect(page.getByText(`${before + 1}/6 players`)).toBeVisible()
+  await expect(page.locator('[data-testid^="lobby-player-"]')).toHaveCount(before + 1)
   await expect(menu).toBeHidden()
   return before + 1
 }
@@ -133,7 +136,7 @@ export async function startGame(page: Page, j: Journey): Promise<void> {
   await expect(start).toBeEnabled()
   j.log('start game')
   await start.click()
-  await expect(page.getByText('WAITING FOR PLAYERS')).toBeHidden({ timeout: 15000 })
+  await expect(page.getByTestId('lobby')).toBeHidden({ timeout: 15000 })
   await expect(page.getByTestId('tile-rack')).toBeVisible()
-  await expect(page.getByTestId('game-phase')).not.toHaveText('WAITING FOR HOST')
+  await expect(page.getByTestId('game-phase')).not.toHaveText(/START|WAITING FOR THE HOST/)
 }

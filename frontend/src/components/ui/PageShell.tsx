@@ -28,6 +28,13 @@ interface PageShellProps {
   help?: ReactNode
   /** The "?" is drawn in the accent colour: the player has not done what it explains yet. */
   helpFresh?: boolean
+  /** In a game (see `Header`). */
+  inGame?: boolean
+  /**
+   * The phase bar as the way to the decision (BL-015): set while a move of mine waits on a tab
+   * that is not open. The bar becomes a button, with `label` ("Board") and an arrow at its end.
+   */
+  phaseLink?: { label: string; onOpen: () => void }
 }
 
 export function PageShell({
@@ -44,6 +51,8 @@ export function PageShell({
   tilePool,
   help,
   helpFresh,
+  inGame,
+  phaseLink,
 }: PageShellProps) {
   return (
     <div className={`${styles.shell} ${fill ? styles.fill : ''}`}>
@@ -57,6 +66,7 @@ export function PageShell({
           rank={rank}
           playerName={playerName}
           tilePool={tilePool}
+          inGame={inGame}
         />
       )}
       {phase && (
@@ -69,7 +79,23 @@ export function PageShell({
             aria-atomic="true"
             data-testid="game-phase"
           >
-            {phase}
+            {phaseLink ? (
+              <button
+                type="button"
+                className={styles.phaseLink}
+                onClick={phaseLink.onOpen}
+                aria-label={`${phase}. Go to ${phaseLink.label}`}
+                data-go={phaseLink.label}
+                data-testid="phase-link"
+              >
+                {/* The text stays the phase alone (it is what the status region announces);
+                    the tab's name and arrow are drawn after it from data-go, and are in the
+                    button's accessible name. */}
+                {phase}
+              </button>
+            ) : (
+              phase
+            )}
           </div>
           {help && <PhaseHelp fresh={helpFresh}>{help}</PhaseHelp>}
         </div>

@@ -207,7 +207,7 @@ test.describe('Transcripts and Buyout Bench on the real servers', () => {
       expect(llmName).not.toBe('')
       expect(llmName).not.toContain('Fake LLM')
       log(`[test] LLM seat name: ${llmName}`)
-      await expect(page.getByText('3/6 players')).toBeVisible()
+      await expect(page.locator('[data-testid^="lobby-player-"]')).toHaveCount(3)
       await shot(page, 'lobby-with-bot-and-fake-llm')
       await startGameViaUI(page)
       await expect(page.getByTestId('tile-rack')).toBeVisible()
@@ -239,7 +239,8 @@ test.describe('Transcripts and Buyout Bench on the real servers', () => {
       await expect(row).toBeVisible()
       await expect(row).toHaveAttribute('data-status', 'live')
       await expect(row).toContainText('LIVE')
-      await expect(row).toContainText('In progress')
+      // The LIVE badge says it is in progress; the outcome line stays empty (said once, BL-015).
+      await expect(row.getByTestId('game-winner')).toHaveText('')
       // The games list compares models: the model first, the character name second.
       await expect(row).toContainText('Fake LLM (test)')
       await expect(row).toContainText(llmName)

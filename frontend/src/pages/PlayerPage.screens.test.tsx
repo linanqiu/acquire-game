@@ -72,8 +72,9 @@ describe('which screen each real game state shows', () => {
     'disposition-trade-limited': ['disposition', 'DISPOSE YOUR SHARES'],
     'multi-chain-merger': ['disposition', 'DISPOSE YOUR SHARES'],
     // Someone else decides in a merger: the whole merger, read-only.
-    'disposition-waiting-on-other': ['merger', /TURN$/],
-    'trade-incoming-not-my-turn': ['waiting', /TURN$/],
+    // (the banner names who the table waits on and what they are doing, once: BL-015)
+    'disposition-waiting-on-other': ['merger', / IS DISPOSING OF SHARES$/],
+    'trade-incoming-not-my-turn': ['waiting', / IS BUYING SHARES$/],
     'buy-phase-multi-chain': ['buy', 'BUY STOCKS'],
     'low-cash': ['buy', 'BUY STOCKS'],
     'last-turn-before-game-over': ['buy', 'BUY STOCKS'],
@@ -90,8 +91,6 @@ describe('which screen each real game state shows', () => {
     survivor: 'chain-selector',
     disposition: 'merger-disposition',
     buy: 'end-turn-button',
-    merger: 'waiting-message',
-    waiting: 'waiting-message',
   }
 
   it('has a row for every recorded state', () => {
@@ -128,31 +127,65 @@ describe('which screen each real game state shows', () => {
       const present = [...new Set(Object.values(CONTROLS))].filter(
         (id) => screen.queryByTestId(id) !== null
       )
-      expect(present).toEqual([CONTROLS[view]])
+      // Watching someone else's move has no control of its own.
+      expect(present).toEqual(CONTROLS[view] ? [CONTROLS[view]] : [])
+      // What the table waits for is said once, in the phase bar: no second line in the panel.
+      expect(screen.queryByTestId('waiting-message')).not.toBeInTheDocument()
       // "Your turn" signal: the phase bar carries the accent exactly when the table waits on
-      // me. On the other tabs the status line (the way back to the decision) carries it too,
-      // also when an offer waits for my answer; the words say it as well.
+      // me. On the Board tab it is plain text. On another tab, while my move waits, the bar
+      // itself is the way back (it names the tab), and no second status line says it again.
       const mine = view !== 'merger' && view !== 'waiting'
       expect(phaseBar).toHaveAttribute('data-turn', mine ? 'mine' : 'other')
-      const offerForMe = name === 'trade-incoming-not-my-turn'
+      expect(screen.queryByTestId('phase-link')).not.toBeInTheDocument()
       fireEvent.click(screen.getByTestId('tab-chains'))
-      expect(screen.getByTestId('status')).toHaveAttribute(
-        'data-turn',
-        mine || offerForMe ? 'mine' : 'other'
-      )
-      fireEvent.click(screen.getByTestId('tab-board'))
+      expect(screen.getByTestId('tab-chains')).toHaveAttribute('aria-selected', 'true')
+      if (mine) {
+        expect(screen.getByTestId('phase-link')).toHaveTextContent(banner)
+        expect(screen.getByTestId('phase-link')).toHaveAttribute('data-go', 'Board')
+        expect(screen.getByTestId('phase-link')).toHaveAccessibleName(/\. Go to Board$/)
+        // The placement line stays only while it carries a button (a picked tile, END GAME).
+        expect(screen.queryByTestId('status') !== null).toBe(
+          screen.queryByTestId('placement-actions') !== null
+        )
+        fireEvent.click(screen.getByTestId('phase-link'))
+        expect(screen.getByTestId('tab-board')).toHaveAttribute('aria-selected', 'true')
+        expect(screen.queryByTestId('phase-link')).not.toBeInTheDocument()
+      } else {
+        expect(screen.queryByTestId('phase-link')).not.toBeInTheDocument()
+        expect(screen.queryByTestId('status')).not.toBeInTheDocument()
+        // An offer waiting for my answer is counted on the Trades tab.
+        if (name === 'trade-incoming-not-my-turn') {
+          expect(screen.getByTestId('tab-trades')).toHaveTextContent('1')
+        }
+        fireEvent.click(screen.getByTestId('tab-board'))
+      }
     }
   )
 
-  it('the header and the players panel show the money the server reports, in every recorded state', () => {
+  it('the players panel shows the money the server reports, and the header shows mine only where the panel is not on screen, in every recorded state', () => {
     for (const name of SNAPSHOT_NAMES.filter((n) => !n.startsWith('game-over'))) {
       useGameStore.getState().reset()
+      sessionStorage.clear()
       const view = loadSnapshotAsPlayer(name)
       const mounted = renderPage()
       const players = stateOf(view).players
-      expect(screen.getByTestId('header-cash'), name).toHaveTextContent(
-        `$${players[view.human].money.toLocaleString('en-US')}`
+      const mine = `$${players[view.human].money.toLocaleString('en-US')}`
+      // Board tab: my cash, worth and rank are in my row of the table; the header has the
+      // room code and the bag instead (BL-015).
+      expect(screen.getByTestId('tab-board'), name).toHaveAttribute('aria-selected', 'true')
+      expect(screen.queryByTestId('header-cash'), name).not.toBeInTheDocument()
+      expect(screen.queryByTestId('header-networth'), name).not.toBeInTheDocument()
+      expect(screen.getByTestId('header-room'), name).toHaveTextContent('Room')
+      expect(screen.getByTestId('header-tile-pool'), name).toBeInTheDocument()
+      // Another tab: the table is not on screen, so the header carries my numbers.
+      fireEvent.click(screen.getByTestId('tab-chat'))
+      expect(screen.getByTestId('header-cash'), name).toHaveTextContent(mine)
+      expect(screen.getByTestId('header-networth'), name).toHaveTextContent(
+        `$${players[view.human].net_worth.toLocaleString('en-US')}`
       )
+      expect(screen.getByTestId('header-tile-pool'), name).toBeInTheDocument()
+      fireEvent.click(screen.getByTestId('tab-board'))
+      expect(screen.queryByTestId('header-cash'), name).not.toBeInTheDocument()
       for (const [id, p] of Object.entries(players)) {
         expect(screen.getByTestId(`player-cash-${id}`), name).toHaveTextContent(
           `$${p.money.toLocaleString('en-US')}`
@@ -211,9 +244,11 @@ describe('placing a tile', () => {
     const view = loadSnapshotAsPlayer('disposition-waiting-on-other')
     renderPage()
     const awaited = stateOf(view).players[stateOf(view).awaiting.player_id].name
-    expect(screen.getByTestId('waiting-message')).toHaveTextContent(
-      new RegExp(`Waiting for ${awaited}`)
+    // Said once, in the phase bar (the engine waits on a stockholder, not the player on turn).
+    expect(screen.getByTestId('game-phase')).toHaveTextContent(
+      `${awaited.toUpperCase()} IS DISPOSING OF SHARES`
     )
+    expect(screen.getByTestId('game-phase')).toHaveAttribute('data-turn', 'other')
     expect(screen.queryByTestId('place-tile-button')).not.toBeInTheDocument()
   })
 })
@@ -287,8 +322,8 @@ describe('disposing of defunct stock', () => {
     const prompt = view.player.find((m) => m.type === 'stock_disposition_required')
     const price = view.expect.active_chains[prompt.defunct_chain].price
     fireEvent.change(screen.getByTestId('slider-sell-to-bank'), { target: { value: '3' } })
-    expect(screen.getByTestId('disposition-summary')).toHaveTextContent(
-      `SELL 3 (+$${(3 * price).toLocaleString('en-US')})`
+    expect(screen.getByTestId('disposition-sell')).toHaveTextContent(
+      `3 shares → $${(3 * price).toLocaleString('en-US')}`
     )
     fireEvent.click(screen.getByTestId('confirm-disposition'))
     expect(lastAction().disposition).toEqual({ sell: 3, trade: 0, hold: prompt.stock_count - 3 })

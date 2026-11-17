@@ -22,12 +22,12 @@
   gap: var(--space-2);
 }
 
-/* The title, then its hint: the full text under it, or the "?" button at the end of the line. */
+/* The hint of a choice: the full text, or the "?" button at the end of the line. */
 .titleRow {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--space-1) var(--space-2);
 }
 

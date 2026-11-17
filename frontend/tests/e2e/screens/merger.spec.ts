@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test'
 import { test, expect } from './support/test'
 import { startFromSnapshot, type RoomContext } from './support/room'
 import { dollars, loadFixture } from './support/fixtures'
-import { headerCash, phaseBanner, playHumanTurns } from './support/ui'
+import { expectDisposition, myCash, phaseBanner, playHumanTurns } from './support/ui'
 
 /** The seat the 'disposition-waiting-on-other' fixture is waiting on (read from the fixture). */
 const WAITING_ON = loadFixture('disposition-waiting-on-other').expect.decisions[0]
@@ -37,10 +37,14 @@ async function expectDispositionCard(page: Page, room: RoomContext) {
     { ignoreCase: true }
   )
   await expect(page.getByTestId('disposition-title')).toContainText(
-    `at ${dollars(active_chains[defunct].price)} (price at merger)`
+    `at ${dollars(active_chains[defunct].price)}`
   )
+  // That price is said once in the decision: the defunct chain's line under it gives the size.
+  await expect(
+    page.getByTestId('merger-result-body').getByTestId(`merger-defunct-${defunct.toLowerCase()}`)
+  ).not.toContainText(dollars(active_chains[defunct].price))
   await expect(card).toContainText(String(d.context.available_to_trade))
-  await expect(headerCash(page)).toHaveText(dollars(human.cash))
+  await expect(myCash(page)).toHaveText(dollars(human.cash))
 
   // Controls: sell is bounded by what is held; trade by the engine's max_trade, in steps of 2;
   // everything undecided is held, so sell + trade + hold always equals the holding.
@@ -48,9 +52,13 @@ async function expectDispositionCard(page: Page, room: RoomContext) {
   await expect(tradeSlider(page, survivor)).toHaveAttribute('max', String(legal.max_trade))
   await expect(tradeSlider(page, survivor)).toHaveAttribute('step', '2')
   await expect(page.getByTestId('hold-display')).toContainText(`${legal.stock_count} share`)
-  await expect(page.getByTestId('disposition-summary')).toContainText(
-    `SELL 0 (+$0) | TRADE 0 (+0 ${survivor.toUpperCase()}) | HOLD ${legal.stock_count}`
-  )
+  await expectDisposition(page, {
+    sell: 0,
+    trade: 0,
+    hold: legal.stock_count,
+    price: active_chains[defunct].price,
+    survivor,
+  })
   return { legal, defunct, survivor, price: active_chains[defunct].price }
 }
 
@@ -120,7 +128,7 @@ test('disposition (human first): sell/trade/hold limits and a mixed disposition'
   const tradeAfter = Number(await tradeSlider(page, survivor).inputValue())
   expect(tradeAfter).toBeLessThanOrEqual(remaining)
   expect(tradeAfter % 2).toBe(0)
-  await expect(page.getByTestId('disposition-summary')).toContainText(`SELL 5`)
+  await expectDisposition(page, { sell: 5, trade: tradeAfter, hold: remaining - tradeAfter })
   await shots.take(page, 'trade-clamped-by-sell')
 
   // The trade slider only moves in pairs: one arrow press from zero is 2, never 1.
@@ -134,15 +142,12 @@ test('disposition (human first): sell/trade/hold limits and a mixed disposition'
   const hold = legal.stock_count - sell - trade
   await setSlider(page, 'slider-sell-to-bank', sell)
   await setSlider(page, tradeId, trade)
-  await expect(page.getByTestId('disposition-summary')).toContainText(
-    `SELL ${sell} (+${dollars(sell * price)}) | TRADE ${trade} (+${trade / 2} ${survivor.toUpperCase()}) | HOLD ${hold}`
-  )
-  await expect(page.getByTestId('hold-display')).toContainText(`${hold} share`)
+  await expectDisposition(page, { sell, trade, hold, price, survivor })
   await shots.take(page, 'mixed-disposition')
   await page.getByTestId('confirm-disposition').click()
 
   // Cash from the sale, survivor shares from the trade, the rest still held.
-  await expect(headerCash(page)).toHaveText(dollars(human.cash + sell * price))
+  await expect(myCash(page)).toHaveText(dollars(human.cash + sell * price))
   await expect(page.getByTestId(`portfolio-row-${survivor.toLowerCase()}`)).toContainText(
     String((human.holdings[survivor] ?? 0) + trade / 2)
   )
@@ -167,9 +172,7 @@ test('disposition (trade limited by the bank): trade capped below the holding', 
   const tradeId = `slider-trade-2:1-for-${survivor.toLowerCase()}`
   await page.getByTestId(tradeId).press('End') // push the slider as far as it will go
   await expect(tradeSlider(page, survivor)).toHaveValue(String(legal.max_trade))
-  await expect(page.getByTestId('disposition-summary')).toContainText(
-    `TRADE ${legal.max_trade} (+${legal.max_trade / 2} ${survivor.toUpperCase()})`
-  )
+  await expectDisposition(page, { sell: 0, trade: legal.max_trade, survivor })
   await shots.take(page, 'trade-at-cap')
 
   // Trade the cap, sell 2, hold whatever is left.
@@ -177,11 +180,9 @@ test('disposition (trade limited by the bank): trade capped below the holding', 
   const trade = legal.max_trade
   const hold = legal.stock_count - sell - trade
   await setSlider(page, 'slider-sell-to-bank', sell)
-  await expect(page.getByTestId('disposition-summary')).toContainText(
-    `SELL ${sell} (+${dollars(sell * price)}) | TRADE ${trade} (+${trade / 2} ${survivor.toUpperCase()}) | HOLD ${hold}`
-  )
+  await expectDisposition(page, { sell, trade, hold, price, survivor })
   await page.getByTestId('confirm-disposition').click()
-  await expect(headerCash(page)).toHaveText(dollars(human.cash + sell * price))
+  await expect(myCash(page)).toHaveText(dollars(human.cash + sell * price))
   await expect(page.getByTestId(`portfolio-row-${survivor.toLowerCase()}`)).toContainText(
     String((human.holdings[survivor] ?? 0) + trade / 2)
   )
@@ -212,18 +213,19 @@ test('multi-chain merger: nothing to trade for, sell it all, then the next defun
   expect(merger.defunct_queue.length).toBeGreaterThan(0) // a second defunct chain is queued
 
   await setSlider(page, 'slider-sell-to-bank', legal.stock_count)
-  await expect(page.getByTestId('disposition-summary')).toContainText(
-    `SELL ${legal.stock_count} (+${dollars(legal.stock_count * price)}) | TRADE 0 (+0 ${survivor.toUpperCase()}) | HOLD 0`
-  )
+  await expectDisposition(page, { sell: legal.stock_count, trade: 0, hold: 0, price, survivor })
   await shots.take(page, 'sell-everything')
   await page.getByTestId('confirm-disposition').click()
-  await expect(headerCash(page)).toHaveText(dollars(human.cash + legal.stock_count * price))
+  await expect(myCash(page)).toHaveText(dollars(human.cash + legal.stock_count * price))
   // Nothing of the defunct chain is left.
   await expect(page.getByTestId(`portfolio-row-${defunct.toLowerCase()}`)).toHaveCount(0)
 
   // Now the human has nothing more to decide; the merger waits on the idle seat and the page says so.
   await expect(page.getByTestId('merger-disposition')).toHaveCount(0)
-  await expect(page.getByTestId('waiting-message')).toContainText(/Waiting for .+ to /)
+  await expect(phaseBanner(page)).toHaveText(
+    /^.+ IS (DISPOSING OF SHARES|BUYING SHARES|PLACING A TILE)$/
+  )
+  await expect(phaseBanner(page)).toHaveAttribute('data-turn', 'other')
   await shots.take(page, 'waiting-for-others')
 
   // Let p2 answer (and everything after) so the game moves on: the human must get a real turn.
@@ -242,17 +244,24 @@ test('disposition (waiting): another stockholder decides first; the page names t
 
   // No decision for me yet: no disposition card; the page says who the game is waiting for.
   await expect(page.getByTestId('merger-disposition')).toHaveCount(0)
-  await expect(page.getByTestId('waiting-message')).toHaveText(
-    `Waiting for ${waitingOn} to dispose of their shares...`
-  )
-  await expect(phaseBanner(page)).not.toHaveText('DISPOSE YOUR SHARES')
-  await expect(headerCash(page)).toHaveText(dollars(human.cash))
+  await expect(phaseBanner(page)).toHaveText(`${waitingOn.toUpperCase()} IS DISPOSING OF SHARES`, {
+    ignoreCase: true,
+  })
+  await expect(phaseBanner(page)).toHaveAttribute('data-turn', 'other')
+  // ... and that stockholder's row in the merger says "deciding"; no second waiting line.
+  await expect(
+    page.locator(
+      `[data-testid^="merger-waiting-"][data-testid$="-${room.seatMap[decisions[0].player_id]}"]`
+    )
+  ).toContainText('deciding…')
+  await expect(page.getByTestId('waiting-message')).toHaveCount(0)
+  await expect(myCash(page)).toHaveText(dollars(human.cash))
 
   // p3 answers (what an opponent does outside the browser); then it is my turn to dispose.
   expect(await room.driveIdle()).toBe(true)
   await expect(phaseBanner(page)).toHaveText('DISPOSE YOUR SHARES')
   await expect(page.getByTestId('merger-disposition')).toBeVisible()
-  await expect(page.getByTestId('waiting-message')).toHaveCount(0)
+  await expect(phaseBanner(page)).toHaveAttribute('data-turn', 'mine')
   await shots.take(page, 'my-disposition')
   await page.getByTestId('confirm-disposition').click()
   await playHumanTurns(page, room, 3, shots)
