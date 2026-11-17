@@ -1,7 +1,8 @@
 /*
- * One compact row per chain: the marker line (swatch, name, size, price, bank stock, SAFE),
- * then chips for 1st and 2nd (name, shares -> bonus, a thin bar for their share of the stock)
- * and, when the viewer holds some, a "you" chip; the viewer's rows carry an accent edge.
+ * The Chains tab (BL-018): one row per chain under one column header. Line one: the chain (and
+ * SAFE), my shares and position, then tiles, price and bank stock in aligned columns. Line two:
+ * the 1st and 2nd holders in two aligned columns. No chips or boxes: plain text, my rows with
+ * an accent edge. Chains not on the board are one quiet line of swatches at the foot.
  */
 .table {
   display: flex;
@@ -13,13 +14,10 @@
 .chain {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding: 5px var(--space-1) 5px var(--space-2);
+  gap: 2px;
+  padding: 6px var(--space-1) 6px var(--space-2);
   min-width: 0;
   border-left: 2px solid transparent;
-}
-
-.chain + .chain {
   border-top: 1px solid var(--border);
 }
 
@@ -29,13 +27,11 @@
   background-color: var(--held-bg);
 }
 
-/* The marker line: name (and SAFE), then tiles, price and bank stock in three aligned columns
-   under one header at the top of the list. */
-.head {
+.line {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 3em 4.5em 3em;
+  grid-template-columns: minmax(0, 1fr) 2.5em 4.25em 2.5em;
   align-items: center;
-  column-gap: var(--space-1);
+  column-gap: var(--space-2);
   font-family: var(--font-num);
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
@@ -43,7 +39,7 @@
 }
 
 .columns {
-  padding: 0 var(--space-1) 2px var(--space-2);
+  padding: 0 var(--space-1) 4px var(--space-2);
   border-left: 2px solid transparent;
   font-family: var(--font-sans);
   font-size: var(--text-xs);
@@ -51,48 +47,67 @@
   letter-spacing: 0.04em;
 }
 
-.marker {
+.name {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
   text-align: left;
   font-family: var(--font-sans);
+  white-space: nowrap;
+}
+
+.name > :first-child {
+  flex: none;
 }
 
 .price {
   color: var(--text-primary);
 }
 
+.mine {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+}
+
+.position {
+  color: var(--text-positive);
+}
+
+/* Line two: 1st and 2nd in two equal columns, under the chain's name. */
 .roles {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px var(--space-1);
-  padding-left: calc(18px + var(--space-2));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: var(--space-3);
+  padding-left: calc(20px + var(--space-2));
   min-width: 0;
 }
 
-.chip {
-  position: relative;
-  display: inline-flex;
+.cell {
+  display: flex;
   align-items: baseline;
   gap: 5px;
-  max-width: 100%;
   min-width: 0;
-  padding: 1px 6px 3px;
-  border-radius: var(--radius-sm);
-  background-color: var(--chip-bg);
-  font-size: 11px;
+  font-size: var(--text-xs);
   line-height: 1.5;
-  overflow: hidden;
+  white-space: nowrap;
 }
 
-.chipMe {
-  box-shadow: inset 0 0 0 1px var(--turn-accent);
+.wide {
+  grid-column: 1 / -1;
+}
+
+.cellMe .who {
+  color: var(--text-accent);
+  font-weight: var(--font-bold);
 }
 
 .roleLabel {
-  font-size: 9px;
+  flex: none;
+  font-size: 10px;
   font-weight: var(--font-bold);
   letter-spacing: 0.04em;
   color: var(--text-secondary);
@@ -100,45 +115,22 @@
 }
 
 .who {
-  color: var(--text-primary);
-  font-weight: var(--font-medium);
-  white-space: nowrap;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  min-width: 0;
+  color: var(--text-primary);
+}
+
+.nobody {
+  color: var(--text-secondary);
 }
 
 .figures {
+  flex: none;
+  margin-left: auto;
   font-family: var(--font-num);
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-/* Share of the chain's stock this holder owns. */
-.bar {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 2px;
-  width: calc(var(--share, 0) * 100%);
-  background-color: var(--text-secondary);
-  opacity: 0.7;
-}
-
-.mine {
-  background-color: var(--turn-card);
-}
-
-.mine .figures {
-  color: var(--text-primary);
-}
-
-.position {
-  color: var(--text-positive);
-  font-weight: var(--font-bold);
-  white-space: nowrap;
 }
 
 .srOnly {
@@ -150,19 +142,15 @@
   white-space: nowrap;
 }
 
+/* Chains not on the board: swatches on one quiet line, with my (worthless) shares. */
 .offBoard {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--border);
-}
-
-.offBoard .mine {
-  display: flex;
-  gap: var(--space-2);
+  flex-wrap: wrap;
   align-items: center;
-  background: none;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) var(--space-1) 0 var(--space-2);
+  border-top: 1px solid var(--border);
+  opacity: 0.75;
 }
 
 .offTitle {
@@ -170,8 +158,32 @@
   color: var(--text-secondary);
 }
 
+.offChain {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: var(--font-bold);
+}
+
+.offMine {
+  font-family: var(--font-num);
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+}
+
 .empty {
   margin: 0;
+  padding: var(--space-2);
   color: var(--text-secondary);
-  font-style: italic;
 }
