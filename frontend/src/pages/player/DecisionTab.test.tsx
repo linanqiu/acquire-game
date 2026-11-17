@@ -80,6 +80,7 @@ describe('which view and which events, from recorded states', () => {
         phase: gs.phase,
         isMyTurn: gs.current_player === view.human,
         survivorChoice: prompt('choose_merger_survivor'),
+        orderChoice: prompt('choose_merger_order'),
         disposition: prompt('stock_disposition_required'),
         foundChoice: prompt('choose_chain'),
         mergerInProgress: !!last && !last.complete,
@@ -93,6 +94,7 @@ describe('which view and which events, from recorded states', () => {
     expect(viewOf('disposition-human-first').kind).toBe('disposition')
     expect(viewOf('disposition-waiting-on-other').kind).toBe('merger')
     expect(viewOf('merger-survivor-tie').kind).toBe('survivor')
+    expect(viewOf('merger-order-tie').kind).toBe('order')
     expect(viewOf('found-chain-choice').kind).toBe('found')
     expect(viewOf('opening-place-tile').kind).toBe('place')
     expect(viewOf('trade-incoming-not-my-turn').kind).toBe('waiting')
@@ -345,6 +347,70 @@ describe('a merger: the whole merger in the decision tab', () => {
         ).toBeInTheDocument()
       }
     }
+  })
+
+  it('merger order: one tappable row per same-size chain with size, price, bonuses and holders', () => {
+    const view = loadSnapshotAsPlayer('merger-order-tie')
+    renderPage()
+    const gs = stateOf(view)
+    const prompt = view.player.find((x) => x.type === 'choose_merger_order')!
+    expect(decision()).toHaveAttribute('data-view', 'order')
+    expect(screen.getByTestId('merger-order-title')).toHaveTextContent(
+      'Which hotel chain is absorbed first?'
+    )
+    expect(within(screen.getByTestId('merger-order')).getAllByRole('button')).toHaveLength(
+      prompt.tied_chains.length
+    )
+    for (const chain of prompt.tied_chains) {
+      const info = gs.chain_holders[chain]
+      const row = screen.getByTestId(`merger-order-${chain}`)
+      expect(within(row).getByTestId(`merger-order-facts-${chain}`)).toHaveTextContent(
+        `${info.size} tiles · ${money(info.price)}`
+      )
+      expect(within(row).getByTestId(`merger-order-bonus-${chain}`)).toHaveTextContent(
+        `1st ${money(info.majority_bonus)} · 2nd ${money(info.minority_bonus)}`
+      )
+      for (const h of info.holders) {
+        expect(
+          within(row).getByTestId(`merger-order-holders-${chain}-${h.player_id}`)
+        ).toHaveAttribute('data-shares', String(h.shares))
+      }
+    }
+    // The status line and the event that brings the page to this panel.
+    expect(statusText('order', DEFAULT_RS, { waiting: '' })).toEqual({
+      text: 'Your move: choose which hotel chain is absorbed first',
+      mine: true,
+    })
+    const key = turnKey(gs.current_player, Object.keys(gs.board.cells).length)
+    expect(decisionEvents({ turnKey: key, view: 'order', mergers: gs.mergers })).toEqual([
+      `order:${key}:0`,
+    ])
+    // Tapping a row answers at once and the panel goes.
+    const pick = prompt.tied_chains[1]
+    fireEvent.click(screen.getByTestId(`merger-order-${pick}`))
+    expect(sendAction.mock.calls.at(-1)?.[0]).toEqual({
+      action: 'merger_order',
+      defunct_chain: pick,
+    })
+    expect(screen.queryByTestId('merger-order')).not.toBeInTheDocument()
+  })
+
+  it('merger order: the second question of a three-way tie asks which is absorbed next', () => {
+    const view = loadSnapshotAsPlayer('merger-order-tie')
+    const gs = stateOf(view)
+    const m = gs.mergers.at(-1)
+    // As the server reports it once the first chain was paid.
+    const first = { ...m.defunct[0], bonuses: [] }
+    act(() => {
+      useGameStore.getState().handleMessage({
+        ...gs,
+        mergers: [...gs.mergers.slice(0, -1), { ...m, defunct: [first, ...m.defunct.slice(1)] }],
+      } as never)
+    })
+    renderPage()
+    expect(screen.getByTestId('merger-order-title')).toHaveTextContent(
+      'Which hotel chain is absorbed next?'
+    )
   })
 
   it('a merger that finishes while I watch stays until the next tile is placed, then goes by itself', () => {

@@ -27,7 +27,7 @@ async function expectIncomingCard(page: Page, room: RoomContext) {
     room.names[room.seatMap[trade.from_player_id]]
   )
   await expect(tabBadge(page, 'trades')).toHaveText('1')
-  // One offer, one card: the card names who offers (no count or title over it, BL-015).
+  // One offer, one card: the card names who offers (no count or title over it, BL-017).
   await expect(page.locator('[data-testid^="trade-offer-"]')).toHaveCount(1)
   await expect(card).toContainText('offers you a trade')
   await expect(card).toContainText(room.names[room.seatMap[trade.from_player_id]])
@@ -558,7 +558,7 @@ test('a hint is read once: after I have proposed a trade it is a "?" that brings
 }) => {
   await startFromSnapshot(page, 'trade-outgoing-pending', { idle: ['p2', 'p3', 'p4'] })
   await openTab(page, 'trades')
-  // The hint sits in the Trades header, next to PROPOSE TRADE (BL-015).
+  // The hint sits in the Trades header, next to PROPOSE TRADE (BL-017).
   const table = page.getByTestId('trade-offers')
   await expect(table.getByTestId('hint-trades')).toContainText('Offers are public')
   await shots.take(page, 'hint-first-time')

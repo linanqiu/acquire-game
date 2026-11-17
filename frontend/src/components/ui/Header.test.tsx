@@ -40,7 +40,7 @@ describe('Header', () => {
     expect(screen.getByTestId('header-tile-pool')).toHaveTextContent('[EMPTY]')
   })
 
-  it('in a game the header keeps its compact form with or without my numbers, so tabs do not move the page (BL-015)', () => {
+  it('in a game the header keeps its compact form with or without my numbers, so tabs do not move the page (BL-017)', () => {
     // The Board tab: my cash and worth are in the players table, the header has room and bag.
     const { rerender, container } = render(<Header inGame roomCode="WXYZ" tilePool={30} />)
     const header = container.querySelector('header')!

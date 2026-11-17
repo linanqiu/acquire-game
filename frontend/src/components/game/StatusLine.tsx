@@ -13,7 +13,7 @@ export interface StatusLineProps {
 /**
  * The line over the rack (under the board on wide screens) that carries PLACE TILE and END GAME
  * while I place a tile. It is not a status display: what the game waits for is said once, in
- * the phase bar, which is also the way back to the board from another tab (BL-015).
+ * the phase bar, which is also the way back to the board from another tab (BL-017).
  */
 export function StatusLine({ text, mine = false, children }: StatusLineProps) {
   return (

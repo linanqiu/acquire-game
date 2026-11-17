@@ -195,7 +195,7 @@ for (const vp of [SIZES[0], { label: '390x675', width: 390, height: 675 }, SIZES
     await expectBuyRows(page, room)
     await expect(page.getByTestId('end-turn-button')).toBeInViewport({ ratio: 1 })
     await expectNoScroll(page, ['end-turn-button'])
-    // Every chain's row, whole and not under the pinned footer, with the whole board (BL-015).
+    // Every chain's row, whole and not under the pinned footer, with the whole board (BL-017).
     const footerTop = (await page.getByTestId('end-turn-button').boundingBox())!.y
     for (const chain of Object.keys(room.fixture.expect.active_chains)) {
       const row = page.getByTestId(`buy-row-${chain}`)

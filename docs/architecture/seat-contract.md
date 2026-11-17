@@ -48,11 +48,15 @@ These are exactly the messages `backend/main.py` already accepts from clients.
 class Decision:
     player_id: str
     kind: str          # place_tile | found_chain | choose_survivor |
-                       # stock_disposition | buy_stocks | trade_response
+                       # choose_defunct_order | stock_disposition | buy_stocks |
+                       # trade_response
     context: dict      # JSON-serialisable, PUBLIC details (safe to broadcast as
                        # `awaiting.decision`; never contains a hand):
                        # place_tile: {}; found_chain: {tile, available_chains};
                        # choose_survivor: {tile, tied_chains};
+                       # choose_defunct_order: {tied_chains, surviving_chain}
+                       #   (same-size defunct chains; asked of the tile placer, one
+                       #   pick at a time, before each such chain is resolved);
                        # stock_disposition: {defunct_chain, surviving_chain,
                        #   stock_count, available_to_trade};
                        # buy_stocks: {stocks_bought_this_turn};
@@ -74,6 +78,8 @@ def legal_actions(game, decision) -> dict
     #                    "No playable tile" below.
     # found_chain:       {"action_types": ["found_chain"], "chains": [...]}
     # choose_survivor:   {"action_types": ["merger_choice"], "chains": [...]}
+    # choose_defunct_order: {"action_types": ["merger_order"], "chains": [...]}
+    #                    answered with {"action": "merger_order", "defunct_chain": c}
     # stock_disposition: {"action_types": ["merger_disposition"], "defunct_chain",
     #                     "surviving_chain", "stock_count", "max_trade" (even, limited by
     #                     survivor stock available), "rule": "sell+trade+hold == stock_count"}
@@ -173,6 +179,7 @@ Event types: `game_started` (turn order; initial hands as private per-player
 `tiles_dealt` events), `tile_placed` (tile, outcome), `chain_founded`,
 `chain_expanded`, `merger_started` (survivor, defunct, sizes),
 `bonuses_paid` (chain, per-player amounts), `survivor_chosen`,
+`defunct_order_chosen` (which same-size defunct chain goes next),
 `stock_disposition` (sell/trade/hold), `merger_completed`,
 `stocks_purchased` (purchases, total cost), `turn_ended`, `tile_drawn`
 (private), `tiles_replaced` (public: which dead tiles were discarded),
@@ -189,7 +196,8 @@ Payloads as built (beyond `seq/type/player_id/private_to`):
 | `chain_founded` | `chain`, `tile`, `size`, `founder_bonus_type` (`stock\|cash`), `founder_bonus_value` |
 | `chain_expanded` | `chain`, `tile`, `size` |
 | `survivor_chosen` | `survivor`, `tied_chains` |
-| `merger_started` | `tile`, `survivor`, `defunct` (processing order), `sizes` |
+| `merger_started` | `tile`, `survivor`, `defunct` (largest first; same-size chains in board order until `defunct_order_chosen` says otherwise), `sizes` |
+| `defunct_order_chosen` | `chain` (resolved next), `tied_chains`, `survivor`, `size` |
 | `bonuses_paid` | `chain`, `chain_size`, `final` (true at game end), `bonuses: {pid: {majority, minority}}` |
 | `stock_disposition` | `defunct_chain`, `surviving_chain`, `sell`, `trade`, `hold`, `sale_proceeds`, `survivor_shares_received` |
 | `merger_completed` | `survivor`, `defunct`, `survivor_size` |
@@ -269,7 +277,7 @@ All keys are required and unknown keys are rejected (at every level).
   ],
   "chains": [                            // order = display/state order
     {"id": "sandpiper", "name": "Sandpiper", "tier": "cheap",
-     "color": "#CBBA2F", "abbreviation": "SP"}  // id is the state/wire key
+     "color": "#B99E42", "abbreviation": "SP"}  // id is the state/wire key
   ],
   "bonuses": {"majority_multiplier": 10, "minority_multiplier": 5,
               "tie_round_up_to": 100},   // tie splits round UP to this step
@@ -480,7 +488,8 @@ driver, the one action path), `lifecycle.py` (start / host-forced end),
 - Notifications are derived from engine output only (new events since the
   action + the new flow decision), so human and agent actions produce
   identical messages (see `broadcast.py`): `choose_chain`,
-  `choose_merger_survivor`, `stock_disposition_required` and `can_end_game` go
+  `choose_merger_survivor`, `choose_merger_order` (`tied_chains`,
+  `surviving_chain`), `stock_disposition_required` and `can_end_game` go
   to the human whose decision just became pending (and again on reconnect);
   `all_tiles_unplayable` (room) and `tiles_replaced` (player) from
   `tiles_replaced` events; `trade_proposed|accepted|rejected|canceled` to both

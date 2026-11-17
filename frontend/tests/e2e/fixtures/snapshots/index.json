@@ -171,6 +171,22 @@
       "turns_completed": 36
     },
     {
+      "actions": 258,
+      "criteria_missed": [],
+      "decision_kind": "choose_defunct_order",
+      "decision_player": "p1",
+      "description": "The human's tile merged three chains; the two defunct chains are the same size and the human must choose which is absorbed first.",
+      "file": "merger-order-tie.json",
+      "human_decision_kinds": [
+        "choose_defunct_order"
+      ],
+      "human_seat": "p1",
+      "name": "merger-order-tie",
+      "phase": "merger",
+      "players": 3,
+      "turns_completed": 75
+    },
+    {
       "actions": 140,
       "criteria_missed": [],
       "decision_kind": "choose_survivor",
@@ -187,7 +203,7 @@
       "turns_completed": 44
     },
     {
-      "actions": 247,
+      "actions": 248,
       "criteria_missed": [],
       "decision_kind": "stock_disposition",
       "decision_player": "p1",

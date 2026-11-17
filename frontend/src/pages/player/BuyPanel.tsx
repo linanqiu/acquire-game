@@ -33,7 +33,7 @@ interface BuyPanelProps {
 const ROLE_WORD = { majority: 'most shares', minority: 'second most shares' } as const
 
 /**
- * The buy decision (BL-011, BL-015): one compact row per chain on the board, under one header
+ * The buy decision (BL-011, BL-017): one compact row per chain on the board, under one header
  * row that names the columns once: price, tiles, shares left in the bank, my shares (marked as
  * in the players table: filled for the most shares, outlined for the second most, "=" for a
  * tie; "3→5" while I buy) and a stepper limited by the per-turn cap, the bank and my cash. The

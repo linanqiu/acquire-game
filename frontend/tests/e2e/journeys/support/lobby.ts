@@ -57,7 +57,7 @@ export async function joinGame(
   await page.getByTestId('join-button').click()
   await page.waitForURL(new RegExp(`/play/${room}$`))
   await expectInLobby(page, [name])
-  // A guest reads what the room waits for in the phase bar (said once, BL-015).
+  // A guest reads what the room waits for in the phase bar (said once, BL-017).
   await expect(page.getByTestId('game-phase')).toHaveText('WAITING FOR THE HOST TO START')
   await expect(page.getByRole('button', { name: 'START GAME' })).toHaveCount(0)
   await j.shot(page, `${who}-lobby-joined`)

@@ -12,7 +12,7 @@ export const rackTile = (page: Page, coord: string): Locator =>
   rack(page).getByTestId(`tile-${coord}`)
 export const boardTile = (page: Page, coord: string): Locator =>
   page.getByTestId('board').getByTestId(`tile-${coord}`)
-/** My cash where the page shows it: my row of the players table (BL-015). */
+/** My cash where the page shows it: my row of the players table (BL-017). */
 export const myCash = (page: Page): Locator =>
   page.locator('[data-testid="player-row"][data-me="true"] [data-testid^="player-cash-"]')
 export const playerRows = (page: Page): Locator => page.getByTestId('player-row')
@@ -23,12 +23,13 @@ const MY_DECISION_BANNERS = [
   'PLACE A TILE',
   'CHOOSE A HOTEL CHAIN',
   'CHOOSE THE SURVIVING HOTEL CHAIN',
+  'CHOOSE THE MERGER ORDER',
   'DISPOSE YOUR SHARES',
   'BUY STOCKS',
 ]
 
 /**
- * My sell / trade / keep choice as the page prints it, once each, next to its control (BL-015):
+ * My sell / trade / keep choice as the page prints it, once each, next to its control (BL-017):
  * what the sale pays at the SELL slider, the survivor shares at the TRADE slider, the rest at
  * KEEP. There is no second summary line under the sliders.
  */
@@ -116,6 +117,12 @@ async function playHumanTurn(
       await page.locator('[data-testid^="chain-button-"]:not([disabled])').first().click()
       await expect(page.getByTestId('chain-selector')).toBeHidden()
       // The banner follows the server's answer; do not act again on the stale one.
+      await expect(phaseBanner(page)).not.toHaveText(banner)
+    } else if (banner === 'CHOOSE THE MERGER ORDER') {
+      await openDecision(page)
+      await shots?.take(page, `${label}-merger-order`)
+      await page.getByTestId('merger-order').getByRole('button').first().click()
+      await expect(page.getByTestId('merger-order')).toBeHidden()
       await expect(phaseBanner(page)).not.toHaveText(banner)
     } else if (banner === 'DISPOSE YOUR SHARES') {
       await openDecision(page)

@@ -13,7 +13,7 @@ import { openTab } from '../../support/tabs'
 
 /** Phase banner texts that need an action from this seat. */
 const ACTIONABLE =
-  /^(PLACE A TILE|CHOOSE A HOTEL CHAIN|CHOOSE THE SURVIVING HOTEL CHAIN|DISPOSE YOUR SHARES|BUY STOCKS|GAME OVER)$/
+  /^(PLACE A TILE|CHOOSE A HOTEL CHAIN|CHOOSE THE SURVIVING HOTEL CHAIN|CHOOSE THE MERGER ORDER|DISPOSE YOUR SHARES|BUY STOCKS|GAME OVER)$/
 
 /** My cash as the page shows it: the cash cell of my row in the players table. */
 export const myCash = (page: Page): Locator =>
@@ -33,7 +33,7 @@ export async function installObservers(page: Page): Promise<void> {
       const ph = document.querySelector('[data-testid="game-phase"]')?.textContent ?? ''
       if (ph && !w.__obs.phases.includes(ph)) w.__obs.phases.push(ph)
       // My cash, where the page shows it: my row of the players table (the header repeats
-      // it only on tabs where that table is not on screen, BL-015).
+      // it only on tabs where that table is not on screen, BL-017).
       const c = document.querySelector(
         '[data-testid="player-row"][data-me="true"] [data-testid^="player-cash-"]'
       )
@@ -95,6 +95,7 @@ export interface SeatStats {
   tilesPlaced: string[]
   chainsFounded: string[]
   survivorChoices: string[]
+  mergerOrders: string[]
   dispositions: { defunct: string; sell: number; trade: number; hold: number }[]
   sharesBought: number
   cashSpent: number
@@ -112,6 +113,7 @@ export class Seat {
     tilesPlaced: [],
     chainsFounded: [],
     survivorChoices: [],
+    mergerOrders: [],
     dispositions: [],
     sharesBought: 0,
     cashSpent: 0,
@@ -221,6 +223,10 @@ export class Seat {
         await this.openDecision()
         await this.chooseSurvivor()
         break
+      case 'CHOOSE THE MERGER ORDER':
+        await this.openDecision()
+        await this.chooseMergerOrder()
+        break
       case 'DISPOSE YOUR SHARES':
         await this.openDecision()
         await this.dispose()
@@ -290,6 +296,22 @@ export class Seat {
     await this.waitPhaseLeaves('CHOOSE THE SURVIVING HOTEL CHAIN')
     this.stats.survivorChoices.push(chain)
     await this.shot(`survivor-${chain}`)
+    return chain
+  }
+
+  /** Same-size defunct chains: tap the first one offered (it is absorbed first). */
+  async chooseMergerOrder(): Promise<string> {
+    const panel = this.page.getByTestId('merger-order')
+    await expect(panel).toBeVisible()
+    await this.shot('merger-order')
+    const btn = panel.getByRole('button').first()
+    const chain = ((await btn.getAttribute('data-testid')) ?? '').replace('merger-order-', '')
+    this.log(`merger order: ${chain} is absorbed first`)
+    await this.press(btn)
+    await expect(panel).toBeHidden({ timeout: 15_000 })
+    await this.waitPhaseLeaves('CHOOSE THE MERGER ORDER')
+    this.stats.mergerOrders.push(chain)
+    await this.shot(`merger-order-${chain}`)
     return chain
   }
 

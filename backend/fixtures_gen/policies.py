@@ -14,6 +14,7 @@ from dataclasses import dataclass
 
 from game.decisions import (
     BUY_STOCKS,
+    CHOOSE_DEFUNCT_ORDER,
     CHOOSE_SURVIVOR,
     FOUND_CHAIN,
     PLACE_TILE,
@@ -152,6 +153,10 @@ def choose(
         chains = legal["chains"]
         pick = chains[0] if policy.survivor == "first" else rng.choice(chains)
         return {"action": "merger_choice", "surviving_chain": pick}
+    if kind == CHOOSE_DEFUNCT_ORDER:
+        # Always the first listed chain (the board order): no RNG draw, so
+        # games without this decision replay exactly as before it existed.
+        return {"action": "merger_order", "defunct_chain": legal["chains"][0]}
     if kind == STOCK_DISPOSITION:
         return _choose_disposition(policy, legal, rng)
     if kind == BUY_STOCKS:

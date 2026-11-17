@@ -67,12 +67,13 @@ describe('which screen each real game state shows', () => {
     'end-game-available': ['place', 'PLACE A TILE'],
     'found-chain-choice': ['found', 'CHOOSE A HOTEL CHAIN'],
     'merger-survivor-tie': ['survivor', 'CHOOSE THE SURVIVING HOTEL CHAIN'],
+    'merger-order-tie': ['order', 'CHOOSE THE MERGER ORDER'],
     'disposition-human-first': ['disposition', 'DISPOSE YOUR SHARES'],
     // Not my turn, but I am the one the table waits on.
     'disposition-trade-limited': ['disposition', 'DISPOSE YOUR SHARES'],
     'multi-chain-merger': ['disposition', 'DISPOSE YOUR SHARES'],
     // Someone else decides in a merger: the whole merger, read-only.
-    // (the banner names who the table waits on and what they are doing, once: BL-015)
+    // (the banner names who the table waits on and what they are doing, once: BL-017)
     'disposition-waiting-on-other': ['merger', / IS DISPOSING OF SHARES$/],
     'trade-incoming-not-my-turn': ['waiting', / IS BUYING SHARES$/],
     'buy-phase-multi-chain': ['buy', 'BUY STOCKS'],
@@ -89,6 +90,7 @@ describe('which screen each real game state shows', () => {
     place: 'placement-actions',
     found: 'chain-selector',
     survivor: 'chain-selector',
+    order: 'merger-order',
     disposition: 'merger-disposition',
     buy: 'end-turn-button',
   }
@@ -171,7 +173,7 @@ describe('which screen each real game state shows', () => {
       const players = stateOf(view).players
       const mine = `$${players[view.human].money.toLocaleString('en-US')}`
       // Board tab: my cash, worth and rank are in my row of the table; the header has the
-      // room code and the bag instead (BL-015).
+      // room code and the bag instead (BL-017).
       expect(screen.getByTestId('tab-board'), name).toHaveAttribute('aria-selected', 'true')
       expect(screen.queryByTestId('header-cash'), name).not.toBeInTheDocument()
       expect(screen.queryByTestId('header-networth'), name).not.toBeInTheDocument()

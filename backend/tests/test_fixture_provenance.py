@@ -22,6 +22,7 @@ from fixtures_gen.replay import build_expect, replay_recipe
 from fixtures_gen.specs import FIXTURES_BY_NAME, Ctx, evaluate
 from game.decisions import (
     BUY_STOCKS,
+    CHOOSE_DEFUNCT_ORDER,
     CHOOSE_SURVIVOR,
     FOUND_CHAIN,
     PLACE_TILE,
@@ -75,6 +76,18 @@ def _claim_tie(g, h):
     assert d and len(d.context["tied_chains"]) >= 2
     sizes = {g.board.get_chain_size(c) for c in d.context["tied_chains"]}
     assert len(sizes) == 1
+
+
+def _claim_order(g, h):
+    d = _human_decision(g, h, CHOOSE_DEFUNCT_ORDER)
+    assert d and pending_decisions(g)[0] is not None
+    assert g.get_current_player_id() == h, "only the tile placer picks the order"
+    tied = d.context["tied_chains"]
+    assert len(tied) >= 2 and len(g._merger.chains) >= 3
+    assert len({g.board.get_chain_size(c) for c in tied}) == 1
+    assert g._merger.survivor not in tied
+    assert set(tied) <= set(g._merger.defunct_queue)
+    assert legal_actions(g, d) == {"action_types": ["merger_order"], "chains": tied}
 
 
 def _claim_disp_first(g, h):
@@ -211,6 +224,7 @@ CLAIMS = {
     "opening-place-tile": _claim_opening,
     "found-chain-choice": _claim_found,
     "buy-phase-multi-chain": _claim_buy,
+    "merger-order-tie": _claim_order,
     "merger-survivor-tie": _claim_tie,
     "disposition-human-first": _claim_disp_first,
     "disposition-waiting-on-other": _claim_disp_waiting,

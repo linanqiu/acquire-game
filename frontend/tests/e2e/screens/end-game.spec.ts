@@ -153,7 +153,7 @@ test('game over with a tie: both leaders announced, ranked equally', async ({ pa
   await expect(rows.nth(1)).toContainText('1.')
   await expect(rows.nth(2)).toContainText('3.')
 
-  // One way out: PLAY AGAIN goes home (a second button to the same place is gone, BL-015).
+  // One way out: PLAY AGAIN goes home (a second button to the same place is gone, BL-017).
   await expect(page.getByTestId('back-to-lobby')).toHaveCount(0)
   await page.getByTestId('play-again').click()
   await page.waitForURL((url) => url.pathname === '/')

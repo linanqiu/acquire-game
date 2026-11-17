@@ -169,7 +169,7 @@ describe('tabs on a phone', () => {
     expect(phase).toHaveTextContent('CHOOSE A HOTEL CHAIN')
     expect(within(phase).queryByRole('button')).not.toBeInTheDocument()
     // Elsewhere the same bar leads back to it, and says where it leads. No second line
-    // repeats "your move" over the rack (BL-015).
+    // repeats "your move" over the rack (BL-017).
     fireEvent.click(tab(/Chains/))
     expect(board).not.toBeVisible()
     expect(screen.queryByTestId('status-line')).not.toBeInTheDocument()

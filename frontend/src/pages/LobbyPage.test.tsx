@@ -43,7 +43,7 @@ function mount() {
     </BrowserRouter>
   )
 }
-// The name is asked once, for both ways in (BL-015).
+// The name is asked once, for both ways in (BL-017).
 const create = (name: string) => {
   fireEvent.change(screen.getByTestId('name-input'), { target: { value: name } })
   fireEvent.click(screen.getByTestId('create-button'))

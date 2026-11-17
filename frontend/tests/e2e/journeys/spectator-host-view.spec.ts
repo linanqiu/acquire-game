@@ -38,7 +38,7 @@ test('spectator host view: watch an all-AI game to game over', async ({ page, jo
   await page.getByTestId('add-ai-button').click()
   await page.getByTestId('ai-option-llm:fake').click()
   await expect(page.getByText('PLAYERS (3/6)')).toBeVisible()
-  // An enabled START GAME says the game can start; no caption repeats it (BL-015).
+  // An enabled START GAME says the game can start; no caption repeats it (BL-017).
   await expect(page.getByRole('button', { name: 'START GAME' })).toBeEnabled()
   await expect(page.getByTestId('start-hint')).toHaveCount(0)
   await expect(page.locator('[data-kind="bot"]')).toHaveCount(2)

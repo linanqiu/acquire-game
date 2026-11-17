@@ -29,7 +29,7 @@ export interface GameLayoutProps {
    *  board on wide screens, over the rack on phones (on every tab). */
   status?: ReactNode
   /** Told whether the table panel (my decision, the players table) is on screen: the page's
-   *  header and phase bar say only what the screen does not already show (BL-015). */
+   *  header and phase bar say only what the screen does not already show (BL-017). */
   onTableVisible?: (visible: boolean) => void
   /** Event keys that bring the decision into view (see `useGameTabs`). */
   events?: string[]
@@ -137,7 +137,7 @@ export function GameLayout({
       const need = Math.ceil(inner.offsetHeight)
       if (need > 0) tab.style.setProperty('--table-need', `${need}px`)
       // A decision may mark the parts that must be on screen together (`data-table-core`: the
-      // buy rows and the buy button, BL-015). Their own heights, from the top of the panel,
+      // buy rows and the buy button, BL-017). Their own heights, from the top of the panel,
       // are what the board yields to while I decide (capped in the stylesheet).
       const core = Array.from(inner.querySelectorAll<HTMLElement>('[data-table-core]'))
       if (core.length === 0) {

@@ -11,7 +11,7 @@ export async function startGame(room: string): Promise<void> {
 
 /**
  * "Need 2 more players to start", or nothing once the game can start: an enabled START GAME
- * button already says that (BL-015).
+ * button already says that (BL-017).
  */
 export function startHint(players: number, minPlayers: number): string {
   const missing = minPlayers - players

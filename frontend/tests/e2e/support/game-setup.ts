@@ -32,7 +32,7 @@ export async function createGameViaUI(page: Page, playerName: string): Promise<G
 
 /** Add a bot from the host's lobby and wait for the seat count to go up. */
 export async function addBotViaUI(page: Page): Promise<void> {
-  // The lobby lists every seat: the count is the list (BL-015).
+  // The lobby lists every seat: the count is the list (BL-017).
   const seats = page.locator('[data-testid^="lobby-player-"]')
   await expect(seats.first()).toBeVisible({ timeout: 5000 })
   const currentCount = await seats.count()

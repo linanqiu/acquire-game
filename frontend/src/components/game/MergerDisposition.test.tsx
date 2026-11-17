@@ -7,7 +7,7 @@ import { snapshot } from '../../../tests/unit/fixtures/wire'
 
 const sell = () => screen.getByTestId('slider-sell-to-bank')
 const trade = () => screen.getByTestId(/^slider-trade-/)
-// What each control gives is printed once, next to that control (BL-015).
+// What each control gives is printed once, next to that control (BL-017).
 const sold = () => screen.getByTestId('disposition-sell')
 const traded = () => screen.getByTestId('disposition-trade')
 const kept = () => screen.getByTestId('hold-display')

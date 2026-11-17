@@ -67,7 +67,7 @@ describe('host lobby', () => {
     deliver(lobby())
     renderHostPage()
     expect(screen.getByText('START GAME')).toBeEnabled()
-    // An enabled START GAME needs no caption saying it is ready (BL-015).
+    // An enabled START GAME needs no caption saying it is ready (BL-017).
     expect(screen.queryByTestId('start-hint')).not.toBeInTheDocument()
     expect(screen.queryByText(/Ready to start/)).not.toBeInTheDocument()
   })
@@ -293,7 +293,7 @@ describe('host view of the end of the game', () => {
       expect(table).toHaveTextContent(p.name)
       expect(table).toHaveTextContent(money(p.money))
     }
-    // PLAY AGAIN goes home; a second button to the same place is not offered (BL-015).
+    // PLAY AGAIN goes home; a second button to the same place is not offered (BL-017).
     expect(screen.getByTestId('play-again')).toBeInTheDocument()
     expect(screen.queryByTestId('back-to-lobby')).not.toBeInTheDocument()
   })

@@ -30,7 +30,7 @@ function joinError(page: Page) {
 }
 
 function nameError(page: Page) {
-  // The name is asked once for both ways in (BL-015); its error sits under the name field.
+  // The name is asked once for both ways in (BL-017); its error sits under the name field.
   return page.locator('#player-name-error')
 }
 
@@ -81,7 +81,7 @@ test('@ci entry errors: validation, bad codes, duplicate name, full room, starte
   const room = await createGame(host, j, 'Hana')
   const start = host.getByRole('button', { name: 'START GAME' })
   await expect(start).toBeDisabled()
-  // What the room waits for is said once, in the phase bar (BL-015).
+  // What the room waits for is said once, in the phase bar (BL-017).
   await expect(host.getByTestId('game-phase')).toHaveText('NEED 2 MORE PLAYERS TO START')
   await j.shot(host, 'host-cannot-start-alone')
 

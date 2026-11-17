@@ -17,6 +17,10 @@ export function survivorPhaseText(rs: Ruleset): string {
   return up(`Choose the surviving ${rs.theme.chain_noun}`)
 }
 
+export function orderPhaseText(rs: Ruleset): string {
+  return up(`Choose the ${rs.theme.merger_noun} order`)
+}
+
 export function dispositionPhaseText(rs: Ruleset): string {
   return up(`Dispose your ${rs.theme.share_noun_plural}`)
 }
@@ -26,7 +30,7 @@ export function buyPhaseText(rs: Ruleset): string {
 }
 
 /**
- * The player page's banner in the lobby (BL-015): the one line that says what the room waits
+ * The player page's banner in the lobby (BL-017): the one line that says what the room waits
  * for. The host reads how many players are missing, or that the start is theirs to press; a
  * guest reads that the host starts.
  */
@@ -38,7 +42,7 @@ export function lobbyPhaseText(isHost: boolean, players: number, minPlayers: num
 }
 
 /**
- * The player page's banner while the table waits on someone else (BL-015): who, and what they
+ * The player page's banner while the table waits on someone else (BL-017): who, and what they
  * are doing ("CARA IS BUYING SHARES"). It names the player the engine waits on, who is not
  * always the player on turn (a merger asks each stockholder). `shortName` is what a narrow row
  * prints for that seat. An unknown decision falls back to "<NAME>'s TURN".

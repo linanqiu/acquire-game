@@ -92,7 +92,7 @@ describe('PageShell', () => {
     expect(screen.queryByTestId('phase-help')).not.toBeInTheDocument()
   })
 
-  it('the phase bar is the way to a waiting move: one button, named for the phase and where it leads (BL-015)', () => {
+  it('the phase bar is the way to a waiting move: one button, named for the phase and where it leads (BL-017)', () => {
     let opened = 0
     const { rerender } = render(
       <PageShell

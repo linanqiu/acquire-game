@@ -57,6 +57,9 @@ def default_action(ctx: DecisionContext) -> dict:
     if kind == "choose_survivor":
         chains = legal.get("chains") or [None]
         return {"action": "merger_choice", "surviving_chain": chains[0]}
+    if kind == "choose_defunct_order":
+        chains = legal.get("chains") or [None]
+        return {"action": "merger_order", "defunct_chain": chains[0]}
     if kind == "stock_disposition":
         return {
             "action": "merger_disposition",
@@ -87,6 +90,8 @@ def fits(ctx: DecisionContext, action: dict) -> bool:
         return action.get("chain") in legal.get("chains", [])
     if kind == "merger_choice":
         return action.get("surviving_chain") in legal.get("chains", [])
+    if kind == "merger_order":
+        return action.get("defunct_chain") in legal.get("chains", [])
     if kind == "merger_disposition":
         d = action.get("disposition") or {}
         sell, trade = _int(d.get("sell", 0)), _int(d.get("trade", 0))

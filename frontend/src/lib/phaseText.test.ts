@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { hostPhaseText, lobbyPhaseText, playerPhaseText, waitingPhaseText } from './phaseText'
+import {
+  hostPhaseText,
+  lobbyPhaseText,
+  orderPhaseText,
+  playerPhaseText,
+  waitingPhaseText,
+} from './phaseText'
 import { DEFAULT_RS, MINI, VALLEY } from '../../tests/unit/fixtures/rulesets'
 
 describe('the banner the player reads, by phase, whose turn it is, and the ruleset words', () => {
@@ -22,6 +28,12 @@ describe('the banner the player reads, by phase, whose turn it is, and the rules
     expect(playerPhaseText(MINI, 'found_chain', true, 'A')).toBe('CHOOSE A SHIPPING LINE')
     expect(playerPhaseText(MINI, 'merger', true, 'A')).toBe('TAKEOVER IN PROGRESS')
     expect(playerPhaseText(MINI, 'buy_stocks', true, 'A')).toBe('BUY SHARES')
+  })
+
+  it('the merger-order choice has its own banner, in the ruleset words', () => {
+    expect(orderPhaseText(DEFAULT_RS)).toBe('CHOOSE THE MERGER ORDER')
+    expect(orderPhaseText(VALLEY)).toBe('CHOOSE THE ACQUISITION ORDER')
+    expect(orderPhaseText(MINI)).toBe('CHOOSE THE TAKEOVER ORDER')
   })
 
   it('when it is not my turn the banner names whose turn it is, in any phase', () => {
@@ -65,7 +77,7 @@ describe('the banner the spectator reads', () => {
   })
 })
 
-describe('the player banner says once what the room or the table waits for (BL-015)', () => {
+describe('the player banner says once what the room or the table waits for (BL-017)', () => {
   it('in the lobby: how many players are missing, or that the host can start; a guest waits', () => {
     expect(lobbyPhaseText(true, 1, 3)).toBe('NEED 2 MORE PLAYERS TO START')
     expect(lobbyPhaseText(true, 2, 3)).toBe('NEED 1 MORE PLAYER TO START')

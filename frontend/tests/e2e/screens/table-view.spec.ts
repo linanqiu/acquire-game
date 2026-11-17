@@ -179,7 +179,7 @@ async function expectTableView(page: Page, room: RoomContext, host = false) {
     }
   }
   if (!host) {
-    // My worth and rank are said once (BL-015): in my row while the players table is open,
+    // My worth and rank are said once (BL-017): in my row while the players table is open,
     // in the header on a tab without it. Both agree with the engine.
     const me = net_worth[room.fixture.human_seat]
     await expect(page.getByTestId('header-networth')).toHaveCount(0)

@@ -261,6 +261,28 @@ When a tile connects **three or more chains**, handle them in order:
 4. Proceed to the next defunct chain
 5. After all defunct chains are resolved, the merger is complete
 
+### Defunct Chains of the Same Size: the Mergemaker Picks the Order
+
+When two or more defunct chains are the **same size**, the mergemaker chooses which of
+them is resolved next. Chains of different sizes are never a choice: the larger always
+goes first.
+
+- The choice is made one chain at a time, when its turn comes: with three defunct chains
+  of one size the mergemaker picks the first, that chain is resolved (bonuses, then stock
+  disposition), then the mergemaker picks between the remaining two. The last chain needs
+  no choice.
+- With sizes 3, 3, 2, 2 the mergemaker first chooses the survivor among the two 3s; the
+  other 3 is resolved at once (it is alone at its size); then the mergemaker picks which
+  of the two 2s goes first.
+- **Why it matters**: holders of the chain resolved first trade 2:1 first. When the bank
+  has few shares of the survivor left, they can take them all, and the holders of the
+  next chain can only sell or hold.
+
+In this implementation: decision `choose_defunct_order` for the player who placed the
+tile, answered with the action `merger_order` (`defunct_chain`); the event
+`defunct_order_chosen` records it. The rules-based bot resolves first the chain it holds
+the most shares of (then the one that pays it the larger bonus, then board order).
+
 ### Example: Three-Chain Merger
 
 ```
@@ -328,7 +350,7 @@ After a chain becomes defunct:
 1. **Counting stock instead of tiles**: Surviving chain is determined by **tiles on the board**, not by stock ownership
 2. **Forgetting the trading option**: Players may forget they can trade 2-for-1
 3. **Incorrect tie-breaking**: Remember to combine majority + minority for ties for majority
-4. **Wrong resolution order**: In multi-chain mergers, resolve largest defunct first
+4. **Wrong resolution order**: In multi-chain mergers, resolve largest defunct first; the mergemaker picks the order only among defunct chains of the same size
 5. **Selling at wrong price**: Use the defunct chain's tile count at merger time
 
 ---

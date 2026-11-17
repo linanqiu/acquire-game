@@ -30,7 +30,7 @@ export interface MergerDispositionProps {
 
 /**
  * My sell / trade / keep choice for a defunct chain's shares. Each number is said once
- * (BL-015): what a slider gives is next to that slider, the cash after the sale is over the
+ * (BL-017): what a slider gives is next to that slider, the cash after the sale is over the
  * button, and my survivor shares after the trade are in the survivor's holder table. In the decision tab (BL-011) the merger view goes around it: its title in
  * `header`, who holds what and the survivor after the merger in `children`, so the confirm
  * button can stay pinned at the bottom of the whole view.

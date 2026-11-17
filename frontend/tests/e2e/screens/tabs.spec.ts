@@ -162,7 +162,7 @@ async function checkEveryTab(
       // The decision is not on top of the reference tabs.
       await expect(page.getByTestId('decision-view')).toBeHidden()
     }
-    // Said once (BL-015). With the table panel open, the header leaves my cash and worth to
+    // Said once (BL-017). With the table panel open, the header leaves my cash and worth to
     // the players table and the phase bar is plain text. On another tab the header carries
     // my numbers, and while my move waits the phase bar itself is the way back, naming the
     // tab it leads to. No second "your move" line anywhere.

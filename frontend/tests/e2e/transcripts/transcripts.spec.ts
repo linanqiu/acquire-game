@@ -53,6 +53,7 @@ interface DriveResult {
 async function drive(page: Page, opts: { stopAtTile?: number; tilesPlaced?: number }) {
   const over = page.getByTestId('game-over')
   const chainBtn = page.getByTestId('chain-selector').locator('button:not([disabled])')
+  const orderBtn = page.getByTestId('merger-order').getByRole('button')
   const confirm = page.getByTestId('confirm-disposition')
   const endGame = page.getByTestId('end-game-button')
   const endTurn = page.locator('[data-testid="end-turn-button"]:not([disabled])')
@@ -62,6 +63,7 @@ async function drive(page: Page, opts: { stopAtTile?: number; tilesPlaced?: numb
     [
       '[data-testid="game-over"]',
       '[data-testid="chain-selector"] button:not([disabled])',
+      '[data-testid="merger-order"] button',
       '[data-testid="confirm-disposition"]',
       '[data-testid="end-turn-button"]:not([disabled])',
       '[data-testid="place-tile-button"]',
@@ -80,6 +82,12 @@ async function drive(page: Page, opts: { stopAtTile?: number; tilesPlaced?: numb
       log(`[human] choose chain ${label}`)
       await chainBtn.first().click({ timeout: 5000 })
       await expect(page.getByTestId('chain-selector')).toBeHidden({ timeout: 10_000 })
+      continue
+    }
+    if (await orderBtn.first().isVisible()) {
+      log('[human] choose the merger order (first offered chain)')
+      await orderBtn.first().click({ timeout: 5000 })
+      await expect(page.getByTestId('merger-order')).toBeHidden({ timeout: 10_000 })
       continue
     }
     if (await confirm.isVisible()) {
@@ -239,7 +247,7 @@ test.describe('Transcripts and Buyout Bench on the real servers', () => {
       await expect(row).toBeVisible()
       await expect(row).toHaveAttribute('data-status', 'live')
       await expect(row).toContainText('LIVE')
-      // The LIVE badge says it is in progress; the outcome line stays empty (said once, BL-015).
+      // The LIVE badge says it is in progress; the outcome line stays empty (said once, BL-017).
       await expect(row.getByTestId('game-winner')).toHaveText('')
       // The games list compares models: the model first, the character name second.
       await expect(row).toContainText('Fake LLM (test)')

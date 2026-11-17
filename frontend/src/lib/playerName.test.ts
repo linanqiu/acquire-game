@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { recallName, rememberName } from './playerName'
 
-describe('the name last used on the home page (BL-015)', () => {
+describe('the name last used on the home page (BL-017)', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     localStorage.clear()

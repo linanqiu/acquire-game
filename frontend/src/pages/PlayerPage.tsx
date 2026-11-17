@@ -46,6 +46,7 @@ import { orderChainIds } from '../lib/ruleset'
 import {
   dispositionPhaseText,
   lobbyPhaseText,
+  orderPhaseText,
   playerPhaseText,
   survivorPhaseText,
   waitingPhaseText,
@@ -94,6 +95,7 @@ export function PlayerPage() {
     tilePlayability,
     pendingChainChoice,
     pendingMergerChoice,
+    pendingMergerOrder,
     pendingStockDisposition,
     trades: myTrades,
     publicTrades,
@@ -156,7 +158,7 @@ export function PlayerPage() {
   // and the phase bar while my move waits on another tab.
   const [answer, setAnswer] = useState(0)
   // Is the table panel (my decision, the players table) on screen? What it shows is not said
-  // again by the header (my cash, worth, rank) or by a second status line (BL-015).
+  // again by the header (my cash, worth, rank) or by a second status line (BL-017).
   const [tableVisible, setTableVisible] = useState(true)
 
   // The game's ruleset (the server's until the first game_state arrives): every limit and word.
@@ -312,6 +314,7 @@ export function PlayerPage() {
   // Is it on me to act right now (turn signal)?
   const myDecision =
     !!pendingMergerChoice ||
+    !!pendingMergerOrder ||
     !!pendingStockDisposition ||
     (isMyTurn && phase !== 'merger' && phase !== 'stock_disposition')
 
@@ -325,6 +328,7 @@ export function PlayerPage() {
     phase,
     isMyTurn,
     survivorChoice: !!pendingMergerChoice,
+    orderChoice: !!pendingMergerOrder,
     disposition: !!pendingStockDisposition,
     foundChoice: !!pendingChainChoice,
     mergerInProgress: !!lastMerger && !lastMerger.complete,
@@ -335,6 +339,7 @@ export function PlayerPage() {
       phase,
       isMyTurn,
       survivorChoice: !!pendingMergerChoice,
+      orderChoice: !!pendingMergerOrder,
       disposition: !!pendingStockDisposition,
       foundChoice: !!pendingChainChoice,
       mergerInProgress: false,
@@ -366,7 +371,9 @@ export function PlayerPage() {
       ? lobbyPhaseText(isHost, lobbyPlayers.length, ruleset.min_players)
       : pendingMergerChoice
         ? survivorPhaseText(ruleset)
-        : pendingStockDisposition
+        : pendingMergerOrder
+          ? orderPhaseText(ruleset)
+          : pendingStockDisposition
           ? dispositionPhaseText(ruleset)
           : myDecision || phase === 'game_over'
             ? playerPhaseText(ruleset, phase, isMyTurn, currentPlayerName)
@@ -501,6 +508,8 @@ export function PlayerPage() {
                   standings={<Standings gameState={gameState} myPlayerId={myPlayerId} />}
                   pendingChainChoice={pendingChainChoice}
                   pendingMergerChoice={pendingMergerChoice}
+                  pendingMergerOrder={pendingMergerOrder}
+                  onMergerOrder={turn.chooseMergerOrder}
                   pendingStockDisposition={pendingStockDisposition}
                   activeChains={activeChains}
                   merger={mergerResult}

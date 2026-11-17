@@ -136,7 +136,7 @@ test('two humans and a bot: join by code, play, trade accept/reject/cancel', asy
     )
     const offer = incomingFrom(a, 'Bob')
     await expect(offer).toBeVisible()
-    // The offer names itself ("Bob offers you a trade"); no count over it (BL-015).
+    // The offer names itself ("Bob offers you a trade"); no count over it (BL-017).
     await expect(
       a.getByTestId('trade-incoming').locator('[data-testid^="trade-offer-"]')
     ).toHaveCount(1)

@@ -43,7 +43,7 @@ describe('GameOver on a real finished game', () => {
     const winner = screen.getByTestId('winner-announcement')
     expect(winner).toHaveTextContent('WINNER')
     expect(winner).toHaveTextContent(nameOf(data, over.winner))
-    // The amount is said once, in the winner's row of the standings (BL-015).
+    // The amount is said once, in the winner's row of the standings (BL-017).
     const total = money(over.scores[over.winner].money)
     expect(winner).not.toHaveTextContent(total)
     expect(screen.getByTestId(`rank-${over.winner}`)).toHaveTextContent(total)

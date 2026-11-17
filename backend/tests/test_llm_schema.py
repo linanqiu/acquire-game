@@ -25,6 +25,7 @@ PLACE = {
 }
 FOUND = {"action_types": ["found_chain"], "chains": ["sandpiper", "marlowe"]}
 SURVIVOR = {"action_types": ["merger_choice"], "chains": ["halcyon", "juniper"]}
+ORDER = {"action_types": ["merger_order"], "chains": ["halcyon", "juniper"]}
 DISPOSE = {
     "action_types": ["merger_disposition"],
     "defunct_chain": "sandpiper",
@@ -149,6 +150,7 @@ def test_first_legal_answer_from_schema_passes_validator(legal):
         (PLACE, {"action": "place_tile", "tile": "7D"}),
         (FOUND, {"action": "found_chain", "chain": "marlowe"}),
         (SURVIVOR, {"action": "merger_choice", "surviving_chain": "juniper"}),
+        (ORDER, {"action": "merger_order", "defunct_chain": "juniper"}),
         (
             DISPOSE,
             {
@@ -460,6 +462,7 @@ def test_static_schema_depends_only_on_kind_and_ruleset(kind):
 def test_static_schema_covers_every_kind_the_engine_asks():
     from game.decisions import (
         BUY_STOCKS,
+        CHOOSE_DEFUNCT_ORDER,
         CHOOSE_SURVIVOR,
         FOUND_CHAIN,
         PLACE_TILE,
@@ -471,6 +474,7 @@ def test_static_schema_covers_every_kind_the_engine_asks():
         PLACE_TILE,
         FOUND_CHAIN,
         CHOOSE_SURVIVOR,
+        CHOOSE_DEFUNCT_ORDER,
         STOCK_DISPOSITION,
         BUY_STOCKS,
         TRADE_RESPONSE,
@@ -497,6 +501,7 @@ def test_static_schema_uses_the_rulesets_chains_and_purchase_limit():
         (PLACE, "place_tile"),
         (FOUND, "found_chain"),
         (SURVIVOR, "choose_survivor"),
+        (ORDER, "choose_defunct_order"),
         (DISPOSE, "stock_disposition"),
         (BUY, "buy_stocks"),
         (TRADE, "trade_response"),

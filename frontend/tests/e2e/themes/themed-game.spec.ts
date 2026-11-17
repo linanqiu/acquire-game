@@ -108,6 +108,7 @@ test('themed game from the home page to the transcript', async ({ page }, testIn
     place: 'PLACE A TILE',
     found: `CHOOSE ${article(t.chain_noun)} ${t.chain_noun}`.toUpperCase(),
     survivor: `CHOOSE THE SURVIVING ${t.chain_noun}`.toUpperCase(),
+    order: `CHOOSE THE ${t.merger_noun} ORDER`.toUpperCase(),
     dispose: `DISPOSE YOUR ${t.share_noun_plural}`.toUpperCase(),
     buy: `BUY ${t.stock_label}`.toUpperCase(),
     over: 'GAME OVER',
@@ -151,7 +152,7 @@ test('themed game from the home page to the transcript', async ({ page }, testIn
     await page.getByTestId('add-bot-button').click()
     await expect(page.locator('[data-testid^="lobby-player-"]')).toHaveCount(n)
   }
-  // The game can start: the button is enabled and the phase bar says so once (BL-015).
+  // The game can start: the button is enabled and the phase bar says so once (BL-017).
   await expect(page.getByRole('button', { name: 'START GAME' })).toBeEnabled()
   await expect(page.getByTestId('game-phase')).toHaveText('START WHEN EVERYONE IS IN')
   await expectNoDefaultText(page, 'lobby')
@@ -270,6 +271,14 @@ test('themed game from the home page to the transcript', async ({ page }, testIn
         await expect(page.getByTestId(`portfolio-row-${id}`)).toContainText(chain.name)
       }
       await shots.take(page, `t${turns}-chose-${id}`)
+    } else if (phase === PHASE.order) {
+      const panel = page.getByTestId('merger-order')
+      await expect(panel).toBeVisible()
+      await expect(page.getByTestId('merger-order-title')).toContainText(t.chain_noun)
+      await shots.take(page, `t${turns}-merger-order`)
+      log(`turn ${turns}: merger order (first offered)`)
+      await panel.getByRole('button').first().click()
+      await expect(panel).toBeHidden()
     } else if (phase === PHASE.dispose) {
       const form = page.getByTestId('merger-disposition')
       await expect(form).toBeVisible()

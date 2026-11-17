@@ -44,7 +44,7 @@ describe('open offers at the table (Trades tab)', () => {
     expect(card).toHaveTextContent(players[o.to].name)
     expect(within(card).getByTestId('trade-stock-aurelia')).toHaveTextContent('×2')
     expect(card).toHaveTextContent('$800')
-    // The one card is the count; the tab does not say "1" or "none" over it (BL-015).
+    // The one card is the count; the tab does not say "1" or "none" over it (BL-017).
     expect(within(screen.getByTestId('trade-table')).getAllByTestId(/^trade-table-/)).toHaveLength(
       1
     )
