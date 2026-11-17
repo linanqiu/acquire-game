@@ -5,7 +5,7 @@ self-play (``bench/bot_tournament.py``) and a game can be replayed with the
 bot it was played with. A version is a ``BotPolicy``: a named choice for each
 rule component the generations differ in, plus that rule's weights. The
 heuristic agent (``agents/heuristic.py``) reads its policy at each decision;
-the rules themselves live in ``game/bot.py`` and ``game/tile_value.py``.
+the rules themselves live in ``game/bot.py`` and ``agents/bot_rules.py``.
 
 Components (a version names one option for each):
 
@@ -56,10 +56,44 @@ V2 = BotPolicy(
     tile="position",
 )
 
-VERSIONS: dict[str, BotPolicy] = {p.version: p for p in (V1, V2)}
+V3 = BotPolicy(
+    version="v3",
+    summary="Buys for bonus positions: the purchase that gains most in weighted "
+    "majority/minority bonuses (mine up, rivals' down); legacy buying otherwise.",
+    tile="position",
+    buy="position",
+)
+
+V4 = BotPolicy(
+    version="v4",
+    summary="Merger shares by post-merger position math: trade the amount that "
+    "maximises survivor value plus survivor bonus position, sell the rest.",
+    tile="position",
+    buy="position",
+    disposition="position",
+)
+
+V5 = BotPolicy(
+    version="v5",
+    summary="v3 + defended buying: a position's value blends 'bought out now' "
+    "with 'after the strongest rival buys a full turn of shares'.",
+    tile="position",
+    buy="position",
+    weights={"defend": 0.5},
+)
+V6 = BotPolicy(
+    version="v6",
+    summary="v3 but no fallback buying: when no purchase gains a bonus "
+    "position, keep the cash.",
+    tile="position",
+    buy="position",
+    weights={"fallback": "none"},
+)
+
+VERSIONS: dict[str, BotPolicy] = {p.version: p for p in (V1, V2, V3, V4, V5, V6)}
 
 # The version new bot seats get: the strongest one accepted so far.
-DEFAULT_VERSION = "v2"
+DEFAULT_VERSION = "v3"
 
 
 def get_policy(version: str | None = None) -> BotPolicy:

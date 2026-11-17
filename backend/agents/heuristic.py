@@ -17,12 +17,14 @@ from __future__ import annotations
 import random
 
 from agents.base import DecisionContext
+from agents.bot_rules import choose_buys_position, choose_disposition_position
 from agents.bot_versions import get_policy
 from game.board import Board, TileState
 from game.bot import Bot
 from game.hotel import Hotel
 from game.player import Player
 from game.ruleset import default_ruleset, ruleset_from_state
+from game.tile_value import table_from_parts
 
 
 def _rebuild(ctx: DecisionContext) -> tuple[Board, Hotel, Player]:
@@ -199,8 +201,21 @@ class HeuristicAgent:
         survivor = legal.get("surviving_chain")
         count = int(legal.get("stock_count") or 0)
         max_trade = int(legal.get("max_trade") or 0)
+        info = (ctx.calc or {}).get("disposition") or {}
         try:
-            d = bot.choose_stock_disposition(defunct, survivor, count, board, hotel)
+            if (
+                self.policy.disposition == "position"
+                and self.difficulty != "easy"
+                and info.get("defunct") == defunct
+            ):
+                table = table_from_parts(
+                    board, hotel, _table_players(ctx, bot.player), board.ruleset
+                )
+                d = choose_disposition_position(
+                    table, ctx.player_id, info, board.ruleset.merger_trade_ratio
+                )
+            else:
+                d = bot.choose_stock_disposition(defunct, survivor, count, board, hotel)
             sell, trade = int(d.get("sell", 0)), int(d.get("trade", 0))
         except Exception:  # noqa: BLE001 - fall back to a safe answer
             sell, trade = count, 0
@@ -223,6 +238,12 @@ class HeuristicAgent:
         max_total = int(
             legal.get("max_total", default_ruleset().max_stock_purchases_per_turn)
         )
+        if self.policy.buy != "legacy" and self.difficulty != "easy":
+            counts = self._buy_position(
+                ctx, bot, board, hotel, options, money, max_total
+            )
+            if counts is not None:
+                return {"action": "buy_stocks", "purchases": counts}
         wanted = bot.choose_stocks_to_buy(board, hotel, max_total)
         counts: dict[str, int] = {}
         spent = 0
@@ -237,6 +258,28 @@ class HeuristicAgent:
             counts[chain] = counts.get(chain, 0) + 1
             spent += opt["price"]
         return {"action": "buy_stocks", "purchases": counts}
+
+    def _buy_position(self, ctx, bot, board, hotel, options, money, max_total):
+        """Buy rule "position" (v3+, agents/bot_rules.py): the affordable
+        purchase that gains most in bonus positions; ``None`` when nothing
+        gains at least ``buy_min_gain`` (the legacy rule then buys)."""
+        p = self.policy
+        table = table_from_parts(
+            board, hotel, _table_players(ctx, bot.player), board.ruleset
+        )
+        counts, value = choose_buys_position(
+            table,
+            ctx.player_id,
+            options,
+            money - int(p.w("cash_reserve", 0)),
+            max_total,
+            cash_cost=p.w("cash_cost", 0.0),
+            defend=p.w("defend", 0.0),
+        )
+        if not counts or value < p.w("buy_min_gain", 1.0):
+            # v3+: fall back to v1's buying, or buy nothing ("fallback": "none")
+            return {} if p.weights.get("fallback") == "none" else None
+        return counts
 
     def _trade_response(self, ctx: DecisionContext) -> dict:
         """Accept only a legal trade that improves this seat's position.

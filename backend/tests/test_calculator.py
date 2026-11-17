@@ -845,13 +845,25 @@ def test_merger_bonus_by_player_and_safe_flag_match_the_engine(seed):
 
 def _resolve_holding(game, me, first):
     """Apply ``first`` (sell, trade, hold) to the pending disposition, then
-    every later disposition of the merger holds."""
+    every later disposition of the merger holds. Returns the cash ``me`` got
+    from ``first`` itself (a later defunct chain of a multi-chain merger may
+    pay ``me`` bonuses afterwards; those are not part of this disposition)."""
+    cash0, mark = game.get_player(me).money, len(game.events)
     assert game.handle_stock_disposition(me, *first).success
+    later_bonuses = sum(
+        b.get("majority", 0) + b.get("minority", 0)
+        for e in game.events[mark:]
+        if e["type"] == "bonuses_paid"
+        for pid, b in e.get("bonuses", {}).items()
+        if pid == me
+    )
+    got = game.get_player(me).money - cash0 - later_bonuses
     while game.phase == GamePhase.MERGING and game.pending_action:
         pa = game.pending_action
         assert pa["type"] == "stock_disposition"
         n = pa["stock_count"]
         assert game.handle_stock_disposition(pa["player_id"], 0, 0, n).success
+    return got
 
 
 @pytest.mark.parametrize(
@@ -877,9 +889,7 @@ def test_disposition_figures_match_what_the_engine_then_does(seed, ruleset):
         surv, n = x["survivor"], x["shares"]
         # sell all: exactly sell_all_value in cash; the survivor ends as predicted
         g = copy.deepcopy(game)
-        cash0 = g.get_player(me).money
-        _resolve_holding(g, me, (n, 0, 0))
-        assert g.get_player(me).money - cash0 == x["sell_all_value"]
+        assert _resolve_holding(g, me, (n, 0, 0)) == x["sell_all_value"]
         size = g.board.get_chain_size(surv)
         assert size == x["survivor_size_after"]
         assert g.hotel.get_stock_price(surv, size) == x["survivor_price_after"]
@@ -888,12 +898,12 @@ def test_disposition_figures_match_what_the_engine_then_does(seed, ruleset):
         tm = x["trade_max"]
         g = copy.deepcopy(game)
         p = g.get_player(me)
-        cash0, s0 = p.money, p.get_stock_count(surv)
+        s0 = p.get_stock_count(surv)
         assert s0 == x["survivor_shares_now"]
-        _resolve_holding(g, me, (tm["leftover_shares"], tm["shares_traded"], 0))
+        got = _resolve_holding(g, me, (tm["leftover_shares"], tm["shares_traded"], 0))
         p = g.get_player(me)
         assert p.get_stock_count(surv) - s0 == tm["survivor_shares_received"]
-        assert p.money - cash0 == tm["leftover_sale_value"]
+        assert got == tm["leftover_sale_value"]
         assert tm["value"] == tm["survivor_shares_received"] * x["survivor_price_after"]
         assert x["trade_minus_sell"] == tm["total_value"] - x["sell_all_value"]
         eng = Rules.calculate_bonuses(g.players, surv, size, g.hotel).get(me, {})

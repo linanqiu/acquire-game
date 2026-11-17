@@ -38,31 +38,39 @@ of every version. v1 is exactly the bot on `main` before this story: 16 fixed-se
 
 | Version | Rules added | Status |
 |---|---|---|
-| v1 | Original heuristic: fixed points per tile effect (found 100; grow a chain I hold 50 + 5 per share; merger 30 + 3 per survivor share if I hold any, 20 + 2 per defunct share if I hold any), medium picks at random among the top 3 tiles. Spread-out buying, sell/trade by price, declare when projected first, position-aware trade answers. | kept (baseline) |
-| v2 | Tile value in money: my gain minus weighted rival gains ([bot-tiles.md](bot-tiles.md)); medium varies only within $100 of the best and never plays a harmful tile while a harmless one exists. | **accepted** |
+| v1 | Original heuristic: fixed points per tile effect (found 100; grow a chain I hold 50 + 5 per share; merger 30 + 3 per survivor share if I hold any, 20 + 2 per defunct share if I hold any), medium picks at random among the top 3 tiles. Spread-out buying (owned chains, size, tier), sell/trade by price, declare when projected first, position-aware trade answers. | baseline |
+| v2 | **Tile value in money**: my gain minus weighted rival gains ([bot-tiles.md](bot-tiles.md)); medium varies only within $100 of the best and never plays a harmful tile while a harmless one exists. | **accepted** (beats v1) |
+| v3 | **Buy for bonus positions** (`buy="position"`, `agents/bot_rules.py: choose_buys_position`): over every affordable combination of up to 3 shares, the one with the largest weighted bonus-position gain (my bonus if bought out now, up; rivals' bonuses, down, rival-weighted as in the tile value; weight = the trade valuation's bonus weight). If no purchase gains at least $1, v1's buying rule. | **accepted** (beats v2, v1); default |
+| v4 | **Merger shares by post-merger math** (`disposition="position"`, `choose_disposition_position`): trade the amount (a multiple of the ratio, up to the legal maximum) that maximises survivor shares at the post-merger price plus my weighted survivor bonus gain plus rivals' bonus loss there; sell the rest. | candidate |
+| v5 | v3 + **defended buying** (`weights={"defend": 0.5}`): a purchase's value for me blends "bonus if bought out now" with "bonus after the strongest rival buys a full turn of shares", so a one-share lead counts less and widening a contestable lead counts. | candidate |
+| v6 | v3 but **no fallback buying** (`weights={"fallback": "none"}`): when no purchase gains a bonus position, keep the cash instead of v1's spread buying. | candidate |
 
-## Results (final seeds 100001-100060)
+## Results (final seeds 100001-100060, 600 games per pairing, medium)
 
-### v2 vs v1 (600 games)
+| Pairing (A vs B) | Games | Paired margin A - B per seed (95 % CI) | 2v2 win share A / B | Lone seat wins A / B (equal = 25 %) | Mean rank A / B | Verdict |
+|---|---|---|---|---|---|---|
+| v2 vs v1 | 600 | +7,897 +/- 1,039 | 81.2% / 18.8% | 48.1% / 9.6% | 2.21 / 2.78 | v2 better |
+| v3 vs v2 | 600 | +12,793 +/- 1,145 | 83.3% / 16.7% | 73.8% / 8.5% | 2.07 / 2.92 | v3 better |
+| v3 vs v1 | 600 | +19,016 +/- 1,024 | 95.8% / 4.2% | 79.6% / 2.1% | 1.91 / 3.08 | v3 better |
 
-| | v2 | v1 |
-|---|---|---|
-| Paired margin difference per seed | **+$7,897 (95 % CI +/- $1,039)** | |
-| 2v2 win share (120 games) | 81.2 % | 18.8 % |
-| Lone seat among three of the other (240 games each; equal = 25 %) | 48.1 % (+/- 6.3) | 9.6 % (+/- 3.7) |
-| Mean rank (1200 seat-games each) | 2.21 | 2.78 |
+| Version (table) | Mergers set off | Suicide merges | Chains founded | Shares held | Cash at turn end | Cash at last turn | End declarations | Bonus income |
+|---|---|---|---|---|---|---|---|---|
+| v2 (vs v1) | 1.34 | 0.16 | 3.17 | 17.5 | $2,293 | $5,593 | 0.36 | $24,154 |
+| v1 (vs v2) | 1.85 | 0.86 | 2.15 | 16.2 | $2,028 | $4,341 | 0.14 | $18,750 |
+| v3 (vs v2) | 1.93 | 0.10 | 2.53 | 18.1 | $2,057 | $4,897 | 0.41 | $26,600 |
+| v2 (vs v3) | 1.11 | 0.24 | 2.75 | 16.9 | $1,445 | $2,683 | 0.09 | $17,173 |
+| v3 (vs v1) | 1.52 | 0.07 | 3.16 | 18.3 | $2,808 | $7,091 | 0.45 | $28,522 |
+| v1 (vs v3) | 1.79 | 1.05 | 2.20 | 15.7 | $1,775 | $3,145 | 0.05 | $14,642 |
 
-| Profile per seat-game | v2 | v1 |
-|---|---|---|
-| Mergers set off | 1.34 | 1.85 |
-| Suicide merges | **0.16** | **0.86** |
-| Chains founded | 3.17 | 2.16 |
-| Shares held (own turn ends) | 17.5 | 16.2 |
-| Cash at own turn ends | $2,293 | $2,028 |
-| Cash at the last turn | $5,593 | $4,341 |
-| End declarations | 0.36 | 0.14 |
-| Bonus income | $24,154 | $18,750 |
+Profiles are per seat-game, measured in that pairing's games.
 
-The remaining v2 "suicide merges" are cases where every other tile was worse (all tiles merge, or
-the others grow rival chains past a price step or to safe) or where the bot gains more from the
-survivor growing (price and bonus position) than the rivals' bonuses cost it.
+## Notes per generation
+
+- **v2.** The remaining "suicide merges" are cases where every other tile was worse (all tiles
+  merge, or the others grow rival chains past a price step or to safe) or where the bot gains more
+  from the survivor growing (price and bonus position) than the rivals' bonuses cost it.
+- **v3.** v1's buying spread shares over owned chains, big chains and expensive tiers without
+  asking whether a share wins anything. Development games (seeds 1-40) showed v2 losing races it
+  could have taken with one or two shares and adding shares to leads nobody contested. Buying by
+  position change roughly doubles the margin gained by v2's tile rule. It sets off more mergers
+  (it now holds the majorities that make them pay) and collects about 55 % more bonus income.
