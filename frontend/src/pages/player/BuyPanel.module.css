@@ -208,18 +208,16 @@
    need the width, e.g. with END GAME). */
 .footer {
   position: sticky;
-  /* One pixel above the scroller's edge: stuck at 0, the footer can land a fraction of a pixel
-     past it when the panel's heights are fractional (a wider system font), which clips the
-     button. The shadow fills that pixel so no row shows through under the footer. */
-  bottom: 1px;
-  box-shadow: 0 1px 0 var(--bg-primary);
+  bottom: 0;
   z-index: 1;
   margin-top: auto;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1) var(--space-2);
-  padding: var(--space-1) 0;
+  /* 1px in from the right: the panel's width is fractional, and a button flush with its edge
+     can lose a sliver of a pixel to the clip (seen in CI as a 0.99993 viewport ratio). */
+  padding: var(--space-1) 1px var(--space-1) 0;
   background-color: var(--bg-primary);
   border-top: var(--border-default);
 }

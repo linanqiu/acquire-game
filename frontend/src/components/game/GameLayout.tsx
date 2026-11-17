@@ -134,7 +134,7 @@ export function GameLayout({
     if (!inner || !tab) return
     const apply = () => {
       // Hidden (another tab is open): keep the last measure, so the board does not jump back.
-      const need = Math.ceil(inner.getBoundingClientRect().height)
+      const need = Math.ceil(inner.offsetHeight)
       if (need > 0) tab.style.setProperty('--table-need', `${need}px`)
       // A decision may mark the parts that must be on screen together (`data-table-core`: the
       // buy rows and the buy button, BL-017). Their own heights, from the top of the panel,
@@ -144,12 +144,9 @@ export function GameLayout({
         tab.style.removeProperty('--core-need')
         return
       }
-      // Exact (fractional) heights: offsetHeight rounds each part, and the rounded sum can come
-      // out a fraction of a pixel short, which clips the bottom of the buy button. One pixel of
-      // slack covers what is left after rounding up.
       const top = core[0].getBoundingClientRect().top - inner.getBoundingClientRect().top
-      const parts = core.reduce((sum, el) => sum + el.getBoundingClientRect().height, 0)
-      const coreNeed = Math.ceil(top + parts + CORE_GAP * (core.length - 1)) + 1
+      const parts = core.reduce((sum, el) => sum + el.offsetHeight, 0)
+      const coreNeed = Math.ceil(top + parts + CORE_GAP * (core.length - 1))
       if (parts > 0) tab.style.setProperty('--core-need', `${coreNeed}px`)
     }
     apply()

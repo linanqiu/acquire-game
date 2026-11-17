@@ -140,6 +140,9 @@ for (const vp of SIZES) {
     await expect(await tableTab(page)).toHaveAttribute('aria-selected', 'true')
     await expect(page.getByTestId('decision-view')).toHaveAttribute('data-view', 'buy')
     await expectBuyRows(page, room)
+    // Every container that can clip the buy button holds all of it. (Said in px, so a failure
+    // names the box and by how much, where a viewport ratio alone does not.)
+    expect(await clippedBy(page, '[data-testid="end-turn-button"]')).toEqual([])
     await expect(page.getByTestId('end-turn-button')).toBeInViewport({ ratio: 1 })
     await expect(page.getByTestId('purchase-cash-after')).toBeInViewport({ ratio: 1 })
     await expectNoScroll(page, ['end-turn-button'])
@@ -193,6 +196,9 @@ for (const vp of [SIZES[0], { label: '390x675', width: 390, height: 675 }, SIZES
     expect(Object.keys(room.fixture.expect.active_chains)).toHaveLength(7)
     await expect(page.getByTestId('decision-view')).toHaveAttribute('data-view', 'buy')
     await expectBuyRows(page, room)
+    // Every container that can clip the buy button holds all of it. (Said in px, so a failure
+    // names the box and by how much, where a viewport ratio alone does not.)
+    expect(await clippedBy(page, '[data-testid="end-turn-button"]')).toEqual([])
     await expect(page.getByTestId('end-turn-button')).toBeInViewport({ ratio: 1 })
     await expectNoScroll(page, ['end-turn-button'])
     // Every chain's row, whole and not under the pinned footer, with the whole board (BL-017).
@@ -563,4 +569,52 @@ for (const vp of PHONES) {
     await line.click()
     await expect(panel.getByTestId('merger-result')).toHaveCount(0)
   })
+}
+
+/** The containers (overflow other than visible, and the viewport) that cut off part of `sel`. */
+async function clippedBy(page: Page, sel: string): Promise<string[]> {
+  return page.evaluate((selector) => {
+    const el = document.querySelector(selector)
+    if (!el) return ['not found']
+    const r = el.getBoundingClientRect()
+    const out: string[] = []
+    const check = (
+      name: string,
+      b: { left: number; top: number; right: number; bottom: number }
+    ) => {
+      const cut = [
+        ['left', b.left - r.left],
+        ['top', b.top - r.top],
+        ['right', r.right - b.right],
+        ['bottom', r.bottom - b.bottom],
+      ].filter(([, d]) => (d as number) > 0)
+      if (cut.length)
+        out.push(
+          `${name} cuts ${cut.map(([s, d]) => `${s} ${(d as number).toFixed(4)}px`).join(', ')}`
+        )
+    }
+    for (let p = el.parentElement; p; p = p.parentElement) {
+      const cs = getComputedStyle(p)
+      if (cs.overflowX === 'visible' && cs.overflowY === 'visible') continue
+      // The clip box in exact pixels: client sizes are whole numbers, the box is not.
+      const b = p.getBoundingClientRect()
+      const bw = (side: string) => parseFloat(cs.getPropertyValue(`border-${side}-width`)) || 0
+      const barX = p.offsetWidth - p.clientWidth - bw('left') - bw('right')
+      const barY = p.offsetHeight - p.clientHeight - bw('top') - bw('bottom')
+      const name = `${p.getAttribute('data-testid') ?? p.tagName.toLowerCase()}.${p.className}`
+      check(`${name} (scroll ${p.scrollLeft},${p.scrollTop})`, {
+        left: b.left + bw('left'),
+        top: b.top + bw('top'),
+        right: b.right - bw('right') - barX,
+        bottom: b.bottom - bw('bottom') - barY,
+      })
+    }
+    check('viewport', {
+      left: 0,
+      top: 0,
+      right: document.documentElement.clientWidth,
+      bottom: window.innerHeight,
+    })
+    return out.length ? [`button ${r.left},${r.top},${r.width}x${r.height}`, ...out] : []
+  }, sel)
 }
