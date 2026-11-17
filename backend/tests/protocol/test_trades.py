@@ -208,7 +208,9 @@ def test_bot_refuses_face_value_for_its_majority_and_takes_a_fair_price(app_clie
     client = app_client
     code, me = create_room(client, "Ann")
     bots = {add_seat(client, code, "bot")["player_id"] for _ in range(2)}
-    configure(client, code, 5)
+    configure(
+        client, code, 2
+    )  # a deal where a bot leads a chain the human can afford (bot v3+)
 
     def target(state):
         """(bot, chain, shares, list value, bonuses) the human can pay for."""

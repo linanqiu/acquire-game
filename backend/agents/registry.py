@@ -62,7 +62,26 @@ def catalog() -> list[dict]:
     entries.extend(_llm_entries())
     if test_mode():
         entries.append(dict(SCRIPTED_ENTRY))
+        entries.extend(_bot_version_entries())
     return entries
+
+
+def _bot_version_entries() -> list[dict]:
+    """Test mode: every bot generation other than the default, as "bot:vN"
+    (agents/bot_versions.py), so a journey can seat a given generation."""
+    from agents.bot_versions import DEFAULT_VERSION, VERSIONS
+
+    return [
+        {
+            "id": f"bot:{v}",
+            "kind": "bot",
+            "label": f"Bot {v}",
+            "description": f"Test mode: rules-based bot generation {v}. {p.summary}",
+            "available": True,
+        }
+        for v, p in VERSIONS.items()
+        if v != DEFAULT_VERSION
+    ]
 
 
 def entry(agent_id: str) -> dict | None:
@@ -77,9 +96,14 @@ def create(agent_id: str, *, name: str, **opts: Any):
         UnknownAgentError: unknown id (including ``scripted`` outside test mode)
         UnavailableAgentError: known but not available
     """
-    if agent_id == "bot":
-        # ``seed``: the bot's RNG seed; defaults to its name.
-        return HeuristicAgent(name=name, seed=opts.get("seed"))
+    if agent_id == "bot" or agent_id.startswith("bot:"):
+        # ``seed``: the bot's RNG seed; defaults to its name. "bot:v1" etc.
+        # pick a bot generation (agents/bot_versions.py; default: the best).
+        version = agent_id.split(":", 1)[1] if ":" in agent_id else opts.get("version")
+        try:
+            return HeuristicAgent(name=name, seed=opts.get("seed"), version=version)
+        except ValueError as e:
+            raise UnknownAgentError(agent_id) from e
     if agent_id == "scripted":
         if not test_mode():
             raise UnknownAgentError(agent_id)

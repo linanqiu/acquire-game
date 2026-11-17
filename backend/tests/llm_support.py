@@ -42,7 +42,9 @@ def _played(seed: int, min_turns: int, players: int) -> Game:
             f"p{i + 1}", ["Alice", "Bob", "Cara", "Dan", "Eve", "Finn"][i], is_bot=True
         )
     g.start_game()
-    table = HeuristicTable(g)
+    # Bot generation v1: the hand-checked numbers in the prompt tests belong
+    # to the position v1 bots reach (agents/bot_versions.py).
+    table = HeuristicTable(g, version="v1")
     turns = 0
     while turns < 400:
         pid = g.get_current_player_id()

@@ -17,11 +17,14 @@ from __future__ import annotations
 import random
 
 from agents.base import DecisionContext
+from agents.bot_rules import choose_buys_position, choose_disposition_position
+from agents.bot_versions import get_policy
 from game.board import Board, TileState
 from game.bot import Bot
 from game.hotel import Hotel
 from game.player import Player
 from game.ruleset import default_ruleset, ruleset_from_state
+from game.tile_value import table_from_parts
 
 
 def _rebuild(ctx: DecisionContext) -> tuple[Board, Hotel, Player]:
@@ -55,6 +58,41 @@ def _rebuild(ctx: DecisionContext) -> tuple[Board, Hotel, Player]:
     return board, hotel, player
 
 
+def _table_players(ctx: DecisionContext, me: Player) -> list[Player]:
+    """Every seat's public cash and shares, in seat order (``me`` for the
+    viewer), for the tile valuation."""
+    rs = ruleset_from_state(ctx.state)
+    out = []
+    for p in ctx.state.get("players", []):
+        pid = p.get("player_id")
+        if pid == ctx.player_id:
+            out.append(me)
+            continue
+        other = Player(pid, p.get("name", ""), rs)
+        other._money = int(p.get("money", 0))
+        for chain, n in (p.get("stocks") or {}).items():
+            if chain in other._stocks:
+                other._stocks[chain] = int(n)
+        out.append(other)
+    return out if any(p is me for p in out) else [me, *out]
+
+
+# "medium" varies its tile only among tiles worth within this much (money) of
+# the best one, and never plays a negative tile while a non-negative one exists.
+MEDIUM_TILE_MARGIN = 100
+
+
+def pick_tile(scored: list[tuple], agent: HeuristicAgent):
+    """``scored``: ``(score, index, tile)`` best first. "hard" takes the best;
+    "medium" a random one of the near-best (see ``MEDIUM_TILE_MARGIN``); when
+    every tile is harmful both take the least harmful."""
+    best = scored[0][0]
+    if agent.difficulty != "medium" or best < 0:
+        return scored[0][2]
+    near = [s for s in scored if s[0] >= best - MEDIUM_TILE_MARGIN and s[0] >= 0]
+    return agent.rng.choice(near)[2]
+
+
 def _is_winning(ctx: DecisionContext) -> bool:
     """True when the calculator says this seat would win if the game ended now."""
     for p in (ctx.calc or {}).get("players", []):
@@ -73,10 +111,14 @@ class HeuristicAgent:
         name: str = "Bot",
         difficulty: str = "medium",
         seed: int | str | None = None,
+        version: str | None = None,
     ):
         self.name = name
         self.difficulty = difficulty
         self.rng = random.Random(seed if seed is not None else name)
+        # The bot generation (agents/bot_versions.py); default: the best one.
+        self.policy = get_policy(version)
+        self.version = self.policy.version
 
     async def decide(self, ctx: DecisionContext) -> dict:
         return self.choose(ctx)
@@ -100,7 +142,24 @@ class HeuristicAgent:
             return self._place_tile(ctx, bot, board, hotel)
         if kind == "found_chain":
             chains = list(legal.get("chains", []))
-            choice = bot.choose_chain_to_found(chains, board) if chains else None
+            if (
+                chains
+                and self.policy.found in ("dearest", "cheapest")
+                and (self.difficulty != "easy")
+            ):
+                # Found rule of later generations: always the dearest (or the
+                # cheapest) tier available; ruleset order breaks ties.
+                rank = board.ruleset.tier_rank
+                sign = 1 if self.policy.found == "dearest" else -1
+                choice = max(
+                    chains,
+                    key=lambda c: (
+                        sign * rank(board.ruleset.chain(c).tier),
+                        -chains.index(c),
+                    ),
+                )
+            else:
+                choice = bot.choose_chain_to_found(chains, board) if chains else None
             if choice not in chains:
                 choice = chains[0] if chains else None
             return {"action": "found_chain", "chain": choice}
@@ -140,15 +199,30 @@ class HeuristicAgent:
         tiles = [board.tile_from_string(t) for t in options]
         if self.difficulty == "easy":
             return {"action": "place_tile", "tile": str(self.rng.choice(tiles))}
+        if self.policy.tile == "legacy":
+            scored = sorted(
+                (
+                    (bot._score_tile_v1(t, board, hotel), i, t)
+                    for i, t in enumerate(tiles)
+                ),
+                key=lambda x: (-x[0], x[1]),
+            )
+            if self.difficulty == "medium":
+                return {
+                    "action": "place_tile",
+                    "tile": str(self.rng.choice(scored[:3])[2]),
+                }
+            return {"action": "place_tile", "tile": str(scored[0][2])}
+        players = _table_players(ctx, bot.player)
+        tile_params = self.policy.weights.get("tile")
         scored = sorted(
-            ((bot._score_tile(t, board, hotel), i, t) for i, t in enumerate(tiles)),
+            (
+                (bot._score_tile(t, board, hotel, players, tile_params), i, t)
+                for i, t in enumerate(tiles)
+            ),
             key=lambda x: (-x[0], x[1]),
         )
-        if self.difficulty == "medium":
-            pick = self.rng.choice(scored[:3])[2]
-        else:
-            pick = scored[0][2]
-        return {"action": "place_tile", "tile": str(pick)}
+        return {"action": "place_tile", "tile": str(pick_tile(scored, self))}
 
     def _disposition(self, ctx, bot: Bot, board: Board, hotel: Hotel) -> dict:
         legal = ctx.legal
@@ -156,8 +230,21 @@ class HeuristicAgent:
         survivor = legal.get("surviving_chain")
         count = int(legal.get("stock_count") or 0)
         max_trade = int(legal.get("max_trade") or 0)
+        info = (ctx.calc or {}).get("disposition") or {}
         try:
-            d = bot.choose_stock_disposition(defunct, survivor, count, board, hotel)
+            if (
+                self.policy.disposition == "position"
+                and self.difficulty != "easy"
+                and info.get("defunct") == defunct
+            ):
+                table = table_from_parts(
+                    board, hotel, _table_players(ctx, bot.player), board.ruleset
+                )
+                d = choose_disposition_position(
+                    table, ctx.player_id, info, board.ruleset.merger_trade_ratio
+                )
+            else:
+                d = bot.choose_stock_disposition(defunct, survivor, count, board, hotel)
             sell, trade = int(d.get("sell", 0)), int(d.get("trade", 0))
         except Exception:  # noqa: BLE001 - fall back to a safe answer
             sell, trade = count, 0
@@ -180,6 +267,12 @@ class HeuristicAgent:
         max_total = int(
             legal.get("max_total", default_ruleset().max_stock_purchases_per_turn)
         )
+        if self.policy.buy != "legacy" and self.difficulty != "easy":
+            counts = self._buy_position(
+                ctx, bot, board, hotel, options, money, max_total
+            )
+            if counts is not None:
+                return {"action": "buy_stocks", "purchases": counts}
         wanted = bot.choose_stocks_to_buy(board, hotel, max_total)
         counts: dict[str, int] = {}
         spent = 0
@@ -194,6 +287,29 @@ class HeuristicAgent:
             counts[chain] = counts.get(chain, 0) + 1
             spent += opt["price"]
         return {"action": "buy_stocks", "purchases": counts}
+
+    def _buy_position(self, ctx, bot, board, hotel, options, money, max_total):
+        """Buy rule "position" (v3+, agents/bot_rules.py): the affordable
+        purchase that gains most in bonus positions; ``None`` when nothing
+        gains at least ``buy_min_gain`` (the legacy rule then buys)."""
+        p = self.policy
+        table = table_from_parts(
+            board, hotel, _table_players(ctx, bot.player), board.ruleset
+        )
+        counts, value = choose_buys_position(
+            table,
+            ctx.player_id,
+            options,
+            money - int(p.w("cash_reserve", 0)),
+            max_total,
+            cash_cost=p.w("cash_cost", 0.0),
+            defend=p.w("defend", 0.0),
+            size_ahead=int(p.w("size_ahead", 0)),
+        )
+        if not counts or value < p.w("buy_min_gain", 1.0):
+            # v3+: fall back to v1's buying, or buy nothing ("fallback": "none")
+            return {} if p.weights.get("fallback") == "none" else None
+        return counts
 
     def _trade_response(self, ctx: DecisionContext) -> dict:
         """Accept only a legal trade that improves this seat's position.
