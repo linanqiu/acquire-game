@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 
 from game.decisions import (
     BUY_STOCKS,
+    CHOOSE_DEFUNCT_ORDER,
     CHOOSE_SURVIVOR,
     FOUND_CHAIN,
     PLACE_TILE,
@@ -183,6 +184,21 @@ def _merge_chain_count(ctx: Ctx) -> int:
 def _tied_human_holds(ctx: Ctx) -> bool:
     return ctx.flow_is(CHOOSE_SURVIVOR) and any(
         _human_hold(ctx, c) > 0 for c in ctx.flow.context["tied_chains"]
+    )
+
+
+def _order_tied(ctx: Ctx) -> list[str]:
+    return ctx.flow.context["tied_chains"] if ctx.flow_is(CHOOSE_DEFUNCT_ORDER) else []
+
+
+def _order_human_holds(ctx: Ctx) -> bool:
+    return any(_human_hold(ctx, c) > 0 for c in _order_tied(ctx))
+
+
+def _order_every_chain_has_a_holder(ctx: Ctx) -> bool:
+    tied = _order_tied(ctx)
+    return bool(tied) and all(
+        any(p.get_stock_count(c) > 0 for p in ctx.game.players) for c in tied
     )
 
 
@@ -460,6 +476,19 @@ FIXTURES: list[Fixture] = [
         [
             req("human_choose_survivor", lambda c: c.flow_is(CHOOSE_SURVIVOR)),
             ideal("human_holds_tied_stock", _tied_human_holds),
+        ],
+    ),
+    Fixture(
+        "merger-order-tie",
+        "The human's tile merged three chains; the two defunct chains are the "
+        "same size and the human must choose which is absorbed first.",
+        (4, 3, 5),
+        [
+            req(
+                "human_choose_defunct_order", lambda c: c.flow_is(CHOOSE_DEFUNCT_ORDER)
+            ),
+            ideal("human_holds_tied_stock", _order_human_holds),
+            ideal("every_tied_chain_has_a_holder", _order_every_chain_has_a_holder),
         ],
     ),
     Fixture(

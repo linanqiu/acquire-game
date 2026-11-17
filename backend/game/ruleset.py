@@ -26,7 +26,7 @@ File format (all keys required, unknown keys rejected)::
       ],
       "chains": [                            # order = display / state order
         {"id": "sandpiper", "name": "Sandpiper", "tier": "cheap",
-         "color": "#CBBA2F", "abbreviation": "SP"}
+         "color": "#B99E42", "abbreviation": "SP"}
       ],
       "bonuses": {"majority_multiplier": 10, "minority_multiplier": 5,
                   "tie_round_up_to": 100},

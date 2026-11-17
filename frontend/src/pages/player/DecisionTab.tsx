@@ -12,6 +12,7 @@ import { useRules } from '../../ruleset/useRules'
 import type { useMergerResult } from '../../hooks/useMergerResult'
 import type { ChainId, GameStateMessage, MergerRecord } from '../../types/api'
 import { BuyPanel, type Purchases } from './BuyPanel'
+import { MergerOrderChoice } from './MergerOrderChoice'
 import styles from './DecisionTab.module.css'
 
 type HotelChain = GameStateMessage['hotel']['chains'][number]
@@ -31,6 +32,7 @@ export interface DecisionTabProps {
   standings?: ReactNode
   pendingChainChoice: ChainId[] | null
   pendingMergerChoice: ChainId[] | null
+  pendingMergerOrder?: { tiedChains: ChainId[]; survivingChain: ChainId } | null
   pendingStockDisposition: {
     defunctChain: ChainId
     survivingChain: ChainId
@@ -42,6 +44,7 @@ export interface DecisionTabProps {
   loading: boolean
   onFound: (chain: ChainId) => void
   onSurvivor: (chain: ChainId) => void
+  onMergerOrder?: (chain: ChainId) => void
   onDispose: (defunct: ChainId, sell: number, trade: number, hold: number) => void
   onBuy: (purchases: Purchases) => void
   onDeclareEndGame: () => void
@@ -90,6 +93,19 @@ export function DecisionTab(p: DecisionTabProps) {
           />
           <ChainFacts chains={p.pendingMergerChoice ?? []} gameState={gameState} myId={myId} />
         </section>
+      )
+      break
+    case 'order':
+      body = p.pendingMergerOrder && (
+        <MergerOrderChoice
+          tiedChains={p.pendingMergerOrder.tiedChains}
+          survivingChain={p.pendingMergerOrder.survivingChain}
+          merger={live}
+          gameState={gameState}
+          myId={myId}
+          disabled={p.loading}
+          onChoose={(chain) => p.onMergerOrder?.(chain)}
+        />
       )
       break
     case 'found':

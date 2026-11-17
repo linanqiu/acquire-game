@@ -442,7 +442,7 @@ def test_buy_prompt_shows_open_offers_between_other_players(game):
 def test_rules_text_says_offers_are_public():
     s = build_system_prompt()
     assert "Offers are public" in s and "competing offer" in s
-    assert PROMPT_BUILDER_VERSION == 9
+    assert PROMPT_BUILDER_VERSION == 10
 
 
 def test_playbook_teaches_position_aware_trading():

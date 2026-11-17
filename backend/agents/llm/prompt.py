@@ -146,7 +146,7 @@ Size {safe_size}+: {a_chain} with {safe_size} or more tiles is {safe}. It can ne
 
 {Mergers} (resolved in this order)
 1. The {chain} with the most tiles survives; the others are defunct. If exactly one touched {chain} is {safe} it survives whatever the sizes. If the largest {chains} tie, the player who placed the tile chooses the survivor.
-2. Defunct {chains} are resolved one at a time, largest first. For each defunct {chain}:
+2. Defunct {chains} are resolved one at a time, largest first. When defunct {chains} are the same size, the player who placed the tile chooses which of them is resolved next. For each defunct {chain}:
    a. Bonuses are paid by the bank immediately, based on the defunct {chain}'s size before the {merger} (table below). The player with the most {shares} in it gets the majority bonus, the player with the second most gets the minority bonus. A sole shareholder gets both. If players tie for most {shares}, majority + minority are pooled and split equally among them (rounded UP to the next {round_to}) and no minority bonus is paid. If players tie for second most, the minority bonus is split equally among them (rounded up to {round_to}).
    b. Then every player holding {shares} of that defunct {chain} decides, starting with the player who placed the tile and continuing clockwise, how to split their {shares} among: SELL (bank pays the defunct {chain}'s price, from its size before the {merger}), TRADE ({ratio_word} defunct {shares} for one {share} of the survivor, {trade_multiple} only, limited by the survivor {shares} still in the bank) and HOLD (keep them; a defunct {chain}'s {shares} are worth nothing unless that {chain} is founded again later). sell + trade + hold must equal the number of {shares} held.
 3. The surviving {chain} absorbs all tiles (including the {merger} tile and any lone tiles touching it), so its size and price jump. The defunct {chains} leave the board and can be founded again.
@@ -177,6 +177,7 @@ Action objects (use only those allowed by the legal options; always name a {chai
 - {{"action":"place_tile","tile":"{example_tile}"}}
 - {{"action":"found_chain","chain":"{ex1}"}}
 - {{"action":"merger_choice","surviving_chain":"{ex1}"}}   (tied {merger}: you pick the survivor)
+- {{"action":"merger_order","defunct_chain":"{ex0}"}}   (same-size defunct {chains}: you pick which is resolved next)
 - {{"action":"merger_disposition","defunct_chain":"{ex0}","disposition":{{"sell":2,"trade":{ex_trade},"hold":1}}}}
 - {{"action":"buy_stocks","purchases":{{"{ex1}":2,"{ex0}":1}}}}   ({{}} buys nothing; at most {max_buy} {shares} in total)
 - {{"action":"end_turn"}}   (required after the buy step)
@@ -201,6 +202,7 @@ Checklists (answer from the calculator lines)
 - Place tile: Which tile pays me most now or later? Founding gives {founder_text} and a new race you can lead cheaply; expanding a {chain} I lead raises its bonuses; {a_merger} pays now: read "bonuses paid to all". Fire it when it pays me at least as much as the rival I most need to beat (an equal split with one rival still gains on everyone else), or when it ends a race I would lose; a bonus in hand beats a bigger one a rival may take from me. Before placing a merging tile, check who collects: skip it when it mainly pays rivals, and never fire one marked "pays only rivals" unless every other tile is worse (then play the least harmful). A lone tile is a fine waiting move. Do not grow a rival's {chain} to {safe} or hand a rival a big {merger} payout.
 - Found: Pick a {chain} I can lead with my cash: a higher tier means bigger bonuses but dearer {shares}; with little cash pick a cheap one.
 - Survivor (tie): Keep as survivor the {chain} where my stake matters longer; the defunct one pays its bonuses now: check who they pay.
+- {Merger} order (tie): The {chain} resolved first trades first, and the survivor's bank {shares} can run out: put first the one whose {shares} I want to trade, or the one my rivals hold least.
 - {Merger} {shares}: Compare the SELL / TRADE / HOLD lines. Trade when it is worth more at the post-{merger} price, or when the extra survivor {shares} win or protect a bonus position there. Sell when cash wins a race this turn. Hold only when that {chain} is likely to be founded again and you would lead it.
 - Trade offer: Value a trade by what it does to majority/minority positions and coming {merger} payouts for BOTH sides, not by list price (read the "Counting bonus positions" line). Never sell {a_share} that holds a bonus position for its list price: the price must cover the bonus given up. Ask a premium when the trade hands the other side a position, most of all in {a_chain} about to be absorbed. A trade that helps the other side more than me is a bad trade, worst when they lead. {Shares} the bank has run out of are worth extra; a defunct {chain}'s far less. Rules-based opponents price this in too. Proposing is optional.
 - Declare end: Am I projected rank 1 with a lead that the next round cannot erase? Then declare. If I am behind, play on and use the turns to win races.
@@ -283,14 +285,16 @@ def build_system_prompt(ruleset: Ruleset | None = None) -> str:
 # in a way that could change play. The system prompt text is hashed in
 # automatically. Benchmark results are only comparable within one
 # ``prompt_version`` (see docs/ai/benchmarking.md).
-PROMPT_BUILDER_VERSION = 9  # 2: table talk; 3: table voice; 4: natural, low-key talk;
+PROMPT_BUILDER_VERSION = 10  # 2: table talk; 3: table voice; 4: natural, low-key talk;
 # 5: strategy playbook + share race, merger payouts for all, disposition figures;
 # 6: trade offers are public (rules text, open offers between other players)
 # 7: position-aware trade numbers in the offer + trade paragraph in the playbook
 # 8: cost (docs/ai/cost.md): static per-kind answer schema, compact event log,
 #    three notes, chains off the board on one line, purchase counts with the
 #    same outcome on one line, shorter player lines
-# 9: merging tiles that pay only rivals are marked "pays only rivals"; playbook
+# 9: merger order: the tile placer picks which same-size defunct chain is
+#    resolved next (rules text, playbook line, action, decision facts)
+# 10: merging tiles that pay only rivals are marked "pays only rivals"; playbook
 #    tile line: check who collects before firing (docs/ai/bot-tiles.md)
 
 
@@ -438,6 +442,12 @@ def compact_event(e: Any, names: dict[str, str], max_chars: int = 220) -> str | 
             return _clip(
                 f"{who} placed {e.get('tile')}: MERGER, {surv} "
                 f"({sizes.get(surv, '?')}) absorbs {gone}",
+                max_chars,
+            )
+        if typ == "defunct_order_chosen":
+            return _clip(
+                f"{who} chose {e.get('chain')} to be resolved next (same size: "
+                f"{', '.join(e.get('tied_chains') or [])})",
                 max_chars,
             )
         if typ == "bonuses_paid":
@@ -1008,10 +1018,47 @@ def render_disposition(ctx, calc: dict) -> str:
     return "\n".join(lines)
 
 
+def render_merger_order(ctx, calc: dict) -> str:
+    """Facts for ``choose_defunct_order``: each same-size defunct chain with its
+    price, bonuses and who gets them, and the viewer's own shares."""
+    chains = calc.get("chains") or {}
+    survivor = (getattr(ctx.decision, "context", None) or {}).get("surviving_chain")
+    bank = (chains.get(survivor) or {}).get("available_stock")
+    ratio = ruleset_from_state(ctx.state).merger_trade_ratio
+    lines = [
+        f"These defunct chains are the same size; {survivor} absorbs them all. "
+        f"Pick the one resolved next: its bonuses are paid and its holders sell, "
+        f"trade ({ratio} for 1 {survivor}) or hold before the other's. "
+        f"{survivor} has {bank} shares left in the bank for trades, and trades for "
+        f"the chain resolved first use them up first."
+    ]
+    for name in ctx.legal.get("chains") or []:
+        c = chains.get(name) or {}
+        pay = c.get("payouts") or {}
+        pay_txt = ", ".join(
+            f"{_pname(calc, pid)} {money(b['total'])}" for pid, b in pay.items()
+        )
+        mine = (c.get("viewer") or {}).get("shares", 0)
+        own = (
+            f"You hold {mine} (sell all: {money(mine * (c.get('price') or 0))}; "
+            f"trade at most {mine - mine % ratio} for {mine // ratio} {survivor})."
+            if mine
+            else "You hold none."
+        )
+        lines.append(
+            f"- {name}: {c.get('size')} tiles, {money(c.get('price'))}/share. "
+            f"Bonuses: majority {money(c.get('majority_bonus'))} / minority "
+            f"{money(c.get('minority_bonus'))}, paid to: {pay_txt or 'nobody'}. "
+            f"Holders: {_holders(c)}. {own}"
+        )
+    return "\n".join(lines)
+
+
 _DECISION_TEXT = {
     "place_tile": "Choose which tile from your hand to place (or take another action if the legal options offer one).",
     "found_chain": "Your tile founded a new chain. Choose which available chain to found (you receive the founder's free shares).",
     "choose_survivor": "Your tile merged chains of equal size. Choose which chain survives.",
+    "choose_defunct_order": "Your merger has defunct chains of equal size. Choose which of them is resolved next.",
     "stock_disposition": "Decide what to do with your shares in the defunct chain.",
     "buy_stocks": "Buy step. Buy up to max_total shares (see the legal options; or none), "
     "then you must end your turn (or declare the game over, if allowed).",
@@ -1115,6 +1162,8 @@ def _build_user_prompt(ctx, notes: Any, budget: PromptBudget | None) -> str:
                 "# Open offers between other players (public, values at current "
                 "prices; you may offer either side a better deal)\n" + others
             )
+    elif kind == "choose_defunct_order":
+        parts.append("# Merger order\n" + render_merger_order(ctx, calc))
     elif kind == "stock_disposition":
         parts.append("# Merger numbers\n" + render_disposition(ctx, calc))
     elif kind == "trade_response":

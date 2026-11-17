@@ -85,4 +85,4 @@ from `python -m bench.bot_tournament v2 v1 --seeds 100001-100060`. See
 - The survivor choice on a tie is still the old rule (most own shares); the tile value assumes the
   best survivor for the bot, which is usually the same chain.
 - Rules-based seats only. LLM seats get the reasoning in the strategy playbook and the
-  "pays only rivals" mark on merging tiles (prompt v9, see [strategy-playbook.md](strategy-playbook.md)).
+  "pays only rivals" mark on merging tiles (prompt v10, see [strategy-playbook.md](strategy-playbook.md)).

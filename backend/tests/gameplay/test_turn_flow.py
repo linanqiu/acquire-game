@@ -76,6 +76,11 @@ def _never_declaring_answer(game):
             "action": "merger_choice",
             "surviving_chain": legal["chains"][0],
         }
+    if d.kind == "choose_defunct_order":
+        return d.player_id, {
+            "action": "merger_order",
+            "defunct_chain": legal["chains"][0],
+        }
     if d.kind == "stock_disposition":
         return d.player_id, {
             "action": "merger_disposition",

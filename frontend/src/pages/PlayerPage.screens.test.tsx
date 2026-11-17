@@ -67,6 +67,7 @@ describe('which screen each real game state shows', () => {
     'end-game-available': ['place', 'PLACE A TILE'],
     'found-chain-choice': ['found', 'CHOOSE A HOTEL CHAIN'],
     'merger-survivor-tie': ['survivor', 'CHOOSE THE SURVIVING HOTEL CHAIN'],
+    'merger-order-tie': ['order', 'CHOOSE THE MERGER ORDER'],
     'disposition-human-first': ['disposition', 'DISPOSE YOUR SHARES'],
     // Not my turn, but I am the one the table waits on.
     'disposition-trade-limited': ['disposition', 'DISPOSE YOUR SHARES'],
@@ -88,6 +89,7 @@ describe('which screen each real game state shows', () => {
     place: 'placement-actions',
     found: 'chain-selector',
     survivor: 'chain-selector',
+    order: 'merger-order',
     disposition: 'merger-disposition',
     buy: 'end-turn-button',
     merger: 'waiting-message',

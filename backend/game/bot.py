@@ -166,6 +166,37 @@ class Bot:
 
         return scored_chains[0][1]
 
+    def choose_defunct_order(
+        self,
+        tied_chains: list[str],
+        own_bonus: dict[str, int] | None = None,
+    ) -> str:
+        """Choose which same-size defunct chain is resolved next.
+
+        The order only matters for the survivor's bank stock: holders of the
+        chain resolved first trade 2:1 first. So: the chain this bot holds the
+        most shares of, then the one that pays it the larger bonus, then the
+        listed (board) order. Deterministic at every difficulty (no RNG).
+
+        Args:
+            tied_chains: The tied defunct chains, in board order
+            own_bonus: This bot's merger bonus per chain, when known
+
+        Returns:
+            Name of the chain to resolve next
+        """
+        if not tied_chains:
+            raise ValueError("No chains to choose from")
+        own_bonus = own_bonus or {}
+        return min(
+            tied_chains,
+            key=lambda c: (
+                -self.player.get_stock_count(c),
+                -own_bonus.get(c, 0),
+                tied_chains.index(c),
+            ),
+        )
+
     def choose_stock_disposition(
         self,
         defunct_chain: str,

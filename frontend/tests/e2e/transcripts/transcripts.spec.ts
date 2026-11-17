@@ -53,6 +53,7 @@ interface DriveResult {
 async function drive(page: Page, opts: { stopAtTile?: number; tilesPlaced?: number }) {
   const over = page.getByTestId('game-over')
   const chainBtn = page.getByTestId('chain-selector').locator('button:not([disabled])')
+  const orderBtn = page.getByTestId('merger-order').getByRole('button')
   const confirm = page.getByTestId('confirm-disposition')
   const endGame = page.getByTestId('end-game-button')
   const endTurn = page.locator('[data-testid="end-turn-button"]:not([disabled])')
@@ -62,6 +63,7 @@ async function drive(page: Page, opts: { stopAtTile?: number; tilesPlaced?: numb
     [
       '[data-testid="game-over"]',
       '[data-testid="chain-selector"] button:not([disabled])',
+      '[data-testid="merger-order"] button',
       '[data-testid="confirm-disposition"]',
       '[data-testid="end-turn-button"]:not([disabled])',
       '[data-testid="place-tile-button"]',
@@ -80,6 +82,12 @@ async function drive(page: Page, opts: { stopAtTile?: number; tilesPlaced?: numb
       log(`[human] choose chain ${label}`)
       await chainBtn.first().click({ timeout: 5000 })
       await expect(page.getByTestId('chain-selector')).toBeHidden({ timeout: 10_000 })
+      continue
+    }
+    if (await orderBtn.first().isVisible()) {
+      log('[human] choose the merger order (first offered chain)')
+      await orderBtn.first().click({ timeout: 5000 })
+      await expect(page.getByTestId('merger-order')).toBeHidden({ timeout: 10_000 })
       continue
     }
     if (await confirm.isVisible()) {
