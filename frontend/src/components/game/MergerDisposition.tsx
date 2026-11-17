@@ -159,6 +159,7 @@ export function MergerDisposition({
           )}
         </div>
         <Button
+          variant="accent"
           fullWidth
           onClick={() => onConfirm(sellCount, tradeCount, holdCount)}
           data-testid="confirm-disposition"

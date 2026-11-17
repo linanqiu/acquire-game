@@ -3,7 +3,8 @@ import styles from './Button.module.css'
 import { Spinner } from './Spinner'
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger'
+  /** `accent`: the one main action of a screen (place the tile, confirm a decision). */
+  variant?: 'primary' | 'accent' | 'secondary' | 'ghost' | 'danger'
   size?: 'sm' | 'md' | 'lg'
   loading?: boolean
   fullWidth?: boolean

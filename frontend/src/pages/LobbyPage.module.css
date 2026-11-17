@@ -97,7 +97,7 @@
 
 .meta {
   margin: var(--space-4) 0 0;
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
   font-size: var(--text-sm);
   color: var(--text-secondary);
   text-align: center;

@@ -31,6 +31,74 @@ describe('Standings: every player net worth and rank from the server', () => {
       .find((r) => r.getAttribute('data-player-id') === view.human)!
     expect(mine).toHaveTextContent('YOU')
   })
+
+  it('a row is one line of cells: name, one cell per chain, cash, worth with the rank (BL-014)', () => {
+    const view = snapshot('three-player-midgame')
+    const state = view.player.find((m) => m.type === 'game_state') as GameStateMessage
+    render(<Standings gameState={state} myPlayerId={view.human} />)
+    const chains = state.ruleset!.chains.length
+    for (const row of screen.getAllByTestId('player-row')) {
+      const id = row.getAttribute('data-player-id')!
+      expect(row.children).toHaveLength(chains + 3)
+      // The rank is in the worth cell, in front of the amount; the cash cell holds the cash.
+      const worth = row.lastElementChild as HTMLElement
+      expect(worth).toContainElement(screen.getByTestId(`player-rank-${id}`))
+      expect(worth).toContainElement(screen.getByTestId(`player-networth-${id}`))
+      expect(worth.textContent).toMatch(/^=?#\d+ \$/)
+      // What the row no longer prints is still said: cash + shares, as the cells' tooltip.
+      expect(worth.title).toContain(money(state.players[id].stock_value!))
+    }
+  })
+
+  it('the footer (tiles, price, bank) is there with chains on the board, and gone with none', () => {
+    const mid = snapshot('three-player-midgame')
+    const state = mid.player.find((m) => m.type === 'game_state') as GameStateMessage
+    const first = render(<Standings gameState={state} />)
+    expect(state.hotel.active_chains.length).toBeGreaterThan(0)
+    for (const id of ['matrix-size', 'matrix-price', 'matrix-bank'])
+      expect(screen.getByTestId(id)).toBeInTheDocument()
+    expect(screen.getByTestId('holdings-matrix')).toHaveAttribute('data-footer', 'true')
+    first.unmount()
+
+    const opening = snapshot('opening-place-tile')
+    const start = opening.player.find((m) => m.type === 'game_state') as GameStateMessage
+    expect(start.hotel.active_chains).toEqual([])
+    render(<Standings gameState={start} />)
+    for (const id of ['matrix-size', 'matrix-price', 'matrix-bank'])
+      expect(screen.queryByTestId(id)).not.toBeInTheDocument()
+    expect(screen.getByTestId('holdings-matrix')).toHaveAttribute('data-footer', 'false')
+    // Every chain keeps its column all the same.
+    expect(screen.getAllByTestId(/^matrix-chain-/)).toHaveLength(start.ruleset!.chains.length)
+  })
+
+  it('an AI seat prints its first name; the whole name stays in the row and the tooltip', () => {
+    const view = snapshot('three-player-midgame')
+    const state = structuredClone(
+      view.player.find((m) => m.type === 'game_state') as GameStateMessage
+    )
+    const other = Object.keys(state.players).find((id) => id !== view.human)!
+    state.players[other] = {
+      ...state.players[other],
+      name: 'Dolly Dollars',
+      kind: 'bot',
+      is_bot: true,
+    }
+    render(<Standings gameState={state} myPlayerId={view.human} />)
+    const row = screen
+      .getAllByTestId('player-row')
+      .find((r) => r.getAttribute('data-player-id') === other)!
+    const name = within(row).getByTestId('player-name')
+    expect(name).toHaveTextContent('Dolly Dollars')
+    expect(name).toHaveAttribute('title', 'Dolly Dollars')
+    expect(name.firstChild?.textContent).toBe('Dolly')
+    // The seat icon is a button in the same line as the name.
+    const badge = within(row).getByRole('button', { name: /bot/i })
+    expect(badge.parentElement).toBe(name.parentElement)
+    fireEvent.click(badge)
+    expect(screen.getByRole('dialog', { name: 'About Dolly Dollars' })).toHaveTextContent(
+      money(state.players[other].stock_value!)
+    )
+  })
 })
 
 describe('ChainTable: majority and minority at a glance', () => {

@@ -190,6 +190,7 @@ export function BuyPanel({
         </div>
         <div className={styles.actions}>
           <Button
+            variant="accent"
             onClick={submit}
             disabled={!isMyTurn || !canAfford || !validPurchase || loading}
             loading={loading}

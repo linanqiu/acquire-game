@@ -18,6 +18,13 @@ export interface SeatKindBadgeProps {
    * with the same accessible name, no popover (a button cannot hold a button).
    */
   interactive?: boolean
+  /** One more line for the popover (the players matrix: the seat's cash and share value). */
+  extra?: string
+  /**
+   * `inline`: a bare 14px icon that sits in a line of text (the players matrix); the button
+   * keeps a thumb-sized hit area around it. Default: the icon on a small tinted disc.
+   */
+  size?: 'default' | 'inline'
 }
 
 /** Small inline icons (no icon library): a robot head for the bot, a spark for an LLM. */
@@ -74,7 +81,8 @@ interface Pos {
 }
 
 /**
- * The kind of an AI seat as one small icon button. Clicking, tapping, Enter or Space opens a
+ * The kind of an AI seat as one small icon button (a bare 14px icon in the players matrix, on a
+ * small tinted disc elsewhere; the hit area is 32px either way). Clicking, tapping, Enter or Space opens a
  * popover saying what the seat is ("AI player · Claude Haiku 5.5", "Reads the table chat";
  * "Rules-based bot · does not chat"); click outside or Escape closes it. The popover is rendered
  * into `document.body` with fixed positioning, clamped to the viewport, so the tab panels and the
@@ -89,6 +97,8 @@ export function SeatKindBadge({
   fallbacks,
   playerName,
   interactive = true,
+  extra,
+  size = 'default',
 }: SeatKindBadgeProps) {
   const seat = { kind, is_bot: isBot, agent_label: agentLabel }
   const resolved = resolveSeatKind(seat)
@@ -98,7 +108,13 @@ export function SeatKindBadge({
   return (
     <>
       {interactive ? (
-        <SeatBadgeButton playerId={playerId} info={info} playerName={playerName} />
+        <SeatBadgeButton
+          playerId={playerId}
+          info={info}
+          playerName={playerName}
+          extra={extra}
+          inline={size === 'inline'}
+        />
       ) : (
         <span
           className={`${styles.badge} ${styles[resolved]} ${styles.static}`}
@@ -131,10 +147,14 @@ function SeatBadgeButton({
   playerId,
   info,
   playerName,
+  extra,
+  inline,
 }: {
   playerId: string
   info: ReturnType<typeof describeSeat>
   playerName?: string
+  extra?: string
+  inline?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<Pos | null>(null)
@@ -201,7 +221,7 @@ function SeatBadgeButton({
       <button
         ref={buttonRef}
         type="button"
-        className={`${styles.badge} ${styles[info.kind]}`}
+        className={`${styles.badge} ${styles[info.kind]} ${inline ? styles.inline : ''}`}
         data-testid={`seat-kind-${playerId}`}
         data-kind={info.kind}
         aria-label={info.label}
@@ -235,6 +255,11 @@ function SeatBadgeButton({
             {playerName && <p className={styles.popName}>{playerName}</p>}
             <p className={styles.popHeadline}>{info.headline}</p>
             {info.detail && <p className={styles.popDetail}>{info.detail}</p>}
+            {extra && (
+              <p className={styles.popExtra} data-testid={`seat-popover-extra-${playerId}`}>
+                {extra}
+              </p>
+            )}
           </div>,
           document.body
         )}

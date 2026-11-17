@@ -102,6 +102,7 @@ export function Board({
                 }
                 state="default"
                 highlighted={isHighlighted || isPlayable}
+                picked={isHighlighted && isEmpty}
                 onClick={canClick && onTileClick ? () => onTileClick(coord) : undefined}
                 size="fluid"
                 join={tileState.state === 'chain' && shape ? joinAttr(shape) : undefined}

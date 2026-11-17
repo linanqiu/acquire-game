@@ -1,7 +1,8 @@
 /**
  * Buyout Typography System
- * A sans-serif for names, labels, chat and body text; monospace (--font-mono) for numbers,
- * coordinates and money. Capitals only on tab labels, the phase line and small section labels.
+ * One system sans-serif for everything, with tabular figures so numbers, coordinates and money
+ * line up (--font-num); monospace (--font-mono) only for codes and raw text. Capitals only on
+ * the phase line, button labels and tiny section labels.
  */
 
 /* System font stacks only (tokens.css): no web font, no request to a font host. */
@@ -18,6 +19,8 @@ body {
   line-height: var(--line-height-normal);
   color: var(--text-primary);
   background-color: var(--bg-primary);
+  /* Every figure lines up: money, counts and coordinates are set in the UI face. */
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

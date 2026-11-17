@@ -36,7 +36,7 @@
   grid-template-columns: minmax(0, 1fr) 3em 4.5em 3em;
   align-items: center;
   column-gap: var(--space-1);
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
   text-align: right;
@@ -109,7 +109,7 @@
 }
 
 .figures {
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
   min-width: 0;

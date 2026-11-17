@@ -10,7 +10,7 @@
   align-items: baseline;
   gap: 3px;
   padding: 0 5px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   background-color: var(--bg-tertiary);
   font-size: var(--text-xs);
   line-height: 1.6;
@@ -19,7 +19,7 @@
 
 .me {
   background-color: transparent;
-  box-shadow: inset 0 0 0 1px var(--text-accent);
+  box-shadow: inset 0 0 0 1px var(--playable-border);
   font-weight: var(--font-medium);
 }
 
@@ -33,7 +33,7 @@
 }
 
 .num {
-  font-family: var(--font-mono);
+  font-family: var(--font-num);
   font-variant-numeric: tabular-nums;
 }
 

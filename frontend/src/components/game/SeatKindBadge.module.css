@@ -1,6 +1,8 @@
 /*
- * Seat kind badge (BL-010): a 22px coloured disc with an icon. The button's hit area is 32x32
- * (thumb-sized) but negative margins keep it from making the row taller or pushing the name.
+ * Seat kind badge (BL-010, BL-014): a small icon in the seat's kind colour, on a 20px tinted
+ * disc (lobby, trade partners) or bare in a line of text (the players matrix, `.inline`). The
+ * button's hit area is 32x32 (thumb-sized); negative margins keep it from making the row taller
+ * or pushing the name.
  */
 .badge {
   --seat-color: var(--text-secondary);
@@ -15,7 +17,7 @@
 button.badge {
   width: 32px;
   height: 32px;
-  margin: -9px -5px; /* takes 14px of line height: never taller than the name */
+  margin: -9px -6px; /* takes 14px of line height: never taller than the name */
   padding: 0;
   border: 0;
   background: transparent;
@@ -24,23 +26,33 @@ button.badge {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* In a line of text: the icon takes 16px of the line, the hit area stays 32px. */
+button.badge.inline {
+  margin: -9px -8px;
+}
+
 .face,
 .static {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   border-radius: var(--radius-full, 999px);
-  border: 1.5px solid var(--seat-color);
-  background-color: rgba(136, 136, 170, 0.18);
-  background-color: color-mix(in srgb, var(--seat-color) 18%, transparent);
+  background-color: rgba(160, 163, 171, 0.14);
+  background-color: color-mix(in srgb, var(--seat-color) 14%, transparent);
   transition: background-color var(--duration-fast, 120ms) ease;
+}
+
+.inline .face {
+  width: 18px;
+  height: 18px;
+  background-color: transparent;
 }
 
 button.badge:hover .face,
 button.badge[aria-expanded='true'] .face {
-  background-color: color-mix(in srgb, var(--seat-color) 34%, transparent);
+  background-color: color-mix(in srgb, var(--seat-color) 26%, transparent);
 }
 
 button.badge:focus-visible {
@@ -49,7 +61,7 @@ button.badge:focus-visible {
 
 button.badge:focus-visible .face {
   outline: 2px solid var(--text-accent, var(--seat-color));
-  outline-offset: 2px;
+  outline-offset: 1px;
 }
 
 .bot {
@@ -112,11 +124,20 @@ button.badge:focus-visible .face {
   margin-top: 2px !important;
 }
 
+.popExtra {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  margin-top: var(--space-1) !important;
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--border);
+}
+
 .fallback {
   display: inline-block;
   padding: 0 var(--space-1);
   border: 1px dashed var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   color: var(--text-secondary);
   font-size: var(--text-xs, 0.7rem);
   letter-spacing: 0.04em;
