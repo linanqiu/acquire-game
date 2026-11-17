@@ -4,7 +4,7 @@ Story: [LO-012](../roadmap/stories/09-llm-opponents/LO-012.md). Code:
 `backend/game/tile_value.py` (`tile_valuation`), used by `Bot._score_tile` in
 `backend/game/bot.py` and the pick in `backend/agents/heuristic.py` (`pick_tile`). Bot
 generations: [bot-versions.md](bot-versions.md) (this is bot **v2**; v1 is the old rule, still
-playable as `bot:v1`).
+playable as `bot:v1`; the default bot is now v8, which keeps this tile rule).
 
 Owner (2026-11-17), with a phone screenshot: "Bots keep doing suicide merge moves like this." A
 bot placed 7C and merged a 3-tile chain into a 4-tile one. It held none of the smaller chain: the

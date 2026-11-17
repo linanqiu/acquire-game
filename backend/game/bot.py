@@ -38,16 +38,19 @@ class Bot:
         board: Board,
         hotel: Hotel,
         players: Optional[list[Player]] = None,
+        params: Optional[dict] = None,
     ) -> float:
         """Score a tile in money: what placing it gains this seat minus what it
         hands rivals (``game.tile_value.tile_valuation``, docs/ai/bot-tiles.md).
 
         ``players`` is the whole table in seat order (this bot's player
-        included); without it only this seat's own holdings are known."""
+        included); without it only this seat's own holdings are known.
+        ``params``: the bot generation's tile weights (see tile_valuation)."""
         table = table_from_parts(
             board, hotel, players if players else [self.player], board.ruleset
         )
-        return float(tile_valuation(table, tile, self.player.player_id)["score"])
+        value = tile_valuation(table, tile, self.player.player_id, params)
+        return float(value["score"])
 
     def _score_tile_v1(self, tile: Tile, board: Board, hotel: Hotel) -> float:
         """Bot v1's tile points (agents/bot_versions.py), kept unchanged so

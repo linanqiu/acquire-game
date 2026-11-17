@@ -142,7 +142,24 @@ class HeuristicAgent:
             return self._place_tile(ctx, bot, board, hotel)
         if kind == "found_chain":
             chains = list(legal.get("chains", []))
-            choice = bot.choose_chain_to_found(chains, board) if chains else None
+            if (
+                chains
+                and self.policy.found in ("dearest", "cheapest")
+                and (self.difficulty != "easy")
+            ):
+                # Found rule of later generations: always the dearest (or the
+                # cheapest) tier available; ruleset order breaks ties.
+                rank = board.ruleset.tier_rank
+                sign = 1 if self.policy.found == "dearest" else -1
+                choice = max(
+                    chains,
+                    key=lambda c: (
+                        sign * rank(board.ruleset.chain(c).tier),
+                        -chains.index(c),
+                    ),
+                )
+            else:
+                choice = bot.choose_chain_to_found(chains, board) if chains else None
             if choice not in chains:
                 choice = chains[0] if chains else None
             return {"action": "found_chain", "chain": choice}
@@ -186,9 +203,10 @@ class HeuristicAgent:
                 }
             return {"action": "place_tile", "tile": str(scored[0][2])}
         players = _table_players(ctx, bot.player)
+        tile_params = self.policy.weights.get("tile")
         scored = sorted(
             (
-                (bot._score_tile(t, board, hotel, players), i, t)
+                (bot._score_tile(t, board, hotel, players, tile_params), i, t)
                 for i, t in enumerate(tiles)
             ),
             key=lambda x: (-x[0], x[1]),
@@ -275,6 +293,7 @@ class HeuristicAgent:
             max_total,
             cash_cost=p.w("cash_cost", 0.0),
             defend=p.w("defend", 0.0),
+            size_ahead=int(p.w("size_ahead", 0)),
         )
         if not counts or value < p.w("buy_min_gain", 1.0):
             # v3+: fall back to v1's buying, or buy nothing ("fallback": "none")

@@ -46,7 +46,7 @@ def test_version_choice_and_default():
 
 
 def test_tournament_harness_runs_a_tiny_pairing(capsys):
-    first, second = sorted(VERSIONS)[-1], sorted(VERSIONS)[0]
+    first, second = DEFAULT_VERSION, "v1"
     assert bt.main([first, second, "--seeds", "3"]) == 0
     out = json.loads(capsys.readouterr().out)
     assert out["games_played"] == 10  # 2 x 2v2 + 8 x 1v3

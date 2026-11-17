@@ -32,6 +32,7 @@ def buy_position_value(
     weights=None,
     defend: float = 0.0,
     available: int | None = None,
+    size_ahead: int = 0,
 ) -> float:
     """What buying ``k`` shares of ``chain`` does to bonus positions: my
     weighted bonus gain plus the weighted bonus my rivals lose (rival weights
@@ -41,11 +42,15 @@ def buy_position_value(
     the strongest rival's reply: the rival holding the most shares buys as
     many as one turn allows (``max_stock_purchases_per_turn``, bounded by the
     bank's ``available`` stock left after my purchase). A one-share lead then
-    counts for less, and widening a lead a rival could overtake counts."""
+    counts for less, and widening a lead a rival could overtake counts.
+
+    ``size_ahead`` values the bonuses at the chain's size plus that many tiles
+    (bonuses grow with size; a position in a chain that will grow is worth
+    more than its bonus now)."""
     if k <= 0:
         return 0.0
     hotel = table.hotel
-    size = table.board.get_chain_size(chain)
+    size = table.board.get_chain_size(chain) + max(0, size_ahead)
     before = _holdings(table, chain)
     after = dict(before)
     after[me] = before.get(me, 0) + k
@@ -83,6 +88,7 @@ def choose_buys_position(
     max_total: int,
     cash_cost: float = 0.0,
     defend: float = 0.0,
+    size_ahead: int = 0,
 ) -> tuple[dict[str, int], float]:
     """The purchase (``{chain: n}``) with the best bonus-position value (see
     ``buy_position_value``) minus ``cash_cost`` x the cash spent, over every
@@ -95,7 +101,7 @@ def choose_buys_position(
     def val(c: str, k: int) -> float:
         if (c, k) not in cache:
             cache[(c, k)] = buy_position_value(
-                table, me, c, k, weights, defend, options[c]["available"]
+                table, me, c, k, weights, defend, options[c]["available"], size_ahead
             )
         return cache[(c, k)]
 

@@ -112,6 +112,7 @@ def _growth(
     size_after: int,
     received: dict[str, int] | None = None,
     progress: float | None = None,
+    safe_lock: float = SAFE_LOCK_FACTOR,
 ) -> dict[str, float]:
     """Every player's gain from ``chain`` growing to ``size_after`` (with
     ``received`` extra shares from merger trades); see module docstring."""
@@ -131,12 +132,19 @@ def _growth(
     for pid, n in before.items():
         gain = n * (price_after - price_now) + w * (pay_after[pid] - pay_now[pid])
         if locks:
-            gain += SAFE_LOCK_FACTOR * pay_after[pid]
+            gain += safe_lock * pay_after[pid]
         out[pid] = gain
     return out
 
 
-def _merge_gains(game, tile: Tile, chains: list[str], survivor: str, maker: str):
+def _merge_gains(
+    game,
+    tile: Tile,
+    chains: list[str],
+    survivor: str,
+    maker: str,
+    safe_lock: float = SAFE_LOCK_FACTOR,
+):
     """Every player's gain from the merger with ``survivor``, and the detail."""
     board, hotel = game.board, game.hotel
     ratio = game.ruleset.merger_trade_ratio
@@ -172,7 +180,9 @@ def _merge_gains(game, tile: Tile, chains: list[str], survivor: str, maker: str)
             bank -= got
             received[pid] += got
             gains[pid] += got * price_after - traded * price
-    for pid, g in _growth(game, survivor, size_after, received).items():
+    for pid, g in _growth(
+        game, survivor, size_after, received, None, safe_lock
+    ).items():
         gains[pid] += g
     detail = {
         "survivor": survivor,
@@ -187,7 +197,9 @@ def _player(game, pid: str):
     return next(p for p in game.players if p.player_id == pid)
 
 
-def _found_gain(game, tile: Tile) -> tuple[float, dict]:
+def _found_gain(
+    game, tile: Tile, factor: float = FOUND_POSITION_FACTOR
+) -> tuple[float, dict]:
     placed = copy.deepcopy(game.board)
     placed.place_tile(tile)
     size = len(placed.get_connected_tiles(tile))
@@ -200,19 +212,29 @@ def _found_gain(game, tile: Tile) -> tuple[float, dict]:
             sole = game.hotel.get_majority_bonus(
                 chain, size
             ) + game.hotel.get_minority_bonus(chain, size)
-            value += FOUND_POSITION_FACTOR * sole
+            value += factor * sole
         if best_chain is None or value > best:
             best, best_chain = value, chain
     return best, {"chain": best_chain, "new_size": size}
 
 
-def tile_valuation(game, tile: Tile | str, viewer_id: str) -> dict:
+def tile_valuation(
+    game, tile: Tile | str, viewer_id: str, params: dict | None = None
+) -> dict:
     """Value placing ``tile`` for ``viewer_id`` (see module docstring).
 
     Returns ``{tile, effect, score, my_gain, rival_cost, gains {pid: gain},
     rival_weights {pid: w}, ...}`` with money values rounded to ints; a merge
     adds ``survivor``, ``defunct``, ``survivor_size_after`` and
-    ``bonus_by_player``, a found adds ``chain`` and ``new_size``."""
+    ``bonus_by_player``, a found adds ``chain`` and ``new_size``.
+
+    ``params`` overrides the weights for one bot generation: ``lambda``
+    (``LAMBDA``), ``found_factor`` (``FOUND_POSITION_FACTOR``), ``safe_lock``
+    (``SAFE_LOCK_FACTOR``)."""
+    params = params or {}
+    lam = float(params.get("lambda", LAMBDA))
+    found_factor = float(params.get("found_factor", FOUND_POSITION_FACTOR))
+    safe_lock = float(params.get("safe_lock", SAFE_LOCK_FACTOR))
     board = game.board
     if isinstance(tile, str):
         tile = board.tile_from_string(tile)
@@ -224,21 +246,25 @@ def tile_valuation(game, tile: Tile | str, viewer_id: str) -> dict:
 
     def score_of(g: dict[str, float]) -> tuple[float, float]:
         cost = sum(weights[r] * max(0.0, g.get(r, 0.0)) for r in weights)
-        return g.get(viewer_id, 0.0) - LAMBDA * cost, cost
+        return g.get(viewer_id, 0.0) - lam * cost, cost
 
     if res.result_type == PlacementResult.FOUND:
-        value, extra = _found_gain(game, tile)
+        value, extra = _found_gain(game, tile, found_factor)
         gains[viewer_id] = value
     elif res.result_type == PlacementResult.EXPAND:
         size_after = _simulate(board, tile, res.chain).get_chain_size(res.chain)
-        gains.update(_growth(game, res.chain, size_after, None, game_progress(game)))
+        gains.update(
+            _growth(game, res.chain, size_after, None, game_progress(game), safe_lock)
+        )
         extra = {"chain": res.chain, "new_size": size_after}
     elif res.result_type == PlacementResult.MERGE:
         survivor = Rules.get_merger_survivor(board, res.chains)
         candidates = [survivor] if isinstance(survivor, str) else list(survivor)
         best = None
         for s in candidates:
-            g, detail = _merge_gains(game, tile, list(res.chains), s, viewer_id)
+            g, detail = _merge_gains(
+                game, tile, list(res.chains), s, viewer_id, safe_lock
+            )
             sc = score_of(g)[0]
             if best is None or sc > best[0]:
                 best = (sc, g, detail)

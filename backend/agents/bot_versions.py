@@ -17,8 +17,16 @@ Components (a version names one option for each):
       gains, in money); medium picks among tiles within
       ``MEDIUM_TILE_MARGIN`` of the best, never a negative one while a
       non-negative one exists.
-* ``buy``, ``disposition``, ``declare``, ``found``: added by later versions
-  (``legacy`` = v1's rules).
+* ``buy``: ``legacy`` (v1: spread over owned, large and dear chains) or
+  ``position`` (``agents/bot_rules.py: choose_buys_position``; weights
+  ``defend``, ``size_ahead``, ``cash_cost``, ``buy_min_gain``, ``fallback``).
+* ``disposition``: ``legacy`` (v1: sell/trade by price and cash) or
+  ``position`` (``choose_disposition_position``: post-merger survivor math).
+* ``found``: ``legacy`` (v1: dear tiers when rich, cheap when poor),
+  ``cheapest`` or ``dearest``.
+* ``weights["tile"]``: overrides of the tile value's ``lambda``,
+  ``found_factor``, ``safe_lock`` (``game/tile_value.py``).
+* ``declare``: ``legacy`` (declare when projected first) in every version.
 
 Difficulty (easy / medium / hard) still works on top of every version: easy
 plays random legal tiles and chains, hard takes the best-scored option.
@@ -90,10 +98,30 @@ V6 = BotPolicy(
     weights={"fallback": "none"},
 )
 
-VERSIONS: dict[str, BotPolicy] = {p.version: p for p in (V1, V2, V3, V4, V5, V6)}
+V7 = BotPolicy(
+    version="v7",
+    summary="v3 + found the cheapest chain available: more shares per dollar "
+    "to hold the new race the founder starts.",
+    tile="position",
+    buy="position",
+    found="cheapest",
+)
+V8 = BotPolicy(
+    version="v8",
+    summary="v7 + buy for the chain's size 3 tiles ahead (bonuses grow with "
+    "size: favour positions in chains that will grow).",
+    tile="position",
+    buy="position",
+    found="cheapest",
+    weights={"size_ahead": 3},
+)
+
+VERSIONS: dict[str, BotPolicy] = {
+    p.version: p for p in (V1, V2, V3, V4, V5, V6, V7, V8)
+}
 
 # The version new bot seats get: the strongest one accepted so far.
-DEFAULT_VERSION = "v3"
+DEFAULT_VERSION = "v8"
 
 
 def get_policy(version: str | None = None) -> BotPolicy:
