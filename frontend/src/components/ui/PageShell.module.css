@@ -33,6 +33,40 @@
   color: var(--turn-accent);
 }
 
+/* My move waits on another tab: the whole bar is the way there, with the tab's name on it. */
+.phaseLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0 var(--space-2);
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.phaseLink::after {
+  content: attr(data-go) ' \2192';
+  padding: 0 8px;
+  border-radius: var(--radius-full, 999px);
+  background-color: var(--turn-accent);
+  color: var(--cta-fg);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.phaseLink:focus-visible {
+  outline: 2px solid var(--text-accent);
+  outline-offset: 2px;
+}
+
 /* Someone else's move (and the host's "whose turn"): calm, with a small turn marker. */
 .other::before {
   content: '▸';

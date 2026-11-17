@@ -25,11 +25,12 @@ export interface GameLayoutProps {
    * Board tab (the board gets smaller on a short screen, but stays whole).
    */
   deciding?: boolean
-  /** One slim line naming what is needed; tapping it opens the tab with the decision. Under
-   *  the board on wide screens; on phones in the dock of the other tabs (the way back). */
-  status?: (openDecision: () => void) => ReactNode
-  /** Phones: show the status line on the Board tab too (it carries PLACE TILE). */
-  statusOnBoard?: boolean
+  /** The placement line (PLACE TILE, END GAME), when there is something to press: under the
+   *  board on wide screens, over the rack on phones (on every tab). */
+  status?: ReactNode
+  /** Told whether the table panel (my decision, the players table) is on screen: the page's
+   *  header and phase bar say only what the screen does not already show (BL-017). */
+  onTableVisible?: (visible: boolean) => void
   /** Event keys that bring the decision into view (see `useGameTabs`). */
   events?: string[]
   /** Bumped to bring the table panel into view (ANSWER on an offer in the Trades tab). */
@@ -59,6 +60,9 @@ export interface GameLayoutProps {
  * There is no pop-up and nothing to close: a decision replaces the top of the table panel and
  * goes when it is made. The page itself never scrolls; panels scroll inside themselves.
  */
+/** The gap between the parts of a decision marked `data-table-core` (the buy panel's gap). */
+const CORE_GAP = 4
+
 export function GameLayout({
   room,
   scope,
@@ -68,7 +72,7 @@ export function GameLayout({
   tableLabel = 'Table',
   deciding = false,
   status,
-  statusOnBoard = false,
+  onTableVisible,
   events,
   openTable = 0,
   tabs,
@@ -106,6 +110,11 @@ export function GameLayout({
     if (openTable > 0 && decisionTab) select(decisionTab)
   }, [openTable, decisionTab, select])
 
+  const tableVisible = tablePinned || state.selected === decisionTab
+  useEffect(() => {
+    onTableVisible?.(tableVisible)
+  }, [tableVisible, onTableVisible])
+
   // Something new needs me: it is at the top of the table panel, so show the top.
   const scroller = useRef<HTMLDivElement>(null)
   const signature = (events ?? []).join('|')
@@ -127,12 +136,42 @@ export function GameLayout({
       // Hidden (another tab is open): keep the last measure, so the board does not jump back.
       const need = Math.ceil(inner.offsetHeight)
       if (need > 0) tab.style.setProperty('--table-need', `${need}px`)
+      // A decision may mark the parts that must be on screen together (`data-table-core`: the
+      // buy rows and the buy button, BL-017). Their own heights, from the top of the panel,
+      // are what the board yields to while I decide (capped in the stylesheet).
+      const core = Array.from(inner.querySelectorAll<HTMLElement>('[data-table-core]'))
+      if (core.length === 0) {
+        tab.style.removeProperty('--core-need')
+        return
+      }
+      const top = core[0].getBoundingClientRect().top - inner.getBoundingClientRect().top
+      const parts = core.reduce((sum, el) => sum + el.offsetHeight, 0)
+      const coreNeed = Math.ceil(top + parts + CORE_GAP * (core.length - 1))
+      if (parts > 0) tab.style.setProperty('--core-need', `${coreNeed}px`)
     }
     apply()
     if (typeof ResizeObserver === 'undefined') return
     const observer = new ResizeObserver(apply)
     observer.observe(inner)
-    return () => observer.disconnect()
+    // The core parts can change height while the panel does not (a buy row opening its line).
+    const watched = new Set<Element>()
+    const watchCore = () => {
+      inner.querySelectorAll('[data-table-core]').forEach((el) => {
+        if (!watched.has(el)) {
+          watched.add(el)
+          observer.observe(el)
+        }
+      })
+      apply()
+    }
+    watchCore()
+    const mutations =
+      typeof MutationObserver === 'undefined' ? null : new MutationObserver(watchCore)
+    mutations?.observe(inner, { childList: true, subtree: true })
+    return () => {
+      observer.disconnect()
+      mutations?.disconnect()
+    }
   }, [wide])
 
   const tablePanel = (
@@ -199,13 +238,10 @@ export function GameLayout({
       testId={wide ? 'tab-list' : 'tab-bar'}
     />
   )
-  const statusLine = status?.(() => {
-    if (decisionTab) state.select(decisionTab)
-  })
+  const statusLine = status
 
   if (!wide) {
-    // On the Board tab the phase bar and the panel under the board already say what is needed.
-    const showStatus = statusLine && (state.selected !== 'board' || statusOnBoard)
+    const showStatus = !!statusLine
     return (
       <div
         className={styles.phone}

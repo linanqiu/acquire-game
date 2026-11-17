@@ -64,6 +64,19 @@ async function expectBuyRows(page: Page, room: RoomContext) {
     await expect(row.getByTestId('buy-available')).toHaveText(
       `${active_chains[chain].available} left`
     )
+    // The row is one line: tiles and my shares next to the price and the bank, under a header
+    // that names the columns once. My shares carry the same 1st / 2nd mark as the table.
+    await expect(row.getByTestId('buy-size')).toHaveText(`${info.size} tiles`)
+    const myHolder = info.holders.find((h) => h.player_id === room.fixture.human_seat)
+    const held = human.holdings[chain] ?? 0
+    await expect(row.getByTestId('buy-mine')).toContainText(String(held))
+    if (held > 0 && myHolder?.role)
+      await expect(row.getByTestId('buy-mine')).toContainText(
+        myHolder.role === 'majority' ? 'most shares' : 'second most shares'
+      )
+    // Holders and bonuses are one tap away (the chain's name), not printed in every row.
+    await expect(row.getByTestId('buy-bonus')).toHaveCount(0)
+    await row.getByRole('button', { name: /holders and bonuses$/ }).click()
     await expect(row.getByTestId('buy-bonus')).toHaveText(
       `1st ${dollars(info.majority_bonus)} · 2nd ${dollars(info.minority_bonus)}`
     )
@@ -87,7 +100,31 @@ async function expectBuyRows(page: Page, room: RoomContext) {
       'data-shares',
       String(human.holdings[chain] ?? 0)
     )
+    await row.getByRole('button', { name: /holders and bonuses$/ }).click()
+    await expect(row.getByTestId('buy-bonus')).toHaveCount(0)
   }
+  await expect(page.getByTestId('buy-head')).toHaveText('PriceTilesBankYouBuy')
+  // Each heading sits over its own column: its centre is inside the cell below it, row by row.
+  const misplaced = await page.evaluate(() => {
+    const head = document.querySelector('[data-testid="buy-head"]')
+    const rows = document.querySelectorAll('[data-testid^="buy-row-"]')
+    const bad: string[] = []
+    if (!head) return ['no header']
+    const labels = Array.from(head.children).slice(1)
+    rows.forEach((row) => {
+      const cells = Array.from(row.children).slice(1, 6)
+      labels.forEach((label, i) => {
+        const l = label.getBoundingClientRect()
+        const c = cells[i].getBoundingClientRect()
+        const mid = l.left + l.width / 2
+        if (mid < c.left - 1 || mid > c.right + 1) {
+          bad.push(`${label.textContent} over ${Math.round(c.left)}..${Math.round(c.right)}`)
+        }
+      })
+    })
+    return bad
+  })
+  expect(misplaced, 'buy headings over their columns').toEqual([])
 }
 
 for (const vp of SIZES) {
@@ -106,9 +143,13 @@ for (const vp of SIZES) {
     await expect(page.getByTestId('end-turn-button')).toBeInViewport({ ratio: 1 })
     await expect(page.getByTestId('purchase-cash-after')).toBeInViewport({ ratio: 1 })
     await expectNoScroll(page, ['end-turn-button'])
-    // Wide screens name the decision under the board; on a phone it is right there.
-    if (isPhone(page)) await expect(page.getByTestId('status-line')).toHaveCount(0)
-    else await expect(page.getByTestId('status-line')).toHaveText(/Your move: buy shares/)
+    // The phase bar names the decision; nothing under the board repeats it, on any screen.
+    await expect(page.getByTestId('status-line')).toHaveCount(0)
+    // Every chain's row is on screen with the board and the button: nothing to scroll for.
+    for (const chain of Object.keys(room.fixture.expect.active_chains)) {
+      await expect(page.getByTestId(`buy-row-${chain}`)).toBeInViewport({ ratio: 1 })
+    }
+    if (isPhone(page)) await expect(page.getByTestId('board')).toBeInViewport({ ratio: 1 })
     // The players matrix is in the same panel, under the decision.
     await expect(tablePanel(page).getByTestId('holdings-matrix')).toBeAttached()
     await shots.take(page, 'buy', { fullPage: false })
@@ -121,9 +162,11 @@ for (const vp of SIZES) {
     const row = page.getByTestId(`buy-row-${chain}`)
     const mine = human.holdings[chain] ?? 0
     await row.getByTestId('stepper-increment').click()
-    await expect(row.getByTestId(`buy-holders-${chain}-${room.humanId}`)).toContainText(
-      `${mine}→${mine + 1}`
-    )
+    await expect(row.getByTestId('buy-mine')).toContainText(String(mine))
+    await expect(row.getByTestId('buy-mine-next')).toContainText(String(mine + 1))
+    // The row I am buying in says what 1st and 2nd are paid, without a tap.
+    await expect(row.getByTestId('buy-bonus')).toBeVisible()
+    await expect(page.getByTestId('buy-bonus')).toHaveCount(1)
     const others = chain_holders[chain].holders.filter(
       (h) => h.player_id !== room.fixture.human_seat
     )
@@ -140,7 +183,8 @@ for (const vp of SIZES) {
   })
 }
 
-for (const vp of [SIZES[0], SIZES[2]]) {
+// 390x675: what a phone browser really leaves with its toolbars showing (BL-014).
+for (const vp of [SIZES[0], { label: '390x675', width: 390, height: 675 }, SIZES[2]]) {
   test(`buy at ${vp.label} with seven chains: the buy button stays on screen without scrolling`, async ({
     page,
     shots,
@@ -151,6 +195,19 @@ for (const vp of [SIZES[0], SIZES[2]]) {
     await expectBuyRows(page, room)
     await expect(page.getByTestId('end-turn-button')).toBeInViewport({ ratio: 1 })
     await expectNoScroll(page, ['end-turn-button'])
+    // Every chain's row, whole and not under the pinned footer, with the whole board (BL-017).
+    const footerTop = (await page.getByTestId('end-turn-button').boundingBox())!.y
+    for (const chain of Object.keys(room.fixture.expect.active_chains)) {
+      const row = page.getByTestId(`buy-row-${chain}`)
+      await expect(row).toBeInViewport({ ratio: 1 })
+      const box = (await row.boundingBox())!
+      expect(box.y + box.height, `${chain} row clear of the buy button`).toBeLessThanOrEqual(
+        footerTop
+      )
+      // One compact line per chain (the owner asked for ~44-48px).
+      expect(box.height, `${chain} row height`).toBeLessThanOrEqual(48)
+    }
+    if (isPhone(page)) await expect(page.getByTestId('board')).toBeInViewport({ ratio: 1 })
     await shots.take(page, 'buy-seven-chains', { fullPage: false })
   })
 }
@@ -176,7 +233,9 @@ async function expectMergerView(page: Page, room: RoomContext) {
     ).toHaveText(new RegExp(dollars(b.majority + b.minority).replace('$', '\\$')))
   }
   const after = merger.survivor_after!
-  await expect(view.getByTestId('survivor-after-size')).toHaveText(`${after.size} tiles`)
+  // The survivor's size after the merger: once, in the summary line.
+  await expect(view.getByTestId('merger-result-summary')).toContainText(`→ ${after.size} tiles`)
+  await expect(view.getByTestId('survivor-after-size')).toHaveCount(0)
   await expect(view.getByTestId('survivor-after-price')).toHaveText(dollars(after.price))
   await expect(view.getByTestId('survivor-after-bank')).toHaveText(`bank ${after.bank}`)
   await expect(view.getByTestId('survivor-after-bonus')).toContainText(
@@ -232,12 +291,13 @@ for (const vp of SIZES) {
     await expect(page.getByTestId('survivor-my-place')).toContainText(
       ['1st', '2nd', '3rd', '4th', '5th', '6th'][above]
     )
-    await expect(page.getByTestId('disposition-survivor-after')).toContainText(
-      `${mine} → ${mine + got}`
-    )
+    // The numbers of my choice are at the sliders, once; my row among the stockholders only
+    // says that I am deciding.
+    await expect(page.getByTestId('disposition-trade')).toContainText(`${max} shares → ${got} `)
     await expect(page.getByTestId(`merger-waiting-${d.chain}-${room.humanId}`)).toContainText(
-      `deciding: sell 0, trade ${max}`
+      'deciding…'
     )
+    await expect(page.getByTestId('disposition-summary')).toHaveCount(0)
     // Selling the rest: the cash after the sale.
     const owned = human.holdings[d.chain]
     await page.getByTestId('slider-sell-to-bank').fill(String(owned - max))
@@ -292,9 +352,9 @@ test("waiting during someone else's disposition: who and what, the merger read-o
   const awaited = room.names[room.seatMap[room.fixture.expect.decisions[0].player_id]]
   await expect(tab(page, 'board')).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByTestId('decision-view')).toHaveAttribute('data-view', 'merger')
-  await expect(page.getByTestId('waiting-message')).toHaveText(
-    `Waiting for ${awaited} to dispose of their shares...`
-  )
+  // Who and what: the phase bar, once.
+  await expect(phaseBanner(page)).toHaveText(`${awaited.toUpperCase()} IS DISPOSING OF SHARES`)
+  await expect(page.getByTestId('waiting-message')).toHaveCount(0)
   await expectMergerView(page, room)
   await expect(page.getByTestId('merger-disposition')).toHaveCount(0)
   // Read-only, and nothing to close.
@@ -302,11 +362,12 @@ test("waiting during someone else's disposition: who and what, the merger read-o
   await expect(tablePanel(page).getByRole('button', { name: /close/i })).toHaveCount(0)
   await expectNoScroll(page)
   await shots.take(page, 'waiting-merger-under-the-board', { fullPage: false })
-  // From another tab the status line says who the table waits for.
+  // From another tab the phase bar still says who the table waits for; it is not a link (no
+  // move of mine is waiting), and no second line repeats it over the rack.
   await openTab(page, 'chains')
-  await expect(page.getByTestId('status-line')).toHaveText(
-    new RegExp(`Waiting for ${awaited} to dispose of their shares`)
-  )
+  await expect(phaseBanner(page)).toHaveText(`${awaited.toUpperCase()} IS DISPOSING OF SHARES`)
+  await expect(page.getByTestId('phase-link')).toHaveCount(0)
+  await expect(page.getByTestId('status-line')).toHaveCount(0)
 })
 
 const PHASES = [
@@ -389,8 +450,8 @@ test('no redirect while I have a chat draft: a badge on the Board tab instead', 
   await expect(page.getByTestId('chat-input')).toHaveValue('hold on, thinking')
   await expect(page.getByTestId('merger-result-title')).toBeHidden()
   await shots.take(page, 'draft-kept-badge', { fullPage: false })
-  // The status line names what is happening and takes me there.
-  await page.getByTestId('status-line').click()
+  // The Board tab (marked) takes me there.
+  await tab(page, 'board').click()
   await expect(tab(page, 'board')).toHaveAttribute('aria-selected', 'true')
   await expect(tabBadge(page, 'board')).toHaveCount(0)
   await expect(tablePanel(page).getByTestId('merger-result-title')).toBeVisible()
@@ -466,7 +527,9 @@ for (const vp of PHONES) {
     // Still there while the merging player buys (same board) ...
     const bob = String(done.players[done.current_player_index].player_id)
     expect((await room.act(bob, { action: 'end_turn' })).status).toBe('ok')
-    await expect(phaseBanner(page)).not.toHaveText(new RegExp(`^${room.names[bob]}'s TURN$`, 'i'))
+    await expect(phaseBanner(page)).not.toHaveText(
+      new RegExp(`^${room.names[bob]} IS BUYING SHARES$`, 'i')
+    )
     const after = await room.liveSnapshot()
     const next = after.players[after.current_player_index]
     if (next.player_id === room.humanId) {

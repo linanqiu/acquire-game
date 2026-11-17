@@ -38,6 +38,7 @@ export function ChatPanel({ room, mode = 'player', inTab = false, active = true 
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [newBelow, setNewBelow] = useState(false)
+  const [about, setAbout] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
   const atBottom = useRef(true)
 
@@ -58,7 +59,6 @@ export function ChatPanel({ room, mode = 'player', inTab = false, active = true 
     }))
   }, [players, lobbyPlayers])
   const readers = chatReaders(seats)
-  const hasBots = seats.some((s) => s.kind === 'bot')
 
   const lastId = messages[messages.length - 1]?.id ?? 0
 
@@ -114,13 +114,31 @@ export function ChatPanel({ room, mode = 'player', inTab = false, active = true 
     >
       {!inTab && <h4 className={styles.title}>TABLE CHAT</h4>}
       <div className={styles.body}>
-        <p className={styles.readers} data-testid="chat-readers">
-          {readers.length > 0
-            ? `AI that reads chat and may answer: ${readers.map((r) => r.name).join(', ')}.`
-            : 'No AI at this table reads the chat.'}
-          {hasBots ? ' Rules-based bots do not chat.' : ''} Talk is not binding; deals happen
-          through trade offers.
-        </p>
+        {/* Who reads the chat at this table; what is true at every table is behind the "?". */}
+        <div className={styles.readersRow}>
+          <p className={styles.readers} data-testid="chat-readers">
+            {readers.length > 0
+              ? `${readers.map((r) => r.name).join(', ')} (AI) read${readers.length === 1 ? 's' : ''} the chat and may answer.`
+              : 'No AI at this table reads the chat.'}
+          </p>
+          <button
+            type="button"
+            className={styles.about}
+            onClick={() => setAbout((open) => !open)}
+            aria-expanded={about}
+            aria-label="About the chat"
+            title="About the chat"
+            data-testid="chat-about-button"
+          >
+            ?
+          </button>
+          {about && (
+            <p className={styles.aboutText} data-testid="chat-about">
+              The chat is public to the table. Talk is not binding: deals happen through trade
+              offers. Rules-based bots never read or write chat.
+            </p>
+          )}
+        </div>
 
         <div
           ref={listRef}

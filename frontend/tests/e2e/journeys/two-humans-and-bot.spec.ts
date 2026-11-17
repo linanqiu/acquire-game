@@ -36,7 +36,7 @@ test('two humans and a bot: join by code, play, trade accept/reject/cancel', asy
   const room = await createGame(a, j, 'Alice')
   await joinGame(b, j, 'Bob', room)
   await expectInLobby(a, ['Alice', 'Bob'])
-  await expect(a.getByText('2/6 players')).toBeVisible()
+  await expect(a.locator('[data-testid^="lobby-player-"]')).toHaveCount(2)
   await j.shot(a, 'alice-lobby-sees-bob')
   await expect(a.getByRole('button', { name: 'START GAME' })).toBeDisabled()
   await addBot(a, j)
@@ -136,7 +136,10 @@ test('two humans and a bot: join by code, play, trade accept/reject/cancel', asy
     )
     const offer = incomingFrom(a, 'Bob')
     await expect(offer).toBeVisible()
-    await expect(a.getByTestId('trade-incoming-count')).toHaveText('1 NEW')
+    // The offer names itself ("Bob offers you a trade"); no count over it (BL-017).
+    await expect(
+      a.getByTestId('trade-incoming').locator('[data-testid^="trade-offer-"]')
+    ).toHaveCount(1)
     await alice.shot('trade2-incoming')
     j.log(`(alice) reject Bob's offer: $200 for 1 ${chain}`)
     await offer.getByRole('button', { name: 'REJECT' }).click()
@@ -170,7 +173,7 @@ test('two humans and a bot: join by code, play, trade accept/reject/cancel', asy
     await expect(outgoingTo(a, 'Bob')).toHaveCount(0)
     await expect(b.getByTestId('trade-incoming')).toHaveCount(0)
     await openTab(b, 'trades')
-    await expect(tradePanel(b)).toContainText('No offers of yours pending')
+    await expect(tradePanel(b).getByTestId('trade-table-empty')).toHaveText('No open offers')
     expect(await cashBoth()).toEqual(before)
     await alice.shot('trade3-canceled')
     // Offers are public: Bob's Trades tab keeps the story in words.

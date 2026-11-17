@@ -152,7 +152,10 @@ describe('GamesPage', () => {
     await screen.findByTestId('games-list')
     fireEvent.click(screen.getByTestId('filter-live'))
     expect(screen.getAllByRole('listitem')).toHaveLength(1)
-    expect(screen.getByTestId(`game-row-${summaryLive.game_id}`)).toHaveTextContent('In progress')
+    // A live game says so once, with its badge (no "In progress" under it).
+    const liveRow = screen.getByTestId(`game-row-${summaryLive.game_id}`)
+    expect(liveRow).toHaveTextContent('LIVE')
+    expect(liveRow).not.toHaveTextContent('In progress')
     fireEvent.click(screen.getByTestId('filter-finished'))
     expect(screen.getAllByRole('listitem')).toHaveLength(gamesList.games.length)
     fireEvent.click(screen.getByTestId('filter-benchmark'))
@@ -651,7 +654,9 @@ describe('Buyout Bench', () => {
     const empty = await screen.findByTestId('bench-empty')
     expect(empty).toHaveTextContent('python -m bench')
     expect(screen.queryByTestId('leaderboard-table')).toBeNull()
-    expect(screen.getByTestId('series-empty')).toBeInTheDocument()
+    // One empty state, not two: no "SERIES / No series have been run" under it.
+    expect(screen.queryByTestId('series-empty')).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'SERIES' })).toBeNull()
   })
 
   it('passes ?protocol= to the API', async () => {

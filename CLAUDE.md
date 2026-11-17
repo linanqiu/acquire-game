@@ -149,7 +149,7 @@ Example - what each tier may do:
 ```typescript
 // Tier 4 journey: home page, UI only
 await page.goto('/')
-await page.getByTestId('create-name-input').fill('Player1')
+await page.getByTestId('name-input').fill('Player1')
 await page.getByTestId('create-button').click()
 await page.waitForURL(/\/play\/[A-Z]{4}/)
 

@@ -15,6 +15,10 @@ import { openTab } from '../../support/tabs'
 const ACTIONABLE =
   /^(PLACE A TILE|CHOOSE A HOTEL CHAIN|CHOOSE THE SURVIVING HOTEL CHAIN|CHOOSE THE MERGER ORDER|DISPOSE YOUR SHARES|BUY STOCKS|GAME OVER)$/
 
+/** My cash as the page shows it: the cash cell of my row in the players table. */
+export const myCash = (page: Page): Locator =>
+  page.locator('[data-testid="player-row"][data-me="true"] [data-testid^="player-cash-"]')
+
 /**
  * Observation-only instrumentation (no effect on the app): records every value the
  * header cash shows, and which seats showed the "thinking" indicator, so assertions do
@@ -28,7 +32,11 @@ export async function installObservers(page: Page): Promise<void> {
     const scan = () => {
       const ph = document.querySelector('[data-testid="game-phase"]')?.textContent ?? ''
       if (ph && !w.__obs.phases.includes(ph)) w.__obs.phases.push(ph)
-      const c = document.querySelector('[data-testid="header-cash"]')
+      // My cash, where the page shows it: my row of the players table (the header repeats
+      // it only on tabs where that table is not on screen, BL-017).
+      const c = document.querySelector(
+        '[data-testid="player-row"][data-me="true"] [data-testid^="player-cash-"]'
+      )
       if (c) {
         const v = c.textContent ?? ''
         if (w.__obs.cash[w.__obs.cash.length - 1] !== v) w.__obs.cash.push(v)
@@ -144,13 +152,13 @@ export class Seat {
   /**
    * Show my decision the way a player does: it appears by itself in the table panel (under the
    * board on a phone, next to it on a wide screen; BL-013); if I opened another tab meanwhile,
-   * tap the status line.
+   * tap the phase bar, which leads back to it.
    */
   async openDecision(): Promise<void> {
     const view = this.page.getByTestId('decision-view')
     if (await view.isVisible()) return
-    this.log('decision not in view: tapping the status line')
-    await this.press(this.page.getByTestId('status-line'))
+    this.log('decision not in view: tapping the phase bar')
+    await this.press(this.page.getByTestId('phase-link'))
     await expect(view).toBeVisible()
   }
 
@@ -159,7 +167,7 @@ export class Seat {
   }
 
   async cash(): Promise<number> {
-    return parseMoney((await this.page.getByTestId('header-cash').textContent()) ?? '')
+    return parseMoney((await myCash(this.page).textContent()) ?? '')
   }
 
   /** Placed tiles on the board (board is shown in the place-tile and waiting screens). */
@@ -336,9 +344,11 @@ export class Seat {
       if (trade > 0) await tradeSlider.fill(String(trade))
     }
     const hold = owned - sell - trade
-    await expect(form.getByTestId('disposition-summary')).toContainText(`SELL ${sell} `)
-    await expect(form.getByTestId('disposition-summary')).toContainText(`HOLD ${hold}`)
-    await expect(form.getByTestId('disposition-summary')).toContainText(`TRADE ${trade} `)
+    // Each slider says what it gives, next to it; the rest is kept.
+    const n = (count: number) => `${count} share${count === 1 ? '' : 's'}`
+    await expect(form.getByTestId('disposition-sell')).toContainText(`${n(sell)} →`)
+    await expect(form.getByTestId('disposition-trade')).toContainText(`${n(trade)} → ${trade / 2} `)
+    await expect(form.getByTestId('hold-display')).toContainText(`KEEP ${n(hold)}`)
     this.log(`dispose ${owned} ${defunct}: sell ${sell}, trade ${trade}, hold ${hold}`)
     await this.shot(`disposition-${defunct}-set`)
     await this.press(form.getByTestId('confirm-disposition'))

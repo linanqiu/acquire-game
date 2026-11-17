@@ -30,7 +30,7 @@ async function chatRoom(page: Page, viewport: { width: number; height: number })
   const human = fixture.expect.players.find((p) => p.player_id === fixture.human_seat)!.name
   await page.setViewportSize(viewport)
   await page.goto('/')
-  await page.getByTestId('create-name-input').fill(human)
+  await page.getByTestId('name-input').fill(human)
   await page.getByTestId('create-button').click()
   await page.waitForURL(/\/play\/[A-Z0-9]{4}/)
   const code = /\/play\/([A-Z0-9]{4})/.exec(page.url())![1]
@@ -114,9 +114,17 @@ test('chat on desktop: talk to the table, the Fake LLM answers, the host view re
   const room = await chatRoom(page, { width: 1280, height: 900 })
   // The chat is a tab of the sidebar; the board stays on the left.
   await openTab(page, 'chat')
+  // Who reads the chat at this table; what holds at every table is behind the "?".
   await expect(page.getByTestId('chat-readers')).toHaveText(
-    `AI that reads chat and may answer: ${room.llmName}. Talk is not binding; deals happen through trade offers.`
+    `${room.llmName} (AI) reads the chat and may answer.`
   )
+  await expect(page.getByTestId('chat-about')).toHaveCount(0)
+  await page.getByRole('button', { name: 'About the chat' }).click()
+  await expect(page.getByTestId('chat-about')).toContainText(
+    'Talk is not binding: deals happen through trade offers.'
+  )
+  await page.getByRole('button', { name: 'About the chat' }).click()
+  await expect(page.getByTestId('chat-about')).toHaveCount(0)
   await expectApart(page, '[data-testid="chat-panel"]', '[data-testid="board"]')
   await expectApart(page, '[data-testid="chat-panel"]', '[data-testid="tile-rack"]')
   await shots.take(page, 'chat-empty')

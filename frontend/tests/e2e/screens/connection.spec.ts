@@ -2,7 +2,7 @@ import type { WebSocketRoute } from '@playwright/test'
 import { test, expect } from './support/test'
 import { startFromSnapshot } from './support/room'
 import { dollars } from './support/fixtures'
-import { headerCash, phaseBanner, playHumanTurns } from './support/ui'
+import { myCash, phaseBanner, playHumanTurns } from './support/ui'
 
 test('connection drops mid-game: reconnecting overlay, then a welcome-back card on the same screen', async ({
   page,
@@ -44,6 +44,6 @@ test('connection drops mid-game: reconnecting overlay, then a welcome-back card 
 
   // The game is live again: same buy screen, and real turns still work.
   await expect(phaseBanner(page)).toHaveText('BUY STOCKS')
-  await expect(headerCash(page)).toHaveText(dollars(human.cash))
+  await expect(myCash(page)).toHaveText(dollars(human.cash))
   await playHumanTurns(page, room, 3, shots)
 })

@@ -138,20 +138,23 @@ test('themed game from the home page to the transcript', async ({ page }, testIn
   await shots.take(page, 'home')
 
   // -- Create a game and fill it with bots -----------------------------------------------
-  await page.getByTestId('create-name-input').fill('Alice')
+  await page.getByTestId('name-input').fill('Alice')
   await page.getByTestId('create-button').click()
   await page.waitForURL(/\/play\/[A-Z]{4}\?is_host=1$/)
   const room = /\/play\/([A-Z]{4})/.exec(page.url())![1]
   log(`room ${room}`)
   await expect(page.getByTestId('header-title')).toHaveText(BRAND.toUpperCase())
-  await expect(page.getByText(`1/${rs.max_players} players`)).toBeVisible()
+  await expect(page.locator('[data-testid^="lobby-player-"]')).toHaveCount(1)
+  await expect(page.getByTestId('seats-free')).toHaveText(`${rs.max_players - 1} seats free`)
   await shots.take(page, 'lobby')
   const seats = Math.max(rs.min_players, 3)
   for (let n = 2; n <= seats; n++) {
     await page.getByTestId('add-bot-button').click()
-    await expect(page.getByText(`${n}/${rs.max_players} players`)).toBeVisible()
+    await expect(page.locator('[data-testid^="lobby-player-"]')).toHaveCount(n)
   }
-  await expect(page.getByTestId('start-hint')).toHaveText('Ready to start!')
+  // The game can start: the button is enabled and the phase bar says so once (BL-017).
+  await expect(page.getByRole('button', { name: 'START GAME' })).toBeEnabled()
+  await expect(page.getByTestId('game-phase')).toHaveText('START WHEN EVERYONE IS IN')
   await expectNoDefaultText(page, 'lobby')
   await shots.take(page, 'lobby-full')
   await page.getByRole('button', { name: 'START GAME' }).click()
@@ -161,6 +164,10 @@ test('themed game from the home page to the transcript', async ({ page }, testIn
 
   // -- Play ------------------------------------------------------------------------------
   const phaseBanner = page.getByTestId('game-phase')
+  // My cash where the page shows it: my row of the players table.
+  const myCash = page.locator(
+    '[data-testid="player-row"][data-me="true"] [data-testid^="player-cash-"]'
+  )
   const chainNames = new Set(rs.chains.map((c) => c.name))
   let turns = 0
   let founded = 0
@@ -304,7 +311,7 @@ test('themed game from the home page to the transcript', async ({ page }, testIn
           break
         }
       }
-      const cashBefore = (await page.getByTestId('header-cash').textContent()) ?? ''
+      const cashBefore = (await myCash.textContent()) ?? ''
       await shots.take(page, `t${turns}-buy-chosen`)
       const end = page.getByTestId('end-turn-button')
       await expect(end).toHaveText(buying ? 'BUY & END TURN' : 'SKIP & END TURN')
@@ -312,7 +319,7 @@ test('themed game from the home page to the transcript', async ({ page }, testIn
       await expect(phaseBanner).not.toHaveText(PHASE.buy)
       if (buying) {
         bought += 1
-        await expect(page.getByTestId('header-cash')).not.toHaveText(cashBefore)
+        await expect(myCash).not.toHaveText(cashBefore)
       }
       await shots.take(page, `t${turns}-ended`)
     }

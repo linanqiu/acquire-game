@@ -179,9 +179,14 @@ async function expectTableView(page: Page, room: RoomContext, host = false) {
     }
   }
   if (!host) {
+    // My worth and rank are said once (BL-017): in my row while the players table is open,
+    // in the header on a tab without it. Both agree with the engine.
     const me = net_worth[room.fixture.human_seat]
+    await expect(page.getByTestId('header-networth')).toHaveCount(0)
+    await openTab(page, 'chains')
     await expect(page.getByTestId('header-networth')).toHaveText(dollars(me.net_worth))
     await expect(page.getByTestId('header-rank')).toContainText(`#${me.rank}`)
+    await openTab(page, 'table')
   }
 }
 
@@ -389,9 +394,11 @@ async function rackOnScreen(page: Page, shots: Shots, label: string, fixture: st
   await startFromSnapshot(page, fixture, { viewport: DESKTOP })
   await expect(page.getByTestId('tile-rack')).toBeInViewport({ ratio: 1 })
   await expect(page.getByTestId('board').getByTestId('tile-12I')).toBeInViewport({ ratio: 1 })
-  // The table panel is open next to the board, the status line under it.
+  // The table panel is open next to the board; what is needed is said once, in the phase bar
+  // (no status line under the board repeating it).
   await expect(page.getByTestId('decision-view')).toBeInViewport()
-  await expect(page.getByTestId('status')).toBeInViewport({ ratio: 1 })
+  await expect(page.getByTestId('game-phase')).toBeInViewport({ ratio: 1 })
+  await expect(page.getByText(/^Your move/)).toHaveCount(0)
   for (const name of ['table', 'chains', 'chat', 'trades'] as const) {
     await openTab(page, name)
     const id = name === 'table' ? 'now' : name

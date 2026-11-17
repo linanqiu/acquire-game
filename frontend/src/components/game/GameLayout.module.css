@@ -30,7 +30,7 @@
 }
 
 .boardTab[data-deciding] {
-  --under-min: min(330px, 58cqh);
+  --under-min: max(min(330px, 58cqh), min(var(--core-need, 0px), 68cqh));
   --cell-floor: var(--cell-min);
 }
 

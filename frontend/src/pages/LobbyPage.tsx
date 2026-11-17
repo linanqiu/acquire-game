@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { PageShell } from '../components/ui/PageShell'
 import { BoardMotif } from '../components/ui/BoardMotif'
 import { ThemeToggle } from '../components/ui/ThemeToggle'
-import { Card } from '../components/ui/Card'
 import { TextInput } from '../components/ui/TextInput'
 import { Button } from '../components/ui/Button'
 import { useToast } from '../components/ui/useToast'
@@ -11,6 +10,7 @@ import { WakingBanner } from '../components/transcripts/PageFrame'
 import { warmUpServer } from '../lib/http'
 import { useBrand, useServerRules } from '../ruleset/useRules'
 import { playerRange } from '../lib/ruleset'
+import { recallName, rememberName } from '../lib/playerName'
 import styles from './LobbyPage.module.css'
 
 export function LobbyPage() {
@@ -21,16 +21,17 @@ export function LobbyPage() {
   const brand = useBrand()
   const product = useServerRules()
 
-  // Create game state
-  const [createName, setCreateName] = useState('')
+  // One name for both ways in (create, join); the last one used is offered again.
+  const [name, setName] = useState(recallName)
+  const [nameError, setNameError] = useState('')
   const [createLoading, setCreateLoading] = useState(false)
+  // A failure to create that is not about the name (the server could not make a room).
   const [createError, setCreateError] = useState('')
 
-  // Join game state
-  const [joinName, setJoinName] = useState('')
   const [joinRoom, setJoinRoom] = useState('')
   const [joinLoading, setJoinLoading] = useState(false)
   const [joinError, setJoinError] = useState('')
+  const nameRef = useRef<HTMLInputElement>(null)
 
   // Spectator mode state
   const [spectatorLoading, setSpectatorLoading] = useState(false)
@@ -47,30 +48,40 @@ export function LobbyPage() {
     return () => ctrl.abort()
   }, [warmNonce])
 
-  const validateName = (name: string): string | null => {
-    if (!name.trim()) {
-      return 'Name is required'
-    }
+  /** The name is asked once; a missing or too-long name is said at the name field. */
+  const checkName = (): string | null => {
+    const trimmed = name.trim()
     // The trimmed name is what is sent, so it is the trimmed length that counts.
-    if (name.trim().length > 20) {
-      return 'Name must be 20 characters or less'
+    const problem = !trimmed
+      ? 'Name is required'
+      : trimmed.length > 20
+        ? 'Name must be 20 characters or less'
+        : ''
+    setNameError(problem)
+    if (problem) {
+      nameRef.current?.focus()
+      return null
     }
-    return null
+    return trimmed
+  }
+
+  const enter = (data: { player_id: string; room_code: string }, playerName: string) => {
+    // Remember who this browser is (the server identifies a player by room code + player id)
+    sessionStorage.setItem('player_id', data.player_id)
+    sessionStorage.setItem('player_name', playerName)
+    rememberName(playerName)
   }
 
   const handleCreate = async () => {
     setCreateError('')
-
-    const nameError = validateName(createName)
-    if (nameError) {
-      setCreateError(nameError)
-      return
-    }
+    setJoinError('')
+    const playerName = checkName()
+    if (!playerName) return
 
     setCreateLoading(true)
     try {
       const formData = new URLSearchParams()
-      formData.append('player_name', createName.trim())
+      formData.append('player_name', playerName)
 
       const res = await fetch('/api/create', {
         method: 'POST',
@@ -84,10 +95,7 @@ export function LobbyPage() {
         throw new Error(data.detail || 'Failed to create game')
       }
 
-      // Remember who this browser is (the server identifies a player by room code + player id)
-      sessionStorage.setItem('player_id', data.player_id)
-      sessionStorage.setItem('player_name', createName.trim())
-
+      enter(data, playerName)
       navigate(`/play/${data.room_code}?is_host=1`)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
@@ -99,13 +107,10 @@ export function LobbyPage() {
   }
 
   const handleJoin = async () => {
+    setCreateError('')
     setJoinError('')
-
-    const nameError = validateName(joinName)
-    if (nameError) {
-      setJoinError(nameError)
-      return
-    }
+    const playerName = checkName()
+    if (!playerName) return
 
     const roomCode = joinRoom.trim().toUpperCase()
     if (roomCode.length !== 4) {
@@ -116,7 +121,7 @@ export function LobbyPage() {
     setJoinLoading(true)
     try {
       const formData = new URLSearchParams()
-      formData.append('player_name', joinName.trim())
+      formData.append('player_name', playerName)
       formData.append('room_code', roomCode)
 
       const res = await fetch('/api/join', {
@@ -131,24 +136,25 @@ export function LobbyPage() {
         throw new Error(data.detail || 'Failed to join game')
       }
 
-      // Remember who this browser is (the server identifies a player by room code + player id)
-      sessionStorage.setItem('player_id', data.player_id)
-      sessionStorage.setItem('player_name', joinName.trim())
-
+      enter(data, playerName)
       navigate(`/play/${data.room_code}`)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
-      setJoinError(message)
+      // A refusal about the name ("Player name already taken") belongs at the name field;
+      // everything else is about the room.
+      if (/\bname\b/i.test(message)) setNameError(message)
+      else setJoinError(message)
       toast(message, 'error')
     } finally {
       setJoinLoading(false)
     }
   }
 
-  const handleCreateKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !createLoading) {
-      handleCreate()
-    }
+  // Enter in the name field: join when a code has been typed, else create.
+  const handleNameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Enter' || createLoading || joinLoading) return
+    if (joinRoom.trim()) handleJoin()
+    else handleCreate()
   }
 
   const handleJoinKeyDown = (e: React.KeyboardEvent) => {
@@ -219,77 +225,68 @@ export function LobbyPage() {
           </p>
         )}
 
-        <div className={styles.forms}>
-          <Card title="CREATE GAME" className={styles.card}>
-            <div className={styles.formContent}>
-              <TextInput
-                id="create-name"
-                label="Your Name"
-                value={createName}
-                onChange={(e) => {
-                  setCreateName(e.target.value)
-                  setCreateError('')
-                }}
-                onKeyDown={handleCreateKeyDown}
-                maxLength={20}
-                error={createError}
-                placeholder="Enter your name"
-                data-testid="create-name-input"
-              />
-              <Button
-                fullWidth
-                loading={createLoading}
-                onClick={handleCreate}
-                className={styles.cta}
-                data-testid="create-button"
-              >
-                CREATE
-              </Button>
-            </div>
-          </Card>
-
-          <Card title="JOIN GAME" className={styles.card}>
-            <div className={styles.formContent}>
-              <TextInput
-                id="join-name"
-                label="Your Name"
-                value={joinName}
-                onChange={(e) => {
-                  setJoinName(e.target.value)
-                  setJoinError('')
-                }}
-                onKeyDown={handleJoinKeyDown}
-                maxLength={20}
-                placeholder="Enter your name"
-                data-testid="join-name-input"
-              />
-              <TextInput
-                id="join-room"
-                label="Room Code"
-                value={joinRoom}
-                onChange={(e) => {
-                  setJoinRoom(e.target.value)
-                  setJoinError('')
-                }}
-                onKeyDown={handleJoinKeyDown}
-                maxLength={4}
-                autoCapitalize
-                error={joinError}
-                placeholder="XXXX"
-                data-testid="join-room-input"
-              />
-              <Button
-                fullWidth
-                loading={joinLoading}
-                onClick={handleJoin}
-                className={styles.cta}
-                data-testid="join-button"
-              >
-                JOIN
-              </Button>
-            </div>
-          </Card>
-        </div>
+        <section className={styles.entryForm} aria-label="Play" data-testid="play-form">
+          <TextInput
+            ref={nameRef}
+            id="player-name"
+            label="Your name"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value)
+              setNameError('')
+            }}
+            onKeyDown={handleNameKeyDown}
+            maxLength={20}
+            error={nameError}
+            placeholder="Ada"
+            autoComplete="nickname"
+            data-testid="name-input"
+          />
+          <Button
+            fullWidth
+            loading={createLoading}
+            onClick={handleCreate}
+            className={styles.cta}
+            data-testid="create-button"
+          >
+            CREATE GAME
+          </Button>
+          {createError && (
+            <p className={styles.formError} role="alert" data-testid="create-error">
+              {createError}
+            </p>
+          )}
+          <div className={styles.joinRow}>
+            <span className={styles.joinLabel} id="join-room-label">
+              or join with a code
+            </span>
+            <TextInput
+              id="join-room"
+              aria-labelledby="join-room-label"
+              value={joinRoom}
+              onChange={(e) => {
+                setJoinRoom(e.target.value)
+                setJoinError('')
+              }}
+              onKeyDown={handleJoinKeyDown}
+              maxLength={4}
+              autoCapitalize
+              autoComplete="off"
+              error={joinError}
+              placeholder="ABCD"
+              className={styles.codeInput}
+              data-testid="join-room-input"
+            />
+            <Button
+              loading={joinLoading}
+              onClick={handleJoin}
+              className={styles.joinButton}
+              data-testid="join-button"
+            >
+              JOIN
+            </Button>
+          </div>
+        </section>
 
         <p className={styles.meta} data-testid="home-meta">
           {playerRange(product.rs)} &middot; {product.rs.board.columns}&times;
@@ -306,12 +303,12 @@ export function LobbyPage() {
             aria-busy={spectatorLoading || undefined}
             data-testid="watch-bots-button"
           >
-            <span className={styles.entryTitle}>WATCH BOTS PLAY</span>{' '}
-            <span className={styles.entryHint}>Create a game with only AI players and watch</span>
+            <span className={styles.entryTitle}>Watch bots play</span>{' '}
+            <span className={styles.entryHint}>A new game with only AI players</span>
           </button>
           <Link to="/games" className={styles.entry} data-testid="games-link">
             <span className={styles.entryTitle}>Games &amp; transcripts</span>{' '}
-            <span className={styles.entryHint}>Replay finished games move by move</span>
+            <span className={styles.entryHint}>Replay any game move by move</span>
           </Link>
           <Link to="/bench" className={styles.entry} data-testid="bench-link">
             <span className={styles.entryTitle}>{brand} Bench</span>{' '}

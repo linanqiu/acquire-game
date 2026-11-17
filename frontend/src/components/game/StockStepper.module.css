@@ -18,3 +18,19 @@
   font-weight: var(--font-medium);
   font-size: var(--text-lg);
 }
+
+/* In a table row (the buy rows): the buttons keep a thumb-sized face, the gaps go. */
+.compact {
+  gap: 2px;
+}
+
+.compact .value {
+  min-width: 1.5em;
+  font-size: var(--text-md);
+}
+
+.compact button {
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0;
+}

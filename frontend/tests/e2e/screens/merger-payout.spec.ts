@@ -2,6 +2,7 @@ import { test, expect } from './support/test'
 import { startFromSnapshot } from './support/room'
 import { dollars } from './support/fixtures'
 import { money, phaseBanner, playerRow } from './support/ui'
+import { openTab } from '../support/tabs'
 
 // Majority/minority bonuses are an engine rule (tier 1: test_mergers, test_complex_mergers). What
 // only a browser test can show is that the players panel and the header follow the payout.
@@ -49,7 +50,11 @@ test('merger payout: bonuses reach the defunct chain stockholders on screen, nob
   )
   for (const p of unpaid) expect(moneyOf(p.player_id)).toBe(p.cash)
 
-  // The browser player's own header agrees with the server.
+  // On the Board tab my money is said once, in my row (checked above with everyone's); the
+  // header repeats it only where the table is not on screen, and agrees with the server.
+  await expect(page.getByTestId('header-cash')).toHaveCount(0)
+  await openTab(page, 'chat')
   expect(money(await page.getByTestId('header-cash').innerText())).toBe(moneyOf(human.player_id))
+  await openTab(page, 'table')
   await shots.take(page, 'payout-shown')
 })

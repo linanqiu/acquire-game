@@ -1,6 +1,6 @@
 /*
  * The home page: a small board motif in the ruleset's chain colours, the brand, the theme and
- * its tagline; the two forms (create, join); then the other ways in (watch bots, games &
+ * its tagline; one form (the name once, then create or join with a code); then the other ways in (watch bots, games &
  * transcripts, bench) as a row of entry cards.
  */
 .lobby {
@@ -62,24 +62,49 @@
   max-width: 34ch;
 }
 
-.forms {
-  display: flex;
-  gap: var(--space-4);
-  width: 100%;
-  max-width: 640px;
-  justify-content: center;
-}
-
-.card {
-  flex: 1;
-  min-width: 260px;
-  max-width: 310px;
-}
-
-.formContent {
+/* One name, then the two ways in: create, or join with a code. */
+.entryForm {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 360px;
+  padding: var(--space-4);
+  box-sizing: border-box;
+  background-color: var(--bg-secondary);
+  border: var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+.formError {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-negative);
+}
+
+.joinRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: start;
+  padding-top: var(--space-3);
+  border-top: var(--border-default);
+}
+
+.joinLabel {
+  grid-column: 1 / -1;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.codeInput {
+  font-family: var(--font-num);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+
+.joinButton {
+  min-width: 88px;
 }
 
 /* The two ways to start: the accent, so the first thing to press is obvious. */
@@ -157,17 +182,6 @@
 
   .title {
     font-size: 34px;
-  }
-
-  .forms {
-    flex-direction: column;
-    align-items: center;
-    gap: var(--space-3);
-  }
-
-  .card {
-    width: 100%;
-    max-width: 360px;
   }
 
   .explore {

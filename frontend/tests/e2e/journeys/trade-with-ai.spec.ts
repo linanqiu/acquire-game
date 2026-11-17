@@ -8,7 +8,7 @@
  */
 import { test, expect } from './support/journey'
 import { addBot, createGame, seatName, startGame } from './support/lobby'
-import { Seat, installObservers, parseMoney } from './support/play'
+import { Seat, installObservers, myCash as myCashCell, parseMoney } from './support/play'
 import { outgoingTo, proposeTrade, tradePanel } from './support/trade'
 import { openTab } from '../support/tabs'
 
@@ -67,7 +67,7 @@ test('trade with AI: the bot accepts a generous offer and rejects a bad one', as
     await seat.shot('builder-validation')
     await builder.getByTestId('cancel-trade').click()
     await expect(builder).toBeHidden()
-    await expect(tradePanel(page)).toContainText('No offers of yours pending')
+    await expect(tradePanel(page).getByTestId('trade-table-empty')).toHaveText('No open offers')
   }
 
   // --- Generous: 2 shares for $100 -> accepted --------------------------------------
@@ -82,9 +82,7 @@ test('trade with AI: the bot accepts a generous offer and rejects a bad one', as
     )
     await expect(page.getByText(`${BOT} accepted your offer`)).toBeVisible({ timeout: 20_000 })
     await expect(outgoingTo(page, BOT)).toHaveCount(0)
-    await expect(page.getByTestId('header-cash')).toHaveText(
-      `$${(myCash + 100).toLocaleString('en-US')}`
-    )
+    await expect(myCashCell(page)).toHaveText(`$${(myCash + 100).toLocaleString('en-US')}`)
     await expect(page.getByTestId(`player-cash-${botId}`)).toHaveText(
       `$${(theirCash - 100).toLocaleString('en-US')}`
     )
@@ -100,7 +98,7 @@ test('trade with AI: the bot accepts a generous offer and rejects a bad one', as
     await proposeTrade(seat, { partner: BOT, offerCash: 50, wantCash: 1000 }, 'bad')
     await expect(page.getByText(`${BOT} rejected your offer`)).toBeVisible({ timeout: 20_000 })
     await expect(outgoingTo(page, BOT)).toHaveCount(0)
-    await expect(tradePanel(page)).toContainText('No offers of yours pending')
+    await expect(tradePanel(page).getByTestId('trade-table-empty')).toHaveText('No open offers')
     expect(await seat.cash()).toBe(myCash)
     expect(await botCash()).toBe(theirCash)
     await seat.shot('bad-rejected')

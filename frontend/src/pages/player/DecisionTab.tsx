@@ -1,5 +1,4 @@
 import { useState, type ReactNode } from 'react'
-import { Spinner } from '../../components/ui/Spinner'
 import { Hint } from '../../components/ui/Hint'
 import { ChainMarker } from '../../components/game/ChainMarker'
 import { ChainSelector } from '../../components/game/ChainSelector'
@@ -22,8 +21,6 @@ export interface DecisionTabProps {
   gameState: GameStateMessage
   myId?: string
   isMyTurn: boolean
-  /** "Waiting for Bob to buy shares..." */
-  waiting: string
   /** Incoming trade offers (they are decisions too): shown first in every view. */
   incoming?: ReactNode
   /** Why rack tiles cannot be played (place-tile view). */
@@ -77,9 +74,9 @@ export function DecisionTab(p: DecisionTabProps) {
   switch (p.view) {
     case 'survivor':
       body = (
-        <section className={styles.section} aria-label="Choose the survivor">
+        <section className={styles.section} aria-label={`Choose the surviving ${theme.chain_noun}`}>
+          {/* The phase bar is the title ("CHOOSE THE SURVIVING HOTEL CHAIN"). */}
           <div className={styles.titleRow}>
-            <h3 className={styles.title}>Choose the surviving {theme.chain_noun}</h3>
             <Hint id="survivor">
               The tied {theme.chain_noun_plural} are the same size; the one you pick takes over the
               other{p.pendingMergerChoice && p.pendingMergerChoice.length > 2 ? 's' : ''}.
@@ -110,9 +107,8 @@ export function DecisionTab(p: DecisionTabProps) {
       break
     case 'found':
       body = (
-        <section className={styles.section} aria-label="Found a chain">
+        <section className={styles.section} aria-label={`Found ${withArticle(theme.chain_noun)}`}>
           <div className={styles.titleRow}>
-            <h3 className={styles.title}>Found {withArticle(theme.chain_noun)}</h3>
             <Hint id="found">
               You get {rules.rs.founder_bonus_shares} free {theme.share_noun}. Prices by tier:{' '}
               {rules.rs.tiers
@@ -149,7 +145,6 @@ export function DecisionTab(p: DecisionTabProps) {
           defunctPrice={defunctPrice}
           survivorStockAvailable={d.availableToTrade}
           cash={me?.money}
-          survivorShares={me?.stocks[d.survivingChain] ?? 0}
           onDraftChange={(next) => setDrafted({ key, draft: next })}
           onConfirm={(sell, trade, hold) => p.onDispose(d.defunctChain, sell, trade, hold)}
           header={
@@ -174,16 +169,9 @@ export function DecisionTab(p: DecisionTabProps) {
     }
     case 'merger':
       shownSeq = live?.seq ?? null
-      body = (
-        <>
-          <div className={styles.waiting}>
-            <Spinner size="sm" />
-            <p data-testid="waiting-message">{p.waiting}</p>
-          </div>
-          {live && (
-            <MergerResult merger={live} players={players} gameState={gameState} myId={myId} />
-          )}
-        </>
+      // Who the table waits for is in the phase bar and in that stockholder's row.
+      body = live && (
+        <MergerResult merger={live} players={players} gameState={gameState} myId={myId} />
       )
       break
     case 'buy':
@@ -211,15 +199,9 @@ export function DecisionTab(p: DecisionTabProps) {
       // Someone else's move. A merger that just ended stays until the next tile is placed.
       const result = p.merger.auto
       shownSeq = result?.seq ?? null
-      body = (
-        <>
-          <p className={styles.waiting} data-testid="waiting-message">
-            {p.waiting}
-          </p>
-          {result && (
-            <MergerResult merger={result} players={players} gameState={gameState} myId={myId} />
-          )}
-        </>
+      // Whose move it is: the phase bar and the marker on their row say it.
+      body = result && (
+        <MergerResult merger={result} players={players} gameState={gameState} myId={myId} />
       )
     }
   }

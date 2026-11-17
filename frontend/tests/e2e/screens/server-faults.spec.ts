@@ -8,10 +8,10 @@ test('player page: a refused socket with no state shows the connection error, RE
   shots,
 }) => {
   await page.goto('/')
-  await page.getByTestId('create-name-input').fill('Alice')
+  await page.getByTestId('name-input').fill('Alice')
   await page.getByTestId('create-button').click()
   await page.waitForURL(/\/play\/[A-Z0-9]{4}/)
-  await expect(page.getByText('1/6 players')).toBeVisible()
+  await expect(page.locator('[data-testid^="lobby-player-"]')).toHaveCount(1)
 
   // The server refuses the socket with a reason the page does not recognise (it is neither
   // "room not found" nor "player not found"), before any state arrives.
@@ -28,7 +28,7 @@ test('player page: a refused socket with no state shows the connection error, RE
   // Once the server is reachable again, REFRESH brings the lobby back.
   refuse = false
   await page.getByRole('button', { name: 'REFRESH' }).click()
-  await expect(page.getByText('1/6 players')).toBeVisible()
+  await expect(page.locator('[data-testid^="lobby-player-"]')).toHaveCount(1)
   await expect(page.getByText('Connection error. Please refresh the page.')).toHaveCount(0)
   await shots.take(page, 'recovered')
 })
@@ -81,7 +81,7 @@ test('AI menu: unavailable entries are disabled with a reason; a failed catalog 
   ]
   await page.route('**/api/agents/catalog', (route) => route.fulfill({ json: catalog }))
   await page.goto('/')
-  await page.getByTestId('create-name-input').fill('Alice')
+  await page.getByTestId('name-input').fill('Alice')
   await page.getByTestId('create-button').click()
   await page.waitForURL(/\/play\/[A-Z0-9]{4}/)
 
@@ -94,7 +94,7 @@ test('AI menu: unavailable entries are disabled with a reason; a failed catalog 
   await shots.take(page, 'catalog-with-unavailable-entry')
   // Clicking a disabled entry does nothing.
   await blocked.click({ force: true })
-  await expect(page.getByText('1/6 players')).toBeVisible()
+  await expect(page.locator('[data-testid^="lobby-player-"]')).toHaveCount(1)
 
   // Catalog request fails (older or unhealthy backend): no AI menu, the plain bot button works.
   await page.unroute('**/api/agents/catalog')
@@ -103,6 +103,6 @@ test('AI menu: unavailable entries are disabled with a reason; a failed catalog 
   await expect(page.getByTestId('add-bot-button')).toBeVisible()
   await expect(page.getByTestId('add-ai-button')).toHaveCount(0)
   await page.getByTestId('add-bot-button').click()
-  await expect(page.getByText('2/6 players')).toBeVisible()
+  await expect(page.locator('[data-testid^="lobby-player-"]')).toHaveCount(2)
   await shots.take(page, 'catalog-failed')
 })

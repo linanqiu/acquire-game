@@ -318,49 +318,52 @@ function BenchContent({
         </>
       )}
 
-      <section aria-label="Series" className={styles.seriesSection}>
-        <h2 className={styles.h2}>SERIES</h2>
-        {board.series.length === 0 ? (
-          <p className={styles.muted} data-testid="series-empty">
-            No series have been run.
-          </p>
-        ) : (
-          <ul className={styles.seriesList} data-testid="series-list">
-            {board.series.map((s) => (
-              <li key={s.series_id}>
-                <Link
-                  to={`/bench/series/${encodeURIComponent(s.series_id)}`}
-                  className={styles.seriesRow}
-                  data-testid={`series-link-${s.series_id}`}
-                >
-                  <span className={styles.seriesMatchup}>
-                    {s.matchup}
-                    {s.track && <span className={styles.model}>{s.track}</span>}
-                  </span>
-                  <span className={styles.seriesMeta}>
-                    {s.games}
-                    {s.planned ? ` of ${s.planned}` : ''} games played · started{' '}
-                    {formatWhen(s.started_at)}
-                  </span>
-                  <Badge
-                    label={s.finished ? 'FINISHED' : 'IN PROGRESS'}
-                    variant={s.finished ? 'default' : 'safe'}
-                  />
-                  <Badge
-                    label={s.full_protocol ? 'FULL PROTOCOL' : 'PARTIAL RUN'}
-                    variant={s.full_protocol ? 'info' : 'warning'}
-                    title={
-                      s.full_protocol
-                        ? 'Ran every game of the protocol'
-                        : 'Fewer games than the protocol prescribes; results are indicative only'
-                    }
-                  />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {/* With no results at all, "No results yet" above has said it. */}
+      {(agents.length > 0 || board.series.length > 0) && (
+        <section aria-label="Series" className={styles.seriesSection}>
+          <h2 className={styles.h2}>SERIES</h2>
+          {board.series.length === 0 ? (
+            <p className={styles.muted} data-testid="series-empty">
+              No series have been run.
+            </p>
+          ) : (
+            <ul className={styles.seriesList} data-testid="series-list">
+              {board.series.map((s) => (
+                <li key={s.series_id}>
+                  <Link
+                    to={`/bench/series/${encodeURIComponent(s.series_id)}`}
+                    className={styles.seriesRow}
+                    data-testid={`series-link-${s.series_id}`}
+                  >
+                    <span className={styles.seriesMatchup}>
+                      {s.matchup}
+                      {s.track && <span className={styles.model}>{s.track}</span>}
+                    </span>
+                    <span className={styles.seriesMeta}>
+                      {s.games}
+                      {s.planned ? ` of ${s.planned}` : ''} games played · started{' '}
+                      {formatWhen(s.started_at)}
+                    </span>
+                    <Badge
+                      label={s.finished ? 'FINISHED' : 'IN PROGRESS'}
+                      variant={s.finished ? 'default' : 'safe'}
+                    />
+                    <Badge
+                      label={s.full_protocol ? 'FULL PROTOCOL' : 'PARTIAL RUN'}
+                      variant={s.full_protocol ? 'info' : 'warning'}
+                      title={
+                        s.full_protocol
+                          ? 'Ran every game of the protocol'
+                          : 'Fewer games than the protocol prescribes; results are indicative only'
+                      }
+                    />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
     </>
   )
 }

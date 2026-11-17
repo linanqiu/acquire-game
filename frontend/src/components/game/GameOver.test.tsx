@@ -36,14 +36,17 @@ const money = (n) => `$${n.toLocaleString('en-US')}`
 const nameOf = (data, id) => data.state.players[id].name
 
 describe('GameOver on a real finished game', () => {
-  it('names the single winner the server named, with their total', () => {
+  it('names the single winner the server named; their total is in the standings, once', () => {
     const data = mount('game-over')
     const { over } = data
     expect(over.winners).toHaveLength(1)
     const winner = screen.getByTestId('winner-announcement')
     expect(winner).toHaveTextContent('WINNER')
     expect(winner).toHaveTextContent(nameOf(data, over.winner))
-    expect(winner).toHaveTextContent(money(over.scores[over.winner].money))
+    // The amount is said once, in the winner's row of the standings (BL-017).
+    const total = money(over.scores[over.winner].money)
+    expect(winner).not.toHaveTextContent(total)
+    expect(screen.getByTestId(`rank-${over.winner}`)).toHaveTextContent(total)
   })
 
   it('lists everybody best first, with ranks 1, 2, 3...', () => {
@@ -71,7 +74,10 @@ describe('GameOver on a real finished game', () => {
       expect(winner).toHaveTextContent(nameOf(data, id))
       expect(screen.getByTestId(`rank-${id}`)).toHaveTextContent('1.')
     }
-    expect(winner).toHaveTextContent('each')
+    // Each winner's total is in their row.
+    for (const id of over.winners) {
+      expect(screen.getByTestId(`rank-${id}`)).toHaveTextContent(money(over.scores[id].money))
+    }
     // The player after the tied pair is ranked below them, skipping the shared places.
     const rest = Object.keys(over.scores).filter((id) => !over.winners.includes(id))
     expect(screen.getByTestId(`rank-${rest[0]}`)).toHaveTextContent(`${over.winners.length + 1}.`)
@@ -89,7 +95,7 @@ describe('GameOver on a real finished game', () => {
     expect(box).toHaveTextContent(`TOTAL:${money(mine.money)}`)
   })
 
-  it('when the server sent no breakdown nothing is invented: only final cash is shown', () => {
+  it('when the server sent no breakdown nothing is invented: the totals are final cash, said once', () => {
     const data = finished('game-over')
     const scores = buildFinalScores(data.state, null)
     render(
@@ -103,7 +109,13 @@ describe('GameOver on a real finished game', () => {
       </MemoryRouter>
     )
     expect(screen.queryByTestId('breakdown-bonuses')).not.toBeInTheDocument()
-    expect(screen.getByTestId('breakdown')).toHaveTextContent('Final cash')
+    // No table that would repeat my standings row: one note says what the totals are.
+    expect(screen.queryByTestId('breakdown')).not.toBeInTheDocument()
+    expect(screen.getByTestId('totals-note')).toHaveTextContent(
+      'Totals are final cash: bonuses and share sales are included.'
+    )
+    const mine = money(data.state.players[data.view.human].money)
+    expect(screen.getByTestId('game-over').textContent.split(mine)).toHaveLength(2)
   })
 
   it('the spectator view shows every player in a full table, with the defunct-share note', () => {

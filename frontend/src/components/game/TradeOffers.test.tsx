@@ -44,8 +44,12 @@ describe('open offers at the table (Trades tab)', () => {
     expect(card).toHaveTextContent(players[o.to].name)
     expect(within(card).getByTestId('trade-stock-aurelia')).toHaveTextContent('×2')
     expect(card).toHaveTextContent('$800')
-    expect(screen.getByTestId('trade-table-count')).toHaveTextContent('1')
-    expect(screen.getByTestId('trade-table')).toHaveTextContent('Offers are public')
+    // The one card is the count; the tab does not say "1" or "none" over it (BL-017).
+    expect(within(screen.getByTestId('trade-table')).getAllByTestId(/^trade-table-/)).toHaveLength(
+      1
+    )
+    expect(screen.queryByTestId('trade-table-empty')).toBeNull()
+    expect(screen.getByTestId('trade-offers')).toHaveTextContent('Offers are public')
   })
 
   it('it is read-only for me: no accept, reject or cancel', () => {
@@ -91,7 +95,9 @@ describe('open offers at the table (Trades tab)', () => {
     const [mine] = out.outgoing_trades
     expect(screen.getByTestId(`trade-outgoing-${mine.trade_id}`)).toBeInTheDocument()
     expect(screen.queryByTestId(`trade-table-${mine.trade_id}`)).toBeNull()
-    expect(screen.getByTestId('trade-table-empty')).toBeInTheDocument()
+    // With an offer of mine open, the panel does not also say that none are open.
+    expect(screen.queryByTestId('trade-table-empty')).toBeNull()
+    expect(screen.queryByTestId('trade-table')).toBeNull()
     unmount()
 
     const inc = playerState('trade-incoming')
