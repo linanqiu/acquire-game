@@ -208,7 +208,11 @@
    need the width, e.g. with END GAME). */
 .footer {
   position: sticky;
-  bottom: 0;
+  /* One pixel above the scroller's edge: stuck at 0, the footer can land a fraction of a pixel
+     past it when the panel's heights are fractional (a wider system font), which clips the
+     button. The shadow fills that pixel so no row shows through under the footer. */
+  bottom: 1px;
+  box-shadow: 0 1px 0 var(--bg-primary);
   z-index: 1;
   margin-top: auto;
   display: flex;
