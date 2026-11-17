@@ -59,8 +59,7 @@ export function BenchPage() {
             {brand.toUpperCase()} BENCH
           </h1>
           <p className={styles.lede}>
-            A public benchmark that compares AI models by having them play full games of {brand}{' '}
-            under a fixed protocol. Every row links to the games behind it.
+            AI models ranked by full games of {brand}; every row links to its games.
           </p>
         </header>
 
@@ -112,21 +111,29 @@ function BenchContent({
             </span>
           )}
         </div>
-        <p className={styles.protocolDesc}>{protocol.description}</p>
+        {/* The numbers on one line; the long description and the caveat behind "About". */}
         <dl className={styles.facts}>
           <div>
-            <dt>Players per game</dt>
+            <dt>players</dt>
             <dd>{protocol.players}</dd>
           </div>
           <div>
-            <dt>Games per matchup</dt>
+            <dt>games per matchup</dt>
             <dd>{protocol.games_per_matchup}</dd>
           </div>
           <div>
-            <dt>Seeds</dt>
+            <dt>seeds</dt>
             <dd>{protocol.seeds?.length ?? 0}</dd>
           </div>
         </dl>
+        <details className={styles.about}>
+          <summary>About this protocol</summary>
+          <p className={styles.protocolDesc}>{protocol.description}</p>
+          <p className={styles.protocolDesc}>
+            Results are only comparable within one protocol and prompt version; this table never
+            mixes them.
+          </p>
+        </details>
       </section>
 
       <div className={styles.controls}>
@@ -181,10 +188,6 @@ function BenchContent({
           </label>
         )}
       </div>
-      <p className={styles.muted}>
-        Results are only comparable within one protocol and prompt version; this table never mixes
-        them.
-      </p>
 
       {board.warnings.length > 0 && (
         <ul className={styles.warnings} data-testid="bench-warnings">
@@ -199,15 +202,8 @@ function BenchContent({
       {agents.length === 0 ? (
         <section className={styles.empty} data-testid="bench-empty">
           <h2>No results yet</h2>
-          <p>
-            Nobody has run this protocol on this server. Results are produced by the benchmark
-            runner, which plays the games and writes a transcript for each one:
-          </p>
+          <p>Nobody has run this protocol on this server. The benchmark runner fills this table:</p>
           <pre className={styles.code}>python -m bench</pre>
-          <p>
-            Once a series finishes, models appear here with their win rate, rating and costs, and
-            every game can be replayed move by move.
-          </p>
         </section>
       ) : (
         <>

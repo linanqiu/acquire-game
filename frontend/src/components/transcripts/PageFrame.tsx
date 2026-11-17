@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Link, NavLink } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { PageShell } from '../ui/PageShell'
 import { Spinner } from '../ui/Spinner'
 import { Button } from '../ui/Button'
@@ -8,27 +8,38 @@ import { useServerWaking } from '../../lib/http'
 import { useBrand } from '../../ruleset/useRules'
 import styles from './PageFrame.module.css'
 
-/** Shared chrome for the transcript / benchmark pages: header, section nav, content. */
+/**
+ * Where the transcript / benchmark pages lead (BL-018): one way up (the list a page belongs to,
+ * or the home page) and one way across (the other section). The page's own title says where
+ * you are, so the bar does not repeat it.
+ */
+function frameLinks(
+  pathname: string,
+  brand: string
+): { up: { to: string; label: string }; across: { to: string; label: string } } {
+  const games = { to: '/games', label: 'Games' }
+  const bench = { to: '/bench', label: `${brand} Bench` }
+  const home = { to: '/', label: 'Home' }
+  if (pathname.startsWith('/games/')) return { up: games, across: bench }
+  if (pathname.startsWith('/bench/')) return { up: bench, across: games }
+  if (pathname.startsWith('/bench')) return { up: home, across: games }
+  return { up: home, across: bench }
+}
+
+/** Shared chrome for the transcript / benchmark pages: header, a back link and the other section. */
 export function PageFrame({ children }: { children: ReactNode }) {
   const brand = useBrand()
+  const { pathname } = useLocation()
+  const { up, across } = frameLinks(pathname, brand)
   return (
     <PageShell>
       <nav className={styles.nav} aria-label="Transcripts and benchmark">
-        <Link to="/" className={styles.navLink}>
-          Home
+        <Link to={up.to} className={styles.navLink} data-testid="frame-up">
+          <span aria-hidden="true">&larr;</span> {up.label}
         </Link>
-        <NavLink
-          to="/games"
-          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-        >
-          Games &amp; transcripts
-        </NavLink>
-        <NavLink
-          to="/bench"
-          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
-        >
-          {brand} Bench
-        </NavLink>
+        <Link to={across.to} className={styles.navLink} data-testid="frame-across">
+          {across.label}
+        </Link>
       </nav>
       <div className={styles.content}>
         <WakingBanner />

@@ -36,9 +36,9 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | R-02 | `/play/:room` Player page (`PlayerPage`) | Create or join a game | `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI`; `journeys/two-humans-and-bot.spec.ts : two humans and a bot`; `screens/place-tile.spec.ts : opening` | 3, 4 |
 | R-03 | `/host/:room` Host/spectator page (`HostPage`) | "Watch bots play" | `journeys/spectator-host-view.spec.ts : spectator host view`; `screens/host.spec.ts : host view of a busy mid-game board` | 3, 4 |
 | R-04 | `*` Not-found page (`NotFoundPage`, "Back to Lobby" link) | Navigate to an unknown URL | `screens/lobby.spec.ts : unknown URL shows the not-found page`; `journeys/entry-errors.spec.ts : entry errors` | 3, 4 |
-| R-05 | `/games` Games and transcripts list (`GamesPage`) | "Games & transcripts" link on the home page | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript`; `screens/waking-and-not-found.spec.ts : games list` | 3, 4 |
+| R-05 | `/games` Games and transcripts list (`GamesPage`) | "Past games" link on the home page; "Games" on the bench pages | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript`; `screens/waking-and-not-found.spec.ts : games list` | 3, 4 |
 | R-06 | `/games/:gameId` Transcript viewer (`TranscriptPage`) | Row in the games list, or "View full transcript" on the game-over screen | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript`; `screens/transcript-pages.spec.ts : snapshot game` | 3, 4 |
-| R-07 | `/bench` Buyout Bench leaderboard (`BenchPage`) | "Buyout Bench" link on the home page | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript`; `screens/transcript-pages.spec.ts : benchmark page` | 3, 4 |
+| R-07 | `/bench` Buyout Bench leaderboard (`BenchPage`) | "Buyout Bench" link on the home page and on the games pages | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript`; `screens/transcript-pages.spec.ts : benchmark page` | 3, 4 |
 | R-08 | `/bench/series/:seriesId` Benchmark series page (`BenchSeriesPage`) | Series row on the leaderboard | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript`; `screens/waking-and-not-found.spec.ts : unknown transcript and unknown benchmark series` | 3, 4 |
 
 ## 2. Home page entry points (`LobbyPage`)
@@ -199,7 +199,7 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 
 | ID | Surface | Notes | Covered by | Tier |
 |----|---------|-------|------------|------|
-| TX-01 | Games list: rows with status, seats, winner, turns; filters; refresh | `game-row-*`, `filter-*` | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript`; `screens/transcript-pages.spec.ts : snapshot game` | 3, 4 |
+| TX-01 | Games list (BL-018): one row per game in two lines (status unless finished, room, turns and when; seats with the winner named at the end), filter chips, refresh; the pages' bar is one way up (Home, Games or Bench) and the other section (`frame-up`, `frame-across`) | `game-row-*`, `filter-*` | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript`; `screens/transcript-pages.spec.ts : snapshot game` | 3, 4 |
 | TX-02 | Games list: empty state | `games-empty` | `screens/waking-and-not-found.spec.ts : games list` | 3 |
 | TX-03 | Games list: server error with TRY AGAIN; unreachable server | `error-server`, `error-network`, `retry-button` | `screens/waking-and-not-found.spec.ts : games list` | 3 |
 | TX-04 | Games list: LOAD MORE (more than 50 games) | `load-more` | GAP: needs more than 50 recorded games; no fixture produces them and faking the list response would test nothing but the button | - |
@@ -215,7 +215,7 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | TX-13 | Transcript: "loaded from a snapshot" notice | `snapshot-banner` | `screens/transcript-pages.spec.ts : snapshot game` | 3 |
 | TX-14 | Seat chips and seat summary (`SeatChip`, `SummaryHeader`: model first and the seat's character name second for AI seats, kind icon, retries, fallbacks, tokens, cost) | | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript`; `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 4 |
 | TX-15 | "Waking the server" note on the transcript and bench pages (`PageFrame`) | | `screens/waking-and-not-found.spec.ts : games list` | 3 |
-| BN-01 | Leaderboard: protocol id, prompt version, track, sample size, warnings, rows with rating, win rate, cost (`RangeBar`) | `leaderboard-table` | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` | 4 |
+| BN-01 | Leaderboard: protocol id, prompt version, track, the numbers on one line (players, games per matchup, seeds) with the description and the comparability note behind "About this protocol", sample size, warnings, rows with rating, win rate, cost (`RangeBar`) | `leaderboard-table` | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` | 4 |
 | BN-02 | Leaderboard: track tabs (all / head-to-head / vs-baseline) and the empty state | `track-*`, `bench-empty` | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` | 4 |
 | BN-03 | Leaderboard: protocol and prompt-version selectors | `protocol-select`, `prompt-version-select` | GAP: the standalone run produces a single protocol and prompt version, so there is nothing to switch to | - |
 | BN-04 | Leaderboard: server error with TRY AGAIN | | `screens/transcript-pages.spec.ts : benchmark page` | 3 |

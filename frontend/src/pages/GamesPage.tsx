@@ -99,10 +99,9 @@ export function GamesPage() {
     <PageFrame>
       <div className={styles.page}>
         <header className={styles.head}>
-          <h1 className={styles.title}>GAMES &amp; TRANSCRIPTS</h1>
+          <h1 className={styles.title}>Games</h1>
           <p className={styles.lede}>
-            Every game keeps a full record of every move. For AI players it also keeps exactly what
-            the model was shown and what it answered. Pick a game to replay it.
+            Replay any game move by move, with what each AI player was shown and answered.
           </p>
         </header>
 
@@ -179,33 +178,33 @@ function GameRow({ game }: { game: GameSummary }) {
   return (
     <li className={styles.row} data-testid={`game-row-${game.game_id}`} data-status={game.status}>
       <Link to={`/games/${encodeURIComponent(game.game_id)}`} className={styles.rowLink}>
+        {/* Line one: what and when (a finished game needs no badge: it has a winner). */}
         <div className={styles.rowTop}>
           <span className={styles.badges}>
-            <Badge label={game.status.toUpperCase()} variant={STATUS_VARIANT[game.status]} />
+            {game.status !== 'finished' && (
+              <Badge label={game.status.toUpperCase()} variant={STATUS_VARIANT[game.status]} />
+            )}
             {game.source === 'bench' && <Badge label="BENCH" variant="info" />}
             {game.room_code && <span className={styles.room}>Room {game.room_code}</span>}
           </span>
           <span className={styles.when} title={formatDateTime(game.started_at)}>
-            {formatWhen(game.started_at)}
+            <span>{game.turns} turns</span> &middot; {formatWhen(game.started_at)}
           </span>
         </div>
+        {/* Line two: who played; the winner is marked on their chip and named at the end. */}
         <div className={styles.seats}>
           {game.seats.map((s) => (
             <SeatChip key={s.player_id} seat={s} winner={winners.has(s.player_id)} />
           ))}
-        </div>
-        <div className={styles.rowBottom}>
-          {/* A live game has its LIVE badge; the outcome line is for games that have one. */}
-          <span data-testid="game-winner">
+          <span className={styles.outcome} data-testid="game-winner">
             {game.status === 'live'
               ? ''
               : winnerNames.length
                 ? `Winner: ${winnerNames.join(' & ')}`
                 : game.status === 'abandoned'
-                  ? 'Abandoned — no winner'
+                  ? 'Abandoned, no winner'
                   : 'No winner recorded'}
           </span>
-          <span>{game.turns} turns</span>
         </div>
       </Link>
     </li>
