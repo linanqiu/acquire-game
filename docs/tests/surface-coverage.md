@@ -45,29 +45,30 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 
 | ID | Surface | Test id / control | Covered by | Tier |
 |----|---------|-------------------|------------|------|
-| H-01 | Create game: the one name field + CREATE GAME (BL-017: the name is asked once for both ways in) | `name-input`, `create-button` | `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI`; `screens/home-entry.spec.ts : names are trimmed` | 3, 4 |
-| H-02 | Join game: the same name field, then "or join with a code" [room code] JOIN | `name-input`, `join-room-input`, `join-button` | `journeys/two-humans-and-bot.spec.ts : two humans and a bot`; `screens/home-entry.spec.ts : names are trimmed` | 3, 4 |
+| H-01 | Create game: step one asks only the name, then NEW GAME (BL-018: one question at a time) goes straight to the lobby | `name-input`, `create-button` | `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI`; `screens/home-entry.spec.ts : names are trimmed` | 3, 4 |
+| H-02 | Join game: the name, JOIN GAME, then the code step (`/?join`): "Joining as <name>" with Change, one large Room code field that joins on the fourth letter (or JOIN), and Back; the browser's Back returns to the name | `name-input`, `join-button`, `join-as`, `join-room-input`, `join-submit-button`, `join-back` | `journeys/two-humans-and-bot.spec.ts : two humans and a bot`; `screens/home-entry.spec.ts : one question at a time` | 3, 4 |
 | H-03 | Watch bots play (spectator room) | `watch-bots-button` | `journeys/spectator-host-view.spec.ts : spectator host view` | 4 |
-| H-04 | Name error (empty, blank, over-long) under the name field, for create and for join | `name-input` error (`#player-name-error`) | `journeys/entry-errors.spec.ts : entry errors` | 4 |
+| H-04 | Name error (empty, blank, over-long) under the name field, before NEW GAME or JOIN GAME | `name-input` error (`#player-name-error`) | `journeys/entry-errors.spec.ts : entry errors` | 4 |
 | H-05 | Join error: bad room code (short, unknown) | `join-room-input` error | `journeys/entry-errors.spec.ts : entry errors` | 4 |
-| H-06 | Join error: duplicate name, said at the name field (not under the room code) | `name-input` error | `journeys/entry-errors.spec.ts : entry errors` | 4 |
+| H-06 | Join error: duplicate name, said at the code field with CHANGE MY NAME, which goes back to the name step and says why there | `join-room-input` error, `join-name-taken-change`, `#player-name-error` | `journeys/entry-errors.spec.ts : entry errors` | 4 |
 | H-07 | Join error: full room | inline error | `journeys/entry-errors.spec.ts : entry errors` | 4 |
 | H-08 | Join error: game already started | inline error | `journeys/entry-errors.spec.ts : entry errors` | 4 |
-| H-09 | Create/spectator failure toast (server error) | toast | `screens/lobby.spec.ts : failures show a toast: create game, add bot, start game` | 3 |
+| H-09 | Create/spectator failure (server error), said once inline (`role=alert`, no toast repeating it) | `create-error`, `spectator-error` | `screens/lobby.spec.ts : failures show a toast: create game, add bot, start game` | 3 |
 | H-10 | Link to the games list | `games-link` | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` | 4 |
 | H-11 | Link to the Buyout Bench leaderboard | `bench-link` | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` | 4 |
 | H-12 | "Waking the server" note while the health check is retried | `waking-server` | `screens/waking-and-not-found.spec.ts : home page: waking the server note` | 3 |
 | H-13 | "The server is not answering yet" notice with Try again | `server-down`, `server-retry` | `screens/waking-and-not-found.spec.ts : home page: server not answering` | 3 |
 | H-14 | Names trimmed; room code upper-cased as typed; creator lands on `?is_host=1` | form behaviour | `screens/home-entry.spec.ts : names are trimmed` | 3 |
-| H-15 | Home first impression: board motif in the ruleset's chain colours (`BoardMotif`), entry cards for watch bots, games & transcripts, bench | `home-motif`, `watch-bots-button`, `games-link`, `bench-link` | `screens/appearance.spec.ts : system colour scheme: home and the key game screens render` | 3 |
+| H-15 | Home first impression: board motif in the ruleset's chain colours (`BoardMotif`), the theme and its tagline as one quiet line, and one quiet row of links (Watch bots play, Past games, Bench) at the foot (BL-018) | `home-motif`, `watch-bots-button`, `games-link`, `bench-link` | `screens/appearance.spec.ts : system colour scheme: home and the key game screens render` | 3 |
 | H-16 | Light / dark theme toggle (`ThemeToggle`; home page, game header on wide screens, host header, transcript pages): follows `prefers-color-scheme`, a pick is remembered in localStorage | `theme-toggle`, `html[data-theme]` | `screens/appearance.spec.ts : the toggle switches the scheme`; `screens/appearance.spec.ts : system colour scheme: home and the key game screens render` | 3 |
-| H-17 | The last name used is filled in again on the home page (localStorage, `player_name_last`; a browser without storage just asks again) | `name-input` value | `screens/home-entry.spec.ts : the name is asked once and remembered` | 3 |
+| H-17 | The last name used is filled in again on the home page (localStorage, `player_name_last`; a browser without storage just asks again) | `name-input` value | `screens/home-entry.spec.ts : the name is remembered` | 3 |
+| H-18 | Join link (`/?code=ABCD`, shared by the lobby's Invite): opens the code step with the code filled in; with no name known the name is asked on that step, with one known a single tap joins | `join-room-input` value, `lobby-share` | `screens/home-entry.spec.ts : join link` | 3 |
 
 ## 3. Player page: lobby (`/play/:room`, phase `lobby`)
 
 | ID | Surface | Notes | Covered by | Tier |
 |----|---------|-------|------------|------|
-| PL-01 | Player lobby: the room code, the player list and the seats left (`lobby`, `lobby-room-code`, `seats-free`); what the room waits for is said once, in the phase bar ("WAITING FOR THE HOST TO START" for a guest, BL-017) | host and guest views (`LobbyPanel`) | `screens/home-entry.spec.ts : names are trimmed`; `screens/lobby.spec.ts : lobby: AI menu`; `journeys/two-humans-and-bot.spec.ts : two humans and a bot` | 3, 4 |
+| PL-01 | Player lobby: the room code with its Invite button (Web Share API, else the link is copied, else shown: `lobby-share`, `lobby-share-outcome`), the player list and the seats left as its foot (`lobby`, `lobby-room-code`, `seats-free`); what the room waits for is said once, in the phase bar ("WAITING FOR THE HOST TO START" for a guest, BL-017) | host and guest views (`LobbyPanel`) | `screens/home-entry.spec.ts : names are trimmed`; `screens/lobby.spec.ts : lobby: AI menu`; `journeys/two-humans-and-bot.spec.ts : two humans and a bot` | 3, 4 |
 | PL-02 | Add AI control (catalog list and "+ ADD BOT") | `AddAiControl` | `screens/lobby.spec.ts : lobby: AI menu`; `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` | 3, 4 |
 | PL-03 | Add AI: unavailable catalog entry shown disabled; failed catalog leaves only ADD BOT | | `screens/server-faults.spec.ts : AI menu: unavailable entries are disabled`; `screens/lobby.spec.ts : lobby: AI menu` | 3 |
 | PL-04 | Remove AI seat in lobby (host only, not for humans) | `RemoveSeatButton` | `screens/lobby.spec.ts : lobby: AI menu`; `journeys/entry-errors.spec.ts : entry errors` | 3, 4 |
@@ -243,6 +244,7 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | `GameOver` | final scores, winner, ties, breakdown | PG-15, HO-06 | `screens/end-game.spec.ts : game over with a tie`; `screens/host.spec.ts : host view of a finished game` |
 | `ReconnectionOverlay`, `ReconnectedToast` | reconnecting, welcome back | CN-03, CN-04 | `screens/connection.spec.ts : connection drops mid-game` |
 | `AddAiControl`, `RemoveSeatButton` | menu, disabled entry, remove | PL-02..04 | `screens/lobby.spec.ts : lobby: AI menu` |
+| `ShareRoom` | room code and Invite (share sheet, copied, link shown) | PL-01, H-18 | `screens/home-entry.spec.ts : join link` |
 | `AiThinking` | shown while an AI seat decides | PG-12 | `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` |
 | `SeatKindBadge` | bot, LLM, scripted icons; popover open (LLM with model, bot); static icon inside the trade builder's partner buttons and transcript seat chips; fallback marker | PG-20, PG-21, PG-37 | `screens/seat-badge.spec.ts : seat badge on a phone`; `screens/seat-badge.spec.ts : seat badge on a laptop`; `journeys/solo-vs-ai-full-game.spec.ts : solo vs AI` |
 | `ChatPanel` | card (lobby, game over), in a tab, read-only (spectator), AI badge | CH-01..CH-05 | `screens/chat.spec.ts : chat on a phone`; `screens/chat.spec.ts : chat on desktop` |
@@ -277,8 +279,8 @@ Facts learned while filling this map (2026-11-14):
 
 ## Summary (checked by the script; update when rows change)
 
-- Surfaces: 174
-- Covered: 169
+- Surfaces: 176
+- Covered: 171
 - GAP: 7
 - Journeys: 7
 
