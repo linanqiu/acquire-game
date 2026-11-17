@@ -36,6 +36,7 @@ if TYPE_CHECKING:
 PLACE_TILE = "place_tile"
 FOUND_CHAIN = "found_chain"
 CHOOSE_SURVIVOR = "choose_survivor"
+CHOOSE_DEFUNCT_ORDER = "choose_defunct_order"
 STOCK_DISPOSITION = "stock_disposition"
 BUY_STOCKS = "buy_stocks"
 TRADE_RESPONSE = "trade_response"
@@ -45,6 +46,7 @@ ACTION_TYPES = (
     "place_tile",
     "found_chain",
     "merger_choice",
+    "merger_order",
     "merger_disposition",
     "buy_stocks",
     "end_turn",
@@ -62,7 +64,8 @@ class Decision:
 
     Attributes:
         player_id: The seat that must decide
-        kind: place_tile | found_chain | choose_survivor | stock_disposition |
+        kind: place_tile | found_chain | choose_survivor | choose_defunct_order |
+            stock_disposition |
             buy_stocks | trade_response
         context: JSON-serialisable, public details of the decision (never a
             player's private hand; use legal_actions for the seat's options)
@@ -119,6 +122,15 @@ def _flow_decision(game: Game) -> Decision | None:
                 {
                     "tile": str(tile) if tile else None,
                     "tied_chains": list(pending.get("tied_chains", [])),
+                },
+            )
+        if kind == "choose_defunct_order":
+            return Decision(
+                current_id,
+                CHOOSE_DEFUNCT_ORDER,
+                {
+                    "tied_chains": list(pending.get("tied_chains", [])),
+                    "surviving_chain": game._merger.survivor,
                 },
             )
         if kind == "stock_disposition":
@@ -217,6 +229,12 @@ def legal_actions(game: Game, decision: Decision) -> dict:
     if kind == CHOOSE_SURVIVOR:
         return {
             "action_types": ["merger_choice"],
+            "chains": list(decision.context.get("tied_chains", [])),
+        }
+
+    if kind == CHOOSE_DEFUNCT_ORDER:
+        return {
+            "action_types": ["merger_order"],
             "chains": list(decision.context.get("tied_chains", [])),
         }
 
@@ -458,6 +476,15 @@ def _validate(game: Game, player_id: str, action: Any) -> str | None:
             return f"Chain {chain} not in tied chains"
         return None
 
+    if action_type == "merger_order":
+        chain = _chain_name(action.get("defunct_chain"), rs, "defunct_chain")
+        err = _not_flow_turn(game, player_id, (CHOOSE_DEFUNCT_ORDER,))
+        if err:
+            return err
+        if chain not in game.pending_action.get("tied_chains", []):
+            return f"Chain {chain} not in tied chains"
+        return None
+
     if action_type == "merger_disposition":
         defunct = _chain_name(action.get("defunct_chain"), rs, "defunct_chain")
         sell, trade, hold = _parse_disposition(action)
@@ -569,6 +596,8 @@ def _dispatch(game: Game, player_id: str, action: dict):
         return game.found_chain(player_id, action["chain"])
     if action_type == "merger_choice":
         return game.choose_merger_survivor(player_id, action["surviving_chain"])
+    if action_type == "merger_order":
+        return game.choose_defunct_order(player_id, action["defunct_chain"])
     if action_type == "merger_disposition":
         sell, trade, hold = _parse_disposition(action)
         # Wire "hold" maps to the engine's "keep"

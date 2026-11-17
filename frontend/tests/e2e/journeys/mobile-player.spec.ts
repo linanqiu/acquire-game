@@ -115,6 +115,13 @@ test('mobile player: 8 turns at phone size with trade panel and disposition', as
           await reachable(b, 'chain button')
         }
         break
+      case 'CHOOSE THE MERGER ORDER':
+        await expect(page.getByTestId('tab-board')).toHaveAttribute('aria-selected', 'true')
+        await expect(page.getByTestId('board')).toBeVisible()
+        for (const b of await page.getByTestId('merger-order').getByRole('button').all()) {
+          await reachable(b, 'merger order row')
+        }
+        break
       case 'DISPOSE YOUR SHARES': {
         await expect(page.getByTestId('tab-board')).toHaveAttribute('aria-selected', 'true')
         await expect(page.getByTestId('board')).toBeVisible()

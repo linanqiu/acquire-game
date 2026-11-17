@@ -22,6 +22,9 @@ describe('waitingMessage', () => {
     expect(msg('place_tile')).toBe('Waiting for Alice to place a tile...')
     expect(msg('found_chain')).toBe('Waiting for Alice to found a hotel chain...')
     expect(msg('choose_survivor')).toBe('Waiting for Alice to choose the surviving hotel chain...')
+    expect(msg('choose_defunct_order')).toBe(
+      'Waiting for Alice to choose which hotel chain is absorbed first...'
+    )
     expect(msg('buy_stocks')).toBe('Waiting for Alice to buy shares...')
     expect(msg('found_chain', VALLEY)).toBe('Waiting for Alice to found an AI startup...')
     expect(msg('buy_stocks', VALLEY)).toBe('Waiting for Alice to buy equity shares...')

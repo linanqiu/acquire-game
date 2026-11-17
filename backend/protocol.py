@@ -91,6 +91,19 @@ class MergerChoiceMessage(BaseModel):
         return _validate_chain_name(v, info)
 
 
+class MergerOrderMessage(BaseModel):
+    """Validate merger_order action messages (which tied defunct chain next)."""
+
+    action: Literal["merger_order"]
+    defunct_chain: str
+
+    @field_validator("defunct_chain")
+    @classmethod
+    def validate_chain(cls, v: str, info: ValidationInfo) -> str:
+        """Validate chain name."""
+        return _validate_chain_name(v, info)
+
+
 class DispositionData(BaseModel):
     """Validate disposition data within merger_disposition."""
 
@@ -254,6 +267,7 @@ def validate_websocket_message(
         "place_tile": PlaceTileMessage,
         "found_chain": FoundChainMessage,
         "merger_choice": MergerChoiceMessage,
+        "merger_order": MergerOrderMessage,
         "merger_disposition": MergerDispositionMessage,
         "buy_stocks": BuyStocksMessage,
         "end_turn": EndTurnMessage,

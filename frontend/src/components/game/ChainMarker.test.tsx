@@ -16,8 +16,8 @@ describe('ChainMarker', () => {
       renderIn(DEFAULT_RS, <ChainMarker chain="sandpiper" variant="icon" />)
       const marker = screen.getByTestId('chain-marker-sandpiper')
       expect(marker).toHaveTextContent('SP')
-      expect(marker.style.getPropertyValue('--chain-bg')).toBe('#CBBA2F')
-      expect(marker.style.getPropertyValue('--chain-fg')).toBe(readableText('#CBBA2F'))
+      expect(marker.style.getPropertyValue('--chain-bg')).toBe('#B99E42')
+      expect(marker.style.getPropertyValue('--chain-fg')).toBe(readableText('#B99E42'))
     })
 
     it('names the chain in its title and accessible name', () => {

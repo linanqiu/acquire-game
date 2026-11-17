@@ -74,9 +74,12 @@ function LegalOptions({
       break
     }
     case 'found_chain':
-    case 'choose_survivor': {
+    case 'choose_survivor':
+    case 'choose_defunct_order': {
       const chains = (legal.chains as string[]) ?? []
-      const chosen = (action.chain ?? action.surviving_chain) as string | undefined
+      const chosen = (action.chain ?? action.surviving_chain ?? action.defunct_chain) as
+        | string
+        | undefined
       body = (
         <div className={styles.options}>
           {chains.map((c) => (

@@ -145,6 +145,27 @@ class ChooseMergerSurvivorResult(GameResponse):
 
 
 @dataclass
+class ChooseDefunctOrderResult(GameResponse):
+    """Result of choosing which same-size defunct chain is resolved next.
+
+    Attributes:
+        defunct_chain: The chain that is resolved next
+        next_action: Next action needed
+    """
+
+    defunct_chain: Optional[str] = None
+    next_action: Optional[str] = None
+
+    def to_dict(self) -> dict:
+        d = super().to_dict()
+        if self.defunct_chain:
+            d["defunct_chain"] = self.defunct_chain
+        if self.next_action:
+            d["next_action"] = self.next_action
+        return d
+
+
+@dataclass
 class StockDispositionResult(GameResponse):
     """Result of handling stock disposition during a merger.
 

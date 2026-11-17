@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { hostPhaseText, playerPhaseText } from './phaseText'
+import { hostPhaseText, orderPhaseText, playerPhaseText } from './phaseText'
 import { DEFAULT_RS, MINI, VALLEY } from '../../tests/unit/fixtures/rulesets'
 
 describe('the banner the player reads, by phase, whose turn it is, and the ruleset words', () => {
@@ -22,6 +22,12 @@ describe('the banner the player reads, by phase, whose turn it is, and the rules
     expect(playerPhaseText(MINI, 'found_chain', true, 'A')).toBe('CHOOSE A SHIPPING LINE')
     expect(playerPhaseText(MINI, 'merger', true, 'A')).toBe('TAKEOVER IN PROGRESS')
     expect(playerPhaseText(MINI, 'buy_stocks', true, 'A')).toBe('BUY SHARES')
+  })
+
+  it('the merger-order choice has its own banner, in the ruleset words', () => {
+    expect(orderPhaseText(DEFAULT_RS)).toBe('CHOOSE THE MERGER ORDER')
+    expect(orderPhaseText(VALLEY)).toBe('CHOOSE THE ACQUISITION ORDER')
+    expect(orderPhaseText(MINI)).toBe('CHOOSE THE TAKEOVER ORDER')
   })
 
   it('when it is not my turn the banner names whose turn it is, in any phase', () => {

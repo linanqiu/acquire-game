@@ -179,6 +179,8 @@ function one(e: EngineEvent, names: Names, lx: Lex): string {
       return `${chain(e.chain)} grows to ${e.size}.`
     case 'survivor_chosen':
       return `${who} chose ${chain(e.survivor)} to survive the tie.`
+    case 'defunct_order_chosen':
+      return `${who} chose ${chain(e.chain)} to be absorbed first.`
     case 'merger_started': {
       const defunct = ((e.defunct as string[]) ?? []).map(chain).join(', ')
       return `${capitalized(theme.merger_noun)}: ${chain(e.survivor)} absorbs ${defunct}.`
@@ -337,6 +339,7 @@ export function decisionKindLabel(kind: string, rs: Ruleset): string {
     place_tile: 'Place a tile',
     found_chain: `Found ${withArticle(t.chain_noun)}`,
     choose_survivor: 'Choose survivor',
+    choose_defunct_order: `${capitalized(t.merger_noun)} order`,
     stock_disposition: `${capitalized(t.merger_noun)} ${t.share_noun_plural}`,
     buy_stocks: `Buy ${t.share_noun_plural}`,
     trade_response: 'Answer a trade',

@@ -35,7 +35,12 @@ os.environ["GAME_TEST_MODE"] = "1"
 os.environ["GAME_TEST_MODE_ACTION_DELAY"] = "0"
 sys.path.insert(0, str(BACKEND))
 
-PROMPTS = ("choose_chain", "choose_merger_survivor", "stock_disposition_required")
+PROMPTS = (
+    "choose_chain",
+    "choose_merger_survivor",
+    "choose_merger_order",
+    "stock_disposition_required",
+)
 
 
 def drain(ws, until) -> list[dict]:

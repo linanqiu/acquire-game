@@ -239,6 +239,13 @@ export interface ChooseMergerSurvivorMessage {
   tied_chains: ChainId[]
 }
 
+/** Same-size defunct chains: the player who placed the tile picks which is absorbed next. */
+export interface ChooseMergerOrderMessage {
+  type: 'choose_merger_order'
+  tied_chains: ChainId[]
+  surviving_chain: ChainId
+}
+
 export interface StockDispositionMessage {
   type: 'stock_disposition_required'
   defunct_chain: ChainId
@@ -382,6 +389,7 @@ export type WebSocketMessage =
   | LobbyUpdateMessage
   | ChooseChainMessage
   | ChooseMergerSurvivorMessage
+  | ChooseMergerOrderMessage
   | StockDispositionMessage
   | ErrorMessage
   | GameOverMessage
@@ -414,6 +422,11 @@ export interface FoundChainAction {
 export interface MergerChoiceAction {
   action: 'merger_choice'
   surviving_chain: ChainId
+}
+
+export interface MergerOrderAction {
+  action: 'merger_order'
+  defunct_chain: ChainId
 }
 
 export interface MergerDispositionAction {
@@ -467,6 +480,7 @@ export type GameAction =
   | PlaceTileAction
   | FoundChainAction
   | MergerChoiceAction
+  | MergerOrderAction
   | MergerDispositionAction
   | BuyStocksAction
   | EndTurnAction

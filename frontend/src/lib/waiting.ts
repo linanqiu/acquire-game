@@ -8,6 +8,7 @@ function what(rs: Ruleset): Record<string, string> {
     place_tile: 'place a tile',
     found_chain: `found ${withArticle(t.chain_noun)}`,
     choose_survivor: `choose the surviving ${t.chain_noun}`,
+    choose_defunct_order: `choose which ${t.chain_noun} is absorbed first`,
     stock_disposition: `dispose of their ${t.share_noun_plural}`,
     buy_stocks: `buy ${t.share_noun_plural}`,
     trade_response: 'answer a trade offer',

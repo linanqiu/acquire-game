@@ -15,6 +15,7 @@ from game.board import Tile
 from game.calculator import build_calculator_pack
 from game.decisions import (
     BUY_STOCKS,
+    CHOOSE_DEFUNCT_ORDER,
     CHOOSE_SURVIVOR,
     FOUND_CHAIN,
     PLACE_TILE,
@@ -126,6 +127,12 @@ def random_answer(
         return {
             "action": "merger_choice",
             "surviving_chain": rng.choice(legal["chains"]),
+        }
+
+    if kind == CHOOSE_DEFUNCT_ORDER:
+        return {
+            "action": "merger_order",
+            "defunct_chain": rng.choice(legal["chains"]),
         }
 
     if kind == STOCK_DISPOSITION:
@@ -285,6 +292,15 @@ def illegal_candidates(game: Game, decision: Decision) -> list[tuple[str, object
         cands.append((pid, {"action": "merger_choice", "surviving_chain": non_tied[0]}))
         cands.append(
             (other.player_id, {"action": "merger_choice", "surviving_chain": tied[0]})
+        )
+    elif kind == CHOOSE_DEFUNCT_ORDER:
+        tied = decision.context["tied_chains"]
+        non_tied = [c for c in game.ruleset.chain_ids if c not in tied]
+        cands.append((pid, {"action": "merger_order", "defunct_chain": non_tied[0]}))
+        cands.append((pid, {"action": "merger_order"}))
+        cands.append((pid, {"action": "merger_choice", "surviving_chain": tied[0]}))
+        cands.append(
+            (other.player_id, {"action": "merger_order", "defunct_chain": tied[0]})
         )
     elif kind == STOCK_DISPOSITION:
         ctx = decision.context
@@ -670,6 +686,11 @@ def test_random_games_cover_every_decision_kind():
         BUY_STOCKS,
         TRADE_RESPONSE,
     }
+    # The merger-order choice needs three chains on one tile with two defunct
+    # chains of one size: rarer, so a seed known to reach it.
+    game, _ = run_random_game(1391, 6, declare_prob=0.25)
+    chosen = [e for e in game.events if e["type"] == "defunct_order_chosen"]
+    assert chosen and all(e["chain"] in e["tied_chains"] for e in chosen)
     for t in (
         "game_started",
         "tiles_dealt",

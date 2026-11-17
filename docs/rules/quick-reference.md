@@ -65,6 +65,14 @@ Minority Bonus = Stock Price × 5
 | Tie for majority | Split (maj + min), round UP to $100, no minority paid |
 | Tie for minority | Split minority, round UP to $100 |
 
+## Merger Order
+
+| Situation | Rule |
+|-----------|------|
+| Largest chains tie | Mergemaker chooses the survivor |
+| 2+ defunct chains | Resolve largest first |
+| Defunct chains of the same size | Mergemaker chooses which is resolved next |
+
 ## Merger Stock Options
 
 | Option | Description |
