@@ -14,8 +14,11 @@ export function useChangeFlash<T extends HTMLElement>(value: number | null | und
     const before = prev.current
     prev.current = value
     if (!el || before == null || value == null || before === value || reducedMotion()) return
-    el.removeAttribute('data-flash')
-    void el.offsetWidth // restart if a flash is still running
+    if (el.hasAttribute('data-flash')) {
+      // Restart a flash still running (the reflow is forced only then: BL-020).
+      el.removeAttribute('data-flash')
+      void el.offsetWidth
+    }
     el.setAttribute('data-flash', value > before ? 'up' : 'down')
     const done = () => el.removeAttribute('data-flash')
     el.addEventListener('animationend', done, { once: true })

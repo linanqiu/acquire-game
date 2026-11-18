@@ -454,10 +454,14 @@ driver, the one action path), `lifecycle.py` (start / host-forced end),
   decision is pending.
 - Timeouts per seat kind (`config.py`): `bot_decision_timeout` 10 s,
   `scripted_decision_timeout` 10 s, `llm_decision_timeout` 130 s (the whole
-  decision, retries included), or an agent's own `decision_timeout` attribute. Pacing after each
-  agent action: `agent_action_delay` 0.4 s, `test_mode_agent_action_delay`
-  0.05 s (non-zero so browser tests can watch an all-bot game; protocol tests
-  use 0). Runaway caps per seat per turn: `max_agent_actions_per_turn` 40,
+  decision, retries included), or an agent's own `decision_timeout` attribute. Pacing
+  (BL-020): a minimum gap between two agent moves, counted from the first one, so the
+  next agent's think time is part of it (an LLM seat that thinks for seconds gets no
+  extra pause): `agent_step_delay` 0.1 s while the same seat goes on with its turn,
+  `agent_action_delay` 0.35 s when the game moves to another seat (env
+  `AGENT_ACTION_DELAY`; 0.4 s after every move before BL-020); in test mode both are
+  `test_mode_agent_action_delay` 0.05 s (non-zero so browser tests can watch an
+  all-bot game; protocol tests use 0). Runaway caps per seat per turn: `max_agent_actions_per_turn` 40,
   `max_trade_proposals_per_turn` 2 (exceeding them counts as a fallback).
 - Fallbacks are logged and counted: `GET /room/{code}/debug` returns
   `{driver_running, version, awaiting_agent, agent_actions, fallback_count,
@@ -494,7 +498,11 @@ driver, the one action path), `lifecycle.py` (start / host-forced end),
   `all_tiles_unplayable` (room) and `tiles_replaced` (player) from
   `tiles_replaced` events; `trade_proposed|accepted|rejected|canceled` to both
   parties and the host; `game_over` (room + host) from `game_ended`, with
-  `declared_by` when declared. Every successful action broadcasts `game_state`.
+  `declared_by` when declared. Every successful action broadcasts `game_state`;
+  a recipient whose state is identical to the last one it was sent gets nothing
+  (BL-020: e.g. a bot's "thinking" state, which equals the state before it), but a
+  newly connected socket (player or host) and `POST /room/{code}/refresh/{player}`
+  always get the current state.
 - `game_state` (JSON-safe; `pending_action` is not sent): per player
   `name, money, stocks, hand_size, kind, is_bot, agent_label`; top level
   `board, hotel, turn_order, current_player, phase, tiles_remaining,
