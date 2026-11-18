@@ -13,8 +13,7 @@ import { test, expect, type Shots } from './support/test'
 import { startFromSnapshot, type RoomContext } from './support/room'
 import { dollars, loadFixture } from './support/fixtures'
 import { phaseBanner, playHumanTurns } from './support/ui'
-import { layoutProblems } from './support/layout'
-import { expectFullBoard, outsideWidth } from './support/layout'
+import { expectFullBoard, outsideWidth, pageFrameProblems } from './support/layout'
 import { openTab, tab, tablePanel, tableTabId, type TabName } from '../support/tabs'
 
 const DESKTOP = { width: 1366, height: 768 }
@@ -112,11 +111,11 @@ async function expectTabsFit(page: Page, shots: Shots, label: string, tabs: TabN
     await openTab(page, name)
     await expect(page.getByTestId('merger-result')).toBeHidden()
     expect(
-      await layoutProblems(page, [
-        'game-phase',
-        `tabpanel-${name}`,
-        ...(phone ? ['dock', 'tab-bar'] : ['board-pane', 'tab-list']),
-      ])
+      await pageFrameProblems(
+        page,
+        ['game-phase', ...(phone ? ['dock', 'tab-bar'] : ['board-pane', 'tab-list'])],
+        [`tabpanel-${name}`]
+      )
     ).toEqual([])
     await shots.take(page, `${label}-${name}`, { fullPage: false })
   }
@@ -243,7 +242,9 @@ for (const vp of [
     await expect(page.getByTestId('tab-players')).toHaveCount(0)
     await expect(tablePanel(page).getByTestId('holdings-matrix')).toBeInViewport()
     await expectFullBoard(page)
-    expect(await layoutProblems(page, ['board', 'table-panel', 'tile-rack'])).toEqual([])
+    // The board, the rack and (on a phone) the tab bar on screen; the matrix follows the board,
+    // and where it is longer than a small screen the page scrolls to the rest (BL-019).
+    expect(await pageFrameProblems(page, ['board', 'tile-rack'], ['table-panel'])).toEqual([])
     await expectMatrix(page, room)
     // A real table: column headers name the chains, row headers the players.
     const matrix = page.getByTestId('holdings-matrix')
@@ -402,7 +403,10 @@ async function rackOnScreen(page: Page, shots: Shots, label: string, fixture: st
   for (const name of ['table', 'chains', 'chat', 'trades'] as const) {
     await openTab(page, name)
     const id = name === 'table' ? 'now' : name
-    expect(await layoutProblems(page, ['board-pane', 'tab-list', `tabpanel-${id}`])).toEqual([])
+    // The board stays beside the tabs; a tab longer than the screen scrolls the page (BL-019).
+    expect(await pageFrameProblems(page, ['board-pane', 'tab-list'], [`tabpanel-${id}`])).toEqual(
+      []
+    )
   }
   await shots.take(page, label, { fullPage: false })
 }

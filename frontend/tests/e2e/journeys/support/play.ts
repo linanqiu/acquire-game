@@ -345,10 +345,9 @@ export class Seat {
     }
     const hold = owned - sell - trade
     // Each slider says what it gives, next to it; the rest is kept.
-    const n = (count: number) => `${count} share${count === 1 ? '' : 's'}`
-    await expect(form.getByTestId('disposition-sell')).toContainText(`${n(sell)} →`)
-    await expect(form.getByTestId('disposition-trade')).toContainText(`${n(trade)} → ${trade / 2} `)
-    await expect(form.getByTestId('hold-display')).toContainText(`KEEP ${n(hold)}`)
+    await expect(form.getByTestId('disposition-sell')).toContainText(`${sell} →`)
+    await expect(form.getByTestId('disposition-trade')).toContainText(`${trade} → ${trade / 2}`)
+    await expect(form.getByTestId('hold-display')).toHaveText(String(hold))
     this.log(`dispose ${owned} ${defunct}: sell ${sell}, trade ${trade}, hold ${hold}`)
     await this.shot(`disposition-${defunct}-set`)
     await this.press(form.getByTestId('confirm-disposition'))

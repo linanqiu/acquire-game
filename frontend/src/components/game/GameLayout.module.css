@@ -1,4 +1,7 @@
-/* In-game layout (BL-008, BL-013). Fills PageShell's main area; only the panels scroll. */
+/* In-game layout (BL-008, BL-013, BL-019). The document is the only scroller: no panel scrolls
+   inside itself. What stays put while the page scrolls: the header and phase bar at the top
+   (PageShell, height --chrome-top) and, on phones, the rack and tab bar at the foot (height
+   --chrome-bottom). */
 
 /* The board fits both the width and the height of its box: the box is a size container and the
    board reads its height through --board-max-height (see Board.module.css). */
@@ -10,27 +13,28 @@
 }
 
 /* The phone's Board tab: the board at the width of the screen, and under it the table panel
-   (my decision in place, else the players matrix). The panel is left the height its content
-   needs (--table-need, measured by GameLayout), so the matrix shows whole and nothing scrolls;
-   the board takes the rest. When that is less than the board's square size its squares get a
-   little shorter than wide (never under --cell-floor; the rack is the comfortable way to pick
-   a tile), and only past that does the panel scroll inside itself. A decision of mine asks for
-   a fixed share instead, and the board gets smaller for it but stays whole. */
+   (my decision in place, else the players matrix). --avail is the screen between the parts that
+   stay put. The panel is as tall as its content (--table-need, measured by GameLayout) and the
+   board takes the rest of --avail, so the matrix shows whole and nothing scrolls. When that is
+   less than the board's square size its squares get a little shorter than wide (never under
+   --cell-floor; the rack is the comfortable way to pick a tile), and only past that does the
+   page scroll (the whole page, never a box inside it). While I decide, the board yields to the
+   decision's own parts (--core-need: the controls and their button); what follows them (the
+   players matrix, who holds what) is under them, the page scrolls to it. */
 .boardTab {
-  flex: 1 1 0;
-  min-height: 0;
+  --avail: calc(100dvh - var(--chrome-top, 88px) - var(--chrome-bottom, 120px) - 6px);
+  min-height: var(--avail);
   display: flex;
   flex-direction: column;
   gap: 6px;
-  container-type: size;
   --under-min: max(72px, var(--table-need, 104px));
-  --board-max-height: calc(100cqh - var(--under-min) - 6px);
+  --board-max-height: calc(var(--avail) - var(--under-min) - 6px);
   --cell-stretch: 1.3;
   --cell-floor: 20px;
 }
 
 .boardTab[data-deciding] {
-  --under-min: max(min(330px, 58cqh), min(var(--core-need, 0px), 68cqh));
+  --under-min: var(--core-need, calc(var(--avail) * 0.58));
   --cell-floor: var(--cell-min);
 }
 
@@ -39,14 +43,10 @@
   min-width: 0;
 }
 
-/* The table panel: a scroller of its own, on phones (under the board) and in the sidebar tab. */
+/* The table panel: as tall as its content, on phones (under the board) and in the sidebar. */
 .table {
-  flex: 1 1 0;
-  min-height: 0;
+  flex: 1 0 auto;
   min-width: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  container-type: size;
   display: flex;
   flex-direction: column;
 }
@@ -64,7 +64,7 @@
 }
 
 .panel {
-  flex: 1 1 0;
+  flex: 1 0 auto;
   display: flex;
   flex-direction: column;
 }
@@ -73,24 +73,30 @@
 .phone {
   display: flex;
   flex-direction: column;
-  flex: 1 1 0;
-  min-height: 0;
+  flex: 1 0 auto;
 }
 
 /* The selected tab. */
 .content {
-  flex: 1 1 0;
-  min-height: 0;
+  flex: 1 0 auto;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   padding: 6px var(--space-2) 0;
 }
 
+/* The rack and the tab bar: at the foot of the screen while the page scrolls above them. */
+.bottom {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+}
+
 /* One status line and the rack, right above the tab bar where the thumb is. */
 .dock {
-  flex: 0 1 auto;
-  min-height: 0;
+  flex: none;
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -117,17 +123,19 @@
   }
 }
 
-/* ---- Wide screens: board left, sidebar right ---------------------------------------------- */
+/* ---- Wide screens: board left (it stays in view), the tabs right (the page scrolls) -------- */
 .wide {
-  flex: 1 1 0;
-  min-height: 0;
+  flex: 1 0 auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr) clamp(320px, 34vw, 480px);
-  grid-template-rows: minmax(0, 1fr);
+  align-items: start;
   gap: var(--space-3);
 }
 
 .boardPane {
+  position: sticky;
+  top: calc(var(--chrome-top, 72px) + var(--space-2));
+  height: calc(100dvh - var(--chrome-top, 72px) - 2 * var(--space-2));
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -151,12 +159,11 @@
   flex-direction: column;
   gap: var(--space-2);
   min-width: 0;
-  min-height: 0;
+  min-height: calc(100dvh - var(--chrome-top, 72px) - 2 * var(--space-2));
 }
 
 .tabs {
-  flex: 1 1 0;
-  min-height: 140px;
+  flex: 1 0 auto;
   display: flex;
   flex-direction: column;
   background-color: var(--bg-secondary);
@@ -170,8 +177,6 @@
 /* In a pinned card (the host's TV) the table panel is as tall as its content. */
 .pinnedCard .table {
   flex: none;
-  overflow: visible;
-  container-type: normal;
 }
 
 /* A big screen (the host on a TV): Players and Chains pinned side by side, Chat and Log below. */
@@ -180,12 +185,10 @@
 }
 
 .pinned {
-  flex: 0 1 auto;
-  min-height: 0;
+  flex: none;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: var(--space-2);
-  overflow-y: auto;
 }
 
 .pinnedCard {

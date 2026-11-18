@@ -453,6 +453,7 @@ export function PlayerPage() {
         playerName={currentPlayer?.name}
         tilePool={inGame ? (gameState?.tiles_remaining ?? undefined) : undefined}
         inGame={inGame && !outOfGame}
+        menuRoom={inGame && !outOfGame ? room : undefined}
         phaseLink={
           inGame && !outOfGame && myDecision && !tableVisible
             ? { label: wide ? 'Table' : 'Board', onOpen: () => setAnswer((n) => n + 1) }

@@ -83,18 +83,18 @@ export function MergerResult({
   // Around my own sell / trade / keep controls, which already give the defunct price.
   const deciding = part === 'body'
 
+  // One line: what happened, then who placed which tile and the survivor's size (its name is
+  // in the title already).
   const head = (
-    <>
-      <header className={styles.header}>
-        <h3 className={styles.title} data-testid="merger-result-title">
-          {survivor} takes over {defunctNames}
-        </h3>
-      </header>
+    <header className={styles.header}>
+      <h3 className={styles.title} data-testid="merger-result-title">
+        {survivor} takes over {defunctNames}
+      </h3>
       <p className={styles.summary} data-testid="merger-result-summary">
-        {nameOf(merger.player_id)} placed {merger.tile ?? 'a tile'} · {survivor} {before} →{' '}
+        {nameOf(merger.player_id)}, {merger.tile ?? 'a tile'} · {before} →{' '}
         {(merger.complete ? merger.survivor_size : afterSize) ?? '?'} tiles
       </p>
-    </>
+    </header>
   )
 
   const defunctSections = merger.defunct.map((d) => {

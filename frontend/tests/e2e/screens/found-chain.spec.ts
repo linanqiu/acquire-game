@@ -20,15 +20,15 @@ test('found chain: only the chains not on the board are offered; founder gets a 
   await expect(page.getByRole('heading', { name: /hotel chain/i })).toHaveCount(0)
   await expect(page.getByTestId('chain-selector')).toBeVisible()
 
-  // Exactly the engine's available chains are enabled; everything else is shown as ACTIVE.
+  // Exactly the engine's available chains are offered; the chains on the board are not a
+  // choice and are not listed (BL-019).
   for (const chain of ALL_CHAINS) {
     const button = page.getByTestId(`chain-button-${chain.toLowerCase()}`)
     if (offered.includes(chain)) {
       await expect(button).toBeEnabled()
       await expect(button).toContainText('shares left')
     } else {
-      await expect(button).toBeDisabled()
-      await expect(button).toContainText('ACTIVE')
+      await expect(button).toHaveCount(0)
       expect(Object.keys(active_chains)).toContain(chain)
     }
   }

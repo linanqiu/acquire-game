@@ -29,28 +29,28 @@ const MY_DECISION_BANNERS = [
 ]
 
 /**
- * My sell / trade / keep choice as the page prints it, once each, next to its control (BL-017):
- * what the sale pays at the SELL slider, the survivor shares at the TRADE slider, the rest at
- * KEEP. There is no second summary line under the sliders.
+ * My sell / trade / keep choice as the page prints it, once each, next to its control (BL-017,
+ * BL-019): "3 → $1,500" at Sell, "4 → 2 MA" at Trade (the survivor's swatch, its name for
+ * screen readers), the count left at Keep. There is no second summary line under them.
  */
 export async function expectDisposition(
   page: Page,
   c: { sell: number; trade?: number; hold?: number; price?: number; survivor?: string }
 ): Promise<void> {
-  const n = (k: number) => `${k} share${k === 1 ? '' : 's'}`
   const usd = (k: number) => `$${k.toLocaleString('en-US')}`
   const sold = page.getByTestId('disposition-sell')
-  if (c.price !== undefined)
-    await expect(sold).toHaveText(`${n(c.sell)} → ${usd(c.sell * c.price)}`)
-  else await expect(sold).toContainText(`${n(c.sell)} → `)
+  if (c.price !== undefined) await expect(sold).toHaveText(`${c.sell} → ${usd(c.sell * c.price)}`)
+  else await expect(sold).toContainText(`${c.sell} → `)
   if (c.trade !== undefined) {
     const traded = page.getByTestId('disposition-trade')
     if (c.survivor !== undefined)
-      await expect(traded).toHaveText(`${n(c.trade)} → ${c.trade / 2} ${c.survivor.toUpperCase()}`)
-    else await expect(traded).toContainText(`${n(c.trade)} → ${c.trade / 2} `)
+      await expect(traded).toHaveText(
+        new RegExp(`^${c.trade} → ${c.trade / 2}\\s*[A-Z]{2,3}\\s*${c.survivor}$`, 'i')
+      )
+    else await expect(traded).toContainText(`${c.trade} → ${c.trade / 2}`)
   }
   if (c.hold !== undefined)
-    await expect(page.getByTestId('hold-display')).toContainText(`KEEP ${n(c.hold)}`)
+    await expect(page.getByTestId('hold-display')).toHaveText(String(c.hold))
   await expect(page.getByTestId('disposition-summary')).toHaveCount(0)
 }
 

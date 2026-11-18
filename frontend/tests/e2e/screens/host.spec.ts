@@ -83,7 +83,7 @@ test('host view of a busy mid-game board follows the players turn by turn', asyn
   const { current_player } = room.fixture.expect
   const currentName = room.names[room.seatMap[current_player]]
 
-  await expect(hostPhase(host)).toHaveText(`${currentName}'s TURN - PLACE TILE`)
+  await expect(hostPhase(host)).toHaveText(`${currentName.toUpperCase()} IS PLACING A TILE`)
   await expectHostMatchesFixture(host, room)
   // The player whose turn it is carries the marker.
   await expect(
@@ -103,7 +103,7 @@ test('host view of a busy mid-game board follows the players turn by turn', asyn
   if (!simple) throw new Error('three-player-midgame: the human holds no plain or expanding tile')
   await page.getByTestId('tile-rack').getByTestId(`tile-${simple.tile}`).click()
   await page.getByTestId('place-tile-button').click()
-  await expect(hostPhase(host)).toHaveText(`${currentName}'s TURN - BUY STOCKS`)
+  await expect(hostPhase(host)).toHaveText(`${currentName.toUpperCase()} IS BUYING SHARES`)
   await expect(host.getByTestId('turn-marker')).toHaveCount(1)
   await shots.take(host, 'host-after-placing')
   await playHumanTurns(page, room, 3, shots)
@@ -119,7 +119,8 @@ test('host view of a merger in progress shows the merging state and who the tabl
   const host = await openHost(room)
   const decider = room.names[room.seatMap[room.fixture.expect.decisions[0].player_id]]
 
-  await expect(hostPhase(host)).toHaveText(`${decider}'s TURN - MERGER`)
+  // Who the table waits on and for what, in the player page's words (BL-019).
+  await expect(hostPhase(host)).toHaveText(`${decider.toUpperCase()} IS DISPOSING OF SHARES`)
   await expectHostMatchesFixture(host, room)
   await expect(cards(host).filter({ hasText: decider }).getByTestId('turn-marker')).toBeVisible()
   await shots.take(host, 'host-merger')
@@ -128,7 +129,7 @@ test('host view of a merger in progress shows the merging state and who the tabl
   expect(await room.driveIdle()).toBe(true)
   await expect(page.getByTestId('merger-disposition')).toBeVisible()
   await page.getByTestId('confirm-disposition').click()
-  await expect(hostPhase(host)).not.toHaveText(`${decider}'s TURN - MERGER`)
+  await expect(hostPhase(host)).not.toHaveText(`${decider.toUpperCase()} IS DISPOSING OF SHARES`)
   await shots.take(host, 'host-after-merger')
   await playHumanTurns(page, room, 2, shots)
 })

@@ -127,8 +127,8 @@ async function checkBadges(
   await expect(botPop).toContainText('Rules-based bot · does not chat')
   await expectFullyOnScreen(page, botPop)
   await shots.take(page, 'bot-popover-open')
-  if (opts.touch) await page.getByTestId('header-title').tap()
-  else await page.getByTestId('header-title').click()
+  if (opts.touch) await page.getByTestId('game-phase').tap()
+  else await page.getByTestId('game-phase').click()
   await expect(botPop).toBeHidden()
 
   // Re-open the LLM popover for the evidence screenshot and leave it open.

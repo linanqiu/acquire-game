@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { Header } from './Header'
 import { serverRuleset } from '../../../tests/unit/fixtures/wire'
 import { useRulesetStore } from '../../ruleset/store'
@@ -57,5 +58,37 @@ describe('Header', () => {
     expect(screen.getByTestId('header-networth')).toHaveTextContent('$24,600')
     expect(screen.getByTestId('header-rank')).toHaveTextContent('#1')
     expect(screen.getByTestId('header-tile-pool')).toHaveTextContent('[30]')
+  })
+
+  it("in a game the menu takes the wordmark's place: room and invite, theme, rules, the way home (BL-019)", () => {
+    serverRuleset('default')
+    render(
+      <MemoryRouter>
+        <Header inGame menuRoom="WXYZ" roomCode="WXYZ" tilePool={30} />
+      </MemoryRouter>
+    )
+    // Nothing of it shows until asked: the header carries what changes.
+    expect(screen.queryByTestId('header-menu')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('theme-toggle')).not.toBeInTheDocument()
+    const button = screen.getByTestId('header-menu-button')
+    expect(button).toHaveAccessibleName('Menu')
+    expect(button).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(button)
+    const menu = screen.getByTestId('header-menu')
+    expect(button).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByTestId('menu-room-code')).toHaveTextContent('WXYZ')
+    expect(screen.getByTestId('menu-share')).toHaveAttribute(
+      'href',
+      expect.stringContaining('code=WXYZ')
+    )
+    expect(screen.getByTestId('menu-theme-toggle')).toBeInTheDocument()
+    expect(screen.getByTestId('menu-rules')).toHaveTextContent('Rules in brief')
+    expect(screen.getByTestId('menu-rules')).toHaveTextContent('trade 2:1')
+    expect(screen.getByTestId('menu-leave')).toHaveAttribute('href', '/')
+    expect(menu).toHaveAccessibleName('Menu')
+    // Escape closes it and gives the focus back.
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByTestId('header-menu')).not.toBeInTheDocument()
+    expect(button).toHaveFocus()
   })
 })
