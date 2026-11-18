@@ -246,6 +246,54 @@ class TestTalk:
         calls = session_manager.get_room(code).players[b].agent.provider.calls
         assert [c["effort"] for c in calls] == ["low"]
 
+    def test_an_unnamed_follow_up_goes_to_the_seat_in_the_exchange(
+        self, app_client, chat_settings
+    ):
+        """LO-013 (UMWT): "If I give you SP..." names nobody but continues a
+        one-to-one exchange; it goes to that seat, which is told it is for it."""
+        client = app_client
+        code, alice = create_room(client, "Alice")
+        seats = [add_seat(client, code, "llm:fake")["player_id"] for _ in range(3)]
+        room = session_manager.get_room(code)
+        b = seats[1]
+        name = room.players[b].name
+        assert say(client, code, alice, f"{name}, how are you").status_code == 200
+        quiet(client, code)
+        assert say(client, code, alice, "if I give you some, deal?").status_code == 200
+        d = quiet(client, code)
+        counts = {pid: d["chat_replies"].get(pid, {}).get("count", 0) for pid in seats}
+        assert counts == {seats[0]: 0, b: 2, seats[2]: 0}
+        user = room.players[b].agent.provider.calls[-1]["user"]
+        assert "Alice just wrote (to you, after your last message)" in user
+        # once two seats have answered, an unnamed message is for the table again
+        assert say(client, code, alice, "hello table").status_code == 200
+        quiet(client, code)
+        assert say(client, code, alice, "anyone?").status_code == 200
+        d = quiet(client, code)
+        assert sum(v["count"] for v in d["chat_replies"].values()) == 2 + 2 + 2
+
+    def test_talk_view_has_deal_facts_only_for_deal_talk(
+        self, app_client, chat_settings
+    ):
+        from chat import talk_view
+
+        client = app_client
+        code, alice = create_room(client, "Alice")
+        fake = add_seat(client, code, "llm:fake")["player_id"]
+        add_seat(client, code, "bot")
+        configure(client, code, 3)
+        start(client, code)
+        room = session_manager.get_room(code)
+        seat = room.players[fake]
+
+        def trigger(text):
+            m = {"id": 1, "player_id": alice, "name": "Alice", "kind": "human"}
+            return {"source": "human", "message": {**m, "text": text}, "events": []}
+
+        assert talk_view(room, seat, trigger("hello"))["deal_facts"] is None
+        facts = talk_view(room, seat, trigger("want to trade?"))["deal_facts"]
+        assert facts["other_id"] == alice and facts["offers"] == []
+
     def test_unaddressed_human_message_gets_replies_from_both_llm_seats(
         self, app_client, chat_settings
     ):
