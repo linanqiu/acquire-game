@@ -107,6 +107,7 @@ export function DecisionTab(p: DecisionTabProps) {
             availableChains={p.pendingChainChoice ?? []}
             onSelect={p.onFound}
             stockAvailability={gameState.hotel.available_stocks}
+            onlyAvailable
           />
         </section>
       )

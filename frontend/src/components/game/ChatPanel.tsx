@@ -105,7 +105,7 @@ export function ChatPanel({ room, mode = 'player', inTab = false, active = true 
     if (first) return
     if (atBottom.current) {
       toPageEnd()
-        setNewBelow(false)
+      setNewBelow(false)
     } else {
       setNewBelow(true)
     }

@@ -73,6 +73,34 @@ describe('the banner the spectator reads', () => {
 
   it('the lobby and the end of the game have no turn', () => {
     expect(hostPhaseText(DEFAULT_RS, 'lobby', 'Alice')).toBe('WAITING FOR PLAYERS')
+    // With who the engine waits on: the player page's words (BL-019).
+    const players = { p1: { name: 'Alice' }, p2: { name: 'Bob' } }
+    expect(
+      hostPhaseText(
+        DEFAULT_RS,
+        'stock_disposition',
+        'Alice',
+        {
+          player_id: 'p2',
+          kind: 'human',
+          decision: 'stock_disposition',
+        },
+        players
+      )
+    ).toBe('BOB IS DISPOSING OF SHARES')
+    expect(
+      hostPhaseText(
+        DEFAULT_RS,
+        'place_tile',
+        'Alice',
+        {
+          player_id: 'p1',
+          kind: 'bot',
+          decision: 'place_tile',
+        },
+        players
+      )
+    ).toBe('ALICE IS PLACING A TILE')
     expect(hostPhaseText(DEFAULT_RS, 'game_over', 'Alice')).toBe('GAME OVER')
   })
 })

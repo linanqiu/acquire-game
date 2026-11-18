@@ -195,9 +195,7 @@ describe('ChatPanel', () => {
       render(<ChatPanel room="ABCD" inTab />)
       // The tab opens at its foot: the newest line and the input.
       expect(top).toBe(800)
-      expect(getComputedStyle(screen.getByTestId('chat-list')).overflowY).not.toMatch(
-        /auto|scroll/
-      )
+      expect(getComputedStyle(screen.getByTestId('chat-list')).overflowY).not.toMatch(/auto|scroll/)
       // at the bottom: a new message scrolls the page to it
       fireEvent.scroll(window)
       deliver(msg(3))

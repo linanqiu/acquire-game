@@ -59,6 +59,7 @@ export function waitingPhaseText(
     place_tile: 'placing a tile',
     found_chain: `founding ${withArticle(t.chain_noun)}`,
     choose_survivor: `choosing the surviving ${t.chain_noun}`,
+    choose_defunct_order: `choosing the ${t.merger_noun} order`,
     stock_disposition: `disposing of ${t.share_noun_plural}`,
     buy_stocks: `buying ${t.share_noun_plural}`,
     trade_response: 'answering a trade offer',
@@ -98,10 +99,24 @@ export function playerPhaseText(
   }
 }
 
-/** The host view's banner: `<name>'s TURN - <step>`. */
-export function hostPhaseText(rs: Ruleset, phase: GamePhase, currentPlayerName: string): string {
+/**
+ * The host view's banner. With the decision the engine waits on (the public state's
+ * `awaiting`), the same words as a player's page (BL-019): "BOB IS DISPOSING OF SHARES".
+ * Without it: `<name>'s TURN - <step>`.
+ */
+export function hostPhaseText(
+  rs: Ruleset,
+  phase: GamePhase,
+  currentPlayerName: string,
+  awaiting?: AwaitingDecision | null,
+  players?: Record<string, { name: string }>
+): string {
   if (phase === 'lobby') return 'WAITING FOR PLAYERS'
   if (phase === 'game_over') return 'GAME OVER'
+  if (awaiting && players?.[awaiting.player_id]) {
+    const text = waitingPhaseText(rs, awaiting, players, currentPlayerName)
+    if (text !== `${currentPlayerName}'s TURN`) return text
+  }
 
   const step = (() => {
     switch (phase) {

@@ -12,6 +12,11 @@ export interface ChainSelectorProps {
   /** Label for chains that cannot be picked. Founding: "ACTIVE" (already on the board).
    *  Merger survivor choice: those chains are simply not part of the tie. */
   unavailableLabel?: string
+  /**
+   * Show only the chains that can be picked (BL-019: founding lists the chains not on the
+   * board; the ones on the board are not a choice and are not repeated). Tiers left empty go.
+   */
+  onlyAvailable?: boolean
 }
 
 /** Every chain of the ruleset, grouped by tier (labels from the ruleset), the pickable ones enabled. */
@@ -20,6 +25,7 @@ export function ChainSelector({
   onSelect,
   stockAvailability,
   unavailableLabel = 'ACTIVE',
+  onlyAvailable = false,
 }: ChainSelectorProps) {
   const rules = useRules()
   const tiers = chainsByTier(rules.rs)
@@ -30,10 +36,12 @@ export function ChainSelector({
     ...tiers.map((t) => ({
       key: t.tier.id,
       label: t.tier.label,
-      chains: t.chains.map((c) => c.id),
+      chains: t.chains
+        .map((c) => c.id)
+        .filter((c) => !onlyAvailable || availableChains.includes(c)),
     })),
     ...(extra.length ? [{ key: '__other', label: '', chains: extra }] : []),
-  ]
+  ].filter((g) => g.chains.length > 0)
   const allChains = groups.flatMap((g) => g.chains)
   const buttonRefs = useRef<Map<ChainId, HTMLButtonElement>>(new Map())
 
@@ -85,7 +93,11 @@ export function ChainSelector({
   const sharesLeft = (n: number) => `${rules.shares(n)} left`
 
   return (
-    <div className={styles.selector} data-testid="chain-selector" role="radiogroup">
+    <div
+      className={`${styles.selector} ${onlyAvailable ? styles.compact : ''}`}
+      data-testid="chain-selector"
+      role="radiogroup"
+    >
       {groups.map((tier) => (
         <div key={tier.key} className={styles.tier} data-testid={`chain-tier-${tier.key}`}>
           {tier.label && <div className={styles.tierLabel}>{tier.label}</div>}

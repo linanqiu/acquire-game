@@ -26,7 +26,7 @@
 @supports (grid-template-columns: subgrid) {
   .rows {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 50px 30px 30px 44px auto;
+    grid-template-columns: minmax(0, 1fr) 50px 32px 32px 44px auto;
   }
 
   .rows > .row {
@@ -40,7 +40,7 @@
    under the row I am buying in, or under one whose name is tapped. */
 .row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 50px 30px 30px 44px auto;
+  grid-template-columns: minmax(0, 1fr) 50px 32px 32px 44px auto;
   align-items: center;
   column-gap: var(--space-1);
   min-height: 44px;
@@ -62,7 +62,8 @@
   font-size: 10px;
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  /* No extra tracking: TILES and BANK sat flush against each other in a 30px column. */
+  letter-spacing: 0;
   text-align: right;
 }
 

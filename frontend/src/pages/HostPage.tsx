@@ -371,7 +371,13 @@ export function HostPage() {
     return (
       <PageShell
         header={<HostHeader roomCode={room} />}
-        phase={hostPhaseText(ruleset, phase, currentPlayerName)}
+        phase={hostPhaseText(
+          ruleset,
+          phase,
+          currentPlayerName,
+          gameState?.awaiting,
+          gameState?.players
+        )}
         turn="other"
         fill
         help={<StandingsLegend />}
@@ -385,7 +391,9 @@ export function HostPage() {
     <RulesetScope ruleset={gameState?.ruleset}>
       {renderPage()}
       {!unavailable && (phase === 'lobby' || phase === 'game_over') && (
-        <ChatPanel room={room} mode="spectator" />
+        <div className={styles.pageChat}>
+          <ChatPanel room={room} mode="spectator" />
+        </div>
       )}
       {hasConnected && connectionStatus !== 'connected' && !unavailable && (
         <ReconnectionOverlay
