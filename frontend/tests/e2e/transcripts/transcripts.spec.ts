@@ -433,6 +433,15 @@ test.describe('Transcripts and Buyout Bench on the real servers', () => {
           })
         )
       expect(Math.max(...mids) - Math.min(...mids), 'controls on one row').toBeLessThanOrEqual(4)
+      // The step count is whole and clear of the speed menu (it once ran under it). Its text
+      // must not be wider than its own box, and its box must end before the menu starts.
+      const fit = await page.getByTestId('step-counter').evaluate((el) => {
+        const box = el.getBoundingClientRect()
+        const speed = document.querySelector('[data-testid="speed"]')!.getBoundingClientRect()
+        return { overflow: el.scrollWidth - el.clientWidth, gap: speed.left - box.right }
+      })
+      expect(fit.overflow, 'step count wider than its box').toBeLessThanOrEqual(0)
+      expect(fit.gap, 'step count runs under the speed menu').toBeGreaterThanOrEqual(0)
       const bar = (await page.getByTestId('scrubber').boundingBox())!
       expect(bar.width).toBeGreaterThan(330)
       // The board and what happened in this step fit one screen under the controls.

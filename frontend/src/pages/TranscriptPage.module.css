@@ -106,8 +106,8 @@
 }
 
 .counter {
-  flex: 1 1 auto;
-  min-width: 0;
+  /* Never narrower than its numbers: shrinking let "108 / 230" run under the speed menu. */
+  flex: 1 0 auto;
   padding: 0 2px;
   font-size: var(--text-xs);
   color: var(--text-secondary);

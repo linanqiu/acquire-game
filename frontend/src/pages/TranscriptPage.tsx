@@ -294,7 +294,9 @@ function Viewer({
               <Icon d="M18 5v14M6 6l8 6-8 6z" />
             </button>
             <span className={styles.counter} data-testid="step-counter">
-              Step {shown} / {last}
+              {/* The word is for screen readers: on a phone the numbers are all the row has room for. */}
+              <span className={styles.srOnly}>Step </span>
+              {shown} / {last}
             </span>
             <label className={styles.speed}>
               <span className={styles.srOnly}>Playback speed</span>
