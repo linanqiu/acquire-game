@@ -1,17 +1,16 @@
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { Hint } from '../../components/ui/Hint'
-import { ChainMarker } from '../../components/game/ChainMarker'
 import { ChainSelector } from '../../components/game/ChainSelector'
-import { HolderChips } from '../../components/game/HolderChips'
 import { MergerLog, MergerResult } from '../../components/game/MergerResult'
-import { MergerDisposition, type DispositionDraft } from '../../components/game/MergerDisposition'
-import { chainTestId, withArticle } from '../../lib/ruleset'
+import { MergerDisposition } from '../../components/game/MergerDisposition'
+import { withArticle } from '../../lib/ruleset'
 import type { DecisionView } from '../../lib/decision'
 import { useRules } from '../../ruleset/useRules'
 import type { useMergerResult } from '../../hooks/useMergerResult'
 import type { ChainId, GameStateMessage, MergerRecord } from '../../types/api'
 import { BuyPanel, type Purchases } from './BuyPanel'
 import { MergerOrderChoice } from './MergerOrderChoice'
+import { SurvivorChoice } from './SurvivorChoice'
 import styles from './DecisionTab.module.css'
 
 type HotelChain = GameStateMessage['hotel']['chains'][number]
@@ -59,8 +58,6 @@ export function DecisionTab(p: DecisionTabProps) {
   const { theme } = rules
   const { gameState, myId } = p
   const players = gameState.players
-  // My sell / trade choice being prepared, for the disposition it belongs to.
-  const [drafted, setDrafted] = useState<{ key: string; draft: DispositionDraft } | null>(null)
   const mergers = gameState.mergers ?? []
   const last = mergers[mergers.length - 1] as MergerRecord | undefined
   const live = last && !last.complete ? last : undefined
@@ -68,28 +65,17 @@ export function DecisionTab(p: DecisionTabProps) {
 
   // The merger shown in full by the view itself (not repeated in the log line under it).
   let shownSeq: number | null = null
-  // A decision with a pinned footer fills the panel; the matrix is under it, one scroll away.
-  let fill = false
   let body: ReactNode
   switch (p.view) {
     case 'survivor':
       body = (
-        <section className={styles.section} aria-label={`Choose the surviving ${theme.chain_noun}`}>
-          {/* The phase bar is the title ("CHOOSE THE SURVIVING HOTEL CHAIN"). */}
-          <div className={styles.titleRow}>
-            <Hint id="survivor">
-              The tied {theme.chain_noun_plural} are the same size; the one you pick takes over the
-              other{p.pendingMergerChoice && p.pendingMergerChoice.length > 2 ? 's' : ''}.
-            </Hint>
-          </div>
-          <ChainSelector
-            availableChains={p.pendingMergerChoice ?? []}
-            onSelect={p.onSurvivor}
-            stockAvailability={gameState.hotel.available_stocks}
-            unavailableLabel="NOT TIED"
-          />
-          <ChainFacts chains={p.pendingMergerChoice ?? []} gameState={gameState} myId={myId} />
-        </section>
+        <SurvivorChoice
+          tiedChains={p.pendingMergerChoice ?? []}
+          gameState={gameState}
+          myId={myId}
+          disabled={p.loading}
+          onChoose={p.onSurvivor}
+        />
       )
       break
     case 'order':
@@ -129,13 +115,11 @@ export function DecisionTab(p: DecisionTabProps) {
       const d = p.pendingStockDisposition!
       const record = live ?? last
       const key = `${record?.seq}:${d.defunctChain}`
-      const draft = drafted?.key === key ? drafted.draft : undefined
       const defunctPrice =
         record?.defunct.find((x) => x.chain === d.defunctChain)?.price ??
         gameState.hotel.chains.find((c) => c.name === d.defunctChain)?.price ??
         0
       shownSeq = record?.seq ?? null
-      fill = true
       body = (
         <MergerDisposition
           key={key}
@@ -145,7 +129,8 @@ export function DecisionTab(p: DecisionTabProps) {
           defunctPrice={defunctPrice}
           survivorStockAvailable={d.availableToTrade}
           cash={me?.money}
-          onDraftChange={(next) => setDrafted({ key, draft: next })}
+          survivorHolders={record?.survivor_after?.holders}
+          myId={myId}
           onConfirm={(sell, trade, hold) => p.onDispose(d.defunctChain, sell, trade, hold)}
           header={
             record && (
@@ -159,7 +144,6 @@ export function DecisionTab(p: DecisionTabProps) {
               players={players}
               gameState={gameState}
               myId={myId}
-              draft={draft}
               part="body"
             />
           )}
@@ -175,7 +159,6 @@ export function DecisionTab(p: DecisionTabProps) {
       )
       break
     case 'buy':
-      fill = true
       body = (
         <BuyPanel
           chains={p.activeChains}
@@ -209,7 +192,7 @@ export function DecisionTab(p: DecisionTabProps) {
   return (
     <div className={styles.decision} data-testid="decision-view" data-view={p.view}>
       {p.incoming}
-      {fill ? <div className={styles.fill}>{body}</div> : body}
+      {body}
       {p.standings}
       <MergerLog
         mergers={mergers}
@@ -221,44 +204,6 @@ export function DecisionTab(p: DecisionTabProps) {
         prefix={`Last ${theme.merger_noun}`}
         testId="decision-last-merger"
       />
-    </div>
-  )
-}
-
-/** Each option of a choice: size, price, bank stock and who holds it (survivor choice). */
-function ChainFacts({
-  chains,
-  gameState,
-  myId,
-}: {
-  chains: ChainId[]
-  gameState: GameStateMessage
-  myId?: string
-}) {
-  const rules = useRules()
-  return (
-    <div className={styles.facts}>
-      {chains.map((chain) => {
-        const info = gameState.chain_holders?.[chain]
-        const id = chainTestId(chain)
-        return (
-          <div key={chain} className={styles.fact} data-testid={`choice-facts-${id}`}>
-            <span className={styles.factHead}>
-              <ChainMarker chain={chain} variant="compact" />
-              <span className={styles.mono}>
-                {info?.size ?? '?'} tiles · {rules.money(info?.price)} ·{' '}
-                {gameState.hotel.available_stocks[chain] ?? 0} left
-              </span>
-            </span>
-            <HolderChips
-              holders={info?.holders ?? []}
-              players={gameState.players}
-              me={myId}
-              testId={`choice-holders-${id}`}
-            />
-          </div>
-        )
-      })}
     </div>
   )
 }

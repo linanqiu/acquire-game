@@ -6,7 +6,13 @@ import styles from './ThemeToggle.module.css'
  * A small light/dark switch. The page follows the system until the player picks; the pick is
  * remembered (lib/theme). The icon shows the scheme you would switch TO; the label says it.
  */
-export function ThemeToggle({ className }: { className?: string }) {
+export function ThemeToggle({
+  className,
+  testId = 'theme-toggle',
+}: {
+  className?: string
+  testId?: string
+}) {
   const theme = useSyncExternalStore(subscribeTheme, currentTheme, () => 'dark' as const)
   const next = theme === 'dark' ? 'light' : 'dark'
   return (
@@ -16,7 +22,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       onClick={() => setTheme(next)}
       aria-label={`Switch to ${next} theme`}
       title={`Switch to ${next} theme`}
-      data-testid="theme-toggle"
+      data-testid={testId}
       data-theme-current={theme}
     >
       <span aria-hidden="true">{next === 'light' ? '☀' : '☾'}</span>

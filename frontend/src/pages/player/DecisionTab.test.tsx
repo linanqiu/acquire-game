@@ -272,31 +272,32 @@ describe('a merger: the whole merger in the decision tab', () => {
       const row = screen.getByTestId(`merger-waiting-${d.chain}-${p}`)
       expect(row).toHaveTextContent(String(gs.players[p].stocks[d.chain]))
     }
-    // Trade 2:1 as far as the bank allows: my survivor row, place, bank and cash follow live.
+    // Trade 2:1 as far as the bank allows: my survivor shares and place after the trade are
+    // over the button, next to the control (BL-019), said once: the survivor table under the
+    // decision keeps everyone's shares as they stand.
     const me = after.holders.find((h: { player_id: string }) => h.player_id === view.human)
     const trade = screen.getByTestId(/^slider-trade-/)
     const max = Number(trade.getAttribute('max'))
     fireEvent.change(trade, { target: { value: String(max) } })
     const got = max / 2
+    expect(screen.getByTestId('disposition-survivor-after')).toHaveTextContent(
+      `${me.shares}→${me.shares + got} · ${changeText(after.holders, view.human, me.shares, got)}`
+    )
     expect(screen.getByTestId(`survivor-row-${view.human}`)).toHaveAttribute(
       'data-shares',
-      String(me.shares + got)
+      String(me.shares)
     )
-    expect(screen.getByTestId('survivor-after-bank')).toHaveTextContent(
-      `bank ${exp.bank} → ${exp.bank - got}`
-    )
-    expect(screen.getByTestId('survivor-my-place')).toHaveTextContent(
-      changeText(after.holders, view.human, me.shares, got)
-    )
+    expect(screen.getByTestId('survivor-after-bank')).toHaveTextContent(`bank ${exp.bank}`)
+    expect(screen.queryByTestId('survivor-my-place')).toBeNull()
     // My row among the stockholders says I am deciding; the numbers of my choice are at the
-    // sliders, once.
+    // controls, once.
     expect(screen.getByTestId(`merger-waiting-${d.chain}-${view.human}`)).toHaveTextContent(
       'deciding…'
     )
     expect(screen.getByTestId(`merger-waiting-${d.chain}-${view.human}`)).not.toHaveTextContent(
       'trade'
     )
-    expect(screen.getByTestId('disposition-trade')).toHaveTextContent(`${max} shares → ${got} `)
+    expect(screen.getByTestId('disposition-trade')).toHaveTextContent(`${max} → ${got}`)
     expect(screen.queryByTestId('disposition-summary')).toBeNull()
     fireEvent.click(screen.getByTestId('confirm-disposition'))
     expect(sendAction.mock.calls.at(-1)?.[0]).toEqual({

@@ -7,14 +7,6 @@
   min-width: 0;
 }
 
-/* A decision with a pinned footer (buy, sell / trade / keep) is as tall as the panel, so its
-   button sits at the bottom of what is visible; the matrix follows, one scroll away. */
-.fill {
-  flex: none;
-  min-height: 100cqh;
-  display: flex;
-  flex-direction: column;
-}
 
 .section {
   display: flex;

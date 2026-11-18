@@ -79,24 +79,32 @@
 .main {
   flex: 1;
   padding: var(--space-3) var(--space-4);
-  overflow-y: auto;
 }
 
-/* In game: the shell is the screen (outside #root's padding and max width); the header and
-   phase bar keep their height and the layout below gets the rest. Nothing scrolls the page. */
+/* In game: the shell is at least the screen (outside #root's padding and max width) and the
+   document is the only thing that scrolls (BL-019). The header and phase bar stay at the top;
+   the layout below gets the rest (GameLayout sizes the Board tab to what is left between them
+   and the rack and tab bar, from --chrome-top and --chrome-bottom). */
 .fill {
-  position: fixed;
-  inset: 0;
-  min-height: 0;
-  height: 100dvh;
-  overflow: hidden;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* The game is the screen: no page margin or max width around it. */
+:global(#root):has(.fill) {
+  max-width: none;
+  padding: 0;
+}
+
+.fill .top {
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
 
 .fill .main {
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
   padding: var(--space-2) var(--space-3);
 }
 

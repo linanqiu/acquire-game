@@ -274,10 +274,10 @@ describe('founding a chain and choosing a survivor', () => {
     const view = loadSnapshotAsPlayer('merger-survivor-tie')
     renderPage()
     const tied = view.player.find((m) => m.type === 'choose_merger_survivor').tied_chains
-    const enabled = within(screen.getByTestId('chain-selector'))
-      .getAllByRole('radio')
-      .filter((b) => !b.disabled)
-    expect(enabled).toHaveLength(tied.length)
+    // Only the tied chains are offered (one row each); the others are not shown at all.
+    const offered = within(screen.getByTestId('chain-selector')).getAllByRole('button')
+    expect(offered).toHaveLength(tied.length)
+    expect(offered.every((b) => !(b as HTMLButtonElement).disabled)).toBe(true)
     fireEvent.click(screen.getByTestId(`chain-button-${tied[1].toLowerCase()}`))
     expect(lastAction()).toEqual({ action: 'merger_choice', surviving_chain: tied[1] })
   })
@@ -325,7 +325,7 @@ describe('disposing of defunct stock', () => {
     const price = view.expect.active_chains[prompt.defunct_chain].price
     fireEvent.change(screen.getByTestId('slider-sell-to-bank'), { target: { value: '3' } })
     expect(screen.getByTestId('disposition-sell')).toHaveTextContent(
-      `3 shares → $${(3 * price).toLocaleString('en-US')}`
+      `3 → $${(3 * price).toLocaleString('en-US')}`
     )
     fireEvent.click(screen.getByTestId('confirm-disposition'))
     expect(lastAction().disposition).toEqual({ sell: 3, trade: 0, hold: prompt.stock_count - 3 })

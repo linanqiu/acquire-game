@@ -205,12 +205,9 @@
 }
 
 /* One line: the total and the cash after it next to the button (two lines where the buttons
-   need the width, e.g. with END GAME). */
+   need the width, e.g. with END GAME). In the flow, under the rows (BL-019: nothing pinned
+   inside the page; the board yields so that it is on screen). */
 .footer {
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
-  margin-top: auto;
   display: flex;
   flex-wrap: wrap;
   align-items: center;

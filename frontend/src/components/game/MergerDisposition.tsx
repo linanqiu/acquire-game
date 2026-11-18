@@ -1,10 +1,11 @@
-import { useState, type ReactNode } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
 import { ChainMarker } from './ChainMarker'
-import { Slider } from '../ui/Slider'
 import { Button } from '../ui/Button'
+import sliderStyles from '../ui/Slider.module.css'
 import styles from './MergerDisposition.module.css'
 import type { ChainId } from '../../types/ruleset'
 import { useRules } from '../../ruleset/useRules'
+import { changeText, placeOf, placeText, type Count } from '../../lib/standing'
 
 export interface DispositionDraft {
   sell: number
@@ -19,21 +20,28 @@ export interface MergerDispositionProps {
   survivorStockAvailable: number
   /** My cash now: the line over the button shows the cash after the sale. */
   cash?: number
+  /**
+   * Everyone's survivor shares as they stand (the merger's `survivor_after`, before my trade):
+   * the line over the button says what my trade makes of my place in the survivor.
+   */
+  survivorHolders?: Count[]
+  myId?: string
   onConfirm: (sell: number, trade: number, hold: number) => void
   /** Every change of the sliders (the merger view projects my position from it). */
   onDraftChange?: (draft: DispositionDraft) => void
   /** Shown above the controls (the merger's title). */
   header?: ReactNode
-  /** Shown between the controls and the confirm button (who holds what). */
+  /** Shown after the button (who holds what): under the decision, the page scrolls to it. */
   children?: ReactNode
 }
 
 /**
- * My sell / trade / keep choice for a defunct chain's shares. Each number is said once
- * (BL-017): what a slider gives is next to that slider, the cash after the sale is over the
- * button, and my survivor shares after the trade are in the survivor's holder table. In the decision tab (BL-011) the merger view goes around it: its title in
- * `header`, who holds what and the survivor after the merger in `children`, so the confirm
- * button can stay pinned at the bottom of the whole view.
+ * My sell / trade / keep choice for a defunct chain's shares (BL-011, BL-017, BL-019). One
+ * compact card the board leaves room for (`data-table-core`): the shares and their price once,
+ * three quick choices (sell all, trade the most the bank allows, keep all), one line per way
+ * with its fine control and what it gives, then the consequence of the whole choice (cash
+ * after; my survivor shares and place after) right over the button. Who holds what follows
+ * under the card.
  */
 export function MergerDisposition({
   defunctChain,
@@ -42,6 +50,8 @@ export function MergerDisposition({
   defunctPrice,
   survivorStockAvailable,
   cash,
+  survivorHolders,
+  myId,
   onConfirm,
   onDraftChange,
   header,
@@ -59,7 +69,9 @@ export function MergerDisposition({
   // Maximum tradeable shares: limited by survivor stock in the bank and the shares not sold,
   // and always a multiple of the trade ratio (only whole survivor shares are handed out).
   const maxTradeByStock = survivorStockAvailable * ratio
-  const maxTrade = Math.floor(Math.min(sharesOwned - sellCount, maxTradeByStock) / ratio) * ratio
+  const tradeCap = (sold: number) =>
+    Math.floor(Math.min(sharesOwned - sold, maxTradeByStock) / ratio) * ratio
+  const maxTrade = tradeCap(sellCount)
 
   const holdCount = sharesOwned - sellCount - tradeCount
   const cashFromSell = sellCount * defunctPrice
@@ -80,7 +92,53 @@ export function MergerDisposition({
   const handleTradeChange = (value: number) =>
     update({ sell: sellCount, trade: Math.floor(value / ratio) * ratio })
 
-  const canTrade = survivorStockAvailable > 0
+  const canTrade = survivorStockAvailable > 0 && tradeCap(0) > 0
+  const quick = [
+    { id: 'sell-all', label: 'Sell all', draft: { sell: sharesOwned, trade: 0 } },
+    { id: 'trade-max', label: 'Trade max', draft: { sell: 0, trade: tradeCap(0) }, off: !canTrade },
+    { id: 'keep-all', label: 'Keep all', draft: { sell: 0, trade: 0 } },
+  ]
+
+  // My survivor shares and place after the trade.
+  const counts = survivorHolders ?? []
+  const myNow = counts.find((h) => h.player_id === myId)?.shares ?? 0
+  const myAfter = myNow + sharesFromTrade
+  const place =
+    myId && survivorHolders
+      ? sharesFromTrade > 0
+        ? changeText(counts, myId, myNow, sharesFromTrade)
+        : myNow > 0
+          ? placeText(placeOf(counts, myId, myNow))
+          : ''
+      : ''
+
+  const range = (
+    label: string,
+    value: number,
+    max: number,
+    step: number,
+    onChange: (v: number) => void,
+    testId: string,
+    disabled = false
+  ) => (
+    <input
+      type="range"
+      min={0}
+      max={max}
+      step={step}
+      value={value}
+      onChange={(e) => onChange(Number(e.target.value))}
+      disabled={disabled}
+      aria-label={label}
+      className={`${sliderStyles.slider} ${styles.range}`}
+      style={
+        {
+          '--slider-percentage': `${max > 0 ? (value / max) * 100 : 0}%`,
+        } as CSSProperties
+      }
+      data-testid={testId}
+    />
+  )
 
   return (
     <section
@@ -91,68 +149,105 @@ export function MergerDisposition({
       aria-label={`Your ${defunctName} ${theme.share_noun_plural}`}
     >
       {header}
-      <div className={styles.controls}>
-        <h4 className={styles.title} data-testid="disposition-title">
-          Your <ChainMarker chain={defunctChain} variant="compact" /> {theme.share_noun_plural}:{' '}
-          <strong>{sharesOwned}</strong>
-          <span className={styles.muted} title={`The price at the ${theme.merger_noun}`}>
-            {' '}
-            at {rules.money(defunctPrice)}
-          </span>
-        </h4>
-
-        <div className={styles.sliders}>
-          <Slider
-            label="SELL to bank"
-            value={sellCount}
-            min={0}
-            max={sharesOwned}
-            step={1}
-            onChange={handleSellChange}
-            displayValue={`${rules.shares(sellCount)} → ${rules.money(cashFromSell)}`}
-            valueTestId="disposition-sell"
-          />
-
-          <Slider
-            label={`TRADE ${ratio}:1 for ${survivorName.toUpperCase()}`}
-            value={tradeCount}
-            min={0}
-            max={maxTrade}
-            step={ratio}
-            onChange={handleTradeChange}
-            displayValue={`${rules.shares(tradeCount)} → ${sharesFromTrade} ${survivorName.toUpperCase()}`}
-            disabled={!canTrade}
-            valueTestId="disposition-trade"
-          />
-
-          <div className={styles.hold} data-testid="hold-display">
-            <span className={styles.holdLabel}>KEEP {rules.shares(holdCount)}</span>
-            <span className={styles.holdValue}>
-              {rules.money(0)} until {defunctName} is founded again
+      <div className={styles.card} data-table-core>
+        <div className={styles.titleRow}>
+          <h4 className={styles.title} data-testid="disposition-title">
+            Your <ChainMarker chain={defunctChain} variant="icon" />{' '}
+            <span className={styles.srOnly}>{defunctName} </span>
+            {theme.share_noun_plural}: <strong>{sharesOwned}</strong>
+            <span className={styles.muted} title={`The price at the ${theme.merger_noun}`}>
+              {' '}
+              at {rules.money(defunctPrice)}
             </span>
+          </h4>
+          <div className={styles.quick} role="group" aria-label="Quick choices">
+            {quick.map((q) => {
+              const on = q.draft.sell === sellCount && q.draft.trade === tradeCount
+              return (
+                <button
+                  key={q.id}
+                  type="button"
+                  className={`${styles.quickButton} ${on ? styles.quickOn : ''}`}
+                  aria-pressed={on}
+                  disabled={q.off}
+                  onClick={() => update(q.draft)}
+                  data-testid={`disposition-${q.id}`}
+                >
+                  {q.label}
+                </button>
+              )
+            })}
           </div>
         </div>
-      </div>
-      {children}
 
-      {/* Last child of the whole view, so it can stay at the bottom while the tab scrolls. */}
-      <div className={styles.confirm}>
-        {cash !== undefined && (
-          <div className={styles.summary}>
+        <div className={styles.rows}>
+          <span className={styles.label}>Sell</span>
+          {range(
+            `${defunctName} ${theme.share_noun_plural} to sell to the bank`,
+            sellCount,
+            sharesOwned,
+            1,
+            handleSellChange,
+            'slider-sell-to-bank'
+          )}
+          <span className={styles.value} data-testid="disposition-sell">
+            {sellCount} → {rules.money(cashFromSell)}
+          </span>
+
+          <span className={styles.label}>
+            Trade <span className={styles.ratio}>{ratio}:1</span>
+          </span>
+          {range(
+            `${defunctName} ${theme.share_noun_plural} to trade ${ratio} for 1 ${survivorName}`,
+            tradeCount,
+            maxTrade,
+            ratio,
+            handleTradeChange,
+            `slider-trade-${ratio}:1-for-${survivorName.toLowerCase()}`,
+            !canTrade
+          )}
+          <span className={styles.value} data-testid="disposition-trade">
+            {tradeCount} → {sharesFromTrade} <ChainMarker chain={survivorChain} variant="icon" />
+            <span className={styles.srOnly}> {survivorName}</span>
+          </span>
+
+          <span className={styles.label}>Keep</span>
+          <span
+            className={styles.keepNote}
+            title={`Worth nothing until ${defunctName} is founded again`}
+          >
+            worth {rules.money(0)} for now
+          </span>
+          <span className={styles.value} data-testid="hold-display">
+            {holdCount}
+          </span>
+        </div>
+
+        <div className={styles.after} data-testid="disposition-after">
+          {cash !== undefined && (
             <span data-testid="disposition-cash-after">
-              Cash after {rules.money(cash + cashFromSell)}
+              Cash after <strong>{rules.money(cash + cashFromSell)}</strong>
             </span>
-          </div>
-        )}
+          )}
+          {survivorHolders && (
+            <span data-testid="disposition-survivor-after">
+              <ChainMarker chain={survivorChain} variant="icon" />{' '}
+              <span className={styles.srOnly}>{survivorName} </span>
+              <strong>{sharesFromTrade > 0 ? `${myNow}→${myAfter}` : myNow}</strong>
+              {place && <span className={styles.muted}> · {place}</span>}
+            </span>
+          )}
+        </div>
         <Button
           variant="accent"
           fullWidth
           onClick={() => onConfirm(sellCount, tradeCount, holdCount)}
           data-testid="confirm-disposition"
         >
-          CONFIRM DISPOSITION
+          CONFIRM
         </Button>
       </div>
+      {children}
     </section>
   )
 }

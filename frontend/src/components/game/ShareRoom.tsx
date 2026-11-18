@@ -11,7 +11,13 @@ type Outcome = 'idle' | 'copied' | 'failed'
  * is refused the link is shown to copy by hand. The button is a real link, so it also works as
  * one (long press, open in a new tab).
  */
-export function ShareRoom({ room }: { room: string }) {
+export function ShareRoom({
+  room,
+  testIdPrefix = 'lobby',
+}: {
+  room: string
+  testIdPrefix?: string
+}) {
   const link = joinLink(window.location.origin, room)
   const [outcome, setOutcome] = useState<Outcome>('idle')
 
@@ -39,11 +45,16 @@ export function ShareRoom({ room }: { room: string }) {
     <div className={styles.share}>
       <h2 className={styles.code}>
         <span className={styles.label}>Room</span>{' '}
-        <span className={styles.letters} data-testid="lobby-room-code">
+        <span className={styles.letters} data-testid={`${testIdPrefix}-room-code`}>
           {room}
         </span>
       </h2>
-      <a href={link} className={styles.button} onClick={share} data-testid="lobby-share">
+      <a
+        href={link}
+        className={styles.button}
+        onClick={share}
+        data-testid={`${testIdPrefix}-share`}
+      >
         <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
           <path
             d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"
@@ -57,7 +68,7 @@ export function ShareRoom({ room }: { room: string }) {
         Invite
       </a>
       {outcome !== 'idle' && (
-        <p className={styles.outcome} role="status" data-testid="lobby-share-outcome">
+        <p className={styles.outcome} role="status" data-testid={`${testIdPrefix}-share-outcome`}>
           {outcome === 'copied' ? 'Link copied' : link}
         </p>
       )}

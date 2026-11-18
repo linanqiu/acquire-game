@@ -69,18 +69,14 @@
   line-height: var(--line-height-normal);
 }
 
+/* The messages are part of the page (BL-019): no box with a scrollbar of its own. */
 .list {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  max-height: 240px;
-  min-height: 72px;
-  overflow-y: auto;
-  padding: var(--space-2);
-  background-color: var(--bg-primary);
-  border: var(--border-default);
-  border-radius: var(--radius-sm);
-  overscroll-behavior: contain;
+  min-height: 48px;
+  padding: var(--space-2) 0;
+  border-top: var(--border-default);
 }
 
 .empty {
@@ -130,6 +126,9 @@
 }
 
 .newBelow {
+  position: sticky;
+  bottom: calc(var(--chrome-bottom, 0px) + 56px);
+  z-index: 2;
   align-self: center;
   padding: var(--space-1) var(--space-3);
   border: var(--border-default);
@@ -191,31 +190,28 @@
   color: var(--text-negative);
 }
 
-/* In the Chat tab: no frame, the list takes the tab's height and the input stays at its foot. */
+/* In the Chat tab: no frame; the messages run down the page and the input stays at the foot of
+   the screen, over the rack and the tab bar (--chrome-bottom; 0 on a wide screen). */
 .inTab {
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 1 0 auto;
   margin: 0;
   background: none;
   border: none;
 }
 
 .inTab .body {
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 1 0 auto;
 }
 
 .inTab .list {
-  flex: 1 1 auto;
-  max-height: none;
+  flex: 1 0 auto;
+  justify-content: flex-end;
 }
 
-@media (max-width: 768px) {
-  .list {
-    max-height: 200px;
-  }
-
-  .inTab .list {
-    max-height: none;
-  }
+.inTab .form {
+  position: sticky;
+  bottom: var(--chrome-bottom, 0px);
+  z-index: 2;
+  padding: var(--space-1) 0;
+  background-color: var(--bg-primary);
 }

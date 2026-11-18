@@ -271,8 +271,10 @@ describe.each(THEMED)('%s ruleset', (_name, rs) => {
     expect(form).toHaveTextContent(`Your ${defunct.abbreviation}`)
     const r = rs.merger_trade_ratio
     expect(
-      within(form).getByText(`TRADE ${r}:1 for ${survivor.name.toUpperCase()}`)
-    ).toBeInTheDocument()
+      within(form).getByTestId(`slider-trade-${r}:1-for-${survivor.name.toLowerCase()}`)
+    ).toHaveAccessibleName(
+      `${defunct.name} ${t.share_noun_plural} to trade ${r} for 1 ${survivor.name}`
+    )
     expectNoDefaultLeaks()
   })
 

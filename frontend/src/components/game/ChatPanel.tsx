@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { CHAT_MAX_CHARS, authorBadge, chatReaders, sendChat, type ChatSeat } from '../../lib/chat'
 import type { ChatMessage, SeatKind } from '../../types/api'
@@ -17,8 +17,19 @@ export interface ChatPanelProps {
   active?: boolean
 }
 
-/** Distance from the bottom (px) within which the list counts as "at the bottom". */
+/** Distance from the bottom (px) within which the page counts as "at the bottom". */
 const STICK_PX = 32
+
+/** The page is the chat's scroller (BL-019): no box with a scrollbar of its own. */
+function pageAtBottom(): boolean {
+  const root = document.documentElement
+  return root.scrollHeight - window.scrollY - window.innerHeight <= STICK_PX
+}
+
+function toPageEnd() {
+  if (typeof window.scrollTo === 'function')
+    window.scrollTo(0, document.documentElement.scrollHeight)
+}
 
 /**
  * Public table chat. Messages arrive over the WebSocket (game store); sending is HTTP.
@@ -39,8 +50,9 @@ export function ChatPanel({ room, mode = 'player', inTab = false, active = true 
   const [error, setError] = useState<string | null>(null)
   const [newBelow, setNewBelow] = useState(false)
   const [about, setAbout] = useState(false)
-  const listRef = useRef<HTMLDivElement>(null)
+  /** Was the reader at the foot of the page before the newest message came in? */
   const atBottom = useRef(true)
+  const seen = useRef(0)
 
   const seats: ChatSeat[] = useMemo(() => {
     if (players) {
@@ -62,31 +74,45 @@ export function ChatPanel({ room, mode = 'player', inTab = false, active = true 
 
   const lastId = messages[messages.length - 1]?.id ?? 0
 
-  // Follow new messages when the reader is at the bottom; otherwise say there are more.
-  // (Syncing React state with the DOM scroll position is what a layout effect is for.)
-  useLayoutEffect(() => {
-    const el = listRef.current
-    if (!el || !active) return
+  // The list is part of the page, which scrolls (BL-019): the newest line is at the foot, next
+  // to the input. Where the reader is, is read from the page.
+  useEffect(() => {
+    atBottom.current = pageAtBottom()
+    const onScroll = () => {
+      atBottom.current = pageAtBottom()
+      if (atBottom.current) setNewBelow(false)
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // The Chat tab opens at its foot: the newest line and the input. (A plain effect: it runs
+  // after the layout's own "show the top of a tab that opens".)
+  useEffect(() => {
+    if (!inTab || !active) return
+    seen.current = lastId
+    toPageEnd()
+    atBottom.current = true
+    setNewBelow(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the tab opens
+  }, [inTab, active])
+
+  // Follow new messages when the reader is at the foot; otherwise say there are more.
+  useEffect(() => {
+    if (!active || lastId === seen.current) return
+    const first = seen.current === 0 && !inTab
+    seen.current = lastId
+    if (first) return
     if (atBottom.current) {
-      el.scrollTop = el.scrollHeight
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- DOM scroll sync
-      setNewBelow(false)
+      toPageEnd()
+        setNewBelow(false)
     } else {
       setNewBelow(true)
     }
-  }, [lastId, active])
-
-  const onScroll = useCallback(() => {
-    const el = listRef.current
-    if (!el) return
-    atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight <= STICK_PX
-    if (atBottom.current) setNewBelow(false)
-  }, [])
+  }, [lastId, active, inTab])
 
   const jumpToEnd = () => {
-    const el = listRef.current
-    if (!el) return
-    el.scrollTop = el.scrollHeight
+    toPageEnd()
     atBottom.current = true
     setNewBelow(false)
   }
@@ -141,9 +167,7 @@ export function ChatPanel({ room, mode = 'player', inTab = false, active = true 
         </div>
 
         <div
-          ref={listRef}
           className={styles.list}
-          onScroll={onScroll}
           role="log"
           aria-live="polite"
           aria-label="Chat messages"

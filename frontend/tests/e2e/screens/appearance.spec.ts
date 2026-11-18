@@ -170,7 +170,15 @@ for (const scheme of ['light', 'dark'] as const) {
       viewport: { width: 1366, height: 768 },
     })
     await expect(page.getByTestId('board')).toBeVisible()
-    await expect(page.getByTestId('theme-toggle')).toHaveAttribute('data-theme-current', scheme)
+    // In a game the switch is in the menu (BL-019): the header carries what changes.
+    await page.getByTestId('header-menu-button').click()
+    await expect(page.getByTestId('menu-theme-toggle')).toHaveAttribute(
+      'data-theme-current',
+      scheme
+    )
+    await shots.take(page, 'game-menu', { fullPage: false })
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('header-menu')).toHaveCount(0)
     for (const t of ['table', 'chains', 'trades'] as const) {
       await openTab(page, t)
       await shots.take(page, `game-${t}`, { fullPage: false })

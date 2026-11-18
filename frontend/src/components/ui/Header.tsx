@@ -1,5 +1,6 @@
 import { FlashValue } from './FlashValue'
 import { ThemeToggle } from './ThemeToggle'
+import { GameMenu } from './GameMenu'
 import styles from './Header.module.css'
 import { useBrand, useRules } from '../../ruleset/useRules'
 
@@ -16,6 +17,11 @@ interface HeaderProps {
    * (tabs without the players table) or the room code (the Board tab, where the table has them).
    */
   inGame?: boolean
+  /**
+   * The room of the game on screen: the in-game menu (room and invite, theme, rules in brief,
+   * the way home) takes the wordmark's place (BL-019).
+   */
+  menuRoom?: string
 }
 
 export function Header({
@@ -26,6 +32,7 @@ export function Header({
   playerName,
   tilePool,
   inGame = false,
+  menuRoom,
 }: HeaderProps) {
   // Product name: the brand; amounts: the ruleset in effect (a game's own).
   const brand = useBrand()
@@ -36,9 +43,13 @@ export function Header({
       data-numbers={inGame || netWorth !== undefined ? 'true' : undefined}
       data-mine={cash !== undefined ? 'true' : undefined}
     >
-      <div className={styles.logo} data-testid="header-title">
-        {brand.toUpperCase()}
-      </div>
+      {menuRoom !== undefined ? (
+        <GameMenu room={menuRoom || undefined} />
+      ) : (
+        <div className={styles.logo} data-testid="header-title">
+          {brand.toUpperCase()}
+        </div>
+      )}
       <div className={styles.info}>
         {roomCode && (
           <div className={styles.roomCode} data-testid="header-room">
@@ -78,7 +89,7 @@ export function Header({
             )}
           </div>
         )}
-        <ThemeToggle className={styles.themeToggle} />
+        {menuRoom === undefined && <ThemeToggle className={styles.themeToggle} />}
       </div>
     </header>
   )
