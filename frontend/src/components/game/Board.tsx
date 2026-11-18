@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties } from 'react'
+import { memo, useLayoutEffect, useMemo, useRef, type CSSProperties } from 'react'
 import { Tile } from './Tile'
 import styles from './Board.module.css'
 import type { Coordinate, TileState } from '../../types/game'
@@ -41,7 +41,7 @@ function contentOf(t: TileState): SquareContent {
  * width (and `--board-max-height` when a page sets it), between a per-size minimum and maximum,
  * so any board from 6x6 to 15x12 fits a phone and fills a desktop column.
  */
-export function Board({
+export const Board = memo(function Board({
   tiles,
   highlightedTile,
   onTileClick,
@@ -50,6 +50,22 @@ export function Board({
   playableTiles,
 }: BoardProps) {
   const { rows, cols } = useRules()
+  // One stable click handler per square (calling the latest `onTileClick`), so the memoised
+  // squares are not all re-rendered for a new handler (BL-020).
+  const clickRef = useRef(onTileClick)
+  useLayoutEffect(() => {
+    clickRef.current = onTileClick
+  })
+  const handlers = useMemo(() => {
+    const out: Record<string, () => void> = {}
+    for (const row of rows) {
+      for (const col of cols) {
+        const coord = `${col}${row}` as Coordinate
+        out[coord] = () => clickRef.current?.(coord)
+      }
+    }
+    return out
+  }, [rows, cols])
   const gridStyle = { '--cols': cols.length, '--rows': rows.length } as CSSProperties
   // Chains draw as shapes: each square knows which sides touch the same chain (lib/boardShapes).
   const shapes = useMemo(
@@ -103,7 +119,7 @@ export function Board({
                 state="default"
                 highlighted={isHighlighted || isPlayable}
                 picked={isHighlighted && isEmpty}
-                onClick={canClick && onTileClick ? () => onTileClick(coord) : undefined}
+                onClick={canClick && onTileClick ? handlers[coord] : undefined}
                 size="fluid"
                 join={tileState.state === 'chain' && shape ? joinAttr(shape) : undefined}
                 anchor={shape?.anchor ?? true}
@@ -115,4 +131,4 @@ export function Board({
       </div>
     </div>
   )
-}
+})

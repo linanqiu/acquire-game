@@ -92,6 +92,8 @@ class RoomRuntime:
     turn_counts: dict = field(default_factory=dict)
     stalled: str | None = None
     heuristic: dict = field(default_factory=dict)  # player_id -> HeuristicAgent
+    # Pacing: the next agent move is not applied before this (time.monotonic()).
+    paced_until: float = 0.0
 
     def debug(self) -> dict:
         return {
@@ -137,9 +139,17 @@ def _check(game, decision: Decision, ctx, action: Any, counts: dict) -> str | No
     return check_answer(game, decision, ctx, action, counts, validate=validate_action)
 
 
-def _pacing_delay() -> float:
+def _pacing_delay(same_seat: bool = False) -> float:
+    """Minimum gap after an agent move before the next agent move is applied:
+    short while the same seat goes on with its turn, longer when the game
+    moves to another seat (so each seat's turn reads as one quick sequence)."""
     s = get_settings()
-    delay = s.test_mode_agent_action_delay if test_mode() else s.agent_action_delay
+    if test_mode():
+        delay = s.test_mode_agent_action_delay
+    elif same_seat:
+        delay = s.agent_step_delay
+    else:
+        delay = s.agent_action_delay
     return max(0.0, delay)
 
 
@@ -525,6 +535,12 @@ async def _drive_loop(room_code: str) -> None:
                 else:
                     failure = f"error: {type(e).__name__}: {e}"[:300]
 
+            # Pacing: keep the previous agent move on screen for a moment. The
+            # agent already decided meanwhile, so a slow seat waits no longer.
+            wait = rt.paced_until - time.monotonic()
+            if wait > 0:
+                await asyncio.sleep(wait)
+
             # 3. re-check and apply
             async with rt.lock:
                 if (
@@ -629,6 +645,10 @@ async def _drive_loop(room_code: str) -> None:
                         rt.stalled = f"engine rejected every answer for {decision.kind}"
                         await broadcast_game_state(room_code)
                         return
+                after = flow_decision(game)
+                rt.paced_until = time.monotonic() + _pacing_delay(
+                    after is not None and after.player_id == decision.player_id
+                )
                 rt.agent_actions += 1
                 counts["actions"] += 1
                 if action.get("action") == "propose_trade":
@@ -640,11 +660,7 @@ async def _drive_loop(room_code: str) -> None:
         if superseded:
             continue
 
-        delay = _pacing_delay()
-        if delay:
-            await asyncio.sleep(delay)
-        else:
-            await asyncio.sleep(0)  # let humans' handlers in between actions
+        await asyncio.sleep(0)  # let humans' handlers in between actions
 
 
 async def _post_say(room_code: str, room, player_id: str, record: dict) -> None:

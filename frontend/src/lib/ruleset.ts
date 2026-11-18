@@ -148,12 +148,16 @@ export function shareCount(rs: Ruleset, n: number): string {
   return countOf(n, rs.theme.share_noun, rs.theme.share_noun_plural)
 }
 
+// One formatter for every amount: `toLocaleString` builds a new one per call, which showed in
+// profiles of the game page (hundreds of amounts per state, BL-020). Same output.
+const AMOUNT = new Intl.NumberFormat('en-US')
+
 /** Money in the ruleset's currency: `$6,000`. */
 export function formatAmount(rs: Ruleset, n: number | null | undefined): string {
   if (n === null || n === undefined || Number.isNaN(Number(n))) return '—'
   const v = Number(n)
   const sign = v < 0 ? '-' : ''
-  return `${sign}${rs.theme.currency_symbol}${Math.abs(v).toLocaleString('en-US')}`
+  return `${sign}${rs.theme.currency_symbol}${AMOUNT.format(Math.abs(v))}`
 }
 
 function ordinal(n: number): string {

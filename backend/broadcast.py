@@ -46,6 +46,7 @@ Messages (shapes unchanged from the pre-seat server unless noted):
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 from app_state import session_manager
@@ -218,23 +219,50 @@ def private_fields(game: Game, player_id: str) -> dict:
     }
 
 
-async def broadcast_game_state(room_code: str) -> None:
-    """Send the current state to the host and every connected human."""
+#: Key of the host display in ``GameRoom.sent_states``.
+HOST = "\x00host"
+
+
+def _unchanged(room: GameRoom, key: str, message: dict, fresh: str | None) -> bool:
+    """True when ``message`` is exactly what ``key`` was last sent (then it is
+    skipped); otherwise remember it. ``fresh`` (a recipient key) always gets it.
+
+    Compared as JSON text: a copy of the content, so later engine mutations of
+    shared objects cannot make an old message look current."""
+    sent = room.sent_states
+    text = json.dumps(message, separators=(",", ":"), default=str)
+    if key != fresh and sent.get(key) == text:
+        return True
+    sent[key] = text
+    return False
+
+
+async def broadcast_game_state(room_code: str, *, fresh: str | None = None) -> None:
+    """Send the current state to the host and every connected human.
+
+    A recipient whose state is identical to the last one it was sent gets
+    nothing (an agent's "thinking" state is usually the same as the state
+    before it, and a reconnect used to re-send everyone's state). ``fresh``
+    (a player id, or ``HOST``) is sent its state even when unchanged: a newly
+    connected socket has not seen it.
+    """
     room = session_manager.get_room(room_code)
     if room is None or room.game is None:
         return
     game = room.game
     public_state = build_public_state(room, game)
-    await session_manager.send_to_host(room_code, public_state)
+    if room.host_websocket is not None and not _unchanged(
+        room, HOST, public_state, fresh
+    ):
+        await session_manager.send_to_host(room_code, public_state)
     for player in game.players:
         seat = room.players.get(player.player_id)
         if seat is None or not seat.websockets:
             continue
-        await session_manager.send_to_player(
-            room_code,
-            player.player_id,
-            {**public_state, **private_fields(game, player.player_id)},
-        )
+        message = {**public_state, **private_fields(game, player.player_id)}
+        if _unchanged(room, player.player_id, message, fresh):
+            continue
+        await session_manager.send_to_player(room_code, player.player_id, message)
 
 
 async def broadcast_lobby_update(room_code: str) -> None:
@@ -507,7 +535,7 @@ async def send_player_state(room_code: str, player_id: str) -> None:
     if room is None:
         return
     if room.started and room.game:
-        await broadcast_game_state(room_code)
+        await broadcast_game_state(room_code, fresh=player_id)
         await send_prompts(room_code, room.game, _decision_for(room.game, player_id))
         over = final_game_over(room.game, getattr(room, "game_id", None))
         if over is not None:
@@ -529,7 +557,7 @@ async def send_host_state(room_code: str) -> None:
     if room is None:
         return
     if room.started and room.game:
-        await broadcast_game_state(room_code)
+        await broadcast_game_state(room_code, fresh=HOST)
         over = final_game_over(room.game, getattr(room, "game_id", None))
         if over is not None:
             await session_manager.send_to_host(room_code, over)

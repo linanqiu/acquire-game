@@ -121,6 +121,75 @@ export interface FallbackEvent {
   message: AgentFallbackMessage
 }
 
+/** `prev` when `next` has the same content (JSON), so unchanged parts keep their identity. */
+function same<T>(prev: T | undefined, next: T): T {
+  if (prev === undefined || prev === null || next === undefined || next === null) return next
+  if (prev === next) return prev
+  return JSON.stringify(prev) === JSON.stringify(next) ? prev : next
+}
+
+/**
+ * `next` with every part (board, hotel, players, mergers, ruleset...) whose content did not
+ * change since `prev` kept as the previous object. Memoised views (the board and its squares,
+ * derived lists) then skip the work for what did not change: a bot buying shares does not
+ * redraw the board (BL-020).
+ */
+export function shareUnchanged(
+  prev: GameStateMessage | null,
+  next: GameStateMessage
+): GameStateMessage {
+  if (!prev) return next
+  const before = prev as unknown as Record<string, unknown>
+  const out: Record<string, unknown> = { ...next }
+  for (const [key, value] of Object.entries(out)) {
+    if (value !== null && typeof value === 'object') out[key] = same(before[key], value)
+  }
+  return out as unknown as GameStateMessage
+}
+
+/** The store update for a `game_state` message: state, hand, playability and trades. */
+function gameStatePatch(
+  current: GameStoreState,
+  incoming: GameStateMessage
+): Partial<GameStoreState> {
+  const message = shareUnchanged(current.gameState, incoming)
+  const patch: Partial<GameStoreState> = {
+    gameState: message,
+    yourHand: message.your_hand ? same(current.yourHand, message.your_hand) : current.yourHand,
+    tilePlayability: message.tile_playability
+      ? same(current.tilePlayability ?? undefined, message.tile_playability)
+      : current.tilePlayability,
+  }
+  // A player's game_state carries its trade lists, which are authoritative (this is also
+  // what restores offers after a reconnect). The host's has only the public list.
+  if (message.incoming_trades || message.outgoing_trades) {
+    const byId = new Map<string, TradeOffer>()
+    for (const t of [...(message.incoming_trades ?? []), ...(message.outgoing_trades ?? [])]) {
+      byId.set(t.trade_id, t)
+    }
+    patch.trades = same(current.trades, [...byId.values()])
+  }
+  if (message.pending_trades) {
+    patch.publicTrades = same(current.publicTrades, message.pending_trades)
+  }
+  if (message.trade_log?.length) {
+    // Events this page has not seen as messages. With a game already on the page they
+    // happened while the socket was down (announce them); on the first state they are
+    // what came before (history).
+    const live = current.gameState !== null
+    const events = message.trade_log
+      .filter((m) => typeof m.seq === 'number')
+      .map((m) => tradeEventOf(m, m.seq as number, live))
+      .filter((e): e is TradeEvent => e !== null)
+    const tradeLog = appendTradeEvents(current.tradeLog, events)
+    if (tradeLog !== current.tradeLog) {
+      patch.tradeLog = tradeLog
+      patch.lastTradeEvent = tradeLog[tradeLog.length - 1]
+    }
+  }
+  return patch
+}
+
 // Game store state
 export interface GameStoreState {
   // Connection
@@ -243,41 +312,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       canStart: message.can_start,
     }),
 
-  updateGameState: (message) => {
-    const patch: Partial<GameStoreState> = {
-      gameState: message,
-      yourHand: message.your_hand ?? get().yourHand,
-      tilePlayability: message.tile_playability ?? get().tilePlayability,
-    }
-    // A player's game_state carries its trade lists, which are authoritative (this is also
-    // what restores offers after a reconnect). The host's has only the public list.
-    if (message.incoming_trades || message.outgoing_trades) {
-      const byId = new Map<string, TradeOffer>()
-      for (const t of [...(message.incoming_trades ?? []), ...(message.outgoing_trades ?? [])]) {
-        byId.set(t.trade_id, t)
-      }
-      patch.trades = [...byId.values()]
-    }
-    if (message.pending_trades) {
-      patch.publicTrades = message.pending_trades
-    }
-    if (message.trade_log?.length) {
-      // Events this page has not seen as messages. With a game already on the page they
-      // happened while the socket was down (announce them); on the first state they are
-      // what came before (history).
-      const live = get().gameState !== null
-      const events = message.trade_log
-        .filter((m) => typeof m.seq === 'number')
-        .map((m) => tradeEventOf(m, m.seq as number, live))
-        .filter((e): e is TradeEvent => e !== null)
-      const tradeLog = appendTradeEvents(get().tradeLog, events)
-      if (tradeLog !== get().tradeLog) {
-        patch.tradeLog = tradeLog
-        patch.lastTradeEvent = tradeLog[tradeLog.length - 1]
-      }
-    }
-    set(patch)
-  },
+  updateGameState: (message) => set(gameStatePatch(get(), message)),
 
   setPendingChainChoice: (chains) => set({ pendingChainChoice: chains }),
 
@@ -293,41 +328,42 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         store.updateLobby(message)
         break
 
-      case 'game_state':
-        store.updateGameState(message)
+      case 'game_state': {
+        // One store update (so one render) per state: the state and the prompts it ends.
+        const patch = gameStatePatch(store, message)
         // Clear pending actions when we get new game state,
         // BUT preserve them if the phase indicates we're still waiting for that action.
         // This handles the race condition where choose_chain arrives before game_state.
         if (message.phase !== 'found_chain') {
-          set({ pendingChainChoice: null })
+          patch.pendingChainChoice = null
         }
         if (message.phase !== 'merger' && message.phase !== 'stock_disposition') {
-          set({
-            pendingMergerChoice: null,
-            pendingMergerOrder: null,
-            pendingStockDisposition: null,
-          })
+          patch.pendingMergerChoice = null
+          patch.pendingMergerOrder = null
+          patch.pendingStockDisposition = null
         } else {
           // The merger goes on after my answer (e.g. another human now disposes of their
           // stock): once the table waits on a different flow decision, my prompt is done
           // and must not stay on screen (it would invite a second, refused answer).
           // Trade responses run beside the flow decision, so they never clear a prompt.
           const awaiting = message.awaiting
-          const me = get().currentPlayer?.id
+          const me = store.currentPlayer?.id
           if (awaiting && me && awaiting.decision !== 'trade_response') {
             const mine = awaiting.player_id === me
             if (!(mine && awaiting.decision === 'choose_survivor')) {
-              set({ pendingMergerChoice: null })
+              patch.pendingMergerChoice = null
             }
             if (!(mine && awaiting.decision === 'choose_defunct_order')) {
-              set({ pendingMergerOrder: null })
+              patch.pendingMergerOrder = null
             }
             if (!(mine && awaiting.decision === 'stock_disposition')) {
-              set({ pendingStockDisposition: null })
+              patch.pendingStockDisposition = null
             }
           }
         }
+        set(patch)
         break
+      }
 
       case 'choose_chain':
         store.setPendingChainChoice(message.available_chains)
