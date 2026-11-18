@@ -206,9 +206,9 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | TX-03 | Games list: server error with TRY AGAIN; unreachable server | `error-server`, `error-network`, `retry-button` | `screens/waking-and-not-found.spec.ts : games list` | 3 |
 | TX-04 | Games list: LOAD MORE (more than 50 games) | `load-more` | GAP: needs more than 50 recorded games; no fixture produces them and faking the list response would test nothing but the button | - |
 | TX-05 | Transcript of a live game: redacted banner, live bar, locked LLM panel | | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` | 4 |
-| TX-06 | Transcript of a finished game: summary header, standings equal the game-over screen, seat table | | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` | 4 |
-| TX-07 | Replay: first / previous / next / last, scrubber, keyboard, deep link, event log, replay board | | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` | 4 |
-| TX-08 | Replay: play/pause and speed controls; copy-step-link | `play-pause`, `speed`, `copy-step-link` | GAP: not clicked by any browser test (the stepping controls are); no component test either | - |
+| TX-06 | Transcript of a finished game (BL-019): the title says who won (`transcript-title`), one line of facts (date, length, how it ended, players: `transcript-facts`), the record's details and the download behind "Details" (`transcript-details`); the seat table fits a phone (rank, player on one line, final, moves; an AI seat's model, retries, fallbacks, tokens and cost on a quiet line under its name); standings equal the game-over screen; on a phone nothing scrolls sideways and no box scrolls inside the page | | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` | 4 |
+| TX-07 | Replay (BL-019): one compact sticky bar of icon buttons (first / previous / play / next / last), the step, the speed and the link, over a full-width scrubber; keyboard, deep link; what happened in the step right under the board (`event-log`), so board and move are seen together; the step lives in the page and the address follows it at most every 400 ms (a long drag used to write it on every step: Safari refuses more than 100 writes in 10 s and the scrubber jammed) | | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript`; `frontend/tests/unit/transcripts.test.tsx : scrubbing through the whole game writes the address a few times` | 4 |
+| TX-08 | Replay: play/pause and speed controls (playback at 8x follows step by step and stops on pause); copy-step-link | `play-pause`, `speed`, `copy-step-link` | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript`; GAP: copy-step-link is not clicked by a browser test (the clipboard is not available to the headless browser) | 4 |
 | TX-09 | Decision panel (chosen action, legal options) and LLM panel (system prompt, user prompt, raw output, attempts) | `DecisionPanel`, `LlmPanel`, `TextBlock` | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` | 4 |
 | TX-09b | LLM panel for a move made without a model call ("NO MODEL CALL" and the reason) | `llm-forced` | `frontend/tests/unit/transcripts.test.tsx : says so when an LLM seat moved without a model call`; `backend/tests/test_llm_agent.py : test_a_forced_move_is_recorded_as_forced_with_no_attempts` | unit |
 | TX-10 | Timeline of turns and steps (`Timeline`, `VirtualList`) | | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` | 4 |
@@ -254,7 +254,7 @@ journeys (J1-J7 in [coverage-journeys.md](coverage-journeys.md)) start at `/` an
 | `Modal`, `Hint` | open (trade builder: dialog on wide screens, full-screen sheet on phones), backdrop; a hint in full and retired to "?" | TR-01, PG-46 | `screens/trades.spec.ts : propose a trade through the builder`; `screens/trades.spec.ts : a full-screen sheet, one line per row`; `screens/trades.spec.ts : a hint is read once` |
 | `Header`, `PageShell`, `FlashValue` | room, name, cash (flashes on change), tile pool; `fill` (in game: the screen, no page scroll); phase bar `data-turn` | PG-14, PG-26, PG-34 | `screens/turn-basics.spec.ts : opening turn`; `screens/appearance.spec.ts : your-turn signal` |
 | `Slider`, `Badge` | disposition sliders; status and kind badges | PG-06, TX-01 | `screens/merger.spec.ts : disposition (human first)` |
-| `DecisionPanel`, `LlmPanel`, `TextBlock`, `Timeline`, `VirtualList`, `ReplayBoard`, `SummaryHeader`, `SeatChip`, `RangeBar`, `PageFrame` | transcript and bench widgets | TX-01..TX-15, BN-01..BN-07 | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` |
+| `DecisionPanel`, `LlmPanel`, `TextBlock`, `Timeline` (the decisions around the step, `timeline-all` for the whole list; no inner scroller), `ReplayBoard`, `SummaryHeader`, `SeatChip`, `RangeBar`, `PageFrame` | transcript and bench widgets | TX-01..TX-15, BN-01..BN-07 | `transcripts/transcripts.spec.ts : play a game, read its live and full transcript` |
 
 
 ## Known gaps (also listed by the check script)
@@ -264,8 +264,8 @@ Every `GAP:` above has a reason. In short:
 - **Thinking indicator in a screen test** (PG-12, HO-05): no seat with a delay exists in test mode.
   Asserted in journeys J1 and J4.
 - **BOT ASSIST marker** (PG-21): needs a fake LLM that answers illegally; unit tests only.
-- **LOAD MORE** (TX-04), **replay play/pause/speed** (TX-08),
-  **leaderboard selectors** (BN-03): no test drives them.
+- **LOAD MORE** (TX-04), **copy-step-link** (TX-08), **leaderboard selectors** (BN-03): no test
+  drives them.
 
 Facts learned while filling this map (2026-11-14):
 
@@ -280,7 +280,7 @@ Facts learned while filling this map (2026-11-14):
 ## Summary (checked by the script; update when rows change)
 
 - Surfaces: 178
-- Covered: 174
+- Covered: 175
 - GAP: 6
 - Journeys: 7
 

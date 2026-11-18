@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { Board } from '../game/Board'
 import { ChainMarker } from '../game/ChainMarker'
@@ -26,6 +27,8 @@ function useNarrow(maxWidth: number) {
 }
 
 interface ReplayBoardProps {
+  /** Shown right under the board (the move of this step), before the chains and players. */
+  afterBoard?: ReactNode
   state: PublicState | null
   seats: TranscriptSeat[]
   /** Tile placed by the current step, outlined on the board. */
@@ -34,7 +37,13 @@ interface ReplayBoardProps {
   activePlayerId?: string
 }
 
-export function ReplayBoard({ state, seats, highlightTile, activePlayerId }: ReplayBoardProps) {
+export function ReplayBoard({
+  state,
+  seats,
+  highlightTile,
+  activePlayerId,
+  afterBoard,
+}: ReplayBoardProps) {
   const narrow = useNarrow(600)
   const rules = useRules()
   if (!state) {
@@ -60,6 +69,7 @@ export function ReplayBoard({ state, seats, highlightTile, activePlayerId }: Rep
         <p className={styles.meta}>
           {state.tiles_remaining} tiles left in the bag · phase {state.phase.replace(/_/g, ' ')}
         </p>
+        {afterBoard}
       </div>
 
       <div className={styles.side}>

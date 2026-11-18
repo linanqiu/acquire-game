@@ -263,6 +263,8 @@ test.describe('Transcripts and Buyout Bench on the real servers', () => {
       await shot(live, 'live-transcript-redacted')
 
       // step to a decision of the LLM seat: its prompt and raw output are locked
+      // (the timeline shows the decisions around the current step; "All decisions" opens it)
+      await live.getByTestId('timeline-all').click()
       const llmStep = live.locator('[data-testid^="timeline-step-"][data-source="llm"]').first()
       await llmStep.click()
       await expect(live.getByTestId('llm-locked')).toBeVisible()
@@ -394,7 +396,122 @@ test.describe('Transcripts and Buyout Bench on the real servers', () => {
       noErrors()
     })
 
+    await test.step('on a phone (390x675): one page, nothing sideways, board and move together', async () => {
+      await page.setViewportSize({ width: 390, height: 675 })
+      await page.goto(`/games/${gameId}?step=12`)
+      await expect(page.getByTestId('step-counter')).toHaveText(/^Step 12 \//)
+      const sideways = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+      )
+      expect(sideways, 'the page scrolls sideways').toBeLessThanOrEqual(0)
+      // No box scrolls inside the page (the seats table, the timeline): BL-019.
+      const inner = await page.evaluate(() =>
+        Array.from(document.querySelectorAll<HTMLElement>('body *'))
+          .filter((el) => {
+            const cs = getComputedStyle(el)
+            return (
+              (/(auto|scroll)/.test(cs.overflowY) && el.scrollHeight > el.clientHeight + 1) ||
+              (/(auto|scroll)/.test(cs.overflowX) && el.scrollWidth > el.clientWidth + 1)
+            )
+          })
+          .map((el) => el.getAttribute('data-testid') ?? el.className)
+      )
+      expect(inner, 'boxes that scroll inside the page').toEqual([])
+      // Each seat on one line: its name and icon side by side.
+      for (const chip of await page.locator('[data-testid^="seat-chip-"]').all()) {
+        const b = (await chip.boundingBox())!
+        expect(b.height, 'a seat on one line').toBeLessThanOrEqual(30)
+      }
+      // The replay controls: one row of buttons over a full-width scrubber.
+      const mids = await page
+        .getByRole('group', { name: 'Replay controls' })
+        .locator('button, select')
+        .evaluateAll((els) =>
+          els.map((e) => {
+            const r = e.getBoundingClientRect()
+            return r.top + r.height / 2
+          })
+        )
+      expect(Math.max(...mids) - Math.min(...mids), 'controls on one row').toBeLessThanOrEqual(4)
+      const bar = (await page.getByTestId('scrubber').boundingBox())!
+      expect(bar.width).toBeGreaterThan(330)
+      // The board and what happened in this step fit one screen under the controls.
+      await page.getByTestId('replay-board').scrollIntoViewIfNeeded()
+      const board = (await page.getByTestId('board').boundingBox())!
+      const events = (await page.getByTestId('event-log').boundingBox())!
+      const controls = (await page.getByRole('group', { name: 'Replay controls' }).boundingBox())!
+      expect(events.y + events.height - board.y, 'board and move together').toBeLessThanOrEqual(
+        675 - controls.height
+      )
+      await shot(page, 'phone-replay')
+      await page.setViewportSize({ width: 1280, height: 900 })
+      noErrors()
+    })
+
+    await test.step('a long drag and playback: the scrubber follows, the address a few writes', async () => {
+      // The owner: "the left-right scroller jams up after a while". Each step used to be
+      // written to the address and read back from it; Safari refuses more than 100 history
+      // writes in 10 seconds, after which the scrubber stopped following (BL-019). Count the
+      // writes while dragging through the whole game and back, as a finger would.
+      const counter = page.getByTestId('step-counter')
+      const scrubber = page.getByTestId('scrubber')
+      const last = Number((await counter.textContent())!.match(/\/ (\d+)/)![1])
+      await page.evaluate(() => {
+        const w = window as unknown as { __writes: number }
+        w.__writes = 0
+        const replace = history.replaceState.bind(history)
+        const push = history.pushState.bind(history)
+        history.replaceState = (...a: Parameters<History['replaceState']>) => {
+          w.__writes++
+          return replace(...a)
+        }
+        history.pushState = (...a: Parameters<History['pushState']>) => {
+          w.__writes++
+          return push(...a)
+        }
+      })
+      await scrubber.scrollIntoViewIfNeeded()
+      const box = (await scrubber.boundingBox())!
+      const y = box.y + box.height / 2
+      const at = (f: number) => box.x + 8 + (box.width - 16) * f
+      const t0 = Date.now()
+      await page.mouse.move(at(0), y)
+      await page.mouse.down()
+      for (let i = 0; i <= 150; i++) await page.mouse.move(at(i / 150), y)
+      for (let i = 150; i >= 75; i--) await page.mouse.move(at(i / 150), y)
+      await page.mouse.up()
+      const elapsed = Date.now() - t0
+      // The counter shows where the thumb is, and the address catches up with it.
+      const value = Number(await scrubber.inputValue())
+      expect(value).toBeGreaterThan(last / 4)
+      expect(value).toBeLessThan((3 * last) / 4)
+      await expect(counter).toHaveText(`Step ${value} / ${last}`)
+      await expect(page).toHaveURL(new RegExp(`step=${value}$`))
+      const writes = await page.evaluate(() => (window as unknown as { __writes: number }).__writes)
+      log(`[test] drag: ${elapsed} ms, ${writes} address writes, ended on step ${value}`)
+      expect(writes, 'address writes during the drag').toBeLessThanOrEqual(
+        Math.ceil(elapsed / 400) + 3
+      )
+      expect(writes).toBeLessThan(100)
+      await shot(page, 'replay-after-long-drag')
+
+      // Playback at 8x moves step by step, the scrubber with it, and stops on pause.
+      await page.getByTestId('speed').selectOption('8')
+      await page.getByTestId('play-pause').click()
+      await expect
+        .poll(async () => Number(await scrubber.inputValue()), { timeout: 5000 })
+        .toBeGreaterThan(value + 5)
+      await page.getByTestId('play-pause').click()
+      const stopped = Number(await scrubber.inputValue())
+      await expect(counter).toHaveText(`Step ${stopped} / ${last}`)
+      await page.waitForTimeout(600)
+      expect(Number(await scrubber.inputValue()), 'paused: it stays').toBe(stopped)
+      await expect(page).toHaveURL(new RegExp(`step=${stopped}$`))
+      noErrors()
+    })
+
     await test.step('an LLM decision: real user prompt, system prompt and raw output', async () => {
+      await page.getByTestId('timeline-all').click()
       await page.locator('[data-testid^="timeline-step-"][data-source="llm"]').first().click()
       const panel = page.getByTestId('llm-panel')
       await expect(panel).toBeVisible()
@@ -424,6 +541,8 @@ test.describe('Transcripts and Buyout Bench on the real servers', () => {
     })
 
     await test.step('download the transcript JSON', async () => {
+      // The record's details (ids, times, seed, prompt, download) are behind "Details".
+      await page.getByTestId('transcript-details').locator('summary').click()
       const [download] = await Promise.all([
         page.waitForEvent('download'),
         page.getByTestId('download-transcript').click(),
@@ -565,6 +684,7 @@ test.describe('Transcripts and Buyout Bench on the real servers', () => {
       await expect(page.getByTestId('redacted-banner')).toHaveCount(0)
       await page.getByTestId('step-next').click()
       await expect(page.getByTestId('step-counter')).toHaveText(/^Step 1 \//)
+      await page.getByTestId('timeline-all').click()
       await page.locator('[data-testid^="timeline-step-"][data-source="llm"]').first().click()
       await expect(page.getByTestId('llm-panel')).toBeVisible()
       await shot(page, 'bench-game-transcript')

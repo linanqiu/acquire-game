@@ -26,3 +26,17 @@
 .crown {
   color: var(--accent-gold);
 }
+
+/* One line (the transcript's seat table): name and icon side by side, the name cut if need be. */
+.oneLine {
+  flex-wrap: nowrap;
+  max-width: 100%;
+}
+
+.oneLine .name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}

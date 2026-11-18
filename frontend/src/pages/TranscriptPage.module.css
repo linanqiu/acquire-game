@@ -43,35 +43,44 @@
   top: 0;
   z-index: 5;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 calc(-1 * var(--space-2));
+  padding: var(--space-1) var(--space-2) 0;
   background: var(--bg-primary);
-  border: var(--border-default);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  border-bottom: var(--border-default);
+}
+
+/* One compact row: the five step buttons, where we are, the speed, the link. */
+.buttons {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
 }
 
 .ctl {
-  font-family: var(--font-primary);
-  font-size: var(--text-sm);
-  min-width: 40px;
-  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 36px;
+  height: 40px;
+  padding: 0;
   color: var(--text-primary);
-  background: var(--bg-secondary);
-  border: var(--border-default);
+  background: none;
+  border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
 .ctl:hover:not(:disabled) {
-  border-color: var(--text-secondary);
+  background: var(--bg-tertiary);
   color: var(--text-accent);
 }
 
 .ctl:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
@@ -83,28 +92,36 @@
 }
 
 .play {
-  min-width: 56px;
-  color: var(--text-positive);
+  background: var(--bg-tertiary);
+  color: var(--text-accent);
 }
 
+/* The scrubber: the full width, under the buttons, a thumb-sized track. */
 .scrub {
-  flex: 1 1 160px;
-  min-width: 120px;
-  accent-color: var(--text-secondary);
+  width: 100%;
+  height: 28px;
+  margin: 0;
+  accent-color: var(--text-accent);
+  touch-action: pan-y;
 }
 
 .counter {
-  font-size: var(--text-sm);
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 2px;
+  font-size: var(--text-xs);
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
   font-family: var(--font-num);
   white-space: nowrap;
+  text-align: center;
 }
 
 .speed select {
   font-family: var(--font-primary);
-  font-size: var(--text-sm);
+  font-size: 16px;
   min-height: 36px;
+  padding: 0 2px;
   color: var(--text-primary);
   background: var(--bg-secondary);
   border: var(--border-default);
@@ -138,10 +155,8 @@
 .grid {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-  grid-template-rows: auto auto 1fr;
   grid-template-areas:
     'board decision'
-    'events decision'
     'timeline decision';
   gap: var(--space-4);
   align-items: start;
@@ -149,14 +164,12 @@
 
 .aBoard {
   grid-area: board;
-}
-
-.aEvents {
-  grid-area: events;
+  min-width: 0;
 }
 
 .aTimeline {
   grid-area: timeline;
+  min-width: 0;
 }
 
 .aDecision {
@@ -167,16 +180,8 @@
   min-width: 0;
 }
 
-.card {
-  background: var(--bg-secondary);
-  border: var(--border-default);
-  border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-4);
-  min-width: 0;
-}
-
 .h3 {
-  margin: 0 0 var(--space-2);
+  margin: 0 0 var(--space-1);
   font-size: var(--text-xs);
   letter-spacing: 0.1em;
   color: var(--text-secondary);
@@ -188,20 +193,26 @@
   font-size: var(--text-sm);
 }
 
+/* What happened in this step: right under the board, so the board and the move are seen
+   together. */
 .events {
+  margin-top: var(--space-2);
+}
+
+.eventList {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  font-size: var(--text-md);
+  gap: var(--space-1);
+  font-size: var(--text-sm);
   line-height: var(--line-height-normal);
 }
 
-.events li {
-  padding-left: var(--space-3);
-  border-left: 2px solid var(--border);
+.eventList li {
+  padding-left: var(--space-2);
+  border-left: 2px solid var(--text-accent);
   overflow-wrap: anywhere;
 }
 
@@ -214,17 +225,8 @@
   font-size: var(--text-xs);
 }
 
-.timelineBox {
-  display: flex;
-  flex-direction: column;
-}
-
-.timelineFrame {
-  height: 360px;
-}
-
 .hint {
-  margin: 0;
+  margin: var(--space-2) 0 0;
   font-size: var(--text-xs);
   color: var(--text-secondary);
 }
@@ -232,26 +234,16 @@
 @media (max-width: 900px) {
   .grid {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: none;
     grid-template-areas:
       'board'
-      'events'
       'decision'
       'timeline';
   }
-
-  .timelineFrame {
-    height: 260px;
-  }
 }
 
-@media (max-width: 600px) {
-  .controls {
-    padding: var(--space-2);
-  }
-
-  .scrub {
-    order: 5;
-    flex-basis: 100%;
+/* Phones: no keyboard, so no keyboard hint. */
+@media (hover: none) {
+  .hint {
+    display: none;
   }
 }
