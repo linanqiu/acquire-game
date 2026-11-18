@@ -355,9 +355,15 @@ def test_trade_response_prompt_values_the_offer(game):
         "can_accept": True,
     }
     p = build_user_prompt(make_ctx(game, "p1", "trade_response", legal), [])
-    assert "Bob [id p2] offers you: 2 juniper + $100 (worth $900" in p
-    assert "in exchange for: 1 marlowe (worth $200" in p
+    # Spelled from the deciding seat's side: what it gives, what it gets.
+    assert "Bob [id p2] proposes a trade to you." in p
+    assert "If you accept: you GIVE 1 marlowe (worth $200" in p
+    assert "and you GET 2 juniper + $100 (worth $900" in p
     assert "trade_id = t-77" in p
+    assert (
+        "describe the offer this way round (you give 1 marlowe, you get 2 juniper + $100)"
+        in p
+    )
 
 
 def test_trade_response_prompt_shows_position_aware_numbers():
@@ -442,7 +448,7 @@ def test_buy_prompt_shows_open_offers_between_other_players(game):
 def test_rules_text_says_offers_are_public():
     s = build_system_prompt()
     assert "Offers are public" in s and "competing offer" in s
-    assert PROMPT_BUILDER_VERSION == 10
+    assert PROMPT_BUILDER_VERSION == 11
 
 
 def test_playbook_teaches_position_aware_trading():
