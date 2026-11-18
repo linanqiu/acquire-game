@@ -238,7 +238,13 @@ def _build_provider(entry: CatalogEntry) -> Provider:
         from agents.llm.talk import fake_talk_responder
 
         # First legal action; deterministic table talk (see fake_talk_responder).
-        return FakeProvider(fake_talk_responder(), model="fake")
+        # ``FAKE_LLM_DELAY`` seconds per call stands in for a real model's think
+        # time (latency tests of the "thinking" state; BL-020).
+        from config import get_settings
+
+        return FakeProvider(
+            fake_talk_responder(), model="fake", delay=get_settings().fake_llm_delay
+        )
     if entry.provider == "anthropic":
         return AnthropicProvider(
             model=entry.model, api_key=entry.resolved_key(), effort=entry.effort

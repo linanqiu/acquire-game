@@ -280,7 +280,7 @@ async def refresh_player_state(room_code: str, player_id: str):
         raise HTTPException(status_code=400, detail="Game not started")
     if player_id not in room.players:
         raise HTTPException(status_code=404, detail="Player not found")
-    await broadcast_game_state(room_code)
+    await broadcast_game_state(room_code, fresh=player_id)
     return {"status": "ok"}
 
 

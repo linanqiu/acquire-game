@@ -117,9 +117,15 @@ export function GameLayout({
 
   // Something new needs me: it is at the top of the table panel, so show the top.
   const scroller = useRef<HTMLDivElement>(null)
+  // Where the panel is scrolled, from its scroll events: writing scrollTop forces a layout, so it
+  // is written only when the panel is not at the top already (BL-020).
+  const scrolled = useRef(false)
   const signature = (events ?? []).join('|')
   useEffect(() => {
-    if (scroller.current) scroller.current.scrollTop = 0
+    if (scroller.current && scrolled.current) {
+      scroller.current.scrollTop = 0
+      scrolled.current = false
+    }
   }, [signature, openTable])
 
   // Phones: the board gives the table panel exactly the height its content needs (BL-014), so
@@ -132,37 +138,61 @@ export function GameLayout({
     const inner = tableInner.current
     const tab = boardTab.current
     if (!inner || !tab) return
+    // Every measure is read before anything is written, and a value is written only when it
+    // changed: a write invalidates the styles below the board tab, and a read after it forces
+    // a second layout (BL-020).
+    const set = (name: string, value: string | null) => {
+      if (tab.style.getPropertyValue(name) === (value ?? '')) return
+      if (value === null) tab.style.removeProperty(name)
+      else tab.style.setProperty(name, value)
+    }
     const apply = () => {
       // Hidden (another tab is open): keep the last measure, so the board does not jump back.
       const need = Math.ceil(inner.offsetHeight)
-      if (need > 0) tab.style.setProperty('--table-need', `${need}px`)
       // A decision may mark the parts that must be on screen together (`data-table-core`: the
       // buy rows and the buy button, BL-017). Their own heights, from the top of the panel,
       // are what the board yields to while I decide (capped in the stylesheet).
       const core = Array.from(inner.querySelectorAll<HTMLElement>('[data-table-core]'))
+      const top =
+        core.length > 0
+          ? core[0].getBoundingClientRect().top - inner.getBoundingClientRect().top
+          : 0
+      const parts = core.reduce((sum, el) => sum + el.offsetHeight, 0)
+      if (need > 0) set('--table-need', `${need}px`)
       if (core.length === 0) {
-        tab.style.removeProperty('--core-need')
+        set('--core-need', null)
         return
       }
-      const top = core[0].getBoundingClientRect().top - inner.getBoundingClientRect().top
-      const parts = core.reduce((sum, el) => sum + el.offsetHeight, 0)
       const coreNeed = Math.ceil(top + parts + CORE_GAP * (core.length - 1))
-      if (parts > 0) tab.style.setProperty('--core-need', `${coreNeed}px`)
+      if (parts > 0) set('--core-need', `${coreNeed}px`)
     }
     apply()
     if (typeof ResizeObserver === 'undefined') return
     const observer = new ResizeObserver(apply)
     observer.observe(inner)
     // The core parts can change height while the panel does not (a buy row opening its line).
+    // Measure again only when the set of core parts changes: measuring forces a layout, and the
+    // panel's content changes with every move at the table (BL-020). Size changes come
+    // through the ResizeObserver.
     const watched = new Set<Element>()
     const watchCore = () => {
-      inner.querySelectorAll('[data-table-core]').forEach((el) => {
+      let changed = false
+      const now = new Set(inner.querySelectorAll('[data-table-core]'))
+      now.forEach((el) => {
         if (!watched.has(el)) {
           watched.add(el)
           observer.observe(el)
+          changed = true
         }
       })
-      apply()
+      watched.forEach((el) => {
+        if (!now.has(el)) {
+          watched.delete(el)
+          observer.unobserve(el)
+          changed = true
+        }
+      })
+      if (changed) apply()
     }
     watchCore()
     const mutations =
@@ -177,6 +207,9 @@ export function GameLayout({
   const tablePanel = (
     <div
       ref={scroller}
+      onScroll={(e) => {
+        scrolled.current = e.currentTarget.scrollTop > 0
+      }}
       className={styles.table}
       data-testid="table-panel"
       data-deciding={deciding ? 'true' : undefined}

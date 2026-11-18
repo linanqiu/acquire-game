@@ -62,6 +62,10 @@ class GameRoom:
     # random.Random for default AI seat names (session.seat_names); created
     # when the first unnamed AI seat is added (seeded from ``seed``/GAME_SEED).
     name_rng: Any = None
+    # broadcast.broadcast_game_state: the last game_state text sent to each
+    # recipient (player id, or broadcast.HOST), so an identical state is not
+    # sent twice.
+    sent_states: dict[str, str] = field(default_factory=dict)
 
 
 class SessionManager:
