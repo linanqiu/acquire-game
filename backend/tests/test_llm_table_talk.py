@@ -192,7 +192,7 @@ def test_talk_prompt_in_the_lobby():
     assert "lobby" in p and "- Alice (human)" in p
     assert "Alice just wrote (to the table)" in p
     # The seat knows its own (character) name and the short form others may use.
-    assert 'You are Baron Brick (player id llm_1). Players may call you "Baron".' in p
+    assert 'You are Baron Brick (player id llm_1). Players may call you "Baron";' in p
 
 
 def test_talk_prompt_addressed_by_first_word():
