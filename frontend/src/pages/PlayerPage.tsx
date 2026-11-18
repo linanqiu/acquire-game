@@ -30,6 +30,7 @@ import { decisionEvents, decisionView, turnKey } from '../lib/decision'
 import { shortNames } from '../lib/shortNames'
 import { buildFinalScores } from '../lib/finalScores'
 import { roomUnavailable } from '../lib/roomAvailability'
+import { useShallow } from 'zustand/react/shallow'
 import { useGameStore } from '../store/gameStore'
 import { useFallbackToasts } from '../hooks/useFallbackToasts'
 import { useErrorHandler } from '../hooks/useErrorHandler'
@@ -102,7 +103,28 @@ export function PlayerPage() {
     tradeLog,
     gameOver,
     setCurrentPlayer,
-  } = useGameStore()
+  } = useGameStore(
+    // Only what this page reads: a chat message or a toast event does not re-render the page.
+    useShallow((s) => ({
+      connectionStatus: s.connectionStatus,
+      connectionError: s.connectionError,
+      currentPlayer: s.currentPlayer,
+      lobbyPlayers: s.lobbyPlayers,
+      canStart: s.canStart,
+      gameState: s.gameState,
+      yourHand: s.yourHand,
+      tilePlayability: s.tilePlayability,
+      pendingChainChoice: s.pendingChainChoice,
+      pendingMergerChoice: s.pendingMergerChoice,
+      pendingMergerOrder: s.pendingMergerOrder,
+      pendingStockDisposition: s.pendingStockDisposition,
+      trades: s.trades,
+      publicTrades: s.publicTrades,
+      tradeLog: s.tradeLog,
+      gameOver: s.gameOver,
+      setCurrentPlayer: s.setCurrentPlayer,
+    }))
+  )
 
   useEffect(() => {
     const playerId = sessionStorage.getItem('player_id')
@@ -140,11 +162,16 @@ export function PlayerPage() {
     tradeLog,
     publicTrades,
   })
+  // The tile I just sent shows on the board at once, while the server answers (BL-020): only
+  // while that action is in flight (the next state, a refusal or the safety timer ends it), and
+  // only on an empty square; the state then draws it as it really is (its chain colour, a merger).
+  const [sentTile, setSentTile] = useState<Coordinate | null>(null)
   const { onRefused: turnRefused } = turn
   const { onRefused: tradeRefused } = trades
   useEffect(() => {
     onRefusedRef.current = (error) => {
       turnRefused()
+      setSentTile(null) // a refused placement leaves the board as it was
       tradeRefused(error)
     }
   }, [turnRefused, tradeRefused])
@@ -182,9 +209,12 @@ export function PlayerPage() {
       .map(([chain, quantity]) => ({ chain: chain as ChainId, quantity }))
   }, [myPlayerData])
 
+  // Keyed on the board alone: the store keeps an unchanged board as the same object (BL-020),
+  // so the memoised Board skips states that did not touch it.
+  const boardCells = gameState?.board.cells
   const boardTileStates = useMemo(
-    () => (gameState ? transformBoardToTileStates(gameState.board.cells) : {}),
-    [gameState]
+    () => (boardCells ? transformBoardToTileStates(boardCells) : {}),
+    [boardCells]
   )
 
   const rackTiles: RackTile[] = useMemo(() => {
@@ -198,6 +228,13 @@ export function PlayerPage() {
   const playableHand = useMemo(
     () => yourHand.filter((t) => tilePlayability?.[t]?.playable !== false),
     [yourHand, tilePlayability]
+  )
+  const playableSet = useMemo(() => new Set(playableHand), [playableHand])
+  const onBoardTileClick = useCallback(
+    (coord: Coordinate) => {
+      if (playableHand.includes(coord)) setSelectedTile(coord)
+    },
+    [playableHand]
   )
 
   const activeChains = useMemo(() => {
@@ -221,10 +258,19 @@ export function PlayerPage() {
 
   const handlePlaceTile = () => {
     if (!selectedTile) return
+    setSentTile(selectedTile)
     turn.placeTile(selectedTile)
     markHintSeen('place')
     setSelectedTile(undefined)
   }
+  const shownTile = turn.loading ? sentTile : null
+  const boardTiles = useMemo(
+    () =>
+      shownTile && !boardTileStates[shownTile]
+        ? { ...boardTileStates, [shownTile]: { state: 'orphan' as const } }
+        : boardTileStates,
+    [boardTileStates, shownTile]
+  )
 
   const otherPlayers = useMemo(() => {
     if (!gameState || !myPlayerId) return []
@@ -443,14 +489,12 @@ export function PlayerPage() {
               onTableVisible={setTableVisible}
               board={
                 <Board
-                  tiles={boardTileStates}
+                  tiles={boardTiles}
                   highlightedTile={selectedTile}
-                  playableTiles={new Set(playableHand)}
+                  playableTiles={playableSet}
                   size="lg"
                   interactive={placing}
-                  onTileClick={(coord) => {
-                    if (playableHand.includes(coord)) setSelectedTile(coord)
-                  }}
+                  onTileClick={onBoardTileClick}
                 />
               }
               rack={rack}

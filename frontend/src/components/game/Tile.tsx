@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { memo, useEffect, useRef } from 'react'
 import styles from './Tile.module.css'
 import type { ChainId } from '../../types/ruleset'
 import type { Coordinate, TileVisualState } from '../../types/game'
@@ -28,7 +28,7 @@ interface TileProps {
   labelShift?: { dx: number; dy: number }
 }
 
-export function Tile({
+function TileView({
   coordinate,
   chain,
   state = 'default',
@@ -61,8 +61,11 @@ export function Tile({
       el.style.setProperty('--chain-prev', before === 'orphan' ? 'var(--chain-orphan)' : before)
       el.style.setProperty('--sweep-col', String(parseInt(coordinate, 10) || 0))
     }
-    el.removeAttribute('data-anim')
-    void el.offsetWidth // restart the animation if one is still running
+    if (el.hasAttribute('data-anim')) {
+      // Restart the animation still running (the reflow is forced only then: BL-020).
+      el.removeAttribute('data-anim')
+      void el.offsetWidth
+    }
     el.setAttribute('data-anim', kind)
     const done = (e: AnimationEvent) => {
       if (e.target === el) el.removeAttribute('data-anim')
@@ -129,3 +132,23 @@ export function Tile({
     </div>
   )
 }
+
+/** `labelShift` by value (the board builds a fresh object per render); the rest by identity. */
+function sameProps(a: TileProps, b: TileProps): boolean {
+  for (const key of Object.keys({ ...a, ...b }) as (keyof TileProps)[]) {
+    if (key === 'labelShift') {
+      if (a.labelShift?.dx !== b.labelShift?.dx || a.labelShift?.dy !== b.labelShift?.dy) {
+        return false
+      }
+    } else if (a[key] !== b[key]) {
+      return false
+    }
+  }
+  return true
+}
+
+/**
+ * Memoised: a board of 108+ squares re-renders only the squares whose props changed (BL-020).
+ * Callers keep `onClick` stable for that to work (the board does).
+ */
+export const Tile = memo(TileView, sameProps)
