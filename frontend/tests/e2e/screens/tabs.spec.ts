@@ -18,7 +18,7 @@ import type { Page } from '@playwright/test'
 import { test, expect, type Shots } from './support/test'
 import { startFromSnapshot, type RoomContext } from './support/room'
 import { dollars, loadFixture } from './support/fixtures'
-import { expectFullBoard, layoutProblems } from './support/layout'
+import { expectFullBoard, layoutProblems, pageFrameProblems } from './support/layout'
 import { openDecision, phaseBanner, waitForMyDecision } from './support/ui'
 import {
   openTab,
@@ -101,7 +101,9 @@ async function expectTabContent(page: Page, room: RoomContext, which: TabName) {
       // Phones: with the whole board above it, in the same tab.
       await expect(tabPanel(page, 'board').getByTestId('board')).toBeVisible()
       await expectFullBoard(page)
-      expect(await layoutProblems(page, ['board', 'table-panel'])).toEqual([])
+      // The table panel follows the board; where it is longer than the screen, the page
+      // scrolls to the rest (BL-019), never the panel.
+      expect(await pageFrameProblems(page, ['board'], ['table-panel'])).toEqual([])
     }
     return
   }
@@ -142,14 +144,15 @@ async function checkEveryTab(
     await openTab(page, which)
     await expectTabContent(page, room, which)
     const id = which === 'table' ? await tableTabId(page) : which
-    // The open tab, the rack and the tab bar are all on screen, apart, and the page does not
-    // scroll in either direction. No card sits on top of the tab.
+    // The phase bar, the rack and the tab bar are all on screen and apart; the open tab is
+    // inside the width and the page is its only scroller (BL-019): no box scrolls inside it,
+    // nothing scrolls sideways. No card sits on top of the tab.
     expect(
-      await layoutProblems(page, [
-        'game-phase',
-        `tabpanel-${id}`,
-        ...(phone ? ['dock', 'tab-bar'] : ['board-pane', 'tab-list']),
-      ]),
+      await pageFrameProblems(
+        page,
+        ['game-phase', ...(phone ? ['dock', 'tab-bar'] : ['board-pane', 'tab-list'])],
+        [`tabpanel-${id}`]
+      ),
       `${label}, ${which} tab`
     ).toEqual([])
     if (phone && which === 'table' && opts.rackHidden) {
@@ -221,11 +224,11 @@ for (const vp of [...PHONES, ...WIDE]) {
       if (action) {
         await expect(page.getByTestId(action)).toBeInViewport({ ratio: 1 })
         expect(
-          await layoutProblems(page, [action, 'tile-rack', phone ? 'tab-bar' : 'tab-list'])
+          await pageFrameProblems(page, [action, 'tile-rack', phone ? 'tab-bar' : 'tab-list'])
         ).toEqual([])
         if (phone) {
           await expectFullBoard(page)
-          expect(await layoutProblems(page, ['board', action])).toEqual([])
+          expect(await pageFrameProblems(page, ['board', action])).toEqual([])
         }
       }
     })

@@ -51,7 +51,7 @@ async function expectDispositionCard(page: Page, room: RoomContext) {
   await expect(sellSlider(page)).toHaveAttribute('max', String(legal.stock_count))
   await expect(tradeSlider(page, survivor)).toHaveAttribute('max', String(legal.max_trade))
   await expect(tradeSlider(page, survivor)).toHaveAttribute('step', '2')
-  await expect(page.getByTestId('hold-display')).toContainText(`${legal.stock_count} share`)
+  await expect(page.getByTestId('hold-display')).toHaveText(String(legal.stock_count))
   await expectDisposition(page, {
     sell: 0,
     trade: 0,
@@ -79,19 +79,13 @@ test('merger: tie between two equal chains, human picks the survivor', async ({ 
 
   await expect(phaseBanner(page)).toHaveText('CHOOSE THE SURVIVING HOTEL CHAIN')
   await expect(page.getByTestId('chain-selector')).toBeVisible()
-  // Exactly the tied chains can be picked; the rest are labelled as not part of the tie.
+  // Exactly the tied chains are offered, one row each; the others are not shown (BL-019).
   for (const chain of ALL_CHAINS) {
     const button = page.getByTestId(`chain-button-${chain.toLowerCase()}`)
-    if (tied.includes(chain)) {
-      await expect(button).toBeEnabled()
-    } else {
-      await expect(button).toBeDisabled()
-      await expect(button).toContainText('NOT TIED')
-    }
+    if (tied.includes(chain)) await expect(button).toBeEnabled()
+    else await expect(button).toHaveCount(0)
   }
-  await expect(page.locator('[data-testid^="chain-button-"]:not([disabled])')).toHaveCount(
-    tied.length
-  )
+  await expect(page.locator('[data-testid^="chain-button-"]')).toHaveCount(tied.length)
 
   // Pick the survivor; the other tied chain is absorbed and the human (who holds it) is asked
   // what to do with that stock.

@@ -34,9 +34,9 @@ function mount(props = {}, rs = DEFAULT_RS) {
 describe('MergerDisposition', () => {
   it('starts holding everything: nothing sold or traded, and confirming sends exactly that', () => {
     const { onConfirm } = mount({ sharesOwned: 5 })
-    expect(sold()).toHaveTextContent('0 shares → $0')
-    expect(traded()).toHaveTextContent('0 shares → 0 ')
-    expect(kept()).toHaveTextContent('KEEP 5 shares')
+    expect(sold()).toHaveTextContent('0 → $0')
+    expect(traded()).toHaveTextContent('0 → 0 ')
+    expect(kept()).toHaveTextContent(/^5$/)
     fireEvent.click(screen.getByTestId('confirm-disposition'))
     expect(onConfirm).toHaveBeenCalledWith(0, 0, 5)
   })
@@ -44,15 +44,15 @@ describe('MergerDisposition', () => {
   it('selling pays the merger price per share and leaves fewer to hold', () => {
     mount({ sharesOwned: 25, defunctPrice: 1200 })
     set(sell(), 25)
-    expect(sold()).toHaveTextContent('25 shares → $30,000')
-    expect(kept()).toHaveTextContent('KEEP 0 shares')
+    expect(sold()).toHaveTextContent('25 → $30,000')
+    expect(kept()).toHaveTextContent(/^0$/)
   })
 
   it('sell, trade and hold always add up to the shares owned, and confirm sends all three', () => {
     const { onConfirm } = mount({ sharesOwned: 10 })
     set(sell(), 3)
     set(trade(), 4)
-    expect(kept()).toHaveTextContent('KEEP 3 shares')
+    expect(kept()).toHaveTextContent(/^3$/)
     fireEvent.click(screen.getByTestId('confirm-disposition'))
     expect(onConfirm).toHaveBeenCalledWith(3, 4, 3)
   })
@@ -60,18 +60,18 @@ describe('MergerDisposition', () => {
   it('trades go in pairs: an odd request rounds down, and every pair is one survivor share', () => {
     mount()
     set(trade(), 3)
-    expect(traded()).toHaveTextContent('2 shares → 1 ')
+    expect(traded()).toHaveTextContent('2 → 1 ')
     set(trade(), 6)
-    expect(traded()).toHaveTextContent('6 shares → 3 ')
+    expect(traded()).toHaveTextContent('6 → 3 ')
   })
 
   it('selling more takes shares back from a trade that no longer fits', () => {
     mount({ sharesOwned: 6 })
     set(trade(), 4)
     set(sell(), 5)
-    expect(sold()).toHaveTextContent('5 shares → $2,500')
-    expect(traded()).toHaveTextContent('0 shares → 0 ')
-    expect(kept()).toHaveTextContent('KEEP 1 share')
+    expect(sold()).toHaveTextContent('5 → $2,500')
+    expect(traded()).toHaveTextContent('0 → 0 ')
+    expect(kept()).toHaveTextContent(/^1$/)
   })
 
   it('the trade limit follows the shares not sold: one share cannot be traded at 2:1', () => {
@@ -113,10 +113,13 @@ describe('MergerDisposition', () => {
     expect(screen.getByTitle(`The price at the ${rs.theme.merger_noun}`)).toHaveTextContent(
       `at ${rs.theme.currency_symbol}500`
     )
-    expect(text).toContain(`until ${rs.chains[0].name} is founded again`)
-    expect(trade().closest('div').textContent).toContain(
-      `TRADE 2:1 for ${rs.chains[1].name.toUpperCase()}`
+    expect(
+      screen.getByTitle(`Worth nothing until ${rs.chains[0].name} is founded again`)
+    ).toBeInTheDocument()
+    expect(trade()).toHaveAccessibleName(
+      `${rs.chains[0].name} ${rs.theme.share_noun_plural} to trade 2 for 1 ${rs.chains[1].name}`
     )
+    expect(traded()).toHaveTextContent(rs.chains[1].name)
   })
 
   it('says each number once: no summary line repeating the sliders', () => {
@@ -125,7 +128,7 @@ describe('MergerDisposition', () => {
     set(trade(), 6)
     expect(screen.queryByTestId('disposition-summary')).not.toBeInTheDocument()
     const text = document.body.textContent ?? ''
-    expect(text.split('$1,000')).toHaveLength(2) // the sale, at the SELL slider
+    expect(text.split('$1,000')).toHaveLength(2) // the sale, at the Sell slider
     expect(text.split('$4,000')).toHaveLength(2) // cash after, over the button
     expect(text).not.toMatch(/HOLD/)
   })
@@ -142,7 +145,7 @@ describe('MergerDisposition', () => {
     set(sell(), 2)
     set(trade(), 6)
     expect(screen.getByTestId('disposition-cash-after')).toHaveTextContent('Cash after $4,000')
-    expect(traded()).toHaveTextContent('6 shares → 3 ')
+    expect(traded()).toHaveTextContent('6 → 3 ')
     expect(drafts.at(-1)).toEqual({ sell: 2, trade: 6 })
   })
 
@@ -152,8 +155,51 @@ describe('MergerDisposition', () => {
     expect(trade()).toHaveAttribute('step', '3')
     expect(trade()).toHaveAttribute('max', '6')
     set(trade(), 5)
-    expect(traded()).toHaveTextContent('3 shares → 1 ')
+    expect(traded()).toHaveTextContent('3 → 1 ')
     set(sell(), 8)
-    expect(traded()).toHaveTextContent('0 shares → 0 ')
+    expect(traded()).toHaveTextContent('0 → 0 ')
+  })
+
+  it('quick choices: sell all, trade the most the bank allows, keep all; the one in force is pressed', () => {
+    const { onConfirm } = mount({ sharesOwned: 9, survivorStockAvailable: 3, defunctPrice: 500 })
+    const keepAll = screen.getByTestId('disposition-keep-all')
+    expect(keepAll).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByTestId('disposition-trade-max'))
+    // 3 survivor shares in the bank: 6 traded, 3 kept.
+    expect(trade()).toHaveValue('6')
+    expect(traded()).toHaveTextContent('6 → 3')
+    expect(kept()).toHaveTextContent(/^3$/)
+    expect(screen.getByTestId('disposition-trade-max')).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByTestId('disposition-sell-all'))
+    expect(sold()).toHaveTextContent('9 → $4,500')
+    expect(traded()).toHaveTextContent('0 → 0')
+    fireEvent.click(screen.getByTestId('confirm-disposition'))
+    expect(onConfirm).toHaveBeenCalledWith(9, 0, 0)
+    fireEvent.click(keepAll)
+    expect(kept()).toHaveTextContent(/^9$/)
+  })
+
+  it('trade max is off when nothing can be traded', () => {
+    mount({ survivorStockAvailable: 0 })
+    expect(screen.getByTestId('disposition-trade-max')).toBeDisabled()
+  })
+
+  it('over the button: my survivor shares and my place in the survivor after the trade', () => {
+    mount({
+      sharesOwned: 10,
+      survivorStockAvailable: 10,
+      myId: 'me',
+      survivorHolders: [
+        { player_id: 'a', shares: 5 },
+        { player_id: 'me', shares: 2 },
+        { player_id: 'b', shares: 3 },
+      ],
+    })
+    const after = () => screen.getByTestId('disposition-survivor-after')
+    expect(after()).toHaveTextContent('2 · 3rd, 1 behind')
+    set(trade(), 2)
+    expect(after()).toHaveTextContent('2→3 · would tie 2nd')
+    set(trade(), 8)
+    expect(after()).toHaveTextContent('2→6 · takes 1st')
   })
 })

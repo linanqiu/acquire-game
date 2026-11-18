@@ -4,6 +4,27 @@
   gap: var(--space-4);
 }
 
+/* Only the choosable chains (founding, BL-019): the tiers side by side, each a small column
+   headed by its label, so the choice fits under the board. */
+.compact {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+}
+
+.compact .tier {
+  gap: 2px;
+}
+
+.compact .tierLabel {
+  font-size: var(--text-xs);
+}
+
+.compact .chainButton {
+  padding: var(--space-2);
+  min-width: 96px;
+}
+
 .tier {
   display: flex;
   flex-direction: column;

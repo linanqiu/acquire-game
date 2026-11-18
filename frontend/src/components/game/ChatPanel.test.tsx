@@ -177,33 +177,43 @@ describe('ChatPanel', () => {
   })
 
   it('follows new messages at the bottom but does not yank a reader who scrolled up', () => {
+    // The page is the chat's scroller (BL-019): no list with a scrollbar of its own. jsdom has
+    // no layout: fake a page of 1000px seen through a 200px window.
     useGameStore.setState({ chatMessages: [msg(1), msg(2)] })
-    render(<ChatPanel room="ABCD" />)
-    const list = screen.getByTestId('chat-list')
-    // jsdom has no layout: fake a scrollable list
     let top = 0
-    Object.defineProperty(list, 'scrollHeight', { configurable: true, get: () => 1000 })
-    Object.defineProperty(list, 'clientHeight', { configurable: true, get: () => 200 })
-    Object.defineProperty(list, 'scrollTop', {
-      configurable: true,
-      get: () => top,
-      set: (v: number) => {
-        top = v
-      },
+    const scrollTo = vi.fn((_x: number, y: number) => {
+      top = Math.min(y, 800)
     })
-    // at the bottom: a new message scrolls to it
-    top = 800
-    fireEvent.scroll(list)
-    deliver(msg(3))
-    expect(top).toBe(1000)
-    expect(screen.queryByTestId('chat-new-below')).toBeNull()
-    // scrolled up: the view stays, a "new messages" button appears
-    top = 100
-    fireEvent.scroll(list)
-    deliver(msg(4))
-    expect(top).toBe(100)
-    fireEvent.click(screen.getByTestId('chat-new-below'))
-    expect(top).toBe(1000)
-    expect(screen.queryByTestId('chat-new-below')).toBeNull()
+    vi.stubGlobal('scrollTo', scrollTo)
+    Object.defineProperty(window, 'scrollY', { configurable: true, get: () => top })
+    Object.defineProperty(window, 'innerHeight', { configurable: true, get: () => 200 })
+    Object.defineProperty(document.documentElement, 'scrollHeight', {
+      configurable: true,
+      get: () => 1000,
+    })
+    try {
+      render(<ChatPanel room="ABCD" inTab />)
+      // The tab opens at its foot: the newest line and the input.
+      expect(top).toBe(800)
+      expect(getComputedStyle(screen.getByTestId('chat-list')).overflowY).not.toMatch(/auto|scroll/)
+      // at the bottom: a new message scrolls the page to it
+      fireEvent.scroll(window)
+      deliver(msg(3))
+      expect(top).toBe(800)
+      expect(screen.queryByTestId('chat-new-below')).toBeNull()
+      // scrolled up: the page stays, a "new messages" button appears
+      top = 100
+      fireEvent.scroll(window)
+      deliver(msg(4))
+      expect(top).toBe(100)
+      fireEvent.click(screen.getByTestId('chat-new-below'))
+      expect(top).toBe(800)
+      expect(screen.queryByTestId('chat-new-below')).toBeNull()
+    } finally {
+      delete (window as { scrollY?: number }).scrollY
+      delete (window as { innerHeight?: number }).innerHeight
+      delete (document.documentElement as { scrollHeight?: number }).scrollHeight
+      vi.unstubAllGlobals()
+    }
   })
 })

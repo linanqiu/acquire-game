@@ -115,7 +115,7 @@ describe('host view of a running game', () => {
       if (id === view.host.current_player) expect(turn).toBeInTheDocument()
       else expect(turn).not.toBeInTheDocument()
     }
-    expect(screen.getByTestId('game-phase')).toHaveTextContent(/TURN - PLACE TILE$/)
+    expect(screen.getByTestId('game-phase')).toHaveTextContent(/ IS PLACING A TILE$/)
     // Whose turn: the calm "other" tone (never the viewer's accent; the host has no move).
     expect(screen.getByTestId('game-phase')).toHaveAttribute('data-turn', 'other')
   })
@@ -165,7 +165,9 @@ describe('host view of a running game', () => {
     deliver(view.host)
     renderHostPage()
     const awaited = view.host.players[view.host.awaiting.player_id].name
-    expect(screen.getByTestId('game-phase').textContent).toContain(awaited)
+    expect(screen.getByTestId('game-phase')).toHaveTextContent(
+      `${awaited.toUpperCase()} IS DISPOSING OF SHARES`
+    )
   })
 
   it('lists the pending trades for everyone to see, by name', () => {

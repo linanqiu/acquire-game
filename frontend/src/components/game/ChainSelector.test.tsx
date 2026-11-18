@@ -17,6 +17,27 @@ function founding() {
 }
 
 describe('ChainSelector', () => {
+  it('onlyAvailable: the chains on the board are not listed, and a tier left empty goes (BL-019)', () => {
+    const { offered, stock } = founding()
+    render(
+      <ChainSelector
+        availableChains={offered}
+        stockAvailability={stock}
+        onSelect={vi.fn()}
+        onlyAvailable
+      />
+    )
+    expect(screen.getAllByRole('radio')).toHaveLength(offered.length)
+    for (const c of DEFAULT_RS.chains.map((x) => x.id))
+      if (!offered.includes(c))
+        expect(screen.queryByTestId(`chain-button-${c.toLowerCase()}`)).not.toBeInTheDocument()
+    for (const t of chainsByTier(DEFAULT_RS)) {
+      const any = t.chains.some((c) => offered.includes(c.id))
+      if (any) expect(screen.getByTestId(`chain-tier-${t.tier.id}`)).toBeInTheDocument()
+      else expect(screen.queryByTestId(`chain-tier-${t.tier.id}`)).not.toBeInTheDocument()
+    }
+  })
+
   it('founding: the offered chains are choosable, the ones already on the board are marked ACTIVE and locked', () => {
     const { offered, stock } = founding()
     const onSelect = vi.fn()

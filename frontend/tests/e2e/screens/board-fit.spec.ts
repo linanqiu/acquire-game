@@ -10,8 +10,9 @@
  *  - 390x675 and 375x630, four players, at the start of a game (AI seats with their character
  *    names, as in a real game against bots) and in the middle of one;
  *  - 390x675, six players, in the middle of a game;
- *  - 360x600: four players still fit; with six the board stays whole and only the table panel
- *    scrolls inside itself (the documented way it degrades);
+ *  - 360x600: four players still fit; with six the board stays whole and the page scrolls to
+ *    the rest of the table (the documented way it degrades; never a panel inside the page,
+ *    BL-019);
  *  - the seat-kind icon is a small icon in the name's line, and still opens its popover.
  *
  * Setup (tier 3 only): the game is created from the home page; opponents are added through the
@@ -21,7 +22,7 @@ import type { Page } from '@playwright/test'
 import { test, expect } from './support/test'
 import { startFromSnapshot } from './support/room'
 import { loadFixture } from './support/fixtures'
-import { expectFullBoard, layoutProblems } from './support/layout'
+import { expectFullBoard, expectNoInnerScroll, layoutProblems } from './support/layout'
 import { phaseBanner } from './support/ui'
 import { tablePanel } from '../support/tabs'
 
@@ -150,6 +151,8 @@ async function expectBoardTabFits(page: Page, players: number, opts: { footer: b
       { message: 'the table panel does not scroll' }
     )
     .toBeLessThanOrEqual(0)
+  // No box scrolls inside the page (BL-019): the document is the one scroller.
+  await expectNoInnerScroll(page)
   const m = await measure(page)
   expect(m.panel.scrollWidth, 'the table panel does not scroll sideways').toBeLessThanOrEqual(
     m.panel.clientWidth
@@ -274,7 +277,7 @@ test('Board tab at 390x675, six players mid-game: all six rows and the footer on
   await expect(page.getByTestId('decision-last-merger')).toBeInViewport({ ratio: 1 })
 })
 
-test('Board tab at 360x600: four players fit; with six the board stays whole and only the table panel scrolls', async ({
+test('Board tab at 360x600: four players fit; with six the board stays whole and the page scrolls to the rest', async ({
   page,
   shots,
 }) => {
@@ -286,13 +289,16 @@ test('Board tab at 360x600: four players fit; with six the board stays whole and
   await startFromSnapshot(page, 'six-player-midgame', { viewport: SMALL })
   await expect(phaseBanner(page)).toHaveText('PLACE A TILE')
   await shots.take(page, '360x600-six-players', { fullPage: false })
-  // Degrades in one way only: the panel under the board scrolls inside itself. The board is
-  // whole, the rack and the tab bar are on screen, the page does not scroll, nothing is wider
-  // than the screen.
+  // Degrades in one way only: the page scrolls to the rest of the table (BL-019; it used to be
+  // the panel, a box scrolling inside the page). The board is whole, the rack and the tab bar
+  // are on screen and stay there, nothing is wider than the screen, no box scrolls inside.
   await expectFullBoard(page)
   expect(
-    await layoutProblems(page, ['game-phase', 'board', 'table-panel', 'tile-rack', 'tab-bar'])
+    await layoutProblems(page, ['game-phase', 'board', 'tile-rack', 'tab-bar'], {
+      noPageScroll: false,
+    })
   ).toEqual([])
+  await expectNoInnerScroll(page)
   const m = await measure(page)
   console.log(
     `[360x600] six players: square ${m.square.width.toFixed(1)}x${m.square.height.toFixed(1)}, panel ${m.panel.scrollHeight}/${m.panel.clientHeight}`
@@ -303,8 +309,13 @@ test('Board tab at 360x600: four players fit; with six the board stays whole and
   // At least the head and four player rows show without scrolling; the rest is one flick away.
   const visible = m.rows.filter((r) => r.id === 'player-row' && r.bottom <= m.rackTop + 0.5)
   expect(visible.length).toBeGreaterThanOrEqual(4)
-  await tablePanel(page).evaluate((el) => (el.scrollTop = el.scrollHeight))
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
   await expect(page.getByTestId('matrix-bank')).toBeInViewport({ ratio: 1 })
+  // ...above the rack and the tab bar, which stayed at the foot of the screen.
+  const bank = (await page.getByTestId('matrix-bank').boundingBox())!
+  const rackTop = (await page.getByTestId('tile-rack').boundingBox())!.y
+  expect(bank.y + bank.height, 'the last row clears the rack').toBeLessThanOrEqual(rackTop + 0.5)
+  await expect(page.getByTestId('tab-bar')).toBeInViewport({ ratio: 1 })
   await shots.take(page, '360x600-six-players-scrolled', { fullPage: false })
 })
 
@@ -360,7 +371,7 @@ test.describe('seat icon in the players matrix on a phone', () => {
     expect(p.y + p.height).toBeLessThanOrEqual(IPHONE.height)
     await shots.take(page, 'icon-popover-open', { fullPage: false })
     // A tap elsewhere closes it; the neighbour's icon opens its own (the hit areas do not mix).
-    await page.getByTestId('header-title').tap()
+    await page.getByTestId('game-phase').tap()
     await expect(pop).toBeHidden()
     await page.getByTestId(`seat-kind-${bot.player_id}`).tap()
     await expect(page.getByRole('dialog', { name: `About ${bot.name}` })).toContainText(

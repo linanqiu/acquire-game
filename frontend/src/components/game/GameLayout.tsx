@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
 import { TabList, TabPanels, type TabItem } from '../ui/Tabs'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
+import { useHeightVar } from '../../hooks/useHeightVar'
 import { useGameTabs } from '../../hooks/useGameTabs'
 import { NOW_TAB, WIDE_QUERY } from '../../lib/gameTabs'
 import styles from './GameLayout.module.css'
@@ -58,7 +59,9 @@ export interface GameLayoutProps {
  * other tabs are reference: Chains, Chat, Trades (or Log). Wide screens: the board (status line
  * and rack under it) on the left, always visible; on the right the tabs, the table panel first.
  * There is no pop-up and nothing to close: a decision replaces the top of the table panel and
- * goes when it is made. The page itself never scrolls; panels scroll inside themselves.
+ * goes when it is made. The page is the only scroller (BL-019): no panel scrolls inside itself.
+ * The header and phase bar stay at the top, the rack and tab bar at the foot (phones), the
+ * board beside the tabs (wide screens); a tab longer than the screen scrolls the page.
  */
 /** The gap between the parts of a decision marked `data-table-core` (the buy panel's gap). */
 const CORE_GAP = 4
@@ -115,18 +118,18 @@ export function GameLayout({
     onTableVisible?.(tableVisible)
   }, [tableVisible, onTableVisible])
 
-  // Something new needs me: it is at the top of the table panel, so show the top.
-  const scroller = useRef<HTMLDivElement>(null)
-  // Where the panel is scrolled, from its scroll events: writing scrollTop forces a layout, so it
-  // is written only when the panel is not at the top already (BL-020).
-  const scrolled = useRef(false)
+  // Something new needs me (it is at the top of the table panel), or another tab is open:
+  // show the top of the page. A layout effect, so a tab that wants its foot instead (Chat, in
+  // a plain effect) has the last word.
   const signature = (events ?? []).join('|')
-  useEffect(() => {
-    if (scroller.current && scrolled.current) {
-      scroller.current.scrollTop = 0
-      scrolled.current = false
-    }
-  }, [signature, openTable])
+  useLayoutEffect(() => {
+    if (typeof window.scrollTo === 'function' && window.scrollY > 0) window.scrollTo(0, 0)
+  }, [signature, openTable, state.selected])
+
+  // Phones: the rack and the tab bar stay at the foot; the Board tab is sized to what is left.
+  const phoneRoot = useRef<HTMLDivElement>(null)
+  const bottom = useRef<HTMLDivElement>(null)
+  useHeightVar(bottom, phoneRoot, '--chrome-bottom', !wide)
 
   // Phones: the board gives the table panel exactly the height its content needs (BL-014), so
   // the players matrix shows whole, with no scrolling, whenever the screen can hold both. The
@@ -206,10 +209,6 @@ export function GameLayout({
 
   const tablePanel = (
     <div
-      ref={scroller}
-      onScroll={(e) => {
-        scrolled.current = e.currentTarget.scrollTop > 0
-      }}
       className={styles.table}
       data-testid="table-panel"
       data-deciding={deciding ? 'true' : undefined}
@@ -277,19 +276,22 @@ export function GameLayout({
     const showStatus = !!statusLine
     return (
       <div
+        ref={phoneRoot}
         className={styles.phone}
         data-testid="game-layout"
         data-layout="phone"
         data-deciding={deciding && state.selected === 'board' ? 'true' : undefined}
       >
         <div className={styles.content}>{panels}</div>
-        {(showStatus || rack) && (
-          <div className={styles.dock} data-testid="dock">
-            {showStatus && statusLine}
-            {rack && <div className={styles.rack}>{rack}</div>}
-          </div>
-        )}
-        {list}
+        <div ref={bottom} className={styles.bottom}>
+          {(showStatus || rack) && (
+            <div className={styles.dock} data-testid="dock">
+              {showStatus && statusLine}
+              {rack && <div className={styles.rack}>{rack}</div>}
+            </div>
+          )}
+          {list}
+        </div>
       </div>
     )
   }

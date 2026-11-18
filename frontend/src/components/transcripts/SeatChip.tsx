@@ -7,6 +7,12 @@ import styles from './SeatChip.module.css'
 interface SeatChipProps {
   seat: Pick<SummarySeat, 'player_id' | 'name' | 'kind' | 'agent_label' | 'model'>
   winner?: boolean
+  /**
+   * One line, as in the game's players table (BL-019): the seat's name and its kind icon (the
+   * model is the icon's label and is spelled out by the caller), cut with an ellipsis rather
+   * than wrapped.
+   */
+  oneLine?: boolean
 }
 
 /**
@@ -15,14 +21,14 @@ interface SeatChipProps {
  * kind as a small icon (BL-010). A human seat shows the name only. The icon is not a button:
  * the chip can sit inside a link (games list) and already spells the model out.
  */
-export function SeatChip({ seat, winner = false }: SeatChipProps) {
+export function SeatChip({ seat, winner = false, oneLine = false }: SeatChipProps) {
   const model = seat.agent_label || seat.model || ''
   const isAi = resolveSeatKind(seat) !== 'human'
-  const primary = isAi && model ? model : seat.name
-  const secondary = isAi && model && model !== seat.name ? seat.name : null
+  const primary = isAi && model && !oneLine ? model : seat.name
+  const secondary = isAi && model && model !== seat.name && !oneLine ? seat.name : null
   return (
     <span
-      className={`${styles.chip} ${winner ? styles.winner : ''}`}
+      className={`${styles.chip} ${winner ? styles.winner : ''} ${oneLine ? styles.oneLine : ''}`}
       data-testid={`seat-chip-${seat.player_id}`}
     >
       {winner && (

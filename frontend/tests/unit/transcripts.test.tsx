@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { useEffect } from 'react'
 import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react'
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -63,8 +64,14 @@ function mockApi(handler: Handler) {
   return fn
 }
 
+/** Address writes (navigations) since the page was rendered. */
+let navigations = 0
+
 function LocationProbe() {
   const loc = useLocation()
+  useEffect(() => {
+    navigations++
+  }, [loc.key])
   return <div data-testid="loc">{loc.pathname + loc.search}</div>
 }
 
@@ -265,7 +272,8 @@ describe('TranscriptPage replay', () => {
 
     fireEvent.click(screen.getByTestId('step-prev'))
     expect(screen.getByTestId('step-counter')).toHaveTextContent(`Step ${target - 1} /`)
-    expect(screen.getByTestId('loc')).toHaveTextContent(`step=${target - 1}`)
+    // The address follows (throttled: a link to the step, BL-019).
+    await waitFor(() => expect(screen.getByTestId('loc')).toHaveTextContent(`step=${target - 1}`))
   })
   it('supports keyboard arrows, End and Home', async () => {
     mockApi(transcriptApi())
@@ -302,6 +310,33 @@ describe('TranscriptPage replay', () => {
       await vi.advanceTimersByTimeAsync(3000)
     })
     expect(screen.getByTestId('step-counter')).toHaveTextContent('Step 11 /')
+  })
+
+  it('scrubbing through the whole game writes the address a few times, not once a step (BL-019)', async () => {
+    // Safari refuses more than 100 history writes in 10 seconds; the step was read back from
+    // the address, so a long drag (or a fast replay) jammed the scrubber. The step now lives in
+    // the page and the address follows it at most every 400 ms, ending on the last step.
+    mockApi(transcriptApi())
+    renderAt('/games/g1')
+    await screen.findByTestId('transcript-viewer')
+    const scrubber = screen.getByTestId('scrubber')
+    const before = navigations
+    const t0 = Date.now()
+    for (let i = 1; i <= decisions.length; i++) {
+      fireEvent.change(scrubber, { target: { value: String(i) } })
+      // The scrubber and the counter follow every value, at once.
+      expect(scrubber).toHaveValue(String(i))
+      expect(screen.getByTestId('step-counter')).toHaveTextContent(`Step ${i} /`)
+    }
+    for (let i = decisions.length; i >= 3; i--)
+      fireEvent.change(scrubber, { target: { value: String(i) } })
+    expect(screen.getByTestId('step-counter')).toHaveTextContent('Step 3 /')
+    await waitFor(() => expect(screen.getByTestId('loc')).toHaveTextContent('step=3'))
+    // At most one write per 400 ms of dragging, plus the last one: a small fraction of the
+    // 2 x steps values the scrubber went through.
+    const writes = navigations - before
+    expect(writes).toBeLessThanOrEqual(Math.ceil((Date.now() - t0) / 400) + 2)
+    expect(writes).toBeLessThan(decisions.length / 4)
   })
 
   it('opens at the step given in ?step= (deep link)', async () => {

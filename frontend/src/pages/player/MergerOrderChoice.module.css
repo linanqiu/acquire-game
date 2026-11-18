@@ -75,3 +75,8 @@
   font-size: var(--text-xs);
   color: var(--text-secondary);
 }
+
+/* A wrapper that does not box (names the facts of a row for tests and readers). */
+.contents {
+  display: contents;
+}

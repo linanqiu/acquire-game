@@ -1,0 +1,115 @@
+/* The in-game menu (BL-019): a compact button where the wordmark was, a small panel under it. */
+.menu {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-left: calc(-1 * var(--space-2));
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 44px;
+  min-height: 32px;
+  padding: 0 var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.button:hover,
+.button[aria-expanded='true'] {
+  color: var(--text-primary);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--text-accent);
+  outline-offset: -2px;
+}
+
+/* The wordmark is the button's label on a wide screen; a phone keeps the width for numbers. */
+.brand {
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  color: var(--text-accent);
+  letter-spacing: 0.08em;
+}
+
+@media (max-width: 768px) {
+  .brand {
+    display: none;
+  }
+}
+
+.panel {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  z-index: 800;
+  width: min(340px, calc(100vw - 2 * var(--space-2)));
+  padding: var(--space-1) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-secondary);
+  box-shadow: var(--shadow-md);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  line-height: var(--line-height-normal);
+}
+
+.section {
+  padding: var(--space-2) 0;
+}
+
+.section + .section {
+  border-top: 1px solid var(--border);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.summary {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.rules {
+  margin: var(--space-1) 0 0;
+  padding-left: 1.1em;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+.leave {
+  display: flex;
+  flex-direction: column;
+  min-height: 44px;
+  justify-content: center;
+  color: var(--text-accent);
+  text-decoration: none;
+}
+
+.leave:hover .note {
+  color: var(--text-primary);
+}
+
+.note {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}

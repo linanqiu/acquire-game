@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
+import { useHeightVar } from '../../hooks/useHeightVar'
 import { Header } from './Header'
 import { PhaseHelp } from './PhaseHelp'
 import styles from './PageShell.module.css'
@@ -11,7 +12,10 @@ interface PageShellProps {
    * The text always says it too; the tint never carries the meaning alone.
    */
   turn?: 'mine' | 'other'
-  /** In-game layout: the shell fills the screen and the page never scrolls (panels scroll). */
+  /**
+   * In-game layout: the header and phase bar stay at the top while the page scrolls (their
+   * height is handed to the layout below as --chrome-top), and the layout gets the rest.
+   */
   fill?: boolean
   children: ReactNode
   header?: ReactNode
@@ -30,6 +34,8 @@ interface PageShellProps {
   helpFresh?: boolean
   /** In a game (see `Header`). */
   inGame?: boolean
+  /** The in-game menu's room (see `Header`). */
+  menuRoom?: string
   /**
    * The phase bar as the way to the decision (BL-017): set while a move of mine waits on a tab
    * that is not open. The bar becomes a button, with `label` ("Board") and an arrow at its end.
@@ -52,54 +58,61 @@ export function PageShell({
   help,
   helpFresh,
   inGame,
+  menuRoom,
   phaseLink,
 }: PageShellProps) {
+  const shell = useRef<HTMLDivElement>(null)
+  const top = useRef<HTMLDivElement>(null)
+  useHeightVar(top, shell, '--chrome-top', fill)
   return (
-    <div className={`${styles.shell} ${fill ? styles.fill : ''}`}>
-      {header !== undefined ? (
-        header
-      ) : (
-        <Header
-          roomCode={roomCode}
-          cash={cash}
-          netWorth={netWorth}
-          rank={rank}
-          playerName={playerName}
-          tilePool={tilePool}
-          inGame={inGame}
-        />
-      )}
-      {phase && (
-        <div className={styles.phaseBar}>
-          <div
-            className={`${styles.phase} ${turn ? styles[turn] : ''}`}
-            data-turn={turn}
-            role="status"
-            aria-live="polite"
-            aria-atomic="true"
-            data-testid="game-phase"
-          >
-            {phaseLink ? (
-              <button
-                type="button"
-                className={styles.phaseLink}
-                onClick={phaseLink.onOpen}
-                aria-label={`${phase}. Go to ${phaseLink.label}`}
-                data-go={phaseLink.label}
-                data-testid="phase-link"
-              >
-                {/* The text stays the phase alone (it is what the status region announces);
+    <div ref={shell} className={`${styles.shell} ${fill ? styles.fill : ''}`}>
+      <div ref={top} className={styles.top}>
+        {header !== undefined ? (
+          header
+        ) : (
+          <Header
+            roomCode={roomCode}
+            cash={cash}
+            netWorth={netWorth}
+            rank={rank}
+            playerName={playerName}
+            tilePool={tilePool}
+            inGame={inGame}
+            menuRoom={menuRoom}
+          />
+        )}
+        {phase && (
+          <div className={styles.phaseBar}>
+            <div
+              className={`${styles.phase} ${turn ? styles[turn] : ''}`}
+              data-turn={turn}
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              data-testid="game-phase"
+            >
+              {phaseLink ? (
+                <button
+                  type="button"
+                  className={styles.phaseLink}
+                  onClick={phaseLink.onOpen}
+                  aria-label={`${phase}. Go to ${phaseLink.label}`}
+                  data-go={phaseLink.label}
+                  data-testid="phase-link"
+                >
+                  {/* The text stays the phase alone (it is what the status region announces);
                     the tab's name and arrow are drawn after it from data-go, and are in the
                     button's accessible name. */}
-                {phase}
-              </button>
-            ) : (
-              phase
-            )}
+                  {phase}
+                </button>
+              ) : (
+                phase
+              )}
+            </div>
+            {help && <PhaseHelp fresh={helpFresh}>{help}</PhaseHelp>}
           </div>
-          {help && <PhaseHelp fresh={helpFresh}>{help}</PhaseHelp>}
-        </div>
-      )}
+        )}
+      </div>
       <main className={styles.main}>{children}</main>
     </div>
   )

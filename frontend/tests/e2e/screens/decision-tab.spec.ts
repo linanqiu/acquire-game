@@ -21,7 +21,13 @@ import type { Page } from '@playwright/test'
 import { test, expect, type Shots } from './support/test'
 import { startFromSnapshot, type RoomContext } from './support/room'
 import { dollars, loadFixture } from './support/fixtures'
-import { expectFullBoard, layoutProblems } from './support/layout'
+import {
+  expectFullBoard,
+  expectNoInnerScroll,
+  layoutProblems,
+  pageFrameProblems,
+  clippedBy,
+} from './support/layout'
 import { phaseBanner } from './support/ui'
 import { openTab, tab, tabBadge, tablePanel, tableTab, tableTabId } from '../support/tabs'
 
@@ -35,19 +41,28 @@ const PHONES = SIZES.filter((s) => s.width < 768)
 const isPhone = (page: Page) => (page.viewportSize()?.width ?? 1280) < 768
 
 /**
- * The page does not scroll, the decision tab and the dock / sidebar do not overlap, and the
- * given controls (inside the tab) are clear of the dock and the tab bar.
+ * The decision is on screen without scrolling anything (BL-019): no box scrolls inside the
+ * page, the phase bar and the parts that stay put (dock and tab bar; board and tabs on a wide
+ * screen) are on screen and apart, the board is whole, and the given controls are on screen,
+ * clear of the dock and the tab bar. What follows the decision (the players matrix, who holds
+ * what) may be under it: the page scrolls to it, never a panel.
  */
 async function expectNoScroll(page: Page, controls: string[] = []) {
   const frame = isPhone(page) ? ['dock', 'tab-bar'] : ['board-pane', 'tab-list']
   const id = await tableTabId(page)
-  expect(await layoutProblems(page, ['game-phase', `tabpanel-${id}`, ...frame])).toEqual([])
+  const loose = { noPageScroll: false }
+  await expectNoInnerScroll(page)
+  expect(await layoutProblems(page, ['game-phase', ...frame], loose)).toEqual([])
+  expect(
+    await layoutProblems(page, [`tabpanel-${id}`], { ...loose, vertical: false }),
+    'the decision tab is inside the width'
+  ).toEqual([])
   if (isPhone(page)) {
     // The board is whole and the decision is under it, in the same view.
     await expectFullBoard(page)
-    expect(await layoutProblems(page, ['board', 'table-panel'])).toEqual([])
+    expect(await layoutProblems(page, ['board', ...frame], loose)).toEqual([])
   }
-  for (const id of controls) expect(await layoutProblems(page, [id, ...frame])).toEqual([])
+  for (const id of controls) expect(await layoutProblems(page, [id, ...frame], loose)).toEqual([])
 }
 
 /** Every chain row of the buy decision against the fixture's engine figures. */
@@ -269,37 +284,45 @@ for (const vp of SIZES) {
     await expect(await tableTab(page)).toHaveAttribute('aria-selected', 'true')
     await expect(page.getByTestId('decision-view')).toHaveAttribute('data-view', 'disposition')
     const { d, after } = await expectMergerView(page, room)
-    await expect(page.getByTestId('confirm-disposition')).toBeInViewport({ ratio: 1 })
-    await page.getByTestId('slider-sell-to-bank').scrollIntoViewIfNeeded()
-    await expect(page.getByTestId('slider-sell-to-bank')).toBeInViewport()
-    await expect(page.getByTestId('confirm-disposition')).toBeInViewport({ ratio: 1 })
-    await expectNoScroll(page, ['confirm-disposition'])
+    // The whole decision is on screen with the board: every control and the button.
+    for (const id of [
+      'disposition-title',
+      'slider-sell-to-bank',
+      'disposition-trade-max',
+      'hold-display',
+      'disposition-cash-after',
+      'confirm-disposition',
+    ])
+      await expect(page.getByTestId(id), id).toBeInViewport({ ratio: 1 })
+    await expectNoScroll(page, ['confirm-disposition', 'slider-sell-to-bank'])
     await shots.take(page, 'disposition', { fullPage: false })
 
-    // Trade as much as the bank allows: my survivor shares, place and the bank follow live.
+    // Trade as much as the bank allows: my survivor shares and place after it are over the
+    // button, next to the control (BL-019); the survivor table under the decision keeps
+    // everyone's shares as they stand (my number is not said twice).
     const { human } = room.fixture.expect
     const meSeat = room.fixture.human_seat
     const mine = after.holders.find((h) => h.player_id === meSeat)?.shares ?? 0
     const trade = page.locator('[data-testid^="slider-trade-"]')
     const max = Number(await trade.getAttribute('max'))
     expect(max).toBeGreaterThan(0)
-    await trade.fill(String(max))
+    await page.getByTestId('disposition-trade-max').click()
+    await expect(trade).toHaveValue(String(max))
     const got = max / 2
-    const myRow = page.getByTestId(`survivor-row-${room.humanId}`)
-    await myRow.scrollIntoViewIfNeeded()
-    await expect(myRow).toHaveAttribute('data-shares', String(mine + got))
-    await expect(myRow).toContainText(`${mine}→${mine + got}`)
-    await expect(page.getByTestId('survivor-after-bank')).toHaveText(
-      `bank ${after.bank} → ${after.bank - got}`
-    )
     const others = after.holders.filter((h) => h.player_id !== meSeat)
     const above = others.filter((h) => h.shares > mine + got).length
-    await expect(page.getByTestId('survivor-my-place')).toContainText(
-      ['1st', '2nd', '3rd', '4th', '5th', '6th'][above]
+    const consequence = page.getByTestId('disposition-survivor-after')
+    await expect(consequence).toContainText(`${mine}→${mine + got}`)
+    await expect(consequence).toContainText(['1st', '2nd', '3rd', '4th', '5th', '6th'][above])
+    await expect(consequence).toBeInViewport({ ratio: 1 })
+    await expect(page.getByTestId(`survivor-row-${room.humanId}`)).toHaveAttribute(
+      'data-shares',
+      String(mine)
     )
-    // The numbers of my choice are at the sliders, once; my row among the stockholders only
+    await expect(page.getByTestId('survivor-my-place')).toHaveCount(0)
+    // The numbers of my choice are at the controls, once; my row among the stockholders only
     // says that I am deciding.
-    await expect(page.getByTestId('disposition-trade')).toContainText(`${max} shares → ${got} `)
+    await expect(page.getByTestId('disposition-trade')).toContainText(`${max} → ${got}`)
     await expect(page.getByTestId(`merger-waiting-${d.chain}-${room.humanId}`)).toContainText(
       'deciding…'
     )
@@ -389,8 +412,14 @@ for (const vp of PHONES) {
       await startFromSnapshot(page, p.fixture, { viewport: vp, idle: p.idle })
       await openTab(page, 'board')
       await expectFullBoard(page)
+      // The board whole with the phase bar, the dock and the tab bar; what the table panel
+      // holds below the screen is reached by scrolling the page (BL-019), not a panel.
       expect(
-        await layoutProblems(page, ['game-phase', 'tabpanel-board', 'dock', 'tab-bar'])
+        await pageFrameProblems(
+          page,
+          ['game-phase', 'board', 'dock', 'tab-bar'],
+          ['tabpanel-board']
+        )
       ).toEqual([])
       await shots.take(page, `board-${p.phase.replace(' ', '-')}`, { fullPage: false })
     }
@@ -569,52 +598,4 @@ for (const vp of PHONES) {
     await line.click()
     await expect(panel.getByTestId('merger-result')).toHaveCount(0)
   })
-}
-
-/** The containers (overflow other than visible, and the viewport) that cut off part of `sel`. */
-async function clippedBy(page: Page, sel: string): Promise<string[]> {
-  return page.evaluate((selector) => {
-    const el = document.querySelector(selector)
-    if (!el) return ['not found']
-    const r = el.getBoundingClientRect()
-    const out: string[] = []
-    const check = (
-      name: string,
-      b: { left: number; top: number; right: number; bottom: number }
-    ) => {
-      const cut = [
-        ['left', b.left - r.left],
-        ['top', b.top - r.top],
-        ['right', r.right - b.right],
-        ['bottom', r.bottom - b.bottom],
-      ].filter(([, d]) => (d as number) > 0)
-      if (cut.length)
-        out.push(
-          `${name} cuts ${cut.map(([s, d]) => `${s} ${(d as number).toFixed(4)}px`).join(', ')}`
-        )
-    }
-    for (let p = el.parentElement; p; p = p.parentElement) {
-      const cs = getComputedStyle(p)
-      if (cs.overflowX === 'visible' && cs.overflowY === 'visible') continue
-      // The clip box in exact pixels: client sizes are whole numbers, the box is not.
-      const b = p.getBoundingClientRect()
-      const bw = (side: string) => parseFloat(cs.getPropertyValue(`border-${side}-width`)) || 0
-      const barX = p.offsetWidth - p.clientWidth - bw('left') - bw('right')
-      const barY = p.offsetHeight - p.clientHeight - bw('top') - bw('bottom')
-      const name = `${p.getAttribute('data-testid') ?? p.tagName.toLowerCase()}.${p.className}`
-      check(`${name} (scroll ${p.scrollLeft},${p.scrollTop})`, {
-        left: b.left + bw('left'),
-        top: b.top + bw('top'),
-        right: b.right - bw('right') - barX,
-        bottom: b.bottom - bw('bottom') - barY,
-      })
-    }
-    check('viewport', {
-      left: 0,
-      top: 0,
-      right: document.documentElement.clientWidth,
-      bottom: window.innerHeight,
-    })
-    return out.length ? [`button ${r.left},${r.top},${r.width}x${r.height}`, ...out] : []
-  }, sel)
 }
