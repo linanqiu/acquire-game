@@ -222,3 +222,8 @@ script (not in the repo) that replays each transcript with `transcripts.replay`-
 - *missed paying merger*: a playable merge tile with `viewer_total_bonus > 0` was in hand and
   another tile was played;
 - *idle cash*: the viewer's cash at every buy step where buying was legal.
+
+## Table talk about trades
+
+What a seat is told when people talk trades in chat (real trade timing, deal facts, history facts,
+first person, buy-step follow-up of promised offers): [table-talk.md](table-talk.md) (LO-013).

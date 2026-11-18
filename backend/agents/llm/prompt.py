@@ -21,6 +21,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any
 
+from agents.llm.deal_facts import OFFER_WORDS
 from game.ruleset import MIN_CHAIN_SIZE, Ruleset, default_ruleset, ruleset_from_state
 
 _STANDING = {
@@ -285,7 +286,7 @@ def build_system_prompt(ruleset: Ruleset | None = None) -> str:
 # in a way that could change play. The system prompt text is hashed in
 # automatically. Benchmark results are only comparable within one
 # ``prompt_version`` (see docs/ai/benchmarking.md).
-PROMPT_BUILDER_VERSION = 10  # 2: table talk; 3: table voice; 4: natural, low-key talk;
+PROMPT_BUILDER_VERSION = 11  # 2: table talk; 3: table voice; 4: natural, low-key talk;
 # 5: strategy playbook + share race, merger payouts for all, disposition figures;
 # 6: trade offers are public (rules text, open offers between other players)
 # 7: position-aware trade numbers in the offer + trade paragraph in the playbook
@@ -296,6 +297,10 @@ PROMPT_BUILDER_VERSION = 10  # 2: table talk; 3: table voice; 4: natural, low-ke
 #    resolved next (rules text, playbook line, action, decision facts)
 # 10: merging tiles that pay only rivals are marked "pays only rivals"; playbook
 #    tile line: check who collects before firing (docs/ai/bot-tiles.md)
+# 11: trade talk (LO-013, docs/ai/table-talk.md): trade events as sentences,
+#    offers as "you GIVE / you GET", buy step names propose_trade and lists
+#    the deal talk since the seat's last turn; talk prompt: real trade timing,
+#    first person, facts only, "Who did what", "Deal facts"
 
 
 def _sha(text: str) -> str:
@@ -393,6 +398,34 @@ def _clip(line: str, max_chars: int) -> str:
     return line if len(line) <= max_chars else line[: max_chars - 1] + "…"
 
 
+_TRADE_EVENTS = {
+    "trade_proposed",
+    "trade_accepted",
+    "trade_rejected",
+    "trade_cancelled",
+}
+
+
+def _trade_event_line(e: dict, names: dict[str, str]) -> str:
+    """A trade event as a sentence that says who gives what: the generic
+    rendering of the ``trade`` dict was cut off before the money."""
+    t = e.get("trade") or {}
+    frm = names.get(t.get("from_player_id"), t.get("from_player_id"))
+    to = names.get(t.get("to_player_id"), t.get("to_player_id"))
+    gives = _stock_text(t.get("offering_stocks"), t.get("offering_money"), names)
+    wants = _stock_text(t.get("requesting_stocks"), t.get("requesting_money"), names)
+    deal = f"{frm} gives {gives}, {to} gives {wants}"
+    typ = e.get("type")
+    if typ == "trade_proposed":
+        return f"{frm} offered {to} a trade: {deal}"
+    if typ == "trade_accepted":
+        return f"{to} accepted {frm}'s offer: {deal} (done)"
+    if typ == "trade_rejected":
+        return f"{to} rejected {frm}'s offer: {deal}"
+    why = "withdrawn" if e.get("reason") == "cancelled" else "no longer valid"
+    return f"{frm}'s offer to {to} was cancelled ({why}): {deal}"
+
+
 def compact_event(e: Any, names: dict[str, str], max_chars: int = 220) -> str | None:
     """One short line for an event in a decision prompt, or None for an event
     that is left out (``_NOISE``, an empty purchase). The common events get a
@@ -462,6 +495,8 @@ def compact_event(e: Any, names: dict[str, str], max_chars: int = 220) -> str | 
                 f"{paid or 'nobody'}",
                 max_chars,
             )
+        if typ in _TRADE_EVENTS:
+            return _clip(_trade_event_line(e, names), max_chars)
         if typ == "stock_disposition":
             got = e.get("survivor_shares_received") or 0
             return _clip(
@@ -892,15 +927,24 @@ def render_trade(trade: dict, calc: dict, names: dict[str, str]) -> str:
     )
     get = _trade_value(trade.get("offering_stocks"), trade.get("offering_money"), calc)
     frm = names.get(trade.get("from_player_id"), trade.get("from_player_id"))
+    you_give = _stock_text(
+        trade.get("requesting_stocks"), trade.get("requesting_money"), names
+    )
+    you_get = _stock_text(
+        trade.get("offering_stocks"), trade.get("offering_money"), names
+    )
+    cash = (calc.get("viewer") or {}).get("cash")
     return (
-        f"{frm} [id {trade.get('from_player_id')}] offers you: "
-        f"{_stock_text(trade.get('offering_stocks'), trade.get('offering_money'), names)} "
-        f"(worth {money(get)} at current prices) in exchange for: "
-        f"{_stock_text(trade.get('requesting_stocks'), trade.get('requesting_money'), names)} "
-        f"(worth {money(give)} at current prices). trade_id = {trade.get('trade_id')}."
+        f"{frm} [id {trade.get('from_player_id')}] proposes a trade to you. "
+        f"If you accept: you GIVE {you_give} (worth {money(give)} at current prices) "
+        f"and you GET {you_get} (worth {money(get)} at current prices)"
+        + (f"; you have {money(cash)} cash" if cash is not None else "")
+        + f". trade_id = {trade.get('trade_id')}."
         + _trade_position_text(
             (calc.get("trades") or {}).get(trade.get("trade_id")), frm
         )
+        + f'\nIf you comment in "say", describe the offer this way round (you give '
+        f"{you_give}, you get {you_get}) and give the reason from these numbers."
     )
 
 
@@ -1061,7 +1105,11 @@ _DECISION_TEXT = {
     "choose_defunct_order": "Your merger has defunct chains of equal size. Choose which of them is resolved next.",
     "stock_disposition": "Decide what to do with your shares in the defunct chain.",
     "buy_stocks": "Buy step. Buy up to max_total shares (see the legal options; or none), "
-    "then you must end your turn (or declare the game over, if allowed).",
+    "then you must end your turn (or declare the game over, if allowed). "
+    "This is also the only time you can propose a trade to another player "
+    "(propose_trade, at most one per turn, when the legal options list it): "
+    "worth it when a trade wins or saves a bonus position, or when you cannot "
+    "afford the shares you need.",
     "trade_response": "Another player proposed a trade to you. Accept or reject it.",
 }
 
@@ -1090,6 +1138,42 @@ def table_voice(player_id: str) -> str:
     """The seat's temperament at the table (stable for a player id)."""
     digest = hashlib.sha256(str(player_id).encode()).digest()
     return TABLE_VOICES[digest[0] % len(TABLE_VOICES)]
+
+
+def render_deal_talk(events: list[Any], chat: list[dict], me: str) -> str:
+    """At the seat's buy step: the deal talk since its previous turn (its own
+    messages and others' that mention a deal), with the reminder that this is
+    the moment to send an offer it promised, or to withdraw it. "" when there
+    was no such talk (most turns: no extra tokens)."""
+    since = -1
+    for e in events or []:
+        if (
+            isinstance(e, dict)
+            and e.get("type") == "turn_ended"
+            and e.get("player_id") == me
+            and isinstance(e.get("seq"), int)
+        ):
+            since = e["seq"]
+    talk = [
+        m
+        for m in chat or []
+        if isinstance(m.get("after_seq"), int)
+        and m["after_seq"] >= since
+        and OFFER_WORDS.search(str(m.get("text") or ""))
+    ]
+    if not talk:
+        return ""
+    return (
+        "# Deal talk since your last turn (follow up now)\n"
+        + "\n".join(chat_line(m) for m in talk)
+        + "\nThis buy step is your only chance this round to send an offer. If you "
+        "said you would send someone an offer, send it now with propose_trade (one "
+        'per turn), or say in "say" that you will not after all. If someone asked '
+        "you for a deal, propose one that helps you, or leave it. Direction: when "
+        'they wrote "I give you X, you give me Y", X goes in your requesting_stocks '
+        "and Y in your offering_stocks. Check each chain's line above (your standing, "
+        '"+N to take majority") before you give shares away.'
+    )
 
 
 def build_user_prompt(
@@ -1187,6 +1271,12 @@ def _build_user_prompt(ctx, notes: Any, budget: PromptBudget | None) -> str:
         )
     parts.append(heading + "\n" + render_events(visible, names, budget, chat=chat))
     parts.append("# Your private notes from earlier decisions\n" + _notes_block(notes))
+    if kind == "buy_stocks" and "propose_trade" in (
+        ctx.legal.get("action_types") or []
+    ):
+        follow = render_deal_talk(visible, chat, me)
+        if follow:
+            parts.append(follow)
 
     ctx_extra = getattr(ctx.decision, "context", None)
     decision = [

@@ -333,8 +333,10 @@ def message_targets(room, msg: dict) -> list:
     """Talking seats a new message gives the chance to speak. Decided by
     rules alone, before any model call, since every chance is a paid call.
 
-    Human message: the talking seats it names; when it names none (spoken to
-    the table), at most ``chat_reply_table_seats`` of them, the ones that
+    Human message: the talking seats it names; when it names none but
+    continues a one-to-one exchange with one seat, that seat
+    (``_conversation_partner``); otherwise (spoken to the table), at most
+    ``chat_reply_table_seats`` of them, the ones that
     have had the fewest talk calls so far. AI message: only the talking
     seats it names, and only when it floats a deal or asks something (a
     question mark or a deal word); never while the AI streak is at
@@ -350,6 +352,9 @@ def message_targets(room, msg: dict) -> list:
     if msg.get("kind") == "human":
         if addressed:
             return addressed
+        partner = _conversation_partner(state, msg, talking)
+        if partner is not None:
+            return [partner]
         cap = max(0, settings.chat_reply_table_seats)
         order = sorted(
             range(len(talking)),
@@ -361,6 +366,32 @@ def message_targets(room, msg: dict) -> list:
     if not _NEGOTIATION.search(msg["text"]):
         return []
     return addressed
+
+
+def _conversation_partner(state, msg: dict, talking: list):
+    """The talking seat in a one-to-one exchange with the writer: everything
+    said since the writer's previous message came from that one seat, and it
+    was a reply to the writer (or a ``say`` with a move). An unnamed
+    follow-up such as "if I give you SP..." continues that exchange (LO-013).
+    None when several seats answered (a table conversation)."""
+    before = [m for m in state.messages if m.get("id") != msg.get("id")]
+    if not before:
+        return None
+    mine = [i for i, m in enumerate(before) if m.get("player_id") == msg["player_id"]]
+    since = before[mine[-1] + 1 :] if mine else before[-1:]
+    speakers = {m.get("player_id") for m in since}
+    if len(speakers) != 1:
+        return None
+    seat = next((s for s in talking if s.player_id in speakers), None)
+    if seat is None:
+        return None
+    asked = before[mine[-1]].get("id") if mine else None
+    if any(
+        m.get("source") == "say" or (asked is not None and m.get("reply_to") == asked)
+        for m in since
+    ):
+        return seat
+    return None
 
 
 def _slot(state, room, player_id: str) -> dict:
@@ -597,6 +628,11 @@ def talk_view(room, seat, trigger: dict) -> dict:
         view["state"] = game.get_player_state(seat.player_id)
         view["events"] = public_events(game, seat.player_id)
         view["calc"] = build_calculator_pack(game, seat.player_id)
+        # Computed facts about a deal under discussion, only when the
+        # trigger mentions a chain or a deal, or an offer is open (LO-013).
+        from agents.llm.deal_facts import deal_facts
+
+        view["deal_facts"] = deal_facts(game, seat.player_id, trigger)
     return view
 
 
