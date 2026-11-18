@@ -62,7 +62,8 @@ test('spectator host view: watch an all-AI game to game over', async ({ page, jo
   const board = page.getByTestId('board')
   await expect(board).toBeVisible()
   await expect(page.getByTestId('player-card')).toHaveCount(3)
-  await expect(page.getByTestId('game-phase')).toContainText("'s TURN")
+  // Who the table waits on and for what, in a player's words (BL-019): "REX IS PLACING A TILE".
+  await expect(page.getByTestId('game-phase')).toHaveText(/ IS [A-Z ]+$/)
   await j.shot(page, 'host-game-started')
 
   // Watch it progress: the board keeps filling up until the game ends.
@@ -130,7 +131,10 @@ test('spectator host view: watch an all-AI game to game over', async ({ page, jo
   expect(sawChains, 'chains appeared in the CHAINS panel').toBe(true)
   expect(thinkingSeen.size, 'thinking indicator seen for every AI seat').toBe(3)
   expect(
-    [...phasesSeen].some((p) => p.endsWith('- MERGER')),
+    // In a player's words (BL-019): a stockholder disposing, or the merging player choosing.
+    [...phasesSeen].some((p) =>
+      / IS (DISPOSING OF SHARES|CHOOSING THE SURVIVING|CHOOSING THE MERGER ORDER)/.test(p)
+    ),
     'a merger was shown on the host banner'
   ).toBe(true)
 
