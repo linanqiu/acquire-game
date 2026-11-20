@@ -54,21 +54,28 @@ const WIDE = [
  * Answer the prompts the other seats' moves bring (a disposition, a chain choice) until it is my
  * turn to place a tile. With `stayOn` (I am typing in the chat there) the page must not switch
  * by itself: the Board tab gets a badge and the phase bar takes me to the decision, as a
- * player would tap it; then back to `stayOn`.
+ * player would tap it; then back to `stayOn`. Returns the banners of the decisions answered on
+ * the way.
  */
 async function untilMyPlaceTurn(
   page: Page,
   room: RoomContext,
   stayOn?: 'chat' | 'chains',
   typing = true
-) {
+): Promise<string[]> {
+  const answered: string[] = []
   for (let i = 0; i < 8; i++) {
     const banner = await waitForMyDecision(page, room)
-    if (banner === 'PLACE A TILE') return
+    if (banner === 'PLACE A TILE') return answered
+    answered.push(banner)
     if (stayOn && typing) {
       await expect(tab(page, stayOn)).toHaveAttribute('aria-selected', 'true')
       await expect(tabBadge(page, 'board')).toBeVisible()
       await page.getByTestId('phase-link').click()
+      // Wait for the tap to land before `openDecision` looks: it taps the phase bar itself
+      // while the decision is not on screen, and a second tap would hit the link while the
+      // Board tab replaces it (the link leaves the page; the click waits for it in vain).
+      await expect(tab(page, 'board')).toHaveAttribute('aria-selected', 'true')
     } else if (stayOn) {
       // Not typing: the page comes back to the board and the decision under it by itself.
       await expect(tab(page, 'board')).toHaveAttribute('aria-selected', 'true')
@@ -239,8 +246,12 @@ test('phone: unread chat badge, Chat tab content, and no tab switch while typing
   page,
   shots,
 }) => {
+  // Every other seat is idle and moves only when this test drives it (inside
+  // `untilMyPlaceTurn`, after the Chat tab is open again), so my next decisions and my
+  // place-tile turn come while I am on the Chat tab, never before: not a race with live seats.
+  const fx = loadFixture('buy-phase-multi-chain')
   const room = await startFromSnapshot(page, 'buy-phase-multi-chain', {
-    idle: ['p2'],
+    idle: fx.expect.players.map((p) => p.player_id).filter((s) => s !== fx.human_seat),
     viewport: { width: 390, height: 844 },
   })
   const bob = room.idleIds.p2
@@ -266,7 +277,9 @@ test('phone: unread chat badge, Chat tab content, and no tab switch while typing
   await page.getByTestId('end-turn-button').click()
   await expect(phaseBanner(page)).not.toHaveText('BUY STOCKS')
   await openTab(page, 'chat')
-  await untilMyPlaceTurn(page, room, 'chat')
+  // The others' moves bring a merger: my share disposition comes up first (a decision on the
+  // Board), then my place-tile turn. Neither takes me off the Chat tab.
+  expect(await untilMyPlaceTurn(page, room, 'chat')).toContain('DISPOSE YOUR SHARES')
   await expect(tab(page, 'chat')).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByTestId('chat-input')).toHaveValue('let me think')
   // The Board tab is marked: my tile is waiting.
