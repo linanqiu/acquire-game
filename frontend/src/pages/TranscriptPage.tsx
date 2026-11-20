@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  useLayoutEffect,
+} from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { PageFrame, LoadingView, ErrorView } from '../components/transcripts/PageFrame'
 import { SummaryHeader } from '../components/transcripts/SummaryHeader'
@@ -109,6 +117,12 @@ function Viewer({
   )
 
   const goTo = useCallback((n: number) => setStep(Math.max(0, Math.min(last, n))), [last])
+  // One step from where the page is now (the state, not a render's copy of it): two quick key
+  // presses before the listener is re-attached must still move two steps.
+  const stepBy = useCallback(
+    (delta: number) => setStep((s) => Math.max(0, Math.min(last, Math.min(s, last) + delta))),
+    [last]
+  )
 
   // Write the step to the address, at most once per URL_WRITE_MS, and always the last one.
   const lastWrite = useRef(0)
@@ -153,18 +167,19 @@ function Viewer({
     setPlaying((p) => !p)
   }, [playing, shown, last, goTo])
 
-  // Keyboard
-  useEffect(() => {
+  // Keyboard. A layout effect: the keys work from the first frame the replay is on screen
+  // (a passive effect could attach after paint, and early presses were lost).
+  useLayoutEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.altKey || e.ctrlKey || e.metaKey || isTypingTarget(e.target)) return
       switch (e.key) {
         case 'ArrowRight':
           e.preventDefault()
-          goTo(shown + 1)
+          stepBy(1)
           break
         case 'ArrowLeft':
           e.preventDefault()
-          goTo(shown - 1)
+          stepBy(-1)
           break
         case 'Home':
           e.preventDefault()
@@ -187,7 +202,7 @@ function Viewer({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [shown, last, goTo, togglePlay])
+  }, [last, goTo, stepBy, togglePlay])
 
   const current = replay.steps[shown]
   const eventLines = useMemo(
@@ -255,7 +270,7 @@ function Viewer({
             </button>
             <button
               className={styles.ctl}
-              onClick={() => goTo(shown - 1)}
+              onClick={() => stepBy(-1)}
               disabled={shown === 0}
               aria-label="Previous step"
               title="Previous step (←)"
@@ -275,7 +290,7 @@ function Viewer({
             </button>
             <button
               className={styles.ctl}
-              onClick={() => goTo(shown + 1)}
+              onClick={() => stepBy(1)}
               disabled={shown >= last}
               aria-label="Next step"
               title="Next step (→)"
