@@ -1,8 +1,9 @@
 /**
  * Trading and reconnection on the player page, from real server states (recorded from the
  * backend, tests/unit/fixtures/generate_wire_messages.py). Answering an offer is in
- * PlayerPage.screens.test.tsx; here: what the offers panel says, the notices, the builder
- * round trip, and the connection overlay.
+ * PlayerPage.screens.test.tsx; here: what the offers say, the notices, the composer round
+ * trip (from the holdings table, a competing offer, a counter-offer), and the connection
+ * overlay.
  */
 import { render, screen, act, fireEvent, within } from '@testing-library/react'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
@@ -261,15 +262,19 @@ describe('offers between two other players are public', () => {
     ['recipient', () => o.to, { aurelia: 1 }, 0, {}, 800],
     ['proposer', () => o.from, {}, 800, { aurelia: 2 }, 0],
   ] as const)(
-    'a competing offer to the %s opens the builder on that player with the terms filled in',
+    'a competing offer to the %s opens the composer on that player with the terms filled in',
     (target, partner, giveStocks, giveCash, wantStocks, wantCash) => {
       seat()
       fireEvent.click(screen.getByRole('tab', { name: /Trades/ }))
       fireEvent.click(screen.getByTestId(`trade-compete-${target}-${offer.trade_id}`))
       const builder = screen.getByTestId('trade-builder')
+      expect(builder).toHaveAccessibleName('Competing offer')
       expect(screen.getByTestId('trade-started-from')).toHaveTextContent(
-        "Started from Cara's offer to Bob. Change anything before you send it."
+        "Started from Cara's offer to Bob."
       )
+      // Composing takes the tab: the lists are away until the offer is sent or put away.
+      expect(screen.queryByTestId('trade-offers')).toBeNull()
+      expect(screen.queryByTestId('trade-start')).toBeNull()
       expect(within(builder).getByTestId(`player-select-${partner()}`)).toHaveAttribute(
         'aria-pressed',
         'true'
@@ -287,14 +292,44 @@ describe('offers between two other players are public', () => {
     }
   )
 
-  it('PROPOSE TRADE after a competing offer starts from an empty builder again', () => {
+  it('a new offer after a competing one was put away starts empty again', () => {
     seat()
     fireEvent.click(screen.getByRole('tab', { name: /Trades/ }))
     fireEvent.click(screen.getByTestId(`trade-compete-recipient-${offer.trade_id}`))
     fireEvent.click(screen.getByTestId('cancel-trade'))
-    fireEvent.click(screen.getByRole('button', { name: 'PROPOSE TRADE' }))
+    // Put away: the table and the offers are back.
+    expect(screen.queryByTestId('trade-builder')).toBeNull()
+    expect(screen.getByTestId(`trade-table-${offer.trade_id}`)).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId(`trade-start-${o.to}`))
+    expect(screen.getByTestId('trade-builder')).toHaveAccessibleName('New offer')
     expect(screen.queryByTestId('trade-started-from')).toBeNull()
-    expect(screen.getByText('Select a trade partner to see their holdings')).toBeInTheDocument()
+    expect(screen.getByTestId(`player-select-${o.to}`)).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByTestId('trade-hint')).toHaveTextContent('Add what you give or what you get')
+    expect(screen.queryAllByTestId(/^(offer|want)-stock-/)).toHaveLength(0)
+  })
+
+  it("the holdings table starts an offer: a tap on a rival's shares asks for one of them", () => {
+    seat()
+    fireEvent.click(screen.getByRole('tab', { name: /Trades/ }))
+    // Cara holds Aurelia (she offers two of them): tap that number.
+    fireEvent.click(screen.getByTestId(`trade-start-${o.from}-aurelia`))
+    const builder = screen.getByTestId('trade-builder')
+    expect(within(builder).getByTestId(`player-select-${o.from}`)).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
+    expect(
+      within(screen.getByTestId('want-stock-aurelia')).getByTestId('stepper-value')
+    ).toHaveTextContent('1')
+    fireEvent.click(screen.getByTestId('propose-trade'))
+    expect(ws.sendAction).toHaveBeenLastCalledWith({
+      action: 'propose_trade',
+      to_player_id: o.from,
+      offering_stocks: {},
+      offering_money: 0,
+      requesting_stocks: { aurelia: 1 },
+      requesting_money: 0,
+    })
   })
 
   it('a new offer between others is one toast and a dot; their answers are not toasted', () => {
@@ -352,14 +387,13 @@ describe('offers between two other players are public', () => {
 })
 
 describe('an offer answered at once (an AI seat)', () => {
-  it('my proposal and its answer arriving together: both are announced and the builder closes', () => {
+  it('my proposal and its answer arriving together: both are announced and the composer closes', () => {
     const view = loadSnapshotAsPlayer('buy-phase-multi-chain')
     mount()
     fireEvent.click(screen.getByRole('tab', { name: /Trades/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'PROPOSE TRADE' }))
     const state = stateOf(view)
     const [partner, info] = Object.entries(state.players).find(([id]) => id !== view.human)!
-    fireEvent.click(screen.getByTestId(`player-select-${partner}`))
+    fireEvent.click(screen.getByTestId(`trade-start-${partner}`))
     fireEvent.change(screen.getByTestId('offer-cash-input'), { target: { value: '100' } })
     fireEvent.change(screen.getByTestId('want-cash-input'), { target: { value: '50' } })
     fireEvent.click(screen.getByTestId('propose-trade'))
@@ -399,17 +433,16 @@ describe('proposing a trade', () => {
     const view = loadSnapshotAsPlayer('buy-phase-multi-chain')
     mount()
     fireEvent.click(screen.getByRole('tab', { name: /Trades/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'PROPOSE TRADE' }))
     const state = stateOf(view)
     const partner = Object.entries(state.players).find(([id]) => id !== view.human)!
-    fireEvent.click(screen.getByTestId(`player-select-${partner[0]}`))
+    fireEvent.click(screen.getByTestId(`trade-start-${partner[0]}`))
     fireEvent.change(screen.getByTestId('offer-cash-input'), { target: { value: '100' } })
     fireEvent.change(screen.getByTestId('want-cash-input'), { target: { value: '50' } })
     fireEvent.click(screen.getByTestId('propose-trade'))
     return { partner: partner[0], view }
   }
 
-  it('sends the proposal; a server refusal shows inside the builder, which stays open', () => {
+  it('sends the proposal; a server refusal shows inside the composer, which stays open', () => {
     const { partner } = open()
     expect(ws.sendAction).toHaveBeenLastCalledWith({
       action: 'propose_trade',
@@ -424,7 +457,7 @@ describe('proposing a trade', () => {
     expect(screen.getByTestId('trade-builder')).toBeInTheDocument()
   })
 
-  it('the builder closes once the server confirms the proposal (trade_proposed)', () => {
+  it('the composer closes once the server confirms the proposal (trade_proposed)', () => {
     const { partner, view } = open()
     deliver({
       type: 'trade_proposed',
@@ -458,20 +491,83 @@ describe('proposing a trade', () => {
     }
   })
 
-  it('reopening the builder after a proposal that got no answer gives a working button', () => {
-    open()
+  it('a new offer after a proposal that got no answer gives a working button', () => {
+    const { partner } = open()
     expect(screen.getByTestId('propose-trade')).toBeDisabled()
-    fireEvent.click(screen.getByRole('button', { name: 'Close modal' }))
-    fireEvent.click(screen.getByRole('button', { name: 'PROPOSE TRADE' }))
+    fireEvent.click(screen.getByTestId('cancel-trade'))
+    fireEvent.click(screen.getByTestId(`trade-start-${partner}`))
+    fireEvent.change(screen.getByTestId('offer-cash-input'), { target: { value: '100' } })
     expect(screen.getByTestId('propose-trade')).toBeEnabled()
+    expect(screen.getByTestId('propose-trade')).not.toHaveTextContent('SENDING')
   })
 
-  it('during a merger the builder warns that the shares involved cannot be traded', () => {
-    loadSnapshotAsPlayer('disposition-human-first')
+  it('during a merger the composer warns that the shares involved cannot be traded', () => {
+    const view = loadSnapshotAsPlayer('disposition-human-first')
     mount()
     fireEvent.click(screen.getByRole('tab', { name: /Trades/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'PROPOSE TRADE' }))
+    const other = Object.keys(stateOf(view).players).find((id) => id !== view.human)!
+    fireEvent.click(screen.getByTestId(`trade-start-${other}`))
     expect(screen.getByTestId('trade-builder')).toHaveTextContent(/merger is in progress/)
+  })
+})
+
+describe('a counter-offer', () => {
+  it('COUNTER opens the composer in Trades on the same deal seen from my side; sending it turns theirs down', () => {
+    const view = loadSnapshotAsPlayer('trade-incoming')
+    mount()
+    const [offer] = stateOf(view).incoming_trades
+    const from = stateOf(view).players[offer.from_player_id].name
+    fireEvent.click(screen.getByTestId(`trade-counter-${offer.trade_id}`))
+    // My own tap took me to the Trades tab, where the composer is.
+    expect(screen.getByRole('tab', { name: /Trades/ })).toHaveAttribute('aria-selected', 'true')
+    const builder = screen.getByTestId('trade-builder')
+    expect(builder).toHaveAccessibleName('Counter-offer')
+    expect(screen.getByTestId('trade-started-from')).toHaveTextContent(
+      `Your answer to ${from}'s offer. Sending it turns theirs down.`
+    )
+    expect(within(builder).getByTestId(`player-select-${offer.from_player_id}`)).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
+    // They offered 2 Aurelia for $800: I give the $800 and get the 2 Aurelia; I ask for less.
+    expect(screen.getByTestId('offer-cash-input')).toHaveValue('800')
+    expect(
+      within(screen.getByTestId('want-stock-aurelia')).getByTestId('stepper-value')
+    ).toHaveTextContent('2')
+    fireEvent.change(screen.getByTestId('offer-cash-input'), { target: { value: '600' } })
+    fireEvent.click(screen.getByTestId('propose-trade'))
+    const mine = {
+      to_player_id: offer.from_player_id,
+      offering_stocks: {},
+      offering_money: 600,
+      requesting_stocks: { aurelia: 2 },
+      requesting_money: 0,
+    }
+    expect(ws.sendAction).toHaveBeenLastCalledWith({ action: 'propose_trade', ...mine })
+    // Nothing is turned down until the server has my offer.
+    expect(ws.sendAction).toHaveBeenCalledTimes(1)
+    deliver({
+      type: 'trade_proposed',
+      seq: 700,
+      trade: { trade_id: 'counter', from_player_id: view.human, ...mine },
+    })
+    expect(ws.sendAction).toHaveBeenLastCalledWith({
+      action: 'reject_trade',
+      trade_id: offer.trade_id,
+    })
+    expect(screen.queryByTestId('trade-builder')).toBeNull()
+    expect(screen.getByTestId('trade-outgoing-counter')).toBeInTheDocument()
+  })
+
+  it('a counter-offer put away turns nothing down', () => {
+    const view = loadSnapshotAsPlayer('trade-incoming')
+    mount()
+    const [offer] = stateOf(view).incoming_trades
+    fireEvent.click(screen.getByTestId(`trade-counter-${offer.trade_id}`))
+    fireEvent.click(screen.getByTestId('cancel-trade'))
+    expect(ws.sendAction).not.toHaveBeenCalled()
+    // Their offer is still mine to answer, in the Trades tab too.
+    expect(screen.getByTestId(`trade-table-accept-${offer.trade_id}`)).toBeEnabled()
   })
 })
 

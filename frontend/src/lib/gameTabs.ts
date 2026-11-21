@@ -116,7 +116,10 @@ export function isTypingInChat(): boolean {
  */
 export function isBusyTrading(selected: string): boolean {
   if (typeof document === 'undefined') return false
-  if (document.querySelector('[data-testid="trade-builder"]')) return true
+  // A draft left on the Trades tab while another tab is open does not count: the composer has
+  // to be on screen (its tab panel not hidden).
+  const composer = document.querySelector('[data-testid="trade-builder"]')
+  if (composer && !composer.closest('[hidden]')) return true
   return selected === 'trades' && window.scrollY > 0
 }
 

@@ -113,6 +113,16 @@ Out-of-turn actions (`propose_trade`, `accept_trade`, `reject_trade`,
 `cancel_trade`) are accepted from any player at any time between game start
 and game over; trade responses never block the flow decision.
 
+A player's page can ask what an offer would do before it is sent or answered (BL-021):
+`POST /room/{code}/trade-preview/{player_id}` with the fields of a `propose_trade` action (a
+draft by that player) or `{"trade_id"}` (an open offer; any seat may ask, offers are public).
+It is read-only and tells nobody. The answer (`game.trade_value.trade_preview`) is built from
+public information only: `valid` / `error` (a draft is judged by `validate_action`, so the
+words are the ones `apply_action` would refuse it with), both sides at list prices, every
+change of majority / minority standing it would cause, and, only for a draft addressed to a
+rules-based seat, what that seat would answer (its rule is deterministic and documented:
+docs/ai/bot-trading.md). Nothing is said about how an LLM or a human seat would answer.
+
 Trade offers are public (BL-012). The four trade events are public and carry
 the whole offer; the server sends `trade_proposed` / `trade_accepted` /
 `trade_rejected` / `trade_canceled` to every player and the host, each with

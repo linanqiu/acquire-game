@@ -60,7 +60,7 @@ Journey files and test titles (`@ci` = also in `npm run e2e:ci`):
 | PG-14 | Portfolio strip and cash/price header (`PageShell`, `Portfolio`) | J1, J5 | header cash after purchases, trades, reloads |
 | PG-15 | Game over (`GameOver`) on player page, scores, winner | J1 | standings + real breakdown (bonuses, stock sales) |
 | PG-16 | Play again (`GameOver` PLAY AGAIN button -> `handlePlayAgain`) | J1 | lands on home; a new game opens on a clean lobby |
-| TR-01 | Propose Trade modal (`Modal` + `TradeBuilder`) | J1, J2, J3, J5, J7 | |
+| TR-01 | Trade composer (`TradeBuilder`, in the Trades tab since BL-021) | J1, J2, J3, J5, J7 | |
 | TR-02 | Trade builder validation (cannot offer what you do not hold) | J3 | partner/offer/request errors; stepper stops at holdings |
 | TR-03 | Incoming trade offer with accept/reject | J2, J5 | accept, reject, cancel; offer survives reloads |
 | TR-04 | Trade accepted/rejected notification (planned) | J1, J2, J3 | toasts on both sides |

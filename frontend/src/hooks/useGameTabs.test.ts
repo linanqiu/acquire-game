@@ -170,7 +170,13 @@ describe('useGameTabs', () => {
     composer.setAttribute('data-testid', 'trade-builder')
     document.body.appendChild(composer)
     expect(isBusyTrading('board')).toBe(true)
-    composer.remove()
+    // A draft parked in a hidden tab panel is not being composed.
+    const panel = document.createElement('div')
+    panel.hidden = true
+    document.body.appendChild(panel)
+    panel.appendChild(composer)
+    expect(isBusyTrading('board')).toBe(false)
+    panel.remove()
     expect(isBusyTrading('board')).toBe(false)
   })
 

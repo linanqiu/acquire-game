@@ -7,6 +7,9 @@
  * Measured before the fix (390x675, touch): an offer for me threw the page from the Trades tab,
  * scrolled to 109, to the Board tab at 0; its withdrawal threw a reader at 150 back to 0; the
  * start of my turn switched to the Board; and with the builder open the tab changed under it.
+ * The builder itself was a sheet whose rows scrolled inside it (869px of rows in a 523px box
+ * with six chains a side): every offer meant scrolling down to "You want" and back. The
+ * composer that replaced it (BL-021) is part of the page and fits the screen.
  *
  * Setup (tier 3 only): snapshot fixture, idle human seats driven through the action route. The
  * browser player uses the UI only.
@@ -83,13 +86,18 @@ test.describe('phone (touch, mobile viewport)', () => {
     await page.evaluate(() => window.scrollTo(0, 60))
     expect(await scrollY(page)).toBe(60)
     await shots.take(page, 'reading-scrolled', { fullPage: false })
+    // What I am reading: the first offer of the list, and where it is on the screen.
+    const reading = page.locator('[data-testid="trade-offers"] [data-testid^="trade-"]').first()
+    const top = async () => Math.round((await reading.boundingBox())!.y)
+    const readingAt = await top()
     const stays = async (what: string) => {
       await expect(tab(page, 'trades'), `${what}: still on Trades`).toHaveAttribute(
         'aria-selected',
         'true'
       )
       expect(await scrollY(page), `${what}: the page has not moved`).toBe(60)
-      console.log(`[stays] ${what}: Trades tab, scrollY 60`)
+      expect(await top(), `${what}: what I read is where it was`).toBe(readingAt)
+      console.log(`[stays] ${what}: Trades tab, scrollY 60, the offer I read at y=${readingAt}`)
     }
 
     // An offer for me arrives: counted on the tab, the page stays.
@@ -102,6 +110,11 @@ test.describe('phone (touch, mobile viewport)', () => {
     })
     expect(offer.status, JSON.stringify(offer)).not.toBe('error')
     await expect(tabBadge(page, 'trades')).toHaveText('1')
+    // It is listed at the foot of the offers, with its answers, under what I was reading.
+    await expect(
+      page.locator('[data-testid="trade-offers"] > [data-testid^="trade-"]').last()
+    ).toHaveAttribute('data-testid', 'trade-table-for-me')
+    await expect(page.getByTestId('trade-table-accept-for-me')).toBeEnabled()
     await stays('an offer for me')
     await shots.take(page, 'offer-for-me-arrived', { fullPage: false })
 
@@ -129,7 +142,7 @@ test.describe('phone (touch, mobile viewport)', () => {
     await shots.take(page, 'board-by-my-own-tap', { fullPage: false })
   })
 
-  test('composing an offer: turns and offers at the table leave the builder, its contents and the tab untouched', async ({
+  test('composing an offer: turns and offers at the table leave the composer, its contents and the tab untouched', async ({
     page,
     shots,
   }) => {
@@ -143,17 +156,22 @@ test.describe('phone (touch, mobile viewport)', () => {
     await expect(phaseBanner(page)).not.toHaveText('BUY STOCKS')
 
     await openTab(page, 'trades', { tap: true })
-    await page.getByRole('button', { name: 'PROPOSE TRADE' }).tap()
+    // An offer to Dev (a tap on the name in the holdings table): one of my Sandpiper for $700.
+    await page.getByTestId(`trade-start-${s.p4}`).tap()
     const builder = page.getByTestId('trade-builder')
     await expect(builder).toBeVisible()
-    await builder.getByTestId(`player-select-${s.p4}`).tap()
+    await builder.getByTestId('offer-add-sandpiper').tap()
     const give = builder.getByTestId('offer-stock-sandpiper')
-    await give.getByTestId('stepper-increment').tap()
     await page.getByTestId('want-cash-input').fill('700')
+    await expect(page.getByTestId('trade-effect-sandpiper')).toBeVisible()
+    await page.getByTestId('want-cash-input').blur()
     await shots.take(page, 'composing', { fullPage: false })
+    // Where the send button is on the screen: it must not move under the thumb.
+    const send = page.getByTestId('propose-trade')
+    const sendAt = (await send.boundingBox())!.y
 
     const untouched = async (what: string) => {
-      await expect(builder, `${what}: the builder is still open`).toBeVisible()
+      await expect(builder, `${what}: the composer is still open`).toBeVisible()
       await expect(
         builder.getByTestId(`player-select-${s.p4}`),
         `${what}: the partner`
@@ -165,6 +183,7 @@ test.describe('phone (touch, mobile viewport)', () => {
         'true'
       )
       expect(await scrollY(page), `${what}: the page has not moved`).toBe(0)
+      expect((await send.boundingBox())!.y, `${what}: the send button is where it was`).toBe(sendAt)
       console.log(`[untouched] ${what}`)
     }
 
@@ -187,11 +206,13 @@ test.describe('phone (touch, mobile viewport)', () => {
     await untouched('my turn started')
     await shots.take(page, 'my-turn-started-still-composing', { fullPage: false })
 
-    // Putting the offer away leaves me where I was: on the Trades tab.
+    // Putting the offer away leaves me where I was: on the Trades tab, where the offer made
+    // to me meanwhile is listed with its answers.
     await page.getByTestId('cancel-trade').tap()
     await expect(builder).toHaveCount(0)
     await expect(tab(page, 'trades')).toHaveAttribute('aria-selected', 'true')
     await expect(tabBadge(page, 'board')).toBeVisible()
+    await expect(page.getByTestId('trade-table-accept-for-me')).toBeEnabled()
     await shots.take(page, 'composer-closed-still-on-trades', { fullPage: false })
   })
 })

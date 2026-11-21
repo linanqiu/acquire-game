@@ -34,8 +34,11 @@ export interface GameLayoutProps {
   onTableVisible?: (visible: boolean) => void
   /** Event keys that bring the decision into view (see `useGameTabs`). */
   events?: string[]
-  /** Bumped to bring the table panel into view (ANSWER on an offer in the Trades tab). */
+  /** Bumped to bring the table panel into view (the phase bar's link to my decision). */
   openTable?: number
+  /** `n` bumped to open tab `id` by the player's own action elsewhere on the page (COUNTER on
+   *  an offer in the table panel opens the composer in Trades). */
+  openTab?: { id: string; n: number }
   /** Reference tabs (Chains, Chat, Trades or Log). */
   tabs: TabItem[]
   /** Tab open by default on wide screens. */
@@ -78,6 +81,7 @@ export function GameLayout({
   onTableVisible,
   events,
   openTable = 0,
+  openTab,
   tabs,
   wideDefault,
   pin = [],
@@ -112,6 +116,11 @@ export function GameLayout({
   useEffect(() => {
     if (openTable > 0 && decisionTab) select(decisionTab)
   }, [openTable, decisionTab, select])
+  const openTabId = openTab?.id
+  const openTabN = openTab?.n ?? 0
+  useEffect(() => {
+    if (openTabN > 0 && openTabId) select(openTabId)
+  }, [openTabN, openTabId, select])
 
   const tableVisible = tablePinned || state.selected === decisionTab
   useEffect(() => {
