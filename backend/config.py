@@ -69,7 +69,8 @@ class Settings(BaseSettings):
     chat_rate_limit_count: int = 5  # messages per player per window ...
     chat_rate_limit_window_s: float = 10.0  # ... else 429
     chat_history_size: int = 200  # kept per room; the last 100 re-sent on connect
-    chat_prompt_messages: int = 10  # recent messages in an LLM seat's decision prompt
+    # table chat in an LLM seat's prompts: the whole game (a runaway cap only)
+    chat_prompt_messages: int = 300
     # Off-turn talk of LLM seats ("do you want to say something?" calls after
     # chat messages and notable game events; one model call each, at the
     # seat's normal effort; cost counted in the transcript totals).

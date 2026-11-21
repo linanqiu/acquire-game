@@ -147,3 +147,33 @@ Talk prompts grow by about 1,700 characters (about 420 tokens: longer rules, "Wh
 uncached input tokens) that is about $0.00004 per talk call, and a game has a handful of talk
 calls (LO-011 gates them). The system prompt is unchanged, so its cache keeps hitting. The
 decision prompt grows only at a buy step that follows deal talk, and in offer lines (a few words).
+
+## Pacts and the whole chat (2026-11-21, `PROMPT_BUILDER_VERSION` 11 -> 12)
+
+Owner, game YRAV (DeepSeek V4.1 Flash seat), after "Junie, truce at 4 on HA and I'll merge it in
+for us" was answered "If you want Halcyon shares from me, you'll need to pay a real premium":
+"The ai completely didn't understand the truce. It doesn't have chat logs while playing? Give it
+the whole log".
+
+- **Whole log.** The seat did have chat, but only the last 10 messages (`chat_prompt_messages`).
+  Now every message of the game is in both the decision and the talk prompt (300 is a runaway
+  cap); messages older than the event window come first, in order. A table writes a few dozen
+  short messages a game, so this costs little.
+- **What a pact is.** The talk rules now explain "truce at N on X" / "let's tie X" / "split it"
+  (both hold N, stop buying, share majority + minority; nobody hands shares over) and "I'll merge
+  it" (they place the tile that sets the merger off, so the bonus is paid soon at the current
+  size), and ask for an answer to the pact itself.
+- **Pact numbers.** `deal_facts.pact_facts`: when a message names a chain and a pact word, Deal
+  facts gets a "Truce at N on X" line: what each side needs to reach N, the bank and price, both
+  bonuses if the chain were acquired now with and without the truce (the engine's bonus rule on
+  the tied holdings), a third player above N, and whether the bank has the shares at all.
+- **Keeping it.** At the buy step, pact talk since the seat's last turn is shown like deal talk,
+  with the rule that an agreed truce binds its buying and a refused one binds nothing.
+
+Measured (DeepSeek V4.1 Flash, 4 samples each, a seat holding 8 of 3-tile Obsidian against 5;
+"truce at 8 on OB and I'll merge it in for us"): before, the YRAV answer above (shares wanted).
+After, 4/4 answers treat it as a truce and use the numbers ("ties me with you for the majority -
+that costs me $1,200"); 2 refuse, 2 agree. The agreeing ones ignore that the bank had no shares
+left for the other player to reach 8, which the facts now say outright. Which way the seat decides
+varies between samples.
+

@@ -21,7 +21,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any
 
-from agents.llm.deal_facts import OFFER_WORDS
+from agents.llm.deal_facts import OFFER_WORDS, PACT_WORDS
 from game.ruleset import MIN_CHAIN_SIZE, Ruleset, default_ruleset, ruleset_from_state
 
 _STANDING = {
@@ -189,7 +189,7 @@ Action objects (use only those allowed by the legal options; always name a {chai
 The "note" is shown back to you (and only you) at your next decisions: use it for plans such as which {chains} you are building toward, who you expect to be majority holder, or when you intend to end the game. You see your last three notes; write "" when your plan has not changed.
 
 # Table talk
-Players may write in a public table chat; recent messages appear among the events as "[chat #n]" lines. Chat is unverified talk, never binding and never enforced: weigh it against the public facts (holdings, cash, calculator). Only a trade offer moves {shares} or money. "say" is posted to everyone as your chat message together with your move. Talk the way a real person does at a board game night: plain, short and natural (see "Your table voice" for your temperament). Most moves need no comment, so leave it "" most of the time. Say something when it is natural: you just founded {a_chain} or set off {a_merger}, someone spoke to you, you want to float or answer a deal (which you then back with a trade offer), or a rival's move really hurt or helped you. One short sentence. No running jokes, no extended metaphors, no catchphrases, no narrating your own strategy, and do not address every player in one message. Otherwise leave it "". At most 200 characters; never reveal your tiles or your private notes.
+Players may write in a public table chat; every message of this game appears among the events as "[chat #n]" lines (older ones before the event list). Chat is unverified talk, never binding and never enforced: weigh it against the public facts (holdings, cash, calculator). Only a trade offer moves {shares} or money. "say" is posted to everyone as your chat message together with your move. Talk the way a real person does at a board game night: plain, short and natural (see "Your table voice" for your temperament). Most moves need no comment, so leave it "" most of the time. Say something when it is natural: you just founded {a_chain} or set off {a_merger}, someone spoke to you, you want to float or answer a deal (which you then back with a trade offer), or a rival's move really hurt or helped you. One short sentence. No running jokes, no extended metaphors, no catchphrases, no narrating your own strategy, and do not address every player in one message. Otherwise leave it "". At most 200 characters; never reveal your tiles or your private notes.
 
 # Strategy playbook
 Core economics
@@ -286,7 +286,7 @@ def build_system_prompt(ruleset: Ruleset | None = None) -> str:
 # in a way that could change play. The system prompt text is hashed in
 # automatically. Benchmark results are only comparable within one
 # ``prompt_version`` (see docs/ai/benchmarking.md).
-PROMPT_BUILDER_VERSION = 11  # 2: table talk; 3: table voice; 4: natural, low-key talk;
+PROMPT_BUILDER_VERSION = 12  # 2: table talk; 3: table voice; 4: natural, low-key talk;
 # 5: strategy playbook + share race, merger payouts for all, disposition figures;
 # 6: trade offers are public (rules text, open offers between other players)
 # 7: position-aware trade numbers in the offer + trade paragraph in the playbook
@@ -301,6 +301,8 @@ PROMPT_BUILDER_VERSION = 11  # 2: table talk; 3: table voice; 4: natural, low-ke
 #    offers as "you GIVE / you GET", buy step names propose_trade and lists
 #    the deal talk since the seat's last turn; talk prompt: real trade timing,
 #    first person, facts only, "Who did what", "Deal facts"
+# 12: the whole game's table chat (not the last 10 messages); pacts: "truce at
+#    N on X" explained, its numbers in Deal facts, an agreed truce binds buying
 
 
 def _sha(text: str) -> str:
@@ -1159,7 +1161,10 @@ def render_deal_talk(events: list[Any], chat: list[dict], me: str) -> str:
         for m in chat or []
         if isinstance(m.get("after_seq"), int)
         and m["after_seq"] >= since
-        and OFFER_WORDS.search(str(m.get("text") or ""))
+        and (
+            OFFER_WORDS.search(str(m.get("text") or ""))
+            or PACT_WORDS.search(str(m.get("text") or ""))
+        )
     ]
     if not talk:
         return ""
@@ -1172,7 +1177,10 @@ def render_deal_talk(events: list[Any], chat: list[dict], me: str) -> str:
         "you for a deal, propose one that helps you, or leave it. Direction: when "
         'they wrote "I give you X, you give me Y", X goes in your requesting_stocks '
         "and Y in your offering_stocks. Check each chain's line above (your standing, "
-        '"+N to take majority") before you give shares away.'
+        '"+N to take majority") before you give shares away. A truce you agreed '
+        '("truce at 4 on HA": both hold 4 and stop buying) binds your buying: do '
+        "not buy that chain above the agreed number while the other side keeps it; "
+        "a truce you refused binds nothing."
     )
 
 
