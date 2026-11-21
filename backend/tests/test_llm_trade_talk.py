@@ -92,7 +92,7 @@ def test_talk_rules_match_the_real_trade_mechanics():
     assert "first person" in t and "Never call yourself by your name" in t
     assert "Only state facts shown above" in t and "say you do not remember" in t
     assert "always gets an answer" in t
-    assert PROMPT_BUILDER_VERSION == 11
+    assert PROMPT_BUILDER_VERSION == 12
 
 
 def test_nickname_line_says_it_is_you(game):
@@ -317,3 +317,75 @@ def test_no_deal_talk_block_without_deal_talk_or_without_propose_trade(game):
     ctx = make_ctx(game, "p1", "buy_stocks", legal, events=events)
     ctx.chat = [msg(1, "p2", "Bob", "trade?", after_seq=10**6)]
     assert calc and "# Deal talk" not in build_user_prompt(ctx, [])
+
+
+# ------------------------------------------------- pacts: "truce at 4 on HA"
+# The YRAV game: "Junie, truce at 4 on HA and I'll merge it in for us" was
+# answered as if shares were wanted ("you'll need to pay a real premium").
+
+
+def test_truce_message_gets_pact_numbers(game):
+    from agents.llm.deal_facts import pact_facts
+    from game.tile_value import _bonus
+
+    names = names_of(game)
+    chain = next(iter(game.hotel.get_active_chains()))
+    abbr = next(c.abbreviation for c in game.ruleset.chains if c.id == chain)
+    text = f"{names['p1']}, truce at 4 on {abbr} and I'll merge it in for us"
+    trigger = {"kind": "message", "message": msg(7, "p2", names["p2"], text)}
+    facts = deal_facts(game, "p1", trigger)
+    assert facts is not None and len(facts["pacts"]) == 1
+    pa = facts["pacts"][0]
+    assert pa == pact_facts(game, "p1", "p2", chain, text)
+    assert pa["level"] == 4 and pa["chain"] == chain
+    held = {p.player_id: p.get_stock_count(chain) for p in game.players}
+    assert pa["need"] == {"p1": max(0, 4 - held["p1"]), "p2": max(0, 4 - held["p2"])}
+    # the truce numbers are the real bonus rule on the tied holdings
+    tied = dict(held)
+    tied["p1"], tied["p2"] = max(held["p1"], 4), max(held["p2"], 4)
+    size = game.board.get_chain_size(chain)
+    expect = _bonus(tied, chain, size, game.hotel)
+    assert pa["pact"] == {"p1": expect["p1"], "p2": expect["p2"]}
+
+    prompt = build_talk_prompt(view_for(game, "p1", trigger))
+    assert f"- Truce at 4 on {chain}" in prompt
+    assert "If " + chain + " were acquired now: you" in prompt
+    short = sum(pa["need"].values()) - pa["bank"]
+    assert ("The bank lacks" in prompt) == (short > 0)
+    # the talk rules say what a truce is and that nobody hands shares over
+    assert '"truce at 4 on HA"' in TALK_INSTRUCTIONS
+    assert "nobody hands shares over" in TALK_INSTRUCTIONS
+    assert '"I\'ll merge it" means they will place the tile' in TALK_INSTRUCTIONS
+
+
+def test_plain_chain_talk_has_no_pact_line(game):
+    names = names_of(game)
+    chain = next(iter(game.hotel.get_active_chains()))
+    trigger = {
+        "kind": "message",
+        "message": msg(7, "p2", names["p2"], f"I give you 2 {chain} for $500"),
+    }
+    facts = deal_facts(game, "p1", trigger)
+    assert facts is not None and facts["pacts"] == []
+    assert "- Truce at" not in build_talk_prompt(view_for(game, "p1", trigger))
+
+
+def test_the_whole_game_chat_is_in_the_prompts(game):
+    """Every message of the game, not the last ten: an early truce is still
+    there twenty messages later, in the talk prompt and the decision prompt."""
+    from config import Settings
+
+    assert Settings().chat_prompt_messages >= 200
+    names = names_of(game)
+    chat = [msg(1, "p2", names["p2"], "truce at 4 on Halcyon?", after_seq=0)]
+    chat += [
+        msg(i, "p3", names["p3"], f"small talk number {i}", after_seq=i)
+        for i in range(2, 30)
+    ]
+    trigger = {"kind": "message", "message": chat[-1]}
+    talk = build_talk_prompt(view_for(game, "p1", trigger, chat=chat))
+    assert "truce at 4 on Halcyon?" in talk and "small talk number 29" in talk
+    ctx = buy_ctx(game)
+    ctx.chat = chat
+    decision = build_user_prompt(ctx)
+    assert "truce at 4 on Halcyon?" in decision

@@ -637,8 +637,9 @@ kept per room.
 
 ### LLM seats
 
-* **Decision prompts.** `DecisionContext.chat` (default `[]`) holds the last
-  `chat_prompt_messages` (10) messages of the game and its lobby; the driver
+* **Decision prompts.** `DecisionContext.chat` (default `[]`) holds every message
+  of the game and its lobby (`chat_prompt_messages`, 300, is only a runaway cap;
+  it was the last 10 until 2026-11-21); the driver
   fills it for LLM seats only. The user prompt shows them inside "Recent
   public events", each after the event it followed:
   `[chat #3] Alice (human): "I take Marlowe, you take Halcyon"`, with a note

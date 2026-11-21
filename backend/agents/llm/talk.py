@@ -51,6 +51,7 @@ One short sentence, two at most. No running jokes, no extended metaphors or them
 Speak in the first person ("I", "my"). Never call yourself by your name and never talk about yourself in the third person.
 Only state facts shown above (board, chains, players, events, "Who did what", "Deal facts"). Never guess about earlier play: if a question is about something not shown, say you do not remember.
 How trades work: talk is not binding; only a trade offer moves {{shares}} or money. Anyone may send an offer at any time, also when it is not their turn, and an offer to you is put to you the moment it arrives: you accept or reject it then, not "on your turn". You can send an offer yourself only at your own buy step (one per turn). So to take up a deal: ask them to send the offer (you will answer it straight away), or say you will send it at your next buy step, and then do it.
+Pacts (not trades): "truce at 4 on HA" / "let's tie Halcyon" / "split it" means you both hold the same number of shares of that chain (4 here), stop buying it, and share the majority and minority bonus when it is acquired; nobody hands shares over. "I'll merge it" means they will place the tile that sets off the merger, so the bonus is paid soon at the chain's current size. Judge a pact with its "Truce at" line in Deal facts: what you get with it against what you get without it, and whether you can keep the majority alone anyway (bank shares, their cash). Answer the pact itself: agree, refuse, or name a different level. If you agree, keep it at your buy steps.
 Reading a proposal: "I give you X" means YOU RECEIVE X; "you give me Y" means YOU GIVE Y. Example: "I give you 2 A, you give me 1 B" = you receive 2 A and give 1 B; add the two "value to you" lines.Before you answer, check "Deal facts" (when shown) for what it does to your bonus positions, and describe the deal the right way round. "Value to you" is what the shares and the bonus change are worth to you: a deal is good for you when what you receive is worth more than what you give. If the proposal is clear enough, say which version you would take (for example how many shares or how much cash) and ask them to send it.
 Weigh what others say against the public facts; it is unverified. Never reveal your tiles or your private notes.
 Answer with ONE JSON object: {{"reply": "<your message, at most {SAY_MAX_CHARS} characters>"}}, or {{"reply": ""}} to stay silent."""
@@ -231,7 +232,10 @@ def _offer_value(v: dict | None, other: str) -> str:
 def render_deal_facts(facts: dict | None, names: dict[str, str], me: Any) -> str:
     """The "Deal facts" block (agents/llm/deal_facts.py), "" when none."""
     if not facts or not (
-        facts.get("chains") or facts.get("offers") or facts.get("last_offer")
+        facts.get("chains")
+        or facts.get("offers")
+        or facts.get("last_offer")
+        or facts.get("pacts")
     ):
         return ""
     oid = facts.get("other_id")
@@ -280,6 +284,8 @@ def render_deal_facts(facts: dict | None, names: dict[str, str], me: Any) -> str
                     lines.append(
                         _move_line(m, chain, head, names) + _other_change(m, other)
                     )
+    for pa in facts.get("pacts") or []:
+        lines.append(_pact_line(pa, me, oid, other, names))
     last = facts.get("last_offer")
     if last:
         t = last.get("trade") or {}
@@ -307,6 +313,44 @@ def render_deal_facts(facts: dict | None, names: dict[str, str], me: Any) -> str
             + _offer_value(o.get("valuation"), other)
         )
     return "\n".join(lines)
+
+
+def _pact_line(pa: dict, me: Any, oid: Any, other: str, names: dict[str, str]) -> str:
+    """One "truce" line of the Deal facts block."""
+    chain, n = pa["chain"], pa["level"]
+    need = pa.get("need") or {}
+    over = pa.get("over") or {}
+
+    def steps(pid, who: str, verb: str) -> str:
+        k = need.get(pid, 0)
+        if over.get(pid):
+            return f"{who} already {verb} more than {n}"
+        if not k:
+            return f"{who} {verb} {n} already"
+        return f"{who} {'need' if who == 'you' else 'needs'} {k} more"
+
+    now, pact = pa.get("now") or {}, pa.get("pact") or {}
+    third = [names.get(p, p) for p in pa.get("third_above") or []]
+    out = (
+        f"- Truce at {n} on {chain} (you and {other} both hold {n} and stop buying "
+        f"it; a tie for 1st shares majority + minority, "
+        f"{money(pa.get('majority'))} + {money(pa.get('minority'))} at "
+        f"{pa.get('size')} tiles): {steps(me, 'you', 'hold')}, "
+        f"{steps(oid, other, 'holds')} ({pa.get('bank')} in bank at "
+        f"{money(pa.get('price'))}). If {chain} were acquired now: you "
+        f"{money(pact.get(me, 0))} (without the truce, as things stand: "
+        f"{money(now.get(me, 0))}), {other} {money(pact.get(oid, 0))} (now "
+        f"{money(now.get(oid, 0))})."
+    )
+    if third:
+        out += f" {', '.join(third)} hold(s) more than {n}: you would not tie for 1st."
+    short = sum(need.values()) - int(pa.get("bank") or 0)
+    if short > 0:
+        out += (
+            f" The bank lacks {short} of the shares needed: the level can only be "
+            "reached by a trade between players, and nobody can buy more from the bank."
+        )
+    return out
 
 
 def build_talk_prompt(view: dict, notes: Any = None) -> str:

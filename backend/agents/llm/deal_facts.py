@@ -26,6 +26,7 @@ import re
 from typing import Any
 
 from game.calculator import _standing
+from game.tile_value import _bonus
 from game.trade_value import trade_valuation
 
 MAX_SHARES = 3
@@ -39,6 +40,15 @@ DEAL_WORDS = re.compile(
     r"buy|share|shares|stock|stocks|majority|minority|exchange|propose)\b",
     re.IGNORECASE,
 )
+# A pact about holdings rather than a swap: "truce at 4 on HA", "let's tie
+# Halcyon and split the bonus", "I'll merge it for us".
+PACT_WORDS = re.compile(
+    r"\b(truce|tie|tied|split|splitting|pact|alliance|ally|agree|agreed|"
+    r"ceasefire|cease|freeze|cap|capped|level|even|both|stop buying|"
+    r"merge it|merge them|merging it|share the bonus|share it)\b",
+    re.IGNORECASE,
+)
+_NUMBER = re.compile(r"(?<![\w$])(\d{1,2})(?![\w%])")
 # Narrower: talk about an actual offer (the decision prompt's follow-up block).
 OFFER_WORDS = re.compile(
     r"\b(trade|trades|trading|deal|swap|offer|offers|propose|proposal|give|"
@@ -124,6 +134,38 @@ def share_moves(game, me: str, other: str, chain: str) -> dict:
     return out
 
 
+def pact_facts(game, me: str, other: str, chain: str, text: str) -> dict | None:
+    """A truce on ``chain`` (both players hold the same number of shares and
+    stop buying): what it pays each of them if the chain were acquired now,
+    against what they would get now. The level is the number in the message
+    (1-25), else the higher of the two holdings."""
+    holdings = {p.player_id: p.get_stock_count(chain) for p in game.players}
+    nums = [int(x) for x in _NUMBER.findall(text) if 1 <= int(x) <= 25]
+    level = nums[0] if nums else max(holdings[me], holdings[other], 1)
+    size = game.board.get_chain_size(chain)
+    now = _bonus(holdings, chain, size, game.hotel)
+    pact = dict(holdings)
+    pact[me] = max(pact[me], level)
+    pact[other] = max(pact[other], level)
+    then = _bonus(pact, chain, size, game.hotel)
+    above = [pid for pid, n in pact.items() if pid not in (me, other) and n > level]
+    return {
+        "chain": chain,
+        "level": level,
+        "size": size,
+        "holdings": holdings,
+        "need": {me: pact[me] - holdings[me], other: pact[other] - holdings[other]},
+        "over": {me: holdings[me] > level, other: holdings[other] > level},
+        "bank": game.hotel.get_available_stocks(chain),
+        "price": game.hotel.get_stock_price(chain, size),
+        "now": {me: now.get(me, 0), other: now.get(other, 0)},
+        "pact": {me: then.get(me, 0), other: then.get(other, 0)},
+        "third_above": above,
+        "majority": game.hotel.get_majority_bonus(chain, size),
+        "minority": game.hotel.get_minority_bonus(chain, size),
+    }
+
+
 def _flips(m: dict) -> bool:
     return any(
         x["me"][0] != x["me"][1] or x["other"][0] != x["other"][1]
@@ -168,6 +210,11 @@ def deal_facts(game, me: str, trigger: dict) -> dict | None:
         ):
             if c not in chains and game.hotel.is_chain_active(c):
                 chains.append(c)
+    pacts = (
+        [pact_facts(game, me, other, c, text) for c in chains[:MAX_CHAINS]]
+        if PACT_WORDS.search(text)
+        else []
+    )
     moves = [share_moves(game, me, other, c) for c in chains[:MAX_CHAINS]]
     if not moves:
         # a deal word but no chain named: the chains where 1-3 shares between
@@ -181,6 +228,7 @@ def deal_facts(game, me: str, trigger: dict) -> dict | None:
         "other_id": other,
         "named": bool(chains),
         "chains": moves,
+        "pacts": [x for x in pacts if x],
         "offers": [
             {"trade": t.to_dict(), "valuation": trade_valuation(game, t, me)}
             for t in offers
@@ -189,4 +237,12 @@ def deal_facts(game, me: str, trigger: dict) -> dict | None:
     }
 
 
-__all__ = ["DEAL_WORDS", "OFFER_WORDS", "deal_facts", "mentioned_chains", "share_moves"]
+__all__ = [
+    "DEAL_WORDS",
+    "OFFER_WORDS",
+    "PACT_WORDS",
+    "deal_facts",
+    "mentioned_chains",
+    "pact_facts",
+    "share_moves",
+]
