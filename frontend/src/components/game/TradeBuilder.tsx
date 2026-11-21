@@ -1,13 +1,14 @@
-import { useState, useMemo } from 'react'
+import { useLayoutEffect, useMemo, useState } from 'react'
 import { ChainMarker } from './ChainMarker'
 import { SeatKindBadge } from './SeatKindBadge'
 import { StockStepper } from './StockStepper'
-import { TextInput } from '../ui/TextInput'
 import { Button } from '../ui/Button'
 import styles from './TradeBuilder.module.css'
 import type { ChainId, SeatKind } from '../../types/api'
 import { useRules } from '../../ruleset/useRules'
 import { orderChainIds } from '../../lib/ruleset'
+import { positionLines, toRecord, type TradeDraft, type TradeItems } from '../../lib/trades'
+import { useTradePreview } from '../../hooks/useTradePreview'
 
 interface PlayerInfo {
   id: string
@@ -24,373 +25,455 @@ interface StockOffer {
   quantity: number
 }
 
-interface TradeOffer {
-  stocks: StockOffer[]
-  cash: number
-}
-
 export interface TradeBuilderProps {
+  /** The other players, in seat order. */
   players: PlayerInfo[]
   myHoldings: StockOffer[]
   myCash: number
-  onPropose: (partnerId: string, offer: TradeOffer, want: TradeOffer) => void
+  onPropose: (partnerId: string, offer: TradeItems, want: TradeItems) => void
   onCancel: () => void
-  /** Error returned by the server for the last proposal (shown inline, builder stays open). */
+  /** The room and my seat: who asks the server what the draft would do (the preview). */
+  room?: string
+  myPlayerId?: string
+  /** Changes when the game does (the game state): the preview is asked again. */
+  version?: unknown
+  /** The server's refusal of the last proposal (shown in place, the composer stays open). */
   serverError?: string
   /** True while a proposal is in flight. */
   submitting?: boolean
   /** Shown as a hint, e.g. while a merger freezes some chains. */
   notice?: string
   /**
-   * A starting point (partner and both sides), e.g. from another player's public offer.
-   * Read when the builder mounts; the player can change everything.
+   * A starting point (a tap in the holdings table, someone's public offer, an offer made to
+   * me). Read when the composer mounts; the player can change everything.
    */
-  initial?: { partnerId: string; offer: TradeOffer; want: TradeOffer }
+  initial?: { partnerId: string; offer: TradeItems; want: TradeItems }
+  /** What kind of offer this is: the composer's title. */
+  title?: string
   /** Says where `initial` came from, e.g. "Started from Cara's offer to Bob." */
   startedFrom?: string
-  /** Current share price per chain on the board: the summary values both sides with it. */
+  /** Current share price per chain on the board: both sides are valued with it. */
   prices?: Partial<Record<ChainId, number>>
 }
 
-/**
- * Build a trade offer: who with, what I give, what I get. Rows are one line each (chain, how
- * many the owner holds, a stepper), chains in the ruleset's order. The footer stays in view
- * while the rows scroll: both sides of the deal in words with their value at current prices,
- * the reason a proposal was refused, and the buttons.
- */
+const CASH_STEP = 100
 
+type Counts = Partial<Record<ChainId, number>>
+const counts = (items: TradeItems | undefined): Counts =>
+  Object.fromEntries((items?.stocks ?? []).map((s) => [s.chain, s.quantity]))
+
+/**
+ * Compose a trade offer in place, on the Trades tab (BL-021): no sheet over the page and no
+ * box that scrolls inside it. Who with, then two columns side by side: what I give and what I
+ * get, one line per chain that side holds (the ruleset's chain order), and cash. Under them,
+ * next to the button that sends it: both sides at list prices, what the deal does to first and
+ * second place in each chain (the server's preview), and, when the other player is a
+ * rules-based bot, whether it would accept and how much more cash would change its mind. The
+ * button stays on screen above the rack while the page scrolls.
+ *
+ * The draft is this component's own state: nothing the game sends changes it. A count is only
+ * cut down if its holder no longer has that many.
+ */
 export function TradeBuilder({
   players,
   myHoldings,
   myCash,
   onPropose,
   onCancel,
+  room = '',
+  myPlayerId,
+  version,
   serverError,
   submitting = false,
   notice,
   initial,
+  title = 'New offer',
   startedFrom,
   prices,
 }: TradeBuilderProps) {
   const rules = useRules()
-  const shareWord = rules.theme.share_noun_plural
   const [partnerId, setPartnerId] = useState<string>(initial?.partnerId ?? '')
-  const [offer, setOffer] = useState<TradeOffer>(initial?.offer ?? { stocks: [], cash: 0 })
-  const [want, setWant] = useState<TradeOffer>(initial?.want ?? { stocks: [], cash: 0 })
-  const [error, setError] = useState('')
-  const cashText = (n: number | undefined) => (n && n > 0 ? String(n) : '')
-  const [offerCashInput, setOfferCashInput] = useState(cashText(initial?.offer.cash))
-  const [wantCashInput, setWantCashInput] = useState(cashText(initial?.want.cash))
+  const [give, setGive] = useState<Counts>(() => counts(initial?.offer))
+  const [get, setGet] = useState<Counts>(() => counts(initial?.want))
+  const [giveCash, setGiveCash] = useState(initial?.offer.cash ?? 0)
+  const [getCash, setGetCash] = useState(initial?.want.cash ?? 0)
+
+  // The composer opens at the top of the Trades tab, by my own action: show it from its top.
+  useLayoutEffect(() => {
+    if (typeof window.scrollTo === 'function' && window.scrollY > 0) window.scrollTo(0, 0)
+  }, [])
 
   const partner = useMemo(() => players.find((p) => p.id === partnerId), [players, partnerId])
-
-  const partnerHoldings: StockOffer[] = useMemo(() => {
-    if (!partner) return []
-    const held = Object.keys(partner.stocks).filter((c) => (partner.stocks[c] ?? 0) > 0)
-    return orderChainIds(rules.rs, held).map((chain) => ({
-      chain,
-      quantity: partner.stocks[chain]!,
-    }))
-  }, [partner, rules.rs])
-
-  const updateOfferStock = (chain: ChainId, qty: number) => {
-    const stocks = [...offer.stocks.filter((s) => s.chain !== chain)]
-    if (qty > 0) stocks.push({ chain, quantity: qty })
-    setOffer({ ...offer, stocks })
-    setError('')
-  }
-
-  const updateWantStock = (chain: ChainId, qty: number) => {
-    const stocks = [...want.stocks.filter((s) => s.chain !== chain)]
-    if (qty > 0) stocks.push({ chain, quantity: qty })
-    setWant({ ...want, stocks })
-    setError('')
-  }
-
-  const handleOfferCashChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    setOfferCashInput(value)
-    const parsed = parseInt(value, 10) || 0
-    const clamped = Math.max(0, Math.min(myCash, parsed))
-    setOffer({ ...offer, cash: clamped })
-    setError('')
-  }
-
-  const handleWantCashChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    setWantCashInput(value)
-    const parsed = parseInt(value, 10) || 0
-    const partnerCash = partner?.cash ?? 0
-    const clamped = Math.max(0, Math.min(partnerCash, parsed))
-    setWant({ ...want, cash: clamped })
-    setError('')
-  }
-
-  const handlePartnerSelect = (id: string) => {
-    setPartnerId(id)
-    // Reset want when changing partner since their holdings differ
-    setWant({ stocks: [], cash: 0 })
-    setWantCashInput('')
-    setError('')
-  }
-
-  const validateTrade = (): string | null => {
-    if (!partnerId) {
-      return 'Select a trade partner'
-    }
-    if (offer.stocks.length === 0 && offer.cash === 0) {
-      return 'You must offer something'
-    }
-    if (want.stocks.length === 0 && want.cash === 0) {
-      return 'You must request something'
-    }
-    // Validate offer doesn't exceed holdings
-    for (const s of offer.stocks) {
-      const holding = myHoldings.find((h) => h.chain === s.chain)
-      if (!holding || s.quantity > holding.quantity) {
-        return `You don't have enough ${rules.name(s.chain)} ${shareWord}`
-      }
-    }
-    if (offer.cash > myCash) {
-      return "You don't have enough cash"
-    }
-    // Validate want doesn't exceed partner holdings
-    if (partner) {
-      for (const s of want.stocks) {
-        const partnerQty = partner.stocks[s.chain] ?? 0
-        if (s.quantity > partnerQty) {
-          return `${partner.name} doesn't have enough ${rules.name(s.chain)} ${shareWord}`
-        }
-      }
-      if (want.cash > partner.cash) {
-        return `${partner.name} doesn't have enough cash`
-      }
-    }
-    return null
-  }
-
-  const handleSubmit = () => {
-    const validationError = validateTrade()
-    if (validationError) {
-      setError(validationError)
-      return
-    }
-    onPropose(partnerId, offer, want)
-  }
-
-  const handleCancel = () => {
-    setPartnerId('')
-    setOffer({ stocks: [], cash: 0 })
-    setWant({ stocks: [], cash: 0 })
-    setOfferCashInput('')
-    setWantCashInput('')
-    setError('')
-    onCancel()
-  }
-
-  const order = orderChainIds(
-    rules.rs,
-    myHoldings.map((h) => h.chain)
+  const mine: Counts = useMemo(
+    () => Object.fromEntries(myHoldings.map((h) => [h.chain, h.quantity])),
+    [myHoldings]
   )
-  const myHoldingsWithStock = myHoldings
-    .filter((h) => h.quantity > 0)
-    .sort((a, b) => order.indexOf(a.chain) - order.indexOf(b.chain))
+  const theirs: Counts = partner?.stocks ?? {}
+  const held = (stocks: Counts) =>
+    orderChainIds(
+      rules.rs,
+      Object.keys(stocks).filter((c) => (stocks[c] ?? 0) > 0)
+    )
 
-  // One side of the deal in words ("2 Sandpiper + $500") and its value at current prices.
-  const side = (items: TradeOffer) => {
-    const stocks = [...items.stocks].sort((a, b) => {
-      const all = orderChainIds(
-        rules.rs,
-        items.stocks.map((x) => x.chain)
-      )
-      return all.indexOf(a.chain) - all.indexOf(b.chain)
-    })
-    const parts = stocks.map((x) => `${x.quantity} ${rules.name(x.chain)}`)
-    if (items.cash > 0) parts.push(rules.money(items.cash))
-    const value =
-      items.cash + stocks.reduce((sum, x) => sum + x.quantity * (prices?.[x.chain] ?? 0), 0)
-    return { text: parts.join(' + '), value, empty: parts.length === 0 }
+  // What would be sent: each count cut down to what its holder has right now.
+  const side = (chosen: Counts, stocks: Counts, cash: number, max: number): TradeItems => ({
+    stocks: held(stocks)
+      .map((chain) => ({ chain, quantity: Math.min(chosen[chain] ?? 0, stocks[chain] ?? 0) }))
+      .filter((s) => s.quantity > 0),
+    cash: Math.max(0, Math.min(cash, max)),
+  })
+  const offer = side(give, mine, giveCash, myCash)
+  const want = side(get, theirs, getCash, partner?.cash ?? 0)
+  const shareValue = (items: TradeItems) =>
+    items.stocks.reduce((sum, s) => sum + s.quantity * (prices?.[s.chain] ?? 0), 0)
+  const giveShares = shareValue(offer)
+  const getShares = shareValue(want)
+  const empty =
+    offer.stocks.length === 0 && want.stocks.length === 0 && offer.cash === 0 && want.cash === 0
+
+  const draft: TradeDraft | null =
+    partner && !empty
+      ? {
+          to_player_id: partner.id,
+          offering_stocks: toRecord(offer.stocks),
+          offering_money: offer.cash,
+          requesting_stocks: toRecord(want.stocks),
+          requesting_money: want.cash,
+        }
+      : null
+  const { preview, current } = useTradePreview(room, myPlayerId, draft, version)
+  const refused = preview && current && !preview.valid ? preview.error : ''
+  const names = useMemo(() => Object.fromEntries(players.map((p) => [p.id, p.name])), [players])
+  const effects = preview?.valid ? positionLines(preview.positions, names, myPlayerId) : []
+  const sharesMove = offer.stocks.length > 0 || want.stocks.length > 0
+  const bot = preview?.valid ? (preview.bot ?? null) : null
+  // A rules bot on the other side: its verdict has a line, and the cash it needs a button.
+  const botSeat = partner?.kind === 'bot' || !!bot
+  const needed = bot && !bot.acceptable ? (bot.cash_needed ?? 0) : 0
+
+  const selectPartner = (id: string) => {
+    if (id === partnerId) return
+    setPartnerId(id)
+    // Their holdings differ: what I asked of the last player does not carry over.
+    setGet({})
+    setGetCash(0)
   }
-  const give = side(offer)
-  const get = side(want)
 
-  return (
-    <div className={styles.builder} data-testid="trade-builder">
-      <div className={styles.container}>
-        {startedFrom && (
-          <p className={styles.hint} data-testid="trade-started-from">
-            {startedFrom}
-          </p>
-        )}
-        {notice && <p className={styles.hint}>{notice}</p>}
-        <div className={styles.section}>
-          <span className={styles.sectionLabel}>TRADE WITH</span>
-          <div className={styles.players}>
-            {players.map((p) => (
+  // Cash that makes both sides equal at list prices (shares only), on the side that owes it.
+  const gap = giveShares - getShares
+  const even = {
+    give: gap < 0 ? Math.min(-gap, myCash) : 0,
+    get: gap > 0 ? Math.min(gap, partner?.cash ?? 0) : 0,
+  }
+  // Offered only when that side has the cash, and the cash is not already set that way.
+  const canEven =
+    !!partner &&
+    sharesMove &&
+    gap !== 0 &&
+    even.give + even.get === Math.abs(gap) &&
+    (offer.cash !== even.give || want.cash !== even.get)
+  const makeEven = () => {
+    setGiveCash(even.give)
+    setGetCash(even.get)
+  }
+  /** More cash for the other side: first less asked of them, then more offered. */
+  const addCash = (extra: number) => {
+    const less = Math.min(extra, want.cash)
+    setGetCash(want.cash - less)
+    setGiveCash(Math.min(myCash, offer.cash + extra - less))
+  }
+
+  const hint = !partner
+    ? 'Choose who to offer to'
+    : empty
+      ? 'Add what you give or what you get'
+      : ''
+  const canSend = !!partner && !empty && !refused && !submitting
+
+  const column = (
+    label: string,
+    testId: string,
+    rowPrefix: string,
+    stocks: Counts,
+    chosen: Counts,
+    setChosen: (next: Counts) => void,
+    items: TradeItems,
+    cash: number,
+    setCash: (n: number) => void,
+    maxCash: number,
+    cashId: string,
+    owner: string,
+    shares: number
+  ) => {
+    const chains = held(stocks)
+    const picked = (chain: ChainId) => Math.min(chosen[chain] ?? 0, stocks[chain] ?? 0)
+    const rows = chains.filter((chain) => picked(chain) > 0)
+    const set = (n: number) => setCash(Math.max(0, Math.min(maxCash, n)))
+    const giving = rowPrefix === 'offer'
+    return (
+      <section className={styles.column} aria-label={label} data-testid={testId}>
+        <h4 className={styles.columnHead}>
+          <span>{label}</span>
+          <span className={styles.listValue} title="At list prices" data-testid={`${testId}-value`}>
+            {items.stocks.length > 0 || items.cash > 0 ? rules.money(shares + items.cash) : ''}
+          </span>
+        </h4>
+        {/* What this side holds: a tap adds one share to the deal. The chips keep their
+            places; the chains in the deal get a line with a stepper under the cash. */}
+        <div className={styles.chips}>
+          {chains.map((chain) => {
+            const n = picked(chain)
+            const all = stocks[chain] ?? 0
+            return (
               <button
-                key={p.id}
+                key={chain}
                 type="button"
-                className={`${styles.playerButton} ${partnerId === p.id ? styles.selected : ''}`}
-                onClick={() => handlePartnerSelect(p.id)}
-                aria-pressed={partnerId === p.id}
-                data-testid={`player-select-${p.id}`}
+                className={`${styles.chip} ${n > 0 ? styles.on : ''}`}
+                onClick={() => setChosen({ ...chosen, [chain]: Math.min(all, n + 1) })}
+                disabled={n >= all}
+                aria-label={`${giving ? 'Give' : 'Get'} one ${rules.name(chain)} (${owner} ${all})`}
+                title={`${owner} ${rules.shares(all)} of ${rules.name(chain)}`}
+                data-testid={`${rowPrefix}-add-${chain}`}
               >
-                <span className={styles.playerName}>
-                  <span className={styles.playerNameText}>{p.name}</span>
-                  <SeatKindBadge
-                    playerId={p.id}
-                    kind={p.kind}
-                    isBot={p.isBot}
-                    agentLabel={p.agentLabel}
-                    interactive={false}
-                  />
-                </span>
-                <span className={styles.playerCash}>{rules.money(p.cash)}</span>
+                <ChainMarker chain={chain} variant="icon" />
+                <span className={styles.held}>{all}</span>
               </button>
-            ))}
-          </div>
-        </div>
-
-        <div className={styles.section}>
-          <span className={styles.sectionLabel}>YOU OFFER</span>
-          {myHoldingsWithStock.length > 0 ? (
-            <div className={styles.stockList}>
-              {myHoldingsWithStock.map((h) => (
-                <div
-                  key={h.chain}
-                  className={styles.stockRow}
-                  data-testid={`offer-stock-${h.chain}`}
-                >
-                  <ChainMarker chain={h.chain} variant="compact" />
-                  <span className={styles.available} title={`You have ${h.quantity}`}>
-                    of {h.quantity}
-                  </span>
-                  <StockStepper
-                    value={offer.stocks.find((s) => s.chain === h.chain)?.quantity || 0}
-                    max={h.quantity}
-                    onChange={(qty) => updateOfferStock(h.chain, qty)}
-                  />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className={styles.noStocks}>You have no {shareWord} to offer</p>
+            )
+          })}
+          {chains.length === 0 && (
+            <p className={styles.none}>
+              {!giving && !partner ? 'Choose a player' : `No ${rules.theme.share_noun_plural}`}
+            </p>
           )}
-          <div className={styles.cashRow}>
-            <label htmlFor="offer-cash">Cash</label>
-            <span className={styles.available} title="Your cash">
-              of {rules.money(myCash)}
-            </span>
-            <TextInput
-              id="offer-cash"
-              type="number"
-              min={0}
-              max={myCash}
-              value={offerCashInput}
-              onChange={handleOfferCashChange}
-              placeholder="0"
-              inputMode="numeric"
-              step={100}
-              aria-label="Cash you offer"
-              data-testid="offer-cash-input"
+        </div>
+        <div className={`${styles.cash} ${cash > 0 ? styles.on : ''}`}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => set(cash - CASH_STEP)}
+            disabled={cash <= 0}
+            aria-label={`${CASH_STEP} less cash`}
+            data-testid={`${cashId}-less`}
+          >
+            −
+          </Button>
+          <input
+            className={styles.cashInput}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            autoComplete="off"
+            value={cash > 0 ? String(cash) : ''}
+            onChange={(e) => set(parseInt(e.target.value.replace(/\D/g, ''), 10) || 0)}
+            placeholder={`${rules.theme.currency_symbol}0`}
+            disabled={maxCash <= 0}
+            aria-label={
+              rowPrefix === 'offer'
+                ? `Cash you give, up to ${rules.money(maxCash)}`
+                : `Cash you get, up to ${rules.money(maxCash)}`
+            }
+            data-testid={`${cashId}-input`}
+          />
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => set(cash + CASH_STEP)}
+            disabled={cash >= maxCash}
+            aria-label={`${CASH_STEP} more cash`}
+            data-testid={`${cashId}-more`}
+          >
+            +
+          </Button>
+        </div>
+        {rows.map((chain) => (
+          <div key={chain} className={styles.row} data-testid={`${rowPrefix}-stock-${chain}`}>
+            <ChainMarker chain={chain} variant="icon" />
+            <span className={styles.of}>of {stocks[chain]}</span>
+            <StockStepper
+              compact
+              value={picked(chain)}
+              max={stocks[chain] ?? 0}
+              onChange={(qty) => setChosen({ ...chosen, [chain]: qty })}
+              label={`${rules.name(chain)} ${rules.theme.share_noun_plural} ${
+                giving ? 'you give' : 'you get'
+              }`}
             />
           </div>
-        </div>
+        ))}
+      </section>
+    )
+  }
 
-        {partner && (
-          <div className={styles.section}>
-            <span className={styles.sectionLabel}>YOU WANT FROM {partner.name.toUpperCase()}</span>
-            {partnerHoldings.length > 0 ? (
-              <div className={styles.stockList}>
-                {partnerHoldings.map((h) => (
-                  <div
-                    key={h.chain}
-                    className={styles.stockRow}
-                    data-testid={`want-stock-${h.chain}`}
-                  >
-                    <ChainMarker chain={h.chain} variant="compact" />
-                    <span className={styles.available} title={`${partner.name} has ${h.quantity}`}>
-                      of {h.quantity}
-                    </span>
-                    <StockStepper
-                      value={want.stocks.find((s) => s.chain === h.chain)?.quantity || 0}
-                      max={h.quantity}
-                      onChange={(qty) => updateWantStock(h.chain, qty)}
-                    />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className={styles.noStocks}>
-                {partner.name} has no {shareWord}
-              </p>
-            )}
-            <div className={styles.cashRow}>
-              <label htmlFor="want-cash">Cash</label>
-              <span className={styles.available} title={`${partner.name}'s cash`}>
-                of {rules.money(partner.cash)}
-              </span>
-              <TextInput
-                id="want-cash"
-                type="number"
-                min={0}
-                max={partner.cash}
-                value={wantCashInput}
-                onChange={handleWantCashChange}
-                placeholder="0"
-                inputMode="numeric"
-                step={100}
-                aria-label={`Cash you want from ${partner.name}`}
-                data-testid="want-cash-input"
+  return (
+    <section className={styles.builder} data-testid="trade-builder" aria-label={title}>
+      <h4 className={styles.title}>{title}</h4>
+      {startedFrom && (
+        <p className={styles.note} data-testid="trade-started-from">
+          {startedFrom}
+        </p>
+      )}
+      {notice && <p className={styles.note}>{notice}</p>}
+
+      <div className={styles.players} role="group" aria-label="Offer to">
+        {players.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            className={`${styles.playerButton} ${partnerId === p.id ? styles.selected : ''}`}
+            onClick={() => selectPartner(p.id)}
+            aria-pressed={partnerId === p.id}
+            data-testid={`player-select-${p.id}`}
+          >
+            <span className={styles.playerName}>
+              <span className={styles.playerNameText}>{p.name}</span>
+              <SeatKindBadge
+                playerId={p.id}
+                kind={p.kind}
+                isBot={p.isBot}
+                agentLabel={p.agentLabel}
+                interactive={false}
+                testId={`trade-player-kind-${p.id}`}
               />
-            </div>
-          </div>
-        )}
+            </span>
+            <span className={styles.playerCash}>{rules.money(p.cash)}</span>
+          </button>
+        ))}
+      </div>
 
-        {!partner && (
-          <div className={styles.section}>
-            <p className={styles.hint}>Select a trade partner to see their holdings</p>
-          </div>
+      <div className={styles.columns}>
+        {column(
+          'You give',
+          'trade-give',
+          'offer',
+          mine,
+          give,
+          setGive,
+          offer,
+          offer.cash,
+          setGiveCash,
+          myCash,
+          'offer-cash',
+          'You hold',
+          giveShares
+        )}
+        {column(
+          'You get',
+          'trade-get',
+          'want',
+          theirs,
+          get,
+          setGet,
+          want,
+          want.cash,
+          setGetCash,
+          partner?.cash ?? 0,
+          'want-cash',
+          `${partner?.name ?? 'They'} holds`,
+          getShares
         )}
       </div>
 
-      {/* Always in view under the scrolling rows: the deal, the refusal reason, the buttons. */}
-      <div className={styles.footer}>
-        <dl className={styles.summary} data-testid="trade-summary">
-          <div className={styles.summaryRow} data-testid="trade-give">
-            <dt>You give</dt>
-            <dd className={give.empty ? styles.nothing : undefined}>
-              {give.empty ? 'nothing yet' : give.text}
-            </dd>
-            <dd className={styles.value} title="At current prices">
-              {give.empty ? '' : rules.money(give.value)}
-            </dd>
-          </div>
-          <div className={styles.summaryRow} data-testid="trade-get">
-            <dt>You get</dt>
-            <dd className={get.empty ? styles.nothing : undefined}>
-              {get.empty ? 'nothing yet' : get.text}
-            </dd>
-            <dd className={styles.value} title="At current prices">
-              {get.empty ? '' : rules.money(get.value)}
-            </dd>
-          </div>
-        </dl>
-        {(error || serverError) && (
-          <p className={styles.error} role="alert" data-testid="trade-error">
-            {error || serverError}
-          </p>
-        )}
-
+      {/* Stays on screen over the rack: what the deal does, and the button that sends it. The
+          lines and the one-tap amounts keep their room whether or not they have something to
+          say, so the answer of the server, arriving a moment after a tap, never moves SEND. */}
+      <div className={styles.foot} data-testid="trade-foot">
+        <div
+          className={`${styles.effects} ${botSeat ? styles.three : ''} ${
+            preview && !current ? styles.stale : ''
+          }`}
+          aria-live="polite"
+          data-testid="trade-effects"
+        >
+          {hint && (
+            <p className={styles.quiet} data-testid="trade-hint">
+              {hint}
+            </p>
+          )}
+          {(refused || serverError) && (
+            <p className={styles.error} role="alert" data-testid="trade-error">
+              {refused || serverError}
+            </p>
+          )}
+          {effects.map((line) => (
+            <p
+              key={line.chain}
+              className={styles.effect}
+              data-testid={`trade-effect-${line.chain}`}
+            >
+              <ChainMarker chain={line.chain} variant="icon" />
+              <span>
+                <span className={styles.srOnly}>{rules.name(line.chain)}: </span>
+                {line.text}
+              </span>
+            </p>
+          ))}
+          {preview?.valid && sharesMove && effects.length === 0 && (
+            <p className={styles.quiet} data-testid="trade-effect-none">
+              No change of 1st or 2nd place
+            </p>
+          )}
+          {bot && partner && (
+            <p
+              className={bot.acceptable ? styles.accept : styles.refuse}
+              data-testid="trade-bot-verdict"
+              data-acceptable={bot.acceptable ? 'true' : 'false'}
+              title="A rules-based bot answers by a fixed, published rule"
+            >
+              {bot.acceptable
+                ? `${partner.name} (bot) would accept`
+                : bot.cash_needed
+                  ? `${partner.name} (bot) would refuse: about ${rules.money(bot.cash_needed)} short`
+                  : `${partner.name} (bot) would refuse, even for all your cash`}
+            </p>
+          )}
+        </div>
+        <div className={styles.assist}>
+          <Button
+            variant="secondary"
+            size="sm"
+            className={styles.even}
+            onClick={makeEven}
+            disabled={!canEven}
+            data-testid="trade-even"
+          >
+            EVEN AT LIST
+            {canEven &&
+              (gap > 0
+                ? `: ${partner?.name.toUpperCase()} PAYS ${rules.money(even.get)}`
+                : `: YOU PAY ${rules.money(even.give)}`)}
+          </Button>
+          {botSeat && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => addCash(needed)}
+              disabled={needed <= 0}
+              data-testid="trade-bot-match"
+            >
+              {needed > 0 ? `ADD ${rules.money(needed)}` : 'ADD CASH'}
+            </Button>
+          )}
+        </div>
         <div className={styles.actions}>
-          <Button variant="secondary" onClick={handleCancel} data-testid="cancel-trade">
+          <Button variant="secondary" onClick={onCancel} data-testid="cancel-trade">
             CANCEL
           </Button>
-          <Button onClick={handleSubmit} disabled={submitting} data-testid="propose-trade">
-            {submitting ? 'SENDING…' : 'PROPOSE TRADE'}
+          <Button
+            variant="accent"
+            onClick={() => partner && onPropose(partner.id, offer, want)}
+            disabled={!canSend}
+            data-testid="propose-trade"
+          >
+            <span className={styles.sendLabel}>
+              {submitting
+                ? 'SENDING…'
+                : partner
+                  ? `SEND TO ${partner.name.toUpperCase()}`
+                  : 'SEND OFFER'}
+            </span>
           </Button>
         </div>
       </div>
-    </div>
+    </section>
   )
 }

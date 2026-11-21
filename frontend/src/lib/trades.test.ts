@@ -1,5 +1,19 @@
-import { describe, it, expect } from 'vitest'
-import { competingOffer, incomingBlockReason, nonZero, type TradeParty } from './trades'
+import { afterEach, describe, it, expect, vi } from 'vitest'
+import {
+  NO_ITEMS,
+  competingOffer,
+  counterOffer,
+  fetchTradePreview,
+  incomingBlockReason,
+  nonZero,
+  positionLines,
+  positionText,
+  startOffer,
+  toRecord,
+  type PositionChange,
+  type Standing,
+  type TradeParty,
+} from './trades'
 import { snapshot, playerState, wireTrades } from '../../tests/unit/fixtures/wire'
 import { DEFAULT_RS, MINI } from '../../tests/unit/fixtures/rulesets'
 
@@ -162,5 +176,131 @@ describe('competingOffer (my own offer, started from an offer between two other 
       partnerId: o.to,
       offer: { stocks: [], cash: 0 },
     })
+  })
+})
+
+describe('counterOffer and startOffer (what the composer opens on)', () => {
+  it('a counter is the same deal from my side, to the player who made the offer', () => {
+    const { offer, me, proposer } = real()
+    const start = counterOffer(offer, me, { [offer.from_player_id]: proposer })
+    expect(start.counter).toBe(true)
+    expect(start.basedOn).toBe(offer)
+    expect(start.partnerId).toBe(offer.from_player_id)
+    // They offered shares for cash: I give the cash and get the shares.
+    expect(start.offer).toEqual({ stocks: [], cash: offer.requesting_money })
+    expect(start.want.stocks).toEqual(
+      Object.entries(offer.offering_stocks).map(([chain, quantity]) => ({ chain, quantity }))
+    )
+  })
+
+  it('a counter never starts from more than a side has', () => {
+    const { offer, me, proposer } = real()
+    me.money = 100
+    const [chain] = Object.keys(offer.offering_stocks)
+    proposer.stocks = { [chain]: 1 }
+    const start = counterOffer(offer, me, { [offer.from_player_id]: proposer })
+    expect(start.offer.cash).toBe(100)
+    expect(start.want.stocks).toEqual([{ chain, quantity: 1 }])
+  })
+
+  it('from the holdings table: a player alone, their shares (one asked), or mine (one given)', () => {
+    expect(startOffer('p2')).toEqual({ partnerId: 'p2', offer: NO_ITEMS, want: NO_ITEMS })
+    expect(startOffer('p2', 'sandpiper')).toEqual({
+      partnerId: 'p2',
+      offer: NO_ITEMS,
+      want: { stocks: [{ chain: 'sandpiper', quantity: 1 }], cash: 0 },
+    })
+    expect(startOffer('', 'sandpiper', 'give')).toEqual({
+      partnerId: '',
+      offer: { stocks: [{ chain: 'sandpiper', quantity: 1 }], cash: 0 },
+      want: NO_ITEMS,
+    })
+  })
+})
+
+describe('the changes of place of an offer, in words', () => {
+  const change = (player_id: string, before: Standing, after: Standing, chain = 'sandpiper') =>
+    ({ chain, player_id, before, after, shares_before: 0, shares_after: 0 }) as PositionChange
+
+  it.each([
+    ['minority_sole', 'majority_sole', 'You take 1st', 'Bob takes 1st'],
+    ['none', 'majority_tied', 'You tie for 1st', 'Bob ties for 1st'],
+    ['majority_sole', 'majority_tied', 'You drop to a tie for 1st', 'Bob drops to a tie for 1st'],
+    ['none', 'minority_sole', 'You take 2nd', 'Bob takes 2nd'],
+    ['majority_sole', 'minority_sole', 'You drop to 2nd', 'Bob drops to 2nd'],
+    ['none', 'minority_tied', 'You tie for 2nd', 'Bob ties for 2nd'],
+    ['majority_tied', 'minority_tied', 'You drop to a tie for 2nd', 'Bob drops to a tie for 2nd'],
+    ['minority_sole', 'none', 'You lose the bonus', 'Bob loses the bonus'],
+  ] as const)('%s -> %s', (before, after, mine, theirs) => {
+    expect(positionText(change('me', before, after), 'You', true)).toBe(mine)
+    expect(positionText(change('p2', before, after), 'Bob', false)).toBe(theirs)
+  })
+
+  it('one line per chain, in the order given (the ruleset order), my own change first', () => {
+    const lines = positionLines(
+      [
+        change('p2', 'majority_sole', 'minority_sole'),
+        change('me', 'minority_sole', 'majority_sole'),
+        change('p3', 'minority_sole', 'none', 'aurelia'),
+      ],
+      { p2: 'Bob', p3: 'Cara' },
+      'me'
+    )
+    expect(lines).toEqual([
+      { chain: 'sandpiper', text: 'You take 1st · Bob drops to 2nd' },
+      { chain: 'aurelia', text: 'Cara loses the bonus' },
+    ])
+    expect(positionLines(undefined, {}, 'me')).toEqual([])
+  })
+})
+
+describe('fetchTradePreview', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('posts the draft to the room and seat, and gives back what the server said', async () => {
+    const preview = { valid: true, error: '', positions: [], bot: null }
+    const fetched = vi.fn(async () => ({ ok: true, json: async () => preview }))
+    vi.stubGlobal('fetch', fetched)
+    const draft = {
+      to_player_id: 'p 2',
+      offering_stocks: { sandpiper: 1 },
+      offering_money: 0,
+      requesting_stocks: {},
+      requesting_money: 300,
+    }
+    expect(await fetchTradePreview('AB/C', 'me 1', draft)).toEqual(preview)
+    const [url, init] = fetched.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('/api/room/AB%2FC/trade-preview/me%201')
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(String(init.body))).toEqual(draft)
+  })
+
+  it('is null when the server cannot say (an error status, no connection, not a preview)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, json: async () => ({}) }))
+    )
+    expect(await fetchTradePreview('ABCD', 'me', { trade_id: 't' })).toBeNull()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('offline')
+      })
+    )
+    expect(await fetchTradePreview('ABCD', 'me', { trade_id: 't' })).toBeNull()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, json: async () => ({ detail: 'x' }) }))
+    )
+    expect(await fetchTradePreview('ABCD', 'me', { trade_id: 't' })).toBeNull()
+  })
+
+  it('toRecord leaves out what is not in the deal', () => {
+    expect(
+      toRecord([
+        { chain: 'sandpiper', quantity: 2 },
+        { chain: 'aurelia', quantity: 0 },
+      ])
+    ).toEqual({ sandpiper: 2 })
   })
 })

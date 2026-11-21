@@ -181,3 +181,28 @@ the system prompt changes from call to call.
 
 Spent on this work: $5.56 on Haiku (120 games and 88 single calls), $3.53 on Kimi (6 games and 8
 single calls).
+
+## DeepSeek V4.1 Flash (2026-11-21)
+
+Owner: "Open router key. Please add and use cheap deepseek 41 flash". Catalog entry (Railway
+`GAME_LLM_CATALOG`, key in `OPENROUTER_API_KEY`):
+
+```json
+{"id": "llm:deepseek-v4.1-flash", "provider": "openai", "model": "deepseek/deepseek-v4.1-flash",
+ "label": "DeepSeek V4.1 Flash", "base_url": "https://openrouter.ai/api/v1",
+ "api_key_env": "OPENROUTER_API_KEY", "timeout": 45, "max_tokens": 4000,
+ "json_mode": "json_object", "extra_body": {"reasoning": {"enabled": false}}}
+```
+
+OpenRouter list price $0.05 / $0.20 per million input / output tokens (cache reads $0.001).
+One LLM seat against three rules-based bots:
+
+| Setting | Games | Fallback rate | Latency p50 / p95 | Cost per game | Rank |
+|---|---|---|---|---|---|
+| reasoning effort low | 1 | 33% (19 of 58: thinking ran past 4,000 tokens, `finish_reason=length`) | 7.7 s / 27 s | $0.013 | 2nd |
+| **thinking off** | 2 | **0%** (2 repaired answers in 109) | **1.4 s / 2.9 s** | **$0.010** | 2nd, 2nd |
+
+Thinking off is the shipped setting: no fallbacks and the fastest LLM seat in the catalog. It
+costs about a sixth of Haiku's $0.064 per game before LO-011's cuts, and roughly a third of
+Haiku's cost after them. Two games say nothing about strength.
+

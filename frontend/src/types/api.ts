@@ -384,6 +384,43 @@ export interface ChatHistoryMessage {
   messages: ChatMessage[]
 }
 
+// =============================================================================
+// Commentary (docs/ai/commentary.md; host / watch connection only)
+// =============================================================================
+
+/** One line of the commentator. `text` is plain text: render it as text, never as HTML. */
+export interface CommentaryLine {
+  id: number
+  text: string
+  /** `model`: written by the commentary model; `rules`: a templated line (no model call). */
+  source: 'model' | 'rules'
+  /** The turn the line is about. */
+  turn: number
+  /** Seq of the last game event the line knows about. */
+  after_seq: number
+  /** ISO-8601 UTC. */
+  at: string
+  /** What the line is about (`chain_founded`, `merger`, `majority`, `game_ended`, ...). */
+  moments: string[]
+}
+
+/** Where the next line comes from: a model, or the rules-only templates. */
+export type CommentaryMode = 'model' | 'rules'
+
+export interface CommentaryMessage {
+  type: 'commentary'
+  line: CommentaryLine
+  mode: CommentaryMode
+}
+
+/** The room's commentary setting and the lines so far: on (re)connect and when it changes. */
+export interface CommentaryHistoryMessage {
+  type: 'commentary_history'
+  enabled: boolean
+  mode: CommentaryMode
+  lines: CommentaryLine[]
+}
+
 export type WebSocketMessage =
   | GameStateMessage
   | LobbyUpdateMessage
@@ -403,6 +440,8 @@ export type WebSocketMessage =
   | AgentFallbackMessage
   | ChatMessageMessage
   | ChatHistoryMessage
+  | CommentaryMessage
+  | CommentaryHistoryMessage
   | PingMessage
 
 // =============================================================================

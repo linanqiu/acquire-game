@@ -47,6 +47,7 @@ from agents.driving import (
     timeout_for,
 )
 import chat
+import commentary
 from agents.heuristic import HeuristicAgent
 from app_state import session_manager
 from broadcast import (
@@ -139,13 +140,29 @@ def _check(game, decision: Decision, ctx, action: Any, counts: dict) -> str | No
     return check_answer(game, decision, ctx, action, counts, validate=validate_action)
 
 
-def _pacing_delay(same_seat: bool = False) -> float:
+def broadcast_pace(room) -> bool:
+    """True when the room's game is played for spectators: no human seat,
+    someone is watching (host/watch connection) and the room did not ask for
+    the fast pace."""
+    return (
+        room is not None
+        and getattr(room, "pace", None) != "fast"
+        and getattr(room, "host_websocket", None) is not None
+        and bool(room.players)
+        and all(p.is_agent for p in room.players.values())
+    )
+
+
+def _pacing_delay(same_seat: bool = False, room=None) -> float:
     """Minimum gap after an agent move before the next agent move is applied:
     short while the same seat goes on with its turn, longer when the game
-    moves to another seat (so each seat's turn reads as one quick sequence)."""
+    moves to another seat (so each seat's turn reads as one quick sequence).
+    A watched all-AI game uses the slower broadcast pace."""
     s = get_settings()
     if test_mode():
         delay = s.test_mode_agent_action_delay
+    elif broadcast_pace(room):
+        delay = s.broadcast_step_delay if same_seat else s.broadcast_action_delay
     elif same_seat:
         delay = s.agent_step_delay
     else:
@@ -219,6 +236,9 @@ async def apply_and_publish(
     # gives the seats its notable events concern a chance to speak; an LLM
     # seat's `say` is posted with its move.
     chat.on_action(room_code, room, game, since, top_before, player_id)
+    # Commentary for spectators (never part of the game either): the action's
+    # notable moments wait for the next line; nothing is awaited here.
+    commentary.on_action(room_code, room, game, since, player_id)
     await _post_say(room_code, room, player_id, info)
     if writer is not None and game.phase == GamePhase.GAME_OVER:
         # before publishing, so `game_over` arrives with the transcript final
@@ -647,7 +667,8 @@ async def _drive_loop(room_code: str) -> None:
                         return
                 after = flow_decision(game)
                 rt.paced_until = time.monotonic() + _pacing_delay(
-                    after is not None and after.player_id == decision.player_id
+                    after is not None and after.player_id == decision.player_id,
+                    room,
                 )
                 rt.agent_actions += 1
                 counts["actions"] += 1
@@ -777,6 +798,7 @@ async def run_locked(room_code: str, fn) -> Any:
         game = room.game
         if game is not None:
             if game is old_game:
+                commentary.on_action(room_code, room, game, since, None)
                 _sync_transcript(room, game)
                 await publish_events(room_code, game, since)
             await send_prompts(room_code, game, flow_decision(game))

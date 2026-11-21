@@ -7,6 +7,7 @@ import { TextInput } from '../components/ui/TextInput'
 import { Button } from '../components/ui/Button'
 import { WakingBanner } from '../components/transcripts/PageFrame'
 import { warmUpServer } from '../lib/http'
+import { createShow } from '../lib/lobby'
 import { useBrand, useServerRules } from '../ruleset/useRules'
 import { recallName, rememberName } from '../lib/playerName'
 import { cleanCode, joinStepCode, ROOM_CODE_LENGTH } from '../lib/joinLink'
@@ -205,12 +206,11 @@ export function LobbyPage() {
     setSpectatorLoading(true)
     setSpectatorError('')
     try {
-      const res = await fetch('/api/create-spectator', { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.detail || 'Failed to create spectator room')
+      // A game of AI players with commentary; it starts when the watch page connects.
+      const room = await createShow()
       sessionStorage.removeItem('player_id')
       sessionStorage.removeItem('player_name')
-      navigate(`/host/${data.room_code}`)
+      navigate(`/host/${room}`)
     } catch (err) {
       setSpectatorError(err instanceof Error ? err.message : 'Unknown error')
     } finally {

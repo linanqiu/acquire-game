@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useConnectionLifecycle } from '../hooks/useConnectionLifecycle'
-import { startGame, startHint } from '../lib/lobby'
+import { createShow, createWatchRoom, startGame, startHint } from '../lib/lobby'
 import { joinLink } from '../lib/joinLink'
 import { useNavigate } from 'react-router-dom'
 import { useRoom } from '../hooks/useRoom'
@@ -17,6 +17,7 @@ import { TradeActivity } from '../components/game/TradeActivity'
 import { useMergerResult } from '../hooks/useMergerResult'
 import { GameOver } from '../components/game/GameOver'
 import { ChatPanel } from '../components/game/ChatPanel'
+import { CommentaryFinal, CommentaryLog, CommentaryStrip } from '../components/game/Commentary'
 import { GameLayout } from '../components/game/GameLayout'
 import { shortLabel } from '../lib/gameTabs'
 import { decisionEvents } from '../lib/decision'
@@ -84,6 +85,7 @@ export function HostPage() {
     publicTrades,
     tradeLog,
     gameOver,
+    commentary,
   } = useGameStore()
   const unavailable = roomUnavailable(connectionStatus, connectionError)
 
@@ -143,6 +145,23 @@ export function HostPage() {
       setActionLoading(false)
     }
   }, [room, toast, addActivityLog])
+
+  // A game nobody plays in (every seat is an AI) is a show: at its end the page offers the
+  // next one, and a room whose players the viewer picks.
+  const allAi =
+    !!gameState && Object.values(gameState.players).every((p) => resolveSeatKind(p) !== 'human')
+  const openRoom = useCallback(
+    async (create: () => Promise<string>) => {
+      try {
+        navigate(`/host/${await create()}`)
+      } catch (err) {
+        toast(err instanceof Error ? err.message : 'Could not open a new room', 'error')
+      }
+    },
+    [navigate, toast]
+  )
+  const choosePlayers = useCallback(() => void openRoom(createWatchRoom), [openRoom])
+  const watchAnother = useCallback(() => void openRoom(createShow), [openRoom])
 
   // A friend opens this on their phone: the home page's join step with the code filled in.
   const joinUrl = joinLink(window.location.origin, room)
@@ -223,11 +242,15 @@ export function HostPage() {
 
   const renderGameOverView = () => (
     <div className={styles.gameOverContainer}>
+      {/* The commentator's last word: the result in one line, over the standings. */}
+      <CommentaryFinal />
       <GameOver
         scores={buildFinalScores(gameState, gameOver)}
         onPlayAgain={() => navigate('/')}
         variant="host"
         gameId={gameState?.game_id}
+        onWatchAnother={allAi ? watchAnother : undefined}
+        onChoosePlayers={allAi ? choosePlayers : undefined}
       />
     </div>
   )
@@ -240,6 +263,8 @@ export function HostPage() {
         board={<Board tiles={boardTileStates} size="lg" />}
         events={events}
         deciding={!!nowMerger}
+        // The commentary strip: under the board (wide), above the tab bar (phones).
+        status={commentary?.enabled ? <CommentaryStrip room={room} /> : undefined}
         table={
           <div className={styles.nowTab} data-testid="host-now">
             {/* The phase bar names the player on turn and the step. This line is for the other
@@ -276,6 +301,8 @@ export function HostPage() {
             label: 'Log',
             content: (
               <div className={styles.logTab}>
+                {/* Commentary: the switch while it is off, else the lines that left the strip. */}
+                <CommentaryLog room={room} />
                 {publicTrades.length > 0 && (
                   <section aria-label="Pending trades">
                     <h4 className={styles.logTitle}>PENDING TRADES</h4>
@@ -315,6 +342,16 @@ export function HostPage() {
                       ))}
                   </div>
                 </section>
+                {allAi && (
+                  <button
+                    type="button"
+                    className={styles.quietLink}
+                    onClick={choosePlayers}
+                    data-testid="choose-players"
+                  >
+                    Choose the players of a new game
+                  </button>
+                )}
               </div>
             ),
           },

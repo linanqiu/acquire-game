@@ -14,7 +14,7 @@ export interface SeatKindBadgeProps {
   /** The seat's name, shown as the popover's title. */
   playerName?: string
   /**
-   * `false` inside another control (the trade builder's partner buttons, a link): a plain icon
+   * `false` inside another control (the trade composer's player buttons, a link): a plain icon
    * with the same accessible name, no popover (a button cannot hold a button).
    */
   interactive?: boolean
@@ -25,6 +25,11 @@ export interface SeatKindBadgeProps {
    * keeps a thumb-sized hit area around it. Default: the icon on a small tinted disc.
    */
   size?: 'default' | 'inline'
+  /**
+   * Test id of the plain icon (`interactive={false}`), where the seat also has its badge
+   * elsewhere on the page (the players table): default `seat-kind-<playerId>`.
+   */
+  testId?: string
 }
 
 /** Small inline icons (no icon library): a robot head for the bot, a spark for an LLM. */
@@ -99,6 +104,7 @@ export function SeatKindBadge({
   interactive = true,
   extra,
   size = 'default',
+  testId,
 }: SeatKindBadgeProps) {
   const seat = { kind, is_bot: isBot, agent_label: agentLabel }
   const resolved = resolveSeatKind(seat)
@@ -118,7 +124,7 @@ export function SeatKindBadge({
       ) : (
         <span
           className={`${styles.badge} ${styles[resolved]} ${styles.static}`}
-          data-testid={`seat-kind-${playerId}`}
+          data-testid={testId ?? `seat-kind-${playerId}`}
           data-kind={resolved}
           role="img"
           aria-label={info.label}

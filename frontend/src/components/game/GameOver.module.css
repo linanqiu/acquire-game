@@ -192,6 +192,14 @@
   text-underline-offset: 3px;
 }
 
+button.transcriptLink {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+
 .transcriptLink:hover {
   color: var(--text-primary);
 }

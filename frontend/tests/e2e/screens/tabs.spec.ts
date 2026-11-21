@@ -126,7 +126,13 @@ async function expectTabContent(page: Page, room: RoomContext, which: TabName) {
   } else if (which === 'chat') {
     await expect(panel.getByTestId('chat-input')).toBeVisible()
   } else if (which === 'trades') {
-    await expect(panel.getByRole('button', { name: 'PROPOSE TRADE' })).toBeVisible()
+    // Where an offer starts: who holds what, every opponent a button.
+    await expect(panel.getByTestId('trade-start')).toBeVisible()
+    for (const p of room.fixture.expect.players.filter(
+      (x) => x.player_id !== room.fixture.human_seat
+    )) {
+      await expect(panel.getByTestId(`trade-start-${room.seatMap[p.player_id]}`)).toBeVisible()
+    }
   }
 }
 
@@ -350,13 +356,19 @@ test('phone: an incoming trade offer is a decision: under the board, with a badg
     ).toEqual([])
   }
   await shots.take(page, 'chat-tab-clear', { fullPage: false })
-  // The Trades tab lists it too; ANSWER leads to where it is answered.
+  // The Trades tab lists it too, with the same answers in place (BL-021): no trip back to
+  // the board to say no.
   await openTab(page, 'trades')
-  await page.getByTestId(`trade-answer-${trade.trade_id}`).click()
-  await expect(tab(page, 'board')).toHaveAttribute('aria-selected', 'true')
+  const listed = page.getByTestId(`trade-table-${trade.trade_id}`)
+  await expect(listed).toBeVisible()
+  await expect(page.getByTestId(`trade-table-accept-${trade.trade_id}`)).toBeEnabled()
+  await shots.take(page, 'incoming-offer-in-the-trades-tab', { fullPage: false })
+  await openTab(page, 'board')
   await expect(offer).toBeInViewport()
   await shots.take(page, 'incoming-offer-under-the-board', { fullPage: false })
-  await page.getByTestId(`trade-reject-${trade.trade_id}`).click()
+  await openTab(page, 'trades')
+  await page.getByTestId(`trade-table-reject-${trade.trade_id}`).click()
+  await expect(listed).toHaveCount(0)
   await expect(tabBadge(page, 'trades')).toHaveCount(0)
   await expect(page.getByTestId('trade-incoming')).toHaveCount(0)
 })

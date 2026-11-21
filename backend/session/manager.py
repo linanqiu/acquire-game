@@ -59,6 +59,17 @@ class GameRoom:
     transcript: Any = None
     # chat.ChatState: table chat (messages, rate limits, reply calls); lazy.
     chat: Any = None
+    # commentary.CommentaryState: commentary for spectators; lazy.
+    # ``commentary_default``: commentary is on from the start in this room
+    # (watch rooms: POST /create-show, /create-spectator?commentary=1).
+    commentary: Any = None
+    commentary_default: bool = False
+    # A show (POST /create-show): the game starts when the first spectator
+    # connects to the host WebSocket.
+    autostart: bool = False
+    # Pacing of an all-AI game that is being watched: None = broadcast pace
+    # (config ``broadcast_*_delay``), "fast" = the normal agent pace.
+    pace: Optional[str] = None
     # random.Random for default AI seat names (session.seat_names); created
     # when the first unnamed AI seat is added (seeded from ``seed``/GAME_SEED).
     name_rng: Any = None
@@ -239,6 +250,12 @@ class SessionManager:
         if room is None:
             return
         room.host_websocket = websocket
+
+    def disconnect_host(self, room_code: str, websocket: WebSocket):
+        """The host display went away (unless a newer one took its place)."""
+        room = self.get_room(room_code)
+        if room is not None and room.host_websocket is websocket:
+            room.host_websocket = None
 
     def disconnect(self, room_code: str, player_id: str, websocket: WebSocket):
         """Handle disconnect for a specific websocket."""

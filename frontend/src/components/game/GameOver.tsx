@@ -30,6 +30,11 @@ export interface GameOverProps {
   variant?: 'player' | 'host'
   /** Transcript id; when present a "View full transcript" link is shown. */
   gameId?: string | null
+  /** The watch page of an all-AI game: start another one (then the main button; PLAY AGAIN
+   *  stays as the way home). */
+  onWatchAnother?: () => void
+  /** The watch page: a quiet link to a new room whose AI players the viewer picks. */
+  onChoosePlayers?: () => void
 }
 
 function calculateRanks(scores: FinalScore[]): Map<string, number> {
@@ -54,6 +59,8 @@ export function GameOver({
   onBackToLobby,
   variant = 'player',
   gameId,
+  onWatchAnother,
+  onChoosePlayers,
 }: GameOverProps) {
   const rules = useRules()
   const ranks = useMemo(() => calculateRanks(scores), [scores])
@@ -200,9 +207,20 @@ export function GameOver({
         )}
 
         <div className={styles.actions}>
+          {onWatchAnother && (
+            <Button
+              variant="accent"
+              size="lg"
+              fullWidth
+              onClick={onWatchAnother}
+              data-testid="watch-another"
+            >
+              WATCH ANOTHER
+            </Button>
+          )}
           <Button
-            variant="accent"
-            size="lg"
+            variant={onWatchAnother ? 'secondary' : 'accent'}
+            size={onWatchAnother ? undefined : 'lg'}
             fullWidth
             onClick={onPlayAgain}
             data-testid="play-again"
@@ -228,6 +246,16 @@ export function GameOver({
           >
             View the transcript
           </Link>
+        )}
+        {onChoosePlayers && (
+          <button
+            type="button"
+            className={styles.transcriptLink}
+            onClick={onChoosePlayers}
+            data-testid="choose-players"
+          >
+            Choose the players of a new game
+          </button>
         )}
       </div>
     </div>

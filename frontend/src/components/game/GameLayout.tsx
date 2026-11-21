@@ -34,8 +34,11 @@ export interface GameLayoutProps {
   onTableVisible?: (visible: boolean) => void
   /** Event keys that bring the decision into view (see `useGameTabs`). */
   events?: string[]
-  /** Bumped to bring the table panel into view (ANSWER on an offer in the Trades tab). */
+  /** Bumped to bring the table panel into view (the phase bar's link to my decision). */
   openTable?: number
+  /** `n` bumped to open tab `id` by the player's own action elsewhere on the page (COUNTER on
+   *  an offer in the table panel opens the composer in Trades). */
+  openTab?: { id: string; n: number }
   /** Reference tabs (Chains, Chat, Trades or Log). */
   tabs: TabItem[]
   /** Tab open by default on wide screens. */
@@ -78,6 +81,7 @@ export function GameLayout({
   onTableVisible,
   events,
   openTable = 0,
+  openTab,
   tabs,
   wideDefault,
   pin = [],
@@ -112,18 +116,32 @@ export function GameLayout({
   useEffect(() => {
     if (openTable > 0 && decisionTab) select(decisionTab)
   }, [openTable, decisionTab, select])
+  const openTabId = openTab?.id
+  const openTabN = openTab?.n ?? 0
+  useEffect(() => {
+    if (openTabN > 0 && openTabId) select(openTabId)
+  }, [openTabN, openTabId, select])
 
   const tableVisible = tablePinned || state.selected === decisionTab
   useEffect(() => {
     onTableVisible?.(tableVisible)
   }, [tableVisible, onTableVisible])
 
-  // Something new needs me (it is at the top of the table panel), or another tab is open:
-  // show the top of the page. A layout effect, so a tab that wants its foot instead (Chat, in
-  // a plain effect) has the last word.
+  // Another tab opens, or what needs me changes while the table panel (where it is shown, at
+  // the top) is on screen: show the top of the page. A layout effect, so a tab that wants its
+  // foot instead (Chat, in a plain effect) has the last word. While a reference tab is open
+  // (Chains, Chat, Trades) the events of the game do not move the page (BL-021): an offer
+  // made to me or withdrawn, a merger starting, used to throw a reader of the Trades tab back
+  // to its top.
   const signature = (events ?? []).join('|')
+  const shown = useRef({ selected: state.selected, openTable })
   useLayoutEffect(() => {
+    const opened =
+      shown.current.selected !== state.selected || shown.current.openTable !== openTable
+    shown.current = { selected: state.selected, openTable }
+    if (!opened && !tableVisible) return
     if (typeof window.scrollTo === 'function' && window.scrollY > 0) window.scrollTo(0, 0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- tableVisible follows the selected tab
   }, [signature, openTable, state.selected])
 
   // Phones: the rack and the tab bar stay at the foot; the Board tab is sized to what is left.

@@ -169,7 +169,7 @@ test('two humans and a bot: join by code, play, trade accept/reject/cancel', asy
     await bob.shot('trade3-incoming')
     await expect(outgoing).toContainText('waiting')
     j.log('(alice) cancel her offer to Bob')
-    await outgoing.getByRole('button', { name: 'CANCEL OFFER' }).click()
+    await outgoing.getByRole('button', { name: 'WITHDRAW' }).click()
     await expect(a.getByText('Offer canceled')).toBeVisible()
     await expect(b.getByText('Alice withdrew their offer')).toBeVisible()
     await expect(offer).toHaveCount(0)

@@ -268,4 +268,167 @@ def trades_section(game, viewer_id: str) -> dict[str, dict]:
     }
 
 
-__all__ = ["bonus_weight", "game_progress", "share_unit_value", "trade_valuation"]
+PREVIEW_CASH_STEP = 100
+
+
+def position_changes(game, trade) -> list[dict]:
+    """Every player whose bonus standing the trade would change, in every
+    active chain it moves (the two parties and anyone they overtake or drop
+    level with), chains in the ruleset's order, players in seat order::
+
+        [{chain, player_id, before, after, shares_before, shares_after}]
+
+    ``before`` / ``after`` are standings as in the calculator pack (none,
+    minority_tied, minority_sole, majority_tied, majority_sole). Public
+    information only (holdings and the board)."""
+    offer = _as_offer(trade)
+    frm, to = offer.from_player_id, offer.to_player_id
+    out = []
+    for chain in game.hotel.get_all_chain_names():
+        # shares moving from the proposer to the recipient
+        delta = offer.offering_stocks.get(chain, 0) - offer.requesting_stocks.get(
+            chain, 0
+        )
+        if delta == 0 or not game.hotel.is_chain_active(chain):
+            continue
+        before = {p.player_id: p.get_stock_count(chain) for p in game.players}
+        after = dict(before)
+        after[frm] -= delta
+        after[to] += delta
+        for p in game.players:
+            pid = p.player_id
+            was, now = _standing(before, pid), _standing(after, pid)
+            if was != now:
+                out.append(
+                    {
+                        "chain": chain,
+                        "player_id": pid,
+                        "before": was,
+                        "after": now,
+                        "shares_before": before[pid],
+                        "shares_after": after[pid],
+                    }
+                )
+    return out
+
+
+def _with_more_cash(offer: TradeOffer, extra: int) -> TradeOffer:
+    """``offer`` with ``extra`` more cash going to the recipient: first less
+    cash asked of them, then more cash offered."""
+    less = min(extra, offer.requesting_money)
+    return TradeOffer(
+        from_player_id=offer.from_player_id,
+        to_player_id=offer.to_player_id,
+        offering_stocks=dict(offer.offering_stocks),
+        offering_money=offer.offering_money + (extra - less),
+        requesting_stocks=dict(offer.requesting_stocks),
+        requesting_money=offer.requesting_money - less,
+        trade_id=offer.trade_id,
+    )
+
+
+def cash_to_accept(game, trade, viewer_id: str) -> int | None:
+    """The least extra cash (a multiple of ``PREVIEW_CASH_STEP``) that would
+    make ``trade`` acceptable to ``viewer_id`` (its recipient) under the
+    acceptance rule above: 0 when it already is, ``None`` when even all the
+    cash the proposer has would not do.
+
+    More cash to the recipient raises their adjusted gain by at least as much
+    and the margin by at most a tenth of it, so the first acceptable amount is
+    found by bisection."""
+    offer = _as_offer(trade)
+    if trade_valuation(game, offer, viewer_id)["acceptable"]:
+        return 0
+    proposer = game.get_player(offer.from_player_id)
+    if proposer is None:
+        return None
+    room = offer.requesting_money + max(0, proposer.money - offer.offering_money)
+    hi = room // PREVIEW_CASH_STEP
+
+    def accepts(steps: int) -> bool:
+        more = _with_more_cash(offer, steps * PREVIEW_CASH_STEP)
+        return bool(trade_valuation(game, more, viewer_id)["acceptable"])
+
+    if hi <= 0 or not accepts(hi):
+        return None
+    lo = 1
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if accepts(mid):
+            hi = mid
+        else:
+            lo = mid + 1
+    return lo * PREVIEW_CASH_STEP
+
+
+def trade_preview(
+    game, trade, *, rules_bots=frozenset(), error: str | None = None
+) -> dict:
+    """What an offer (open, or a draft not yet proposed) would do, for the
+    player composing or reading it. Pure, deterministic, PUBLIC information
+    only (holdings, cash, prices, the board): nothing a player could not work
+    out from the table.
+
+    ``rules_bots``: ids of the rules-based seats. Their answer to an offer is
+    the documented rule above (docs/ai/bot-trading.md), computed by the same
+    ``trade_valuation`` the seat itself answers with, so for an offer to one
+    of them the preview says what it would answer, and how much more cash
+    would change a refusal. Never for any other seat.
+
+    ``error``: for a draft, the caller's verdict from
+    ``game.decisions.draft_trade`` (what proposing it now would be refused
+    with, "" when it would not be). ``None``: an open offer, checked by
+    ``Rules.validate_trade`` (can it still be carried out?).
+
+    Returns::
+
+        {
+          "valid": bool, "error": str,
+          "from_player_id", "to_player_id",
+          "list": {"offering", "requesting"},   # both sides at list prices
+          "positions": position_changes(...),
+          "bot": None | {"player_id", "acceptable": bool,
+                         "cash_needed": int | None},  # see cash_to_accept
+        }
+
+    For an invalid offer only the first two lines are filled."""
+    offer = _as_offer(trade)
+    if error is None:
+        valid, why = Rules.validate_trade(game, offer)
+    else:
+        valid, why = not error, error
+    out = {
+        "valid": bool(valid),
+        "error": why or "",
+        "from_player_id": offer.from_player_id,
+        "to_player_id": offer.to_player_id,
+    }
+    if not valid:
+        return out
+    out["list"] = {
+        "offering": _list_value(game, offer.offering_stocks, offer.offering_money),
+        "requesting": _list_value(
+            game, offer.requesting_stocks, offer.requesting_money
+        ),
+    }
+    out["positions"] = position_changes(game, offer)
+    out["bot"] = None
+    if offer.to_player_id in rules_bots:
+        needed = cash_to_accept(game, offer, offer.to_player_id)
+        out["bot"] = {
+            "player_id": offer.to_player_id,
+            "acceptable": needed == 0,
+            "cash_needed": needed,
+        }
+    return out
+
+
+__all__ = [
+    "bonus_weight",
+    "cash_to_accept",
+    "game_progress",
+    "position_changes",
+    "share_unit_value",
+    "trade_preview",
+    "trade_valuation",
+]

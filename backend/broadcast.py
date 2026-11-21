@@ -41,6 +41,8 @@ Messages (shapes unchanged from the pre-seat server unless noted):
   so clients can link to ``/games/{game_id}``.
 * ``chat_message`` - room and host: one table-chat message (``chat.py``);
   ``chat_history`` (the last 100) to a (re)connecting player or host.
+* ``commentary`` / ``commentary_history`` - host only: the commentator's
+  lines for spectators (``commentary.py``; not sent from this module).
 * ``error`` - to the acting human only.
 """
 

@@ -44,6 +44,7 @@ When you discover a potential improvement while using the app:
 | [BL-018](../stories/08-backlog/BL-018.md) | One question at a time on the home page (name, then NEW GAME or JOIN GAME, then the room code; join links); calmer lobby, game over, Chains and Trades tabs, games list and bench | high | L | completed |
 | [BL-019](../stories/08-backlog/BL-019.md) | The page is the one scroller (no box scrolls inside a page); merger decisions (sell / trade / keep, survivor, order) with the board at 390x675, the consequence next to the control; in-game menu instead of the wordmark; transcript viewer for phones (the scrubber no longer jams); host phase bar in the players' words; light theme pass | high | L | completed |
 | [BL-020](../stories/08-backlog/BL-020.md) | Lighter and snappier: lag measured (pacing, messages, network, rendering); bot turns paced as one quick sequence overlapping think time, no identical state sent twice, placed tile shown at once, fewer renders and forced layouts, rarely used pages code-split | high | L | completed |
+| [BL-021](../stories/08-backlog/BL-021.md) | Trading that stays put: the game no longer moves the page or the tab under a player who reads the Trades tab or composes an offer (measured causes); an offer starts from the holdings table and is composed in place (You give / You get, no sheet, fits 390x675), with what it would do next to the send button (changes of 1st / 2nd place, list value, what a rules bot would answer); offers answered in place with ACCEPT / REJECT / COUNTER | high | L | completed |
 
 ## Promotion Process
 
