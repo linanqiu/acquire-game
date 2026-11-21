@@ -306,23 +306,23 @@ describe('one question at a time', () => {
 })
 
 describe('watch bots play', () => {
-  it('asks for a show, forgets any player seat of this browser, and opens the watch page', async () => {
+  it('creates a spectator room, forgets any player seat of this browser, and opens the host view', async () => {
     sessionStorage.setItem('player_id', 'old')
     sessionStorage.setItem('player_name', 'Old')
-    const fn = serve({ '/api/create-show': home.show })
+    const fn = serve({ '/api/create-spectator': home.spectator })
     mount()
     fireEvent.click(screen.getByTestId('watch-bots-button'))
     await waitFor(() =>
-      expect(mockNavigate).toHaveBeenCalledWith(`/host/${home.show.body.room_code}`)
+      expect(mockNavigate).toHaveBeenCalledWith(`/host/${home.spectator.body.room_code}`)
     )
-    expect(post(fn, '/api/create-show')![1].method).toBe('POST')
+    expect(post(fn, '/api/create-spectator')![1].method).toBe('POST')
     expect(sessionStorage.getItem('player_id')).toBeNull()
     expect(sessionStorage.getItem('player_name')).toBeNull()
   })
 
   it('a failure is shown and nothing changes', async () => {
     sessionStorage.setItem('player_id', 'keep')
-    serve({ '/api/create-show': { status: 500, body: { detail: 'No room for you' } } })
+    serve({ '/api/create-spectator': { status: 500, body: { detail: 'No room for you' } } })
     mount()
     fireEvent.click(screen.getByTestId('watch-bots-button'))
     await waitFor(() => expect(screen.getByText('No room for you')).toBeInTheDocument())

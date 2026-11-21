@@ -44,13 +44,6 @@ class Settings(BaseSettings):
     # Between two moves of the same seat in one turn (place -> found -> buy ->
     # end turn): the board and holdings still change on screen one by one.
     agent_step_delay: float = 0.1
-    # Broadcast pace: a game with no human seat that someone is watching
-    # (the host/watch page) is played for spectators, so its moves are
-    # spaced to be read and for the commentary to keep up. Same two pauses
-    # as above (env BROADCAST_ACTION_DELAY, BROADCAST_STEP_DELAY). A room can
-    # opt out (`pace: "fast"`, POST /room/{code}/commentary).
-    broadcast_action_delay: float = 1.2
-    broadcast_step_delay: float = 0.7
     # Both pauses in test mode (GAME_TEST_MODE=1). Small but non-zero so
     # browser tests can still observe an all-bot game in progress; in-process
     # protocol tests set it to 0.
@@ -92,30 +85,6 @@ class Settings(BaseSettings):
         2048  # output cap (thinking included); replies are short
     )
     chat_reply_timeout_s: float = 30.0
-
-    # Commentary for spectators (commentary.py; docs/ai/commentary.md). A
-    # non-playing voice on the host/watch page. It only runs while commentary
-    # is on for the room AND a spectator is connected.
-    # Which model writes the lines (env GAME_COMMENTARY_MODEL): a catalog id
-    # ("llm:claude-haiku-5-5") or model name; "rules" / "off" = templated
-    # lines only, no model call. Empty: the catalog's Haiku entry when it has
-    # a key, else rules-only.
-    game_commentary_model: str = ""
-    commentary_min_gap_s: float = 8.0  # at most one line per this many seconds
-    test_mode_commentary_min_gap_s: float = 0.4  # the gap in test mode
-    commentary_quiet_turns: int = 8  # turns without a line -> "state of the table"
-    commentary_max_lines_per_game: int = 80  # lines of any kind (the result is extra)
-    commentary_max_calls_per_game: int = 60  # model calls; then rules-only
-    commentary_max_spend_usd: float = 0.05  # model spend per game; then rules-only
-    commentary_max_tokens: int = 2048  # output cap of a call (thinking included)
-    commentary_effort: str = "low"  # thinking effort of a call ("" = the model's)
-    commentary_timeout_s: float = 12.0
-    commentary_memory_lines: int = 6  # its own latest lines shown to the model
-    commentary_history_size: int = 200  # lines kept per room (100 re-sent on connect)
-    # "Watch bots play" (POST /create-show): the seats of the game it starts,
-    # comma-separated catalog ids (env SHOW_SEATS). Rules-based bots cost
-    # nothing; an LLM seat ("llm:claude-haiku-5-5") is paid for on every show.
-    show_seats: str = "bot,bot,bot,bot"
 
     # Game variant / theme (env GAME_RULESET): a name in backend/rulesets/
     # ("default", "valley", "mini") or a path to a ruleset JSON file. New

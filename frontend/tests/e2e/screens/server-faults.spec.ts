@@ -37,12 +37,8 @@ test('host page: a refused socket with no state shows the connection error, REFR
   page,
   shots,
 }) => {
-  // The host lobby of an empty watch room (what "Choose the players of a new game" opens;
-  // "Watch bots play" starts a show since LO-014).
-  const created = await page.request.post('/api/create-spectator')
-  expect(created.ok()).toBeTruthy()
-  const { room_code: watchRoom } = (await created.json()) as { room_code: string }
-  await page.goto(`/host/${watchRoom}`)
+  await page.goto('/')
+  await page.getByTestId('watch-bots-button').click()
   await page.waitForURL(/\/host\/[A-Z0-9]{4}/)
   await expect(page.getByText('PLAYERS (0/6)')).toBeVisible()
 

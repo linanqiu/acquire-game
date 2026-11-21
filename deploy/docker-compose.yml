@@ -15,7 +15,6 @@ services:
       - GAME_LLM_OPENAI_MODEL=${GAME_LLM_OPENAI_MODEL:-}
       - GAME_LLM_OPENAI_API_KEY=${GAME_LLM_OPENAI_API_KEY:-}
       - GAME_LLM_CATALOG=${GAME_LLM_CATALOG:-}
-      - GAME_COMMENTARY_MODEL=${GAME_COMMENTARY_MODEL:-}
       - GAME_LLM_LOG_DIR=${GAME_LLM_LOG_DIR:-}
     restart: unless-stopped
     healthcheck:

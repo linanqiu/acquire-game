@@ -312,7 +312,6 @@ def home_page_api(client) -> dict:
     code = out["create"]["body"]["room_code"]
     out["join"] = form("/join", room_code=code.lower(), player_name="Bob")
     out["spectator"] = form("/create-spectator")
-    out["show"] = form("/create-show")
     out["join_unknown_room"] = form("/join", room_code="ZZZZ", player_name="Bob")
     out["join_duplicate_name"] = form("/join", room_code=code, player_name="bob")
     full = form("/create", player_name="Host")["body"]["room_code"]

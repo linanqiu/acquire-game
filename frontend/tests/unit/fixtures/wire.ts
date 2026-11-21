@@ -64,14 +64,12 @@ export function wireTrades() {
   }
 }
 
-/** What the home page's routes answered (status + body): create, join, spectator, show, each
- *  refusal. */
+/** What the home page's routes answered (status + body): create, join, spectator, each refusal. */
 export function wireHome() {
   return structuredClone(raw.home) as Record<
     | 'create'
     | 'join'
     | 'spectator'
-    | 'show'
     | 'join_unknown_room'
     | 'join_duplicate_name'
     | 'join_full_room'
