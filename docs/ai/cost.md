@@ -202,6 +202,7 @@ One LLM seat against three rules-based bots:
 | reasoning effort low | 1 | 33% (19 of 58: thinking ran past 4,000 tokens, `finish_reason=length`) | 7.7 s / 27 s | $0.013 | 2nd |
 | **thinking off** | 2 | **0%** (2 repaired answers in 109) | **1.4 s / 2.9 s** | **$0.010** | 2nd, 2nd |
 
-Thinking off is the shipped setting: no fallbacks, the fastest LLM seat in the catalog, and about
-a sixth of Haiku's $0.064 (before LO-011's cuts) per game. Two games say nothing about strength.
+Thinking off is the shipped setting: no fallbacks and the fastest LLM seat in the catalog. It
+costs about a sixth of Haiku's $0.064 per game before LO-011's cuts, and roughly a third of
+Haiku's cost after them. Two games say nothing about strength.
 
