@@ -53,7 +53,7 @@ export interface AutoSwitchInput {
   selected: string
   /** Does this layout have a Board tab (phones)? */
   hasBoardTab: boolean
-  /** Is the user typing in the chat (input focused or a draft written)? */
+  /** Is the user typing in the chat, or in the middle of a trade (`isBusyTrading`)? */
   typing: boolean
 }
 
@@ -71,7 +71,7 @@ export interface EventSwitchInput {
   /** Events (decision or merger keys) not seen before on this page. */
   fresh: string[]
   selected: string
-  /** Is the user typing in the chat (input focused or a draft written)? */
+  /** Is the user typing in the chat, or in the middle of a trade (`isBusyTrading`)? */
   typing: boolean
   /** Did the Board switch fire on this same update (my place-tile turn started)? */
   boardSwitch: boolean
@@ -105,6 +105,19 @@ export function isTypingInChat(): boolean {
   if (typeof document === 'undefined') return false
   const input = document.querySelector<HTMLInputElement>('[data-testid="chat-input"]')
   return !!input && (document.activeElement === input || input.value.trim() !== '')
+}
+
+/**
+ * True while the player is in the middle of a trade (BL-021): an offer is being composed (the
+ * composer is on the page), or the Trades tab is open and has been scrolled (they are reading
+ * down the offers and the past trades). Until they are done, nothing but their own action
+ * changes the tab or moves the page: what is new gets a badge, and the phase bar is the way to
+ * it. Counts as `typing` for `autoSwitchTarget` and `eventSwitch`.
+ */
+export function isBusyTrading(selected: string): boolean {
+  if (typeof document === 'undefined') return false
+  if (document.querySelector('[data-testid="trade-builder"]')) return true
+  return selected === 'trades' && window.scrollY > 0
 }
 
 /** Short tab label from the ruleset's plural chain noun: "hotel chains" -> "Chains". */

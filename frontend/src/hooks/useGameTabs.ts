@@ -4,6 +4,7 @@ import {
   NOW_TAB,
   autoSwitchTarget,
   eventSwitch,
+  isBusyTrading,
   isTypingInChat,
   readTab,
   storageKey,
@@ -40,13 +41,19 @@ export interface GameTabsOptions {
   events?: string[]
   /** Injected for tests; default: looks at the chat input on the page. */
   isTyping?: () => boolean
+  /**
+   * Injected for tests; default: `isBusyTrading` (an offer is being composed, or the Trades tab
+   * is open and scrolled). Like typing in the chat: no automatic switch, a badge instead.
+   */
+  isBusy?: (selected: string) => boolean
 }
 
 /**
  * Which tab is open on a game page, and the badges of the others: unread chat, something new
  * in the decision tab, my tile to place while the Board is hidden. The choice is remembered per
- * room for the session. Automatic switches (never while I am typing in the chat): to the Board
- * when my place-tile turn starts on a phone, and to the decision tab once per new event.
+ * room for the session. Automatic switches (never while I am typing in the chat, composing a
+ * trade or reading down the Trades tab, BL-021): to the Board when my place-tile turn starts on
+ * a phone, and to the decision tab once per new event.
  */
 export function useGameTabs({
   room,
@@ -58,6 +65,7 @@ export function useGameTabs({
   myId,
   events = [],
   isTyping = isTypingInChat,
+  isBusy = isBusyTrading,
 }: GameTabsOptions) {
   const key = storageKey(scope, room)
   const [chosen, setChosen] = useState<string | null>(() => readTab(key))
@@ -80,7 +88,7 @@ export function useGameTabs({
       isMyPlaceTurn: myPlaceTurn,
       selected,
       hasBoardTab,
-      typing: isTyping(),
+      typing: isTyping() || isBusy(selected),
     })
     if (target) setChosen(target)
     boardSwitch = target !== null
@@ -101,7 +109,7 @@ export function useGameTabs({
       const result = eventSwitch({
         fresh,
         selected,
-        typing: isTyping(),
+        typing: isTyping() || isBusy(selected),
         boardSwitch,
         decisionTab,
       })

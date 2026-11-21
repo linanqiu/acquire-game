@@ -2,7 +2,14 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import { useGameTabs, type GameTabsOptions } from './useGameTabs'
 import { useGameStore } from '../store/gameStore'
-import { autoSwitchTarget, eventSwitch, shortLabel, unreadCount, visibleTab } from '../lib/gameTabs'
+import {
+  autoSwitchTarget,
+  eventSwitch,
+  isBusyTrading,
+  shortLabel,
+  unreadCount,
+  visibleTab,
+} from '../lib/gameTabs'
 import type { ChatMessage } from '../types/api'
 
 function msg(id: number, player_id = 'p2'): ChatMessage {
@@ -126,6 +133,45 @@ describe('useGameTabs', () => {
     hook.rerender({ ...props, myPlaceTurn: true })
     expect(hook.result.current.selected).toBe('chat')
     expect(hook.result.current.boardMarker).toBe(true)
+  })
+
+  it('never switches while I am in the middle of a trade: a marker and a badge instead (BL-021)', () => {
+    const busy = { now: true }
+    const { hook, props } = setup({ isBusy: (selected) => busy.now && selected === 'trades' })
+    act(() => hook.result.current.select('trades'))
+    // My place-tile turn starts while I compose an offer (or read down the Trades tab).
+    hook.rerender({ ...props, myPlaceTurn: true })
+    expect(hook.result.current.selected).toBe('trades')
+    expect(hook.result.current.boardMarker).toBe(true)
+    // An offer for me arrives: no switch to the decision tab either; it gets the badge.
+    hook.rerender({ ...props, myPlaceTurn: true, decisionTab: 'board', events: ['trade:t1'] })
+    expect(hook.result.current.selected).toBe('trades')
+    expect(hook.result.current.nowBadge).toBe(true)
+    // Done trading: the next new thing takes me there as before.
+    busy.now = false
+    hook.rerender({
+      ...props,
+      myPlaceTurn: true,
+      decisionTab: 'board',
+      events: ['trade:t1', 'trade:t2'],
+    })
+    expect(hook.result.current.selected).toBe('board')
+  })
+
+  it('isBusyTrading: the composer on the page, or the Trades tab scrolled', () => {
+    expect(isBusyTrading('trades')).toBe(false)
+    const y = Object.getOwnPropertyDescriptor(window, 'scrollY')
+    Object.defineProperty(window, 'scrollY', { value: 120, configurable: true })
+    expect(isBusyTrading('trades')).toBe(true)
+    expect(isBusyTrading('chains')).toBe(false)
+    if (y) Object.defineProperty(window, 'scrollY', y)
+    else Object.defineProperty(window, 'scrollY', { value: 0, configurable: true })
+    const composer = document.createElement('div')
+    composer.setAttribute('data-testid', 'trade-builder')
+    document.body.appendChild(composer)
+    expect(isBusyTrading('board')).toBe(true)
+    composer.remove()
+    expect(isBusyTrading('board')).toBe(false)
   })
 
   it('does not switch on wide screens (no Board tab)', () => {
