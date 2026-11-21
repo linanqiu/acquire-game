@@ -163,6 +163,18 @@ class TranscriptWriter:
         self.totals: dict[str, dict] = {
             s["player_id"]: _empty_totals() for s in header["seats"]
         }
+        # the commentator is not a seat: its lines and calls are counted apart
+        self.commentary: dict = {
+            "lines": 0,
+            "model_lines": 0,
+            "llm_calls": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
+            "cost_usd": 0.0,
+            "model": None,
+        }
         self._fh = None
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -377,6 +389,70 @@ class TranscriptWriter:
         except Exception as exc:  # noqa: BLE001
             self._fail(exc)
 
+    def record_commentary(
+        self,
+        *,
+        line: dict | None,
+        after_seq: int,
+        moments: list[str],
+        outcome: str,
+        llm: dict | None = None,
+    ) -> None:
+        """Write one commentary line (``commentary.py``) and its model call,
+        if one was made. ``line``: ``{id, text, source, turn, ...}`` or None
+        when a call produced nothing that was said. ``outcome``: model |
+        rules (the line's source) | silent | dropped. Commentary sees public
+        information only, so nothing in it is redacted."""
+        if self._inactive:
+            return
+        try:
+            self.sync()
+            entry = None
+            c = self.commentary
+            if llm:
+                entry = {
+                    "model": llm.get("model"),
+                    "system_prompt_id": llm.get("system_prompt_id"),
+                    "user_prompt": llm.get("user_prompt"),
+                    "attempts": [
+                        {k: a.get(k) for k in _ATTEMPT_KEYS}
+                        for a in (llm.get("attempts") or [])
+                    ],
+                    "cost_usd": llm.get("cost_usd"),
+                }
+                sp_id, text = llm.get("system_prompt_id"), llm.get("system_prompt")
+                if sp_id and sp_id not in self._known_prompts and text:
+                    entry["system_prompt"] = text  # stored once per transcript
+                    self._known_prompts.add(sp_id)
+                c["model"] = llm.get("model") or c["model"]
+                c["cost_usd"] = round(c["cost_usd"] + (llm.get("cost_usd") or 0.0), 6)
+                for a in entry["attempts"]:
+                    c["llm_calls"] += int(
+                        a.get("raw") is not None or a.get("error") is not None
+                    )
+                    for k in (
+                        "input_tokens",
+                        "output_tokens",
+                        "cache_read_tokens",
+                        "cache_write_tokens",
+                    ):
+                        c[k] += int(a.get(k) or 0)
+            if line is not None:
+                c["lines"] += 1
+                c["model_lines"] += int(line.get("source") == "model")
+            self._write(
+                {
+                    "type": "commentary",
+                    "after_seq": after_seq,
+                    "moments": moments,
+                    "outcome": outcome,
+                    **(line or {"id": None, "text": None, "source": None}),
+                    "llm": entry,
+                }
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._fail(exc)
+
     def close(
         self,
         reason: str,
@@ -410,6 +486,8 @@ class TranscriptWriter:
             }
             if detail:
                 self.footer["detail"] = detail
+            if self.commentary["lines"] or self.commentary["llm_calls"]:
+                self.footer["commentary"] = dict(self.commentary)
             self._write(self.footer)
             self._fh.close()
             self._write_sidecar()

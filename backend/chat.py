@@ -582,6 +582,9 @@ def close_when_quiet(room) -> None:
         return
     state = getattr(room, "chat", None)
     tasks = [t for t in (state.tasks if state else ()) if not t.done()]
+    import commentary  # the final commentary line (and its cost) belongs in it
+
+    tasks += commentary.closing_tasks(room)
     if not tasks:
         writer.close_from_game()
         return
@@ -598,7 +601,7 @@ def close_when_quiet(room) -> None:
             writer.close_from_game()
 
     task = asyncio.get_running_loop().create_task(later())
-    state.closing = task
+    chat_state(room).closing = task
 
 
 # -------------------------------------------------------------- the call

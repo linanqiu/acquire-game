@@ -710,6 +710,84 @@ hand and notes). When a game ends with talk calls in flight, the transcript is
 closed once they finish (at most `chat_reply_timeout_s` + 5 s later), so their
 lines and cost are in it.
 
+## Commentary (owner decision 2026-11-21; `backend/commentary.py`, story LO-014)
+
+A non-playing voice for spectators. **Not a seat and not a game action**: it
+never goes through `apply_action`, never changes the game, its snapshots or
+the generated fixtures, and it is given public information only (the public
+event log and the calculator's public views: no hand, no private event, no
+seat's notes). When it speaks, what it is told and what it costs:
+[docs/ai/commentary.md](../ai/commentary.md).
+
+It runs only while commentary is on for the room **and** the host/watch
+WebSocket is connected. Lines go to the host/watch connection only; players
+get none.
+
+### Wire format
+
+| Direction | Message |
+|-----------|---------|
+| server -> host (WS) | `{"type": "commentary", "line": {"id", "text", "source": "model"\|"rules", "turn", "after_seq", "at", "moments": [...]}, "mode": "model"\|"rules"}`. `id` increases per room; `source` says whether a model wrote the line or it is a rules-only (templated) one; `after_seq` is the seq of the last engine event the line knows about; `moments` are what it is about (`chain_founded`, `merger`, `merger_done`, `majority`, `minority`, `trade_accepted`, `trade_rejected`, `chain_safe`, `lead`, `end_available`, `game_ended`, `quiet`); `mode` is where the next line will come from. |
+| server -> host (WS) | `{"type": "commentary_history", "enabled": bool, "mode": "model"\|"rules", "lines": [...last 100 of the current game, oldest first]}` on every (re)connect of the host (also when nothing was said: it carries the setting) and whenever the setting changes. It replaces what the client holds. |
+| client -> server (HTTP) | `POST /room/{code}/commentary` (also under `/api`), body `{"enabled"?: bool, "pace"?: "broadcast"\|"fast"}`. Returns `{"enabled", "mode", "pace"}`. 404 unknown room, 422 a wrong type or pace. `enabled: false` stops the commentary and its model calls at once. |
+| client -> server (HTTP) | `POST /create-show` (also under `/api`): a room with the AI seats of `show_seats` (default four rules-based bots; a seat that is not available becomes a bot) and commentary on. Returns `{"room_code", "is_spectator": true, "show": true}`. The game **starts when the first host WebSocket connects**. |
+| client -> server (HTTP) | `POST /create-spectator?commentary=1`: an empty watch room with commentary on from the start (without the parameter: off, as before). |
+
+`text` is plain text; clients render it as text, never as HTML.
+
+### Server behaviour
+
+* `commentary.on_action` runs after every applied action (seat actions and
+  host-forced ones), next to `chat.on_action`. It reads the game and
+  schedules; it never awaits and a failure in it never reaches the game.
+* A line is made at most once every `commentary_min_gap_s` (8 s; in test
+  mode `test_mode_commentary_min_gap_s`, 0.4 s) from the moments collected
+  since the last one; the final result is said at once. Caps per game:
+  `commentary_max_lines_per_game` (80), `commentary_max_calls_per_game`
+  (60), `commentary_max_spend_usd` (0.05); past the call or spend cap, after
+  3 failed calls in a row, or with no model, lines are rules-only.
+* The model is the catalog entry named by `GAME_COMMENTARY_MODEL` (`rules` /
+  `off`: none); unset, the catalog's Haiku entry when it has a key, else
+  none. One call per line with a static system prompt, effort
+  `commentary_effort` (`low`), output cap `commentary_max_tokens` (2048),
+  timeout `commentary_timeout_s` (12 s). An answer with an amount of money
+  that is not in its prompt, an exclamation mark, an emoji or a hype word,
+  or that repeats a recent line, is refused and the rules line is shown.
+* The host WebSocket handler clears `room.host_websocket` when its socket
+  closes (it used to stay until a send failed), so "a spectator is
+  connected" is true only while one is.
+* **Broadcast pace.** A game with no human seat that a spectator is
+  watching is paced with `broadcast_action_delay` (1.2 s) and
+  `broadcast_step_delay` (0.7 s) instead of the agent delays, unless the
+  room's `pace` is `fast`. Test mode keeps its own delay.
+* `GET /room/{code}/debug` adds `commentary: {enabled, mode, spectator,
+  lines, model_lines, calls, spend_usd, failures, skipped, pending,
+  in_flight}`.
+
+### Transcript lines
+
+```jsonc
+{"type":"commentary","after_seq":212,"moments":["merger","lead"],
+ "outcome":"model"|"rules"|"silent"|"dropped",
+ "id":14,"text":"...","source":"model"|"rules","turn":46,"at":"<ISO>",
+ "llm":null|{"model","system_prompt_id","system_prompt"?,"user_prompt",
+             "attempts":[...as for decisions...],"cost_usd"}}
+```
+
+One line per commentary line, and one per model call that produced nothing
+that was said (`id`/`text`/`source` null; `outcome` `silent`: the answer was
+refused and the rules line would have repeated an earlier one; `dropped`: the
+game was replaced or commentary turned off while the call ran). A refused
+answer keeps its `raw` text and the reason in the attempt's `error`; the
+`text` shown is then the rules line (`outcome: "rules"`). The system prompt
+is stored once per transcript, then by id. Nothing is redacted: the prompt
+holds public information only. The footer gets
+`"commentary": {lines, model_lines, llm_calls, input_tokens, output_tokens,
+cache_read_tokens, cache_write_tokens, cost_usd, model}` when anything was
+said; the per-seat `totals` are untouched (the commentator is not a seat).
+When a game ends with a commentary call in flight, the transcript is closed
+once the final line is in it.
+
 ## Game transcripts and Buyout Bench (first-class requirement, 2026-11-14)
 
 Every game — live or benchmark — writes a complete transcript: every engine

@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { describeAction } from '../../lib/eventText'
 import { useRules } from '../../ruleset/useRules'
 import type { Replay, ReplayStep } from '../../lib/replay'
-import type { ChatEntry } from '../../types/transcripts'
+import type { ChatEntry, CommentaryEntry } from '../../types/transcripts'
 import styles from './Timeline.module.css'
 
 type Row =
@@ -10,6 +10,7 @@ type Row =
   | { kind: 'turn'; turn: number; playerId: string | null }
   | { kind: 'step'; step: ReplayStep }
   | { kind: 'chat'; step: number; entry: ChatEntry }
+  | { kind: 'commentary'; step: number; entry: CommentaryEntry }
 
 const SOURCE_MARK: Record<string, string> = {
   human: 'H',
@@ -44,6 +45,8 @@ export function Timeline({ replay, names, current, onSelect }: TimelineProps) {
     const rowOfStep = new Map<number, number>([[0, 0]])
     const chatRows = (s: ReplayStep) => {
       for (const entry of s.chat ?? []) rows.push({ kind: 'chat', step: s.step, entry })
+      // What the commentator said after this step, when the game was watched live.
+      for (const entry of s.commentary ?? []) rows.push({ kind: 'commentary', step: s.step, entry })
     }
     if (replay.steps[0]) chatRows(replay.steps[0])
     for (const g of replay.groups) {
@@ -118,6 +121,26 @@ export function Timeline({ replay, names, current, onSelect }: TimelineProps) {
                 <span className={styles.who}>{c.name}</span>
                 <span className={styles.text}>{c.text}</span>
                 <span className={styles.mark}>CHAT</span>
+              </button>
+            )
+          }
+          if (row.kind === 'commentary') {
+            const c = row.entry
+            return (
+              <button
+                className={`${styles.row} ${styles.chat} ${styles.commentary}`}
+                onClick={() => onSelect(row.step)}
+                title={c.text ?? ''}
+                data-testid="timeline-commentary"
+                data-source={c.source ?? undefined}
+              >
+                <span className={styles.num} aria-hidden="true">
+                  ›
+                </span>
+                <span className={styles.text}>{c.text}</span>
+                <span className={styles.mark}>
+                  {c.source === 'model' ? 'COMMENTARY' : 'COMMENTARY · RULES'}
+                </span>
               </button>
             )
           }

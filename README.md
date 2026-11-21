@@ -12,8 +12,10 @@ colours, wording, numbers) comes from a ruleset file in `backend/rulesets/` (`GA
 [![CI](https://github.com/linanqiu/acquire-game/actions/workflows/ci.yml/badge.svg)](https://github.com/linanqiu/acquire-game/actions/workflows/ci.yml)
 
 - **Play**: create a game on the home page, share the 4-letter room code, add friends (phones or
-  laptops) and AI seats, start. A shared screen can show the board ("Watch bots play" opens that
-  host view for an all-AI table).
+  laptops) and AI seats, start. A shared screen can show the board (`/host/<room>`).
+- **Watch**: "Watch bots play" starts a game of AI players at a pace you can follow, with a
+  commentator's line under the board (a small model call per line when a commentary model is
+  configured, templated lines otherwise): see [docs/ai/commentary.md](docs/ai/commentary.md).
 - **Opponents**: the rules-based bot is always available. Claude models (and one
   OpenAI-compatible model, e.g. DeepSeek) appear in the "Add AI" menu; they are selectable only when
   the server has the matching API key, otherwise they are shown disabled.
