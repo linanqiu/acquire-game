@@ -1,84 +1,26 @@
 /**
  * Journey 4: the spectator / host screen.
  *
- * Home -> WATCH BOTS PLAY -> a show: four AI players already playing, the commentary strip
- * narrating (LO-014) -> its GAME OVER with the commentator's last line -> WATCH ANOTHER (the
- * next show) -> "Choose the players of a new game" (Log tab) -> host lobby (room code, "Need
- * N more players") -> add two bots and the Fake LLM with the host's own controls -> START
- * GAME -> watch the all-AI game on the host screen (board fills, scoreboard with seat badges
- * and the thinking indicator, chains panel, commentary) until GAME OVER with final standings
- * and the full breakdown -> PLAY AGAIN goes home.
+ * Home -> WATCH BOTS PLAY -> host lobby (room code, "Need N more players") -> add two
+ * bots and the Fake LLM with the host's own controls -> START GAME -> watch the all-AI
+ * game on the host screen (board fills, scoreboard with seat badges and the thinking
+ * indicator, chains panel) until GAME OVER with final standings and the full breakdown
+ * -> PLAY AGAIN goes home.
  */
 import { test, expect } from './support/journey'
 import { openHome, roomFromUrl } from './support/lobby'
-import { installObservers, observed, resetObserved } from './support/play'
+import { installObservers, observed } from './support/play'
 import { openTab } from '../support/tabs'
 
 test('spectator host view: watch an all-AI game to game over', async ({ page, journey: j }) => {
-  test.setTimeout(360_000)
+  test.setTimeout(240_000)
   await installObservers(page)
   await openHome(page, j)
   await j.shot(page, 'home')
   j.log('click WATCH BOTS PLAY')
   await page.getByTestId('watch-bots-button').click()
   await page.waitForURL(/\/host\/[A-Z]{4}$/)
-  const show = roomFromUrl(page)
-
-  // A show: the game is already running (four AI players) and the commentator narrates it.
-  await expect(page.getByTestId('board')).toBeVisible()
-  await expect(page.getByTestId('player-card')).toHaveCount(4)
-  await expect(page.getByTestId('commentary-strip')).toBeVisible()
-  const line = page.getByTestId('commentary-line')
-  await expect(line, 'a commentary line appears').not.toBeEmpty()
-  const firstLine = (await line.textContent()) ?? ''
-  j.log(`show ${show}: commentary "${firstLine}"`)
-  // The test server has no commentary model: the strip says its lines are the rules' own.
-  await expect(page.getByTestId('commentary-source')).toHaveText('rules')
-  await j.shot(page, 'show-first-commentary-line')
-  await expect(line, 'the commentary moves on by itself').not.toHaveText(firstLine)
-  j.log(`show ${show}: next line "${await line.textContent()}"`)
-  await j.shot(page, 'show-commentary-advanced')
-
-  // The show plays to its end: the commentator's last line is the result, over the standings.
-  await expect(page.getByTestId('game-phase')).toHaveText('GAME OVER', { timeout: 120_000 })
-  await expect(page.getByTestId('game-over')).toBeVisible()
-  const showWinner = (await page.getByTestId('winner-announcement').locator('p').textContent())!
-  await expect(page.getByTestId('commentary-final')).toContainText(showWinner.split(' & ')[0])
-  j.log(`show ${show} over: "${await page.getByTestId('commentary-final').textContent()}"`)
-  await j.shot(page, 'show-game-over')
-
-  // WATCH ANOTHER: the next show, in a new room, narrated from its first move.
-  j.log('click WATCH ANOTHER')
-  await page.getByTestId('watch-another').click()
-  await page.waitForURL(
-    (url) => /\/host\/[A-Z]{4}$/.test(url.pathname) && !url.pathname.endsWith(show)
-  )
-  const show2 = roomFromUrl(page)
-  expect(show2).not.toBe(show)
-  await expect(page.getByTestId('board')).toBeVisible()
-  await expect(page.getByTestId('commentary-strip')).toBeVisible()
-  await expect(page.getByTestId('commentary-line')).not.toBeEmpty()
-  await j.shot(page, 'second-show')
-
-  // Commentary can be turned off (the strip goes) and on again (in the Log tab).
-  j.log('commentary off, then on again from the Log tab')
-  await page.getByTestId('commentary-off').click()
-  await expect(page.getByTestId('commentary-strip')).toHaveCount(0)
-  await openTab(page, 'log')
-  await page.getByTestId('commentary-on').click()
-  await expect(page.getByTestId('commentary-strip')).toBeVisible()
-  await j.shot(page, 'second-show-commentary-back-on')
-
-  // A table of my own choosing: the link at the foot of the Log tab opens an empty watch room.
-  j.log('click "Choose the players of a new game"')
-  await openTab(page, 'log')
-  await page.getByTestId('choose-players').click()
-  await page.waitForURL(
-    (url) => /\/host\/[A-Z]{4}$/.test(url.pathname) && !url.pathname.endsWith(show2)
-  )
   const room = roomFromUrl(page)
-  expect([show, show2]).not.toContain(room)
-  await resetObserved(page) // what follows is observed for this room's game only
   await expect(page.getByText('ROOM CODE')).toBeVisible()
   await expect(page.getByText(room, { exact: true })).toBeVisible()
   await expect(page.getByText('PLAYERS (0/6)')).toBeVisible()
@@ -122,8 +64,6 @@ test('spectator host view: watch an all-AI game to game over', async ({ page, jo
   await expect(page.getByTestId('player-card')).toHaveCount(3)
   // Who the table waits on and for what, in a player's words (BL-019): "REX IS PLACING A TILE".
   await expect(page.getByTestId('game-phase')).toHaveText(/ IS [A-Z ]+$/)
-  // A room opened to watch has commentary on from the start.
-  await expect(page.getByTestId('commentary-strip')).toBeVisible()
   await j.shot(page, 'host-game-started')
 
   // Watch it progress: the board keeps filling up until the game ends.
@@ -156,10 +96,6 @@ test('spectator host view: watch an all-AI game to game over', async ({ page, jo
       midShot = true
       await j.shot(page, 'host-mid-game')
       await expect(page.getByTestId('turn-marker')).toHaveCount(1)
-      await expect(page.getByTestId('commentary-line')).not.toBeEmpty()
-      j.log(
-        `commentary at ${last} tiles: "${await page.getByTestId('commentary-line').textContent()}"`
-      )
       await openTab(page, 'log')
       await expect(page.getByRole('log', { name: 'Game activity' })).toContainText(
         `${firstBot} joined`
@@ -184,8 +120,6 @@ test('spectator host view: watch an all-AI game to game over', async ({ page, jo
   await expect(page.getByTestId('full-breakdown')).toBeVisible()
   await expect(page.getByTestId('rankings').locator('[data-testid^="rank-"]')).toHaveCount(3)
   await expect(page.getByTestId('winner-announcement')).toBeVisible()
-  await expect(page.getByTestId('commentary-final')).toContainText(/ wins with | share the win /)
-  await expect(page.getByTestId('watch-another')).toBeVisible()
   await j.shot(page, 'host-game-over')
   merge(await observed(page))
   j.log(

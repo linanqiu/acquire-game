@@ -9,9 +9,7 @@ from fastapi import APIRouter, Body, Form, HTTPException
 
 from agents import registry
 from app_state import session_manager
-import commentary
 from chat import ChatError, post_message, reply_debug
-from config import get_settings
 from broadcast import (
     broadcast_game_state,
     broadcast_lobby_update,
@@ -46,34 +44,10 @@ async def create_room(player_name: str = Form(...)):
 
 
 @router.post("/create-spectator")
-async def create_spectator_room(commentary: bool = False):
-    """Create a room for spectator mode (AI seats only); watch via the host
-    WebSocket. ``?commentary=1``: commentary is on from the start."""
+async def create_spectator_room():
+    """Create a room for spectator mode (AI seats only); watch via the host WebSocket."""
     room_code = session_manager.create_room()
-    session_manager.get_room(room_code).commentary_default = bool(commentary)
     return {"room_code": room_code, "is_spectator": True}
-
-
-@router.post("/create-show")
-async def create_show():
-    """ "Watch bots play": create a room, seat the configured AI players
-    (``show_seats``; a seat that is not available becomes a rules-based bot),
-    and turn commentary on. The game starts when the first spectator
-    connects to ``/ws/host/{room_code}`` (the watch page ``/host/{room_code}``),
-    so nobody misses the opening and nothing is played for an empty room."""
-    room_code = session_manager.create_room()
-    room = session_manager.get_room(room_code)
-    room.commentary_default = True
-    wanted = [s.strip() for s in get_settings().show_seats.split(",") if s.strip()]
-    needed = min_to_start(room)
-    wanted = (wanted + ["bot"] * needed)[: max(needed, len(wanted))]
-    for agent_id in wanted[: room.max_players]:
-        entry = registry.entry(agent_id)
-        if entry is None or not entry.get("available"):
-            agent_id = "bot"
-        _add_seat(room_code, agent_id)
-    room.autostart = True
-    return {"room_code": room_code, "is_spectator": True, "show": True}
 
 
 @router.post("/join")
@@ -296,30 +270,6 @@ async def get_room_debug(room_code: str):
         "scripted": scripted,
         "script_problems": problems,
         "chat_replies": reply_debug(room),
-        "commentary": commentary.debug(room),
-    }
-
-
-@router.post("/room/{room_code}/commentary")
-async def set_commentary(room_code: str, body: dict = Body(...)):  # noqa: B008
-    """Commentary settings of a room: body ``{"enabled"?: bool, "pace"?:
-    "broadcast" | "fast"}``. ``enabled`` false stops the commentary (and its
-    model calls); ``pace`` is the pacing of a watched all-AI game. Returns
-    ``{"enabled", "mode": "model" | "rules", "pace"}``."""
-    room = _room_or_404(room_code)
-    enabled, pace = body.get("enabled"), body.get("pace")
-    if enabled is not None and not isinstance(enabled, bool):
-        raise HTTPException(status_code=422, detail="enabled must be a boolean")
-    if pace is not None and pace not in ("broadcast", "fast"):
-        raise HTTPException(status_code=422, detail="pace must be broadcast or fast")
-    if pace is not None:
-        room.pace = None if pace == "broadcast" else "fast"
-    if enabled is not None:
-        await commentary.set_enabled(room_code, enabled)
-    return {
-        "enabled": commentary.commentary_state(room).enabled,
-        "mode": commentary.mode(room),
-        "pace": room.pace or "broadcast",
     }
 
 

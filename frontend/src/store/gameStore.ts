@@ -15,8 +15,6 @@ import type {
   TradeOffer,
   AgentFallbackMessage,
   ChatMessage,
-  CommentaryLine,
-  CommentaryMode,
   WebSocketMessage,
 } from '../types/api'
 
@@ -225,10 +223,6 @@ export interface GameStoreState {
   /** Highest id of the chat history received on connect (0 before any): already said. */
   chatHistoryId: number
 
-  /** Commentary of the room (host / watch page): the setting, where lines come from, and
-   *  the lines of the current game, oldest first. `null` until the server said. */
-  commentary: { enabled: boolean; mode: CommentaryMode; lines: CommentaryLine[] } | null
-
   /** The final `game_over` message (scores with their breakdown), once the game ended. */
   gameOver: GameOverMessage | null
 
@@ -275,17 +269,6 @@ export function mergeChat(current: ChatMessage[], incoming: ChatMessage[]): Chat
   return [...byId.values()].sort((a, b) => a.id - b.id).slice(-CHAT_KEEP)
 }
 
-/** `current` plus `incoming` commentary lines, deduplicated and ordered by id. */
-export function mergeCommentary(
-  current: CommentaryLine[],
-  incoming: CommentaryLine[]
-): CommentaryLine[] {
-  const byId = new Map<number, CommentaryLine>()
-  for (const l of current) byId.set(l.id, l)
-  for (const l of incoming) if (l && typeof l.id === 'number') byId.set(l.id, l)
-  return [...byId.values()].sort((a, b) => a.id - b.id).slice(-CHAT_KEEP)
-}
-
 const initialState = {
   connectionStatus: 'disconnected' as ConnectionStatus,
   connectionError: null,
@@ -307,7 +290,6 @@ const initialState = {
   lastFallbackEvent: null as FallbackEvent | null,
   chatMessages: [] as ChatMessage[],
   chatHistoryId: 0,
-  commentary: null as GameStoreState['commentary'],
   pendingChainChoice: null,
   pendingMergerChoice: null,
   pendingMergerOrder: null,
@@ -475,27 +457,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             store.chatHistoryId,
             ...(message.messages ?? []).map((m: ChatMessage) => m.id)
           ),
-        })
-        break
-
-      case 'commentary':
-        set({
-          commentary: {
-            enabled: store.commentary?.enabled ?? true,
-            mode: message.mode ?? store.commentary?.mode ?? 'rules',
-            lines: mergeCommentary(store.commentary?.lines ?? [], [message.line]),
-          },
-        })
-        break
-
-      case 'commentary_history':
-        // The server's list is the truth for this game (a new game starts empty).
-        set({
-          commentary: {
-            enabled: !!message.enabled,
-            mode: message.mode === 'model' ? 'model' : 'rules',
-            lines: mergeCommentary([], message.lines ?? []),
-          },
         })
         break
 

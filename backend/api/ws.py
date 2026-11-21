@@ -15,7 +15,6 @@ from broadcast import (
     send_host_state,
     send_player_state,
 )
-from commentary import send_state as send_commentary_state
 from config import get_settings
 from lifecycle import end_game, handle_player_action, initialize_game
 
@@ -59,13 +58,7 @@ async def host_websocket(websocket: WebSocket, room_code: str):
 
     await websocket.accept()
     session_manager.connect_host(room_code, websocket)
-    if room.autostart and not room.started:
-        # a show ("Watch bots play") starts when its first spectator arrives
-        room.autostart = False
-        if session_manager.start_game(room_code):
-            await initialize_game(room_code)
     await send_host_state(room_code)
-    await send_commentary_state(room_code)
 
     ping = asyncio.create_task(ping_task(websocket))
     try:
@@ -94,8 +87,6 @@ async def host_websocket(websocket: WebSocket, room_code: str):
         pass
     finally:
         ping.cancel()
-        # no spectator any more: commentary (and the broadcast pace) stop
-        session_manager.disconnect_host(room_code, websocket)
 
 
 @router.websocket("/ws/player/{room_code}/{player_id}")

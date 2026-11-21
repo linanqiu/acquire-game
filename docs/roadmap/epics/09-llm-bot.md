@@ -97,9 +97,8 @@ decision (LO-004).
 | [LO-011](../stories/09-llm-opponents/LO-011.md) | Cost per game: a prompt cache that hits, no call when nothing is to decide, smaller prompt, talk calls gated by rules (owner request 2026-11-16) | complete | LO-003, LO-008, LO-009, AB-001 |
 | [LO-012](../stories/09-llm-opponents/LO-012.md) | No suicide mergers: position-aware tile value for the bot, "pays only rivals" for LLM seats; bot generations compared in self-play (owner request 2026-11-17) | complete | ES-004, LO-009, LO-010 |
 | [LO-013](../stories/09-llm-opponents/LO-013.md) | Trade talk that makes sense: real trade timing, deal facts with direction and rank effects, history facts, first person, buy-step follow-up of promised offers (owner report, game UMWT, 2026-11-18) | complete | LO-008, LO-010, LO-011 |
-| [LO-014](../stories/09-llm-opponents/LO-014.md) | Commentary for the watch page: a non-playing voice that narrates a game for spectators (rules decide when, a small model call or a template says it), the commentary strip, "Watch bots play" as a show at a broadcast pace (owner, 2026-11-21) | complete | LO-008, LO-011, ES-004, AB-001 |
 
-Status as of 2026-11-21: **8 of 13 active stories complete** (LO-014 commentary; LO-013 trade talk; LO-012 no suicide mergers and bot generations; LO-011 cost per game; LO-010 position-aware trading; LO-009 strategy playbook; LO-008
+Status as of 2026-11-18: **7 of 12 active stories complete** (LO-013 trade talk; LO-012 no suicide mergers and bot generations; LO-011 cost per game; LO-010 position-aware trading; LO-009 strategy playbook; LO-008
 table chat; LO-006, the headless harness); LO-001..LO-005 are partly built (see the status note at the bottom of each story);
 LO-007 is superseded. The benchmark as a product (protocol, standalone CLI/API contract, ratings,
 leaderboard, first results) and transcripts moved to [Epic 12](12-bench.md). Changes caused

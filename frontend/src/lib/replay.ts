@@ -9,7 +9,6 @@
 import type { TileState } from '../types/game'
 import type {
   ChatEntry,
-  CommentaryEntry,
   DecisionEntry,
   EngineEvent,
   PublicState,
@@ -24,8 +23,6 @@ export interface ReplayStep {
   events: EngineEvent[]
   /** Table chat written after this step's decision (step 0: lobby and opening chat). */
   chat: ChatEntry[]
-  /** Commentary lines said after this step (only when someone watched the game live). */
-  commentary: CommentaryEntry[]
   state: PublicState | null
   /** 1-based turn number (turns advance on `turn_ended`). */
   turn: number
@@ -49,7 +46,6 @@ type Normalized =
   | { kind: 'state'; entry: StateEntry }
   | { kind: 'event'; entry: EngineEvent }
   | { kind: 'chat'; entry: ChatEntry }
-  | { kind: 'commentary'; entry: CommentaryEntry }
 
 /**
  * Entries are `{type:"event", event:{...}}`, `decision` and `state` lines in file order
@@ -64,8 +60,6 @@ export function normalizeEntries(entries: TranscriptEntry[]): Normalized[] {
     else if (e.type === 'state') out.push({ kind: 'state', entry: raw as StateEntry })
     else if (e.type === 'chat' && typeof e.text === 'string')
       out.push({ kind: 'chat', entry: raw as ChatEntry })
-    else if (e.type === 'commentary' && typeof e.text === 'string')
-      out.push({ kind: 'commentary', entry: raw as CommentaryEntry })
     else if (e.type === 'event' && e.event && typeof e.event === 'object')
       out.push({ kind: 'event', entry: e.event as EngineEvent })
   }
@@ -75,16 +69,7 @@ export function normalizeEntries(entries: TranscriptEntry[]): Normalized[] {
 export function buildReplay(transcript: Transcript): Replay {
   const items = normalizeEntries(transcript.entries)
   const steps: ReplayStep[] = [
-    {
-      step: 0,
-      decision: null,
-      events: [],
-      chat: [],
-      commentary: [],
-      state: null,
-      turn: 1,
-      turnPlayerId: null,
-    },
+    { step: 0, decision: null, events: [], chat: [], state: null, turn: 1, turnPlayerId: null },
   ]
   let cur = steps[0]
   let turnsEnded = 0
@@ -96,7 +81,6 @@ export function buildReplay(transcript: Transcript): Replay {
         decision: it.entry,
         events: [],
         chat: [],
-        commentary: [],
         state: null,
         turn: turnsEnded + 1,
         turnPlayerId: prev.state?.current_player ?? it.entry.player_id,
@@ -104,8 +88,6 @@ export function buildReplay(transcript: Transcript): Replay {
       steps.push(cur)
     } else if (it.kind === 'chat') {
       cur.chat.push(it.entry)
-    } else if (it.kind === 'commentary') {
-      cur.commentary.push(it.entry)
     } else if (it.kind === 'event') {
       cur.events.push(it.entry)
       if (it.entry.type === 'turn_ended') turnsEnded += 1

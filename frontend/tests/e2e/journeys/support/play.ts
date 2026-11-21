@@ -62,13 +62,6 @@ export async function installObservers(page: Page): Promise<void> {
   })
 }
 
-/** Forget what was observed so far (a new game on the same page starts clean). */
-export async function resetObserved(page: Page): Promise<void> {
-  await page.evaluate(() => {
-    ;(window as unknown as { __obs: unknown }).__obs = { cash: [], thinking: {}, phases: [] }
-  })
-}
-
 export async function observed(
   page: Page
 ): Promise<{ cash: number[]; thinking: Record<string, number>; phases: string[] }> {
