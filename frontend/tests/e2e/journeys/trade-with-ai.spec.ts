@@ -3,13 +3,14 @@
  *
  * One human and two heuristic bots. Once the human holds stock, they offer the first bot a
  * clearly generous trade (2 shares for $100: accepted) and a clearly bad one
- * ($50 for $1,000: rejected). The bot answers both on its own; the TRADES panel,
- * toasts, cash and holdings reflect each answer. Then play continues.
+ * ($50 for $1,000: rejected). Before each is sent the composer says what the bot would answer
+ * (BL-021); the bot then answers on its own, the same way; the Trades tab, toasts, cash and
+ * holdings reflect each answer. Then play continues.
  */
 import { test, expect } from './support/journey'
 import { addBot, createGame, seatName, startGame } from './support/lobby'
 import { Seat, installObservers, myCash as myCashCell, parseMoney } from './support/play'
-import { outgoingTo, proposeTrade, tradePanel } from './support/trade'
+import { addShares, openComposer, outgoingTo, proposeTrade, tradePanel } from './support/trade'
 import { openTab } from '../support/tabs'
 
 test('trade with AI: the bot accepts a generous offer and rejects a bad one', async ({
@@ -45,29 +46,49 @@ test('trade with AI: the bot accepts a generous offer and rejects a bad one', as
   await seat.waitActionable()
   j.log(`Alice holds ${JSON.stringify(await seat.holdings(me))}; trading ${chain}`)
 
-  // --- The builder refuses incomplete offers ------------------------------------------
+  // --- The composer says what is missing, and cannot send an incomplete offer --------
   {
     await openTab(page, 'trades')
-    await page.getByTestId('trade-offers').getByRole('button', { name: 'PROPOSE TRADE' }).click()
+    // Started from my own shares: one given, nobody chosen yet.
+    await page.getByTestId(`trade-start-${me}-${chain}`).click()
     const builder = page.getByTestId('trade-builder')
-    await builder.getByTestId('propose-trade').click()
-    await expect(builder.getByTestId('trade-error')).toHaveText('Select a trade partner')
+    await expect(builder.getByTestId('trade-hint')).toHaveText('Choose who to offer to')
+    await expect(builder.getByTestId('propose-trade')).toBeDisabled()
     await builder.locator('[data-testid^="player-select-"]', { hasText: BOT }).click()
-    await builder.getByTestId('propose-trade').click()
-    await expect(builder.getByTestId('trade-error')).toHaveText('You must offer something')
-    await builder.getByTestId('offer-cash-input').fill('100')
-    await builder.getByTestId('propose-trade').click()
-    await expect(builder.getByTestId('trade-error')).toHaveText('You must request something')
-    // You cannot offer more of a chain than you hold: the stepper stops there.
+    await expect(builder.getByTestId('trade-hint')).toHaveCount(0)
+    await expect(builder.getByTestId('propose-trade')).toBeEnabled()
+    // Nothing in the deal: it says so and cannot be sent.
     const row = builder.getByTestId(`offer-stock-${chain}`)
+    await row.getByTestId('stepper-decrement').click()
+    await expect(row).toHaveCount(0)
+    await expect(builder.getByTestId('trade-hint')).toHaveText('Add what you give or what you get')
+    await expect(builder.getByTestId('propose-trade')).toBeDisabled()
+    // You cannot offer more of a chain than you hold: the chip and the stepper stop there.
     const held = (await seat.holdings(me))[chain]
-    for (let i = 0; i < held; i++) await row.getByTestId('stepper-increment').click()
-    await expect(row.getByTestId('stepper-value')).toHaveText(String(held))
+    await addShares(seat, builder, 'offer', chain, held)
+    await expect(builder.getByTestId(`offer-add-${chain}`)).toBeDisabled()
     await expect(row.getByTestId('stepper-increment')).toBeDisabled()
-    await seat.shot('builder-validation')
+    await seat.shot('composer-validation')
     await builder.getByTestId('cancel-trade').click()
     await expect(builder).toBeHidden()
     await expect(tradePanel(page).getByTestId('trade-table-empty')).toHaveText('No open offers')
+  }
+
+  // --- The composer says what the bot would answer, before anything is sent ----------
+  {
+    const builder = await openComposer(seat, BOT)
+    await addShares(seat, builder, 'offer', chain, 2)
+    await builder.getByTestId('want-cash-input').fill('100')
+    const verdict = builder.getByTestId('trade-bot-verdict')
+    await expect(verdict).toHaveText(`${BOT} (bot) would accept`)
+    await seat.shot('composer-bot-would-accept')
+    // Asking the bot for far more than the shares are worth: it would refuse.
+    await builder.getByTestId('want-cash-input').fill('5900')
+    await expect(verdict).toContainText(`${BOT} (bot) would refuse`)
+    await seat.shot('composer-bot-would-refuse')
+    await builder.getByTestId('cancel-trade').click()
+    await expect(builder).toBeHidden()
+    j.log('composer: the bot would accept 2 shares for $100, refuse them for $5,900')
   }
 
   // --- Generous: 2 shares for $100 -> accepted --------------------------------------

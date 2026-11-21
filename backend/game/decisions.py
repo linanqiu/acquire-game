@@ -582,6 +582,29 @@ def validate_action(game: Game, player_id: str, action: Any) -> str | None:
         return f"Invalid action: {e}"
 
 
+def draft_trade(
+    game: Game, player_id: str, action: Any
+) -> tuple[TradeOffer | None, str]:
+    """A ``propose_trade`` action that has not been sent: the offer it would
+    create, and why it would be refused right now ("" when it would not).
+
+    The verdict is ``validate_action``'s, the check ``apply_action`` itself
+    runs, so a preview of a draft and the proposal agree. Never mutates the
+    game and never raises; the offer is None when the action is malformed.
+    """
+    if not isinstance(action, dict):
+        return None, "Action must be an object"
+    action = {**action, "action": "propose_trade"}
+    error = validate_action(game, player_id, action) or ""
+    try:
+        trade = _build_trade(player_id, action, game.ruleset)
+    except _ActionError as e:
+        return None, str(e)
+    except Exception as e:  # noqa: BLE001 - malformed input must never raise
+        return None, f"Invalid action: {e}"
+    return trade, error
+
+
 # =============================================================================
 # Applying
 # =============================================================================

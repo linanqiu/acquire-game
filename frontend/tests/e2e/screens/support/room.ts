@@ -5,7 +5,8 @@
  * API use here is allowed in tier 3 only (see CLAUDE.md "Test Policy: Four Tiers"):
  *  - POST /api/room/{code}/add-seat {agent_id:"scripted"}: the lobby UI does not offer scripted
  *    seats. Scripted seats answer instantly with first-legal moves (reject trades, sell defunct
- *    stock, buy nothing).
+ *    stock, buy nothing). {agent_id:"bot"} for a seat that must be the real rules-based bot
+ *    (the trade composer says what it would answer).
  *  - POST /api/join for "idle" seats: a human seat nobody drives. Used where a screen needs an
  *    opponent who does NOT answer (waiting on another player, a trade that stays pending).
  *  - POST /api/test/room/{code}/load-snapshot (test mode only).
@@ -16,6 +17,8 @@ import { loadFixture, type Fixture } from './fixtures'
 export interface StartOptions {
   /** Snapshot seat ids (e.g. "p3") that are idle humans instead of scripted seats. */
   idle?: string[]
+  /** Snapshot seat ids that are rules-based bots (the lobby's ADD BOT) instead of scripted. */
+  bots?: string[]
   /** Optional script for scripted seats, keyed by snapshot seat id. */
   scripts?: Record<string, unknown[]>
   /** Browser viewport; default 1280x900 (screenshots are full-page). */
@@ -102,10 +105,16 @@ export async function startFromSnapshot(
       seatMap[seat] = body.player_id
       idleIds[seat] = body.player_id
     } else {
+      const bot = opts.bots?.includes(seat)
       const res = await request.post(`/api/room/${code}/add-seat`, {
-        data: { agent_id: 'scripted', name: nameOf(seat), script: opts.scripts?.[seat] },
+        data: bot
+          ? { agent_id: 'bot', name: nameOf(seat) }
+          : { agent_id: 'scripted', name: nameOf(seat), script: opts.scripts?.[seat] },
       })
-      expect(res.ok(), `add scripted seat ${seat}: ${await res.text()}`).toBeTruthy()
+      expect(
+        res.ok(),
+        `add ${bot ? 'bot' : 'scripted'} seat ${seat}: ${await res.text()}`
+      ).toBeTruthy()
       seatMap[seat] = ((await res.json()) as { player_id: string }).player_id
     }
     names[seatMap[seat]] = nameOf(seat)

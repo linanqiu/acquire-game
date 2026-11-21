@@ -106,7 +106,30 @@ The script is throwaway (not in the repo): it drives `build_context` ->
 `HeuristicAgent.choose` -> `apply_action` like `tests/support/drive.py`, with the old answer
 re-implemented in a subclass for the "before" row.
 
+## What the player is shown (BL-021)
+
+The trade composer asks the server what a draft would do before it is sent
+(`POST /api/room/{room}/trade-preview/{player}`, `game.trade_value.trade_preview`). For a draft
+addressed to a rules-based seat the answer includes the bot's verdict: `acceptable` (the same
+`trade_valuation(...)["acceptable"]` the seat answers with) and `cash_needed`, the least extra
+cash, in $100 steps, that would make it acceptable (`cash_to_accept`: first less cash asked of the
+bot, then more offered; `None` when all the proposer's cash would not do). The page prints "Bob
+(bot) would accept", "would refuse: about $300 short" with a button that adds it, or "would
+refuse, even for all your cash".
+
+This gives away nothing a player could not already find out: the rule is this page, it has no
+randomness, and an offer costs nothing to make, so proposing and re-proposing finds the same
+price. No verdict is ever given for an LLM or a human seat. The preview is built from public
+information only and proposes nothing.
+
 ## Tests
+
+- Tier 1, `backend/tests/test_trade_preview.py`: the verdict shown equals the answer the seat then
+  gives to the same offer through `apply_action` (a sweep of prices, and random offers during bot
+  games); `cash_needed` is exact (one step less is refused); drafts are refused in
+  `apply_action`'s own words; position changes name third players.
+- Tier 2, `backend/tests/protocol/test_trade_preview.py`: the route over HTTP, then the same
+  offers over the WebSocket, answered as the preview said; a preview proposes nothing.
 
 - Tier 1, `backend/tests/test_trade_value.py`: positions reached by scripted real play
   (`tests/support/table.py`) or by games the bot plays; offers proposed and answered through

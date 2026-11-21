@@ -183,13 +183,14 @@ for (const scheme of ['light', 'dark'] as const) {
       await openTab(page, t)
       await shots.take(page, `game-${t}`, { fullPage: false })
     }
-    // A modal on top of the game.
-    await page.getByRole('button', { name: 'PROPOSE TRADE' }).click()
-    await expect(page.getByRole('dialog')).toBeVisible()
-    await settled(page)
-    await shots.take(page, 'trade-modal', { fullPage: false })
-    await page.keyboard.press('Escape')
+    // The trade composer, in the Trades tab (BL-021: no modal over the game).
+    await page.locator('[data-testid^="trade-start-"]').first().click()
+    await expect(page.getByTestId('trade-builder')).toBeVisible()
     await expect(page.getByRole('dialog')).toHaveCount(0)
+    await settled(page)
+    await shots.take(page, 'trade-composer', { fullPage: false })
+    await page.getByTestId('cancel-trade').click()
+    await expect(page.getByTestId('trade-builder')).toHaveCount(0)
 
     // The host view in the same scheme.
     const host = await page.context().newPage()

@@ -16,7 +16,10 @@ from broadcast import (
     lobby_players,
     min_to_start,
 )
+from agents.heuristic import HeuristicAgent
+from game.decisions import draft_trade
 from game.game import GamePhase
+from game.trade_value import trade_preview
 from lifecycle import initialize_game
 from seats import get_runtime, human_action
 
@@ -298,6 +301,53 @@ async def send_chat(room_code: str, player_id: str, body: dict = Body(...)):  # 
     except ChatError as exc:
         raise HTTPException(status_code=exc.status, detail=str(exc)) from None
     return {"status": "ok", "message": msg}
+
+
+@router.post("/room/{room_code}/trade-preview/{player_id}")
+async def trade_preview_route(room_code: str, player_id: str, body: dict = Body(...)):  # noqa: B008
+    """What a trade offer would do, before it is sent or answered (read-only).
+
+    Body: ``{"trade_id"}`` alone for an open offer (offers are public: any
+    seat at the table may ask), or the fields of a ``propose_trade`` action
+    (``to_player_id``, ``offering_stocks``, ``offering_money``,
+    ``requesting_stocks``, ``requesting_money``) for a draft by ``player_id``.
+
+    Response: ``game.trade_value.trade_preview``: ``valid`` / ``error`` (for a
+    draft: what ``apply_action`` would refuse it with; for an offer that is no
+    longer open: "Trade not found"), both sides at list
+    prices, every change of majority / minority standing, and, only for a
+    draft addressed to a rules-based seat, what that seat would answer
+    (its rule is documented and deterministic: docs/ai/bot-trading.md). All
+    of it is public information; nothing is changed and nothing is sent to
+    anyone else.
+    """
+    room = _room_or_404(room_code)
+    if not room.started or room.game is None:
+        raise HTTPException(status_code=400, detail="Game not started")
+    if player_id not in room.players:
+        raise HTTPException(status_code=404, detail="Player not found")
+    game = room.game
+    if "to_player_id" not in body:
+        trade_id = body.get("trade_id")
+        if not isinstance(trade_id, str) or not trade_id:
+            raise HTTPException(
+                status_code=422, detail="trade_id or to_player_id is required"
+            )
+        offer = game.pending_trades.get(trade_id)
+        if offer is None:
+            # Answered or withdrawn a moment ago: an ordinary race for a page
+            # that still shows the offer, not an error.
+            return {"valid": False, "error": "Trade not found"}
+        return trade_preview(game, offer)
+    offer, error = draft_trade(game, player_id, body)
+    if offer is None:
+        return {"valid": False, "error": error}
+    bots = frozenset(
+        pid
+        for pid, seat in room.players.items()
+        if isinstance(seat.agent, HeuristicAgent)
+    )
+    return trade_preview(game, offer, rules_bots=bots, error=error)
 
 
 @router.post("/room/{room_code}/action/{player_id}")

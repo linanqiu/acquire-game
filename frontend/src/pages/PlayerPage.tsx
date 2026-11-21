@@ -5,7 +5,6 @@ import { useWebSocket } from '../hooks/useWebSocket'
 import { useConnectionLifecycle } from '../hooks/useConnectionLifecycle'
 import { PageShell } from '../components/ui/PageShell'
 import { Button } from '../components/ui/Button'
-import { Modal } from '../components/ui/Modal'
 import { Spinner } from '../components/ui/Spinner'
 import { TileRack, RackNotes, type RackTile } from '../components/game/TileRack'
 import { Standings, StandingsLegend } from '../components/game/Standings'
@@ -18,7 +17,8 @@ import { Board } from '../components/game/Board'
 import { TradeBuilder } from '../components/game/TradeBuilder'
 import { TradeOffers } from '../components/game/TradeOffers'
 import { TradeActivity } from '../components/game/TradeActivity'
-import { competingOffer } from '../lib/trades'
+import { TradeStart } from '../components/game/TradeStart'
+import { competingOffer, counterOffer, startOffer } from '../lib/trades'
 import { ReconnectionOverlay } from '../components/game/ReconnectionOverlay'
 import { ReconnectedToast } from '../components/game/ReconnectedToast'
 import { GameOver } from '../components/game/GameOver'
@@ -137,7 +137,7 @@ export function PlayerPage() {
   const myPlayerId = currentPlayer?.id
 
   // Server refusals ({type:'error'}) come through the socket: they undo an optimistic prompt
-  // answer, show inside the trade builder when they answer a proposal, and toast. The socket
+  // answer, show inside the trade composer when they answer a proposal, and toast. The socket
   // needs this handler before the action hooks exist, so it reaches them through a ref.
   const onRefusedRef = useRef<(error: string) => void>(() => {})
   const handleWsError = useCallback(
@@ -181,9 +181,12 @@ export function PlayerPage() {
     (c) => c.state !== 'empty'
   ).length
   const mergerResult = useMergerResult(gameState?.mergers, tilesOnBoard)
-  // Bumped to bring the table panel into view: ANSWER on an offer listed in the Trades tab,
-  // and the phase bar while my move waits on another tab.
+  // Bumped to bring the table panel into view: the phase bar while my move waits on another
+  // tab.
   const [answer, setAnswer] = useState(0)
+  // Bumped to open the Trades tab by my own action elsewhere: COUNTER on an offer shown in the
+  // table panel opens the composer there.
+  const [toTrades, setToTrades] = useState(0)
   // Is the table panel (my decision, the players table) on screen? What it shows is not said
   // again by the header (my cash, worth, rank) or by a second status line (BL-017).
   const [tableVisible, setTableVisible] = useState(true)
@@ -403,6 +406,10 @@ export function PlayerPage() {
   // panel (under my decision when there is one). The header shows them on the other tabs only:
   // what it shows changes with the tab, never mid-turn on the same tab.
   const showMyNumbers = inGame && !outOfGame && !tableVisible
+  const prices = useMemo(
+    () => Object.fromEntries(activeChains.map((c) => [c.name, c.price])),
+    [activeChains]
+  )
   // The trade log without the offers that are still open: those are listed as offers.
   const pastTrades = useMemo(() => {
     const open = new Set([...myTrades, ...publicTrades].map((t) => t.trade_id))
@@ -483,6 +490,7 @@ export function PlayerPage() {
               myId={myPlayerId}
               events={events}
               openTable={answer}
+              openTab={toTrades > 0 ? { id: 'trades', n: toTrades } : undefined}
               myPlaceTurn={placing}
               deciding={
                 incomingCount > 0 || !['place', 'waiting'].includes(view) || !!mergerResult.auto
@@ -545,7 +553,14 @@ export function PlayerPage() {
                         onAccept={trades.accept}
                         onReject={trades.reject}
                         onCancel={trades.cancel}
-                        onPropose={trades.openBuilder}
+                        onCounter={(offer) => {
+                          trades.openBuilderFrom(
+                            counterOffer(offer, myPlayerData ?? undefined, gameState.players)
+                          )
+                          setToTrades((n) => n + 1)
+                        }}
+                        room={room}
+                        version={gameState.players}
                       />
                     )
                   }
@@ -595,7 +610,55 @@ export function PlayerPage() {
                   content: (shown) => (
                     <div className={styles.tradesTab}>
                       <WhenShown shown={shown} then={trades.markTableSeen} />
-                      {myPlayerId && (
+                      {/* Composing takes the tab (BL-021): the composer alone, at its top, so
+                          nothing that happens at the table moves it under the thumb. */}
+                      {myPlayerId && trades.builderOpen && (
+                        <TradeBuilder
+                          key={trades.builderKey}
+                          room={room}
+                          myPlayerId={myPlayerId}
+                          version={gameState}
+                          initial={trades.prefill ?? undefined}
+                          title={
+                            trades.prefill?.counter
+                              ? 'Counter-offer'
+                              : trades.prefill?.basedOn
+                                ? 'Competing offer'
+                                : 'New offer'
+                          }
+                          startedFrom={
+                            !trades.prefill?.basedOn
+                              ? undefined
+                              : trades.prefill.counter
+                                ? `Your answer to ${nameIn(gameState, trades.prefill.basedOn.from_player_id)}'s offer. Sending it turns theirs down.`
+                                : `Started from ${nameIn(gameState, trades.prefill.basedOn.from_player_id)}'s offer to ${nameIn(gameState, trades.prefill.basedOn.to_player_id)}.`
+                          }
+                          players={otherPlayers}
+                          myHoldings={myHoldings}
+                          myCash={myPlayerData?.money ?? 0}
+                          prices={prices}
+                          onPropose={trades.propose}
+                          onCancel={trades.cancelBuilder}
+                          serverError={trades.error}
+                          submitting={trades.proposing}
+                          notice={
+                            phase === 'merger' || phase === 'stock_disposition'
+                              ? `A ${theme.merger_noun} is in progress: ${theme.share_noun_plural} of the ${theme.chain_noun_plural} involved cannot be traded until it ends.`
+                              : undefined
+                          }
+                        />
+                      )}
+                      {myPlayerId && !trades.builderOpen && (
+                        <TradeStart
+                          gameState={gameState}
+                          myPlayerId={myPlayerId}
+                          onStart={(partnerId, chain, side) => {
+                            markHintSeen('trades')
+                            trades.openBuilderFrom(startOffer(partnerId, chain, side))
+                          }}
+                        />
+                      )}
+                      {myPlayerId && !trades.builderOpen && (
                         <TradeOffers
                           part="mine"
                           offers={myTrades}
@@ -605,11 +668,11 @@ export function PlayerPage() {
                           onAccept={trades.accept}
                           onReject={trades.reject}
                           onCancel={trades.cancel}
-                          onPropose={() => {
-                            markHintSeen('trades')
-                            trades.openBuilder()
-                          }}
-                          onAnswer={() => setAnswer((n) => n + 1)}
+                          onCounter={(offer) =>
+                            trades.openBuilderFrom(
+                              counterOffer(offer, myPlayerData ?? undefined, gameState.players)
+                            )
+                          }
                           onCompete={(offer, target) =>
                             trades.openBuilderFrom(
                               competingOffer(
@@ -620,16 +683,19 @@ export function PlayerPage() {
                               )
                             )
                           }
+                          room={room}
+                          version={gameState.players}
+                          shown={shown}
                         />
                       )}
-                      {pastTrades.length > 0 && (
+                      {!trades.builderOpen && pastTrades.length > 0 && (
                         <section aria-label="Recent trades">
                           <h4 className={styles.refTitle}>Recent trades</h4>
                           <TradeActivity events={pastTrades} players={gameState.players} />
                         </section>
                       )}
                       {/* No heading over nothing: the section appears with the first one. */}
-                      {(gameState.mergers?.length ?? 0) > 0 && (
+                      {!trades.builderOpen && (gameState.mergers?.length ?? 0) > 0 && (
                         <section aria-label={theme.merger_noun_plural}>
                           <h4 className={styles.refTitle}>{theme.merger_noun_plural}</h4>
                           <MergerLog
@@ -652,39 +718,6 @@ export function PlayerPage() {
           <div className={styles.column}>
             <ChatPanel room={room} />
           </div>
-        )}
-
-        {trades.builderOpen && (
-          <Modal
-            open={trades.builderOpen}
-            onClose={trades.hideBuilder}
-            title="Propose a trade"
-            cancelLabel=""
-            variant="sheet"
-          >
-            <TradeBuilder
-              key={trades.builderKey}
-              initial={trades.prefill ?? undefined}
-              startedFrom={
-                trades.prefill
-                  ? `Started from ${nameIn(gameState, trades.prefill.basedOn.from_player_id)}'s offer to ${nameIn(gameState, trades.prefill.basedOn.to_player_id)}. Change anything before you send it.`
-                  : undefined
-              }
-              players={otherPlayers}
-              myHoldings={myHoldings}
-              myCash={myPlayerData?.money ?? 0}
-              prices={Object.fromEntries(activeChains.map((c) => [c.name, c.price]))}
-              onPropose={trades.propose}
-              onCancel={trades.cancelBuilder}
-              serverError={trades.error}
-              submitting={trades.proposing}
-              notice={
-                phase === 'merger' || phase === 'stock_disposition'
-                  ? `A ${theme.merger_noun} is in progress: ${theme.share_noun_plural} of the ${theme.chain_noun_plural} involved cannot be traded until it ends.`
-                  : undefined
-              }
-            />
-          </Modal>
         )}
 
         {showReconnectionOverlay && (

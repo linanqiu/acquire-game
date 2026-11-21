@@ -4,15 +4,15 @@
  * The same opening as journey 1 (bot + Fake LLM, same seed, same choices) for 8 turns,
  * tapping instead of clicking. On every screen: no horizontal scrolling, and every
  * control needed for the turn (rack tiles, PLACE TILE, chain selector, disposition
- * sliders and CONFIRM, buy steppers and END TURN, the TRADES panel and the Propose
- * Trade modal) is inside the viewport's width and can be scrolled to and tapped. The reference
+ * sliders and CONFIRM, buy steppers and END TURN, the Trades tab and the trade
+ * composer) is inside the viewport's width and can be scrolled to and tapped. The reference
  * views are reached through the bottom tab bar (BL-008): Board, Players, Chains, Chat, Trades.
  */
 import type { Locator, Page } from '@playwright/test'
 import { test, expect } from './support/journey'
 import { addAi, addBot, createGame, seatName, startGame } from './support/lobby'
 import { Seat, installObservers } from './support/play'
-import { outgoingTo, proposeTrade } from './support/trade'
+import { openComposer, outgoingTo, proposeTrade, startOfferTo } from './support/trade'
 import { openTab } from '../support/tabs'
 
 const WIDTH = 390
@@ -100,10 +100,7 @@ test('mobile player: 8 turns at phone size with trade panel and disposition', as
           await expect(page.getByTestId('tabpanel-chains')).toBeInViewport()
           await j.shot(page, 'mobile-chains-tab')
           await openTab(page, 'trades', { tap: true })
-          await reachable(
-            page.getByTestId('trade-offers').getByRole('button', { name: 'PROPOSE TRADE' }),
-            'PROPOSE TRADE'
-          )
+          await reachable(startOfferTo(page, LLM), 'start an offer (the holdings table)')
           await j.shot(page, 'mobile-trades-tab')
           await openTab(page, 'board', { tap: true })
           await reachable(tile, 'first playable rack tile (back on the board)')
@@ -145,25 +142,23 @@ test('mobile player: 8 turns at phone size with trade panel and disposition', as
           await reachable(row.getByTestId('stepper-increment'), 'buy + stepper')
         }
         await reachable(page.getByTestId('end-turn-button'), 'END TURN')
-        // Same trade as journey 1, through the modal at phone size.
+        // Same trade as journey 1, through the composer at phone size.
         const holdings = await seat.holdings(myId)
         const chain = Object.keys(holdings).find((c) => holdings[c] > 0)
         if (!traded && chain && seat.turnsCompleted >= 4) {
-          await openTab(page, 'trades', { tap: true })
-          await page
-            .getByTestId('trade-offers')
-            .getByRole('button', { name: 'PROPOSE TRADE' })
-            .tap()
-          const builder = page.getByTestId('trade-builder')
-          await expect(builder).toBeVisible()
-          await noHorizontalScroll(page, 'trade modal')
+          const builder = await openComposer(seat, LLM)
+          await noHorizontalScroll(page, 'trade composer')
           for (const b of await builder.locator('[data-testid^="player-select-"]').all()) {
             await reachable(b, 'trade partner button')
           }
+          await reachable(builder.getByTestId(`offer-add-${chain}`), 'share chip')
           await reachable(builder.getByTestId('offer-cash-input'), 'offer cash input')
-          await reachable(builder.getByTestId('propose-trade'), 'PROPOSE (modal)')
-          await reachable(builder.getByTestId('cancel-trade'), 'CANCEL (modal)')
-          await j.shot(page, 'mobile-trade-modal')
+          await reachable(builder.getByTestId('want-cash-more'), 'cash + button')
+          await reachable(builder.getByTestId('propose-trade'), 'SEND (composer)')
+          await reachable(builder.getByTestId('cancel-trade'), 'CANCEL (composer)')
+          // The composer is part of the page: no dialog over it, nothing to close.
+          await expect(page.getByRole('dialog')).toHaveCount(0)
+          await j.shot(page, 'mobile-trade-composer')
           await builder.getByTestId('cancel-trade').tap()
           await expect(builder).toBeHidden()
           await proposeTrade(

@@ -1,21 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useToast } from '../../components/ui/useToast'
 import { useGameStore, type TradeEvent } from '../../store/gameStore'
-import type { ChainId, GameAction, GameStateMessage, TradeOffer } from '../../types/api'
-import type { TradePrefill } from '../../lib/trades'
+import type { GameAction, GameStateMessage, TradeOffer } from '../../types/api'
+import { toRecord, type TradeItems, type TradePrefill } from '../../lib/trades'
 
 /** How long the builder waits for the server to confirm a proposal. */
 export const PROPOSE_TIMEOUT_MS = 8000
 const NO_ANSWER = 'The server did not confirm the offer. Check the Trades tab, then try again.'
 const NOT_CONNECTED = 'Not connected to the game. Try again in a moment.'
 
-type TradeSide = { stocks: { chain: ChainId; quantity: number }[]; cash: number }
-
-function toRecord(stocks: TradeSide['stocks']): Partial<Record<ChainId, number>> {
-  const out: Partial<Record<ChainId, number>> = {}
-  for (const { chain, quantity } of stocks) out[chain] = quantity
-  return out
-}
+type TradeSide = TradeItems
 
 interface Options {
   sendAction: (action: GameAction) => boolean
@@ -28,7 +22,7 @@ interface Options {
 }
 
 /**
- * Player-to-player trades on the player page: the builder's open/submitting/error state (and
+ * Player-to-player trades on the player page: the composer's open/submitting/error state (and
  * what it starts from), the propose/accept/reject/cancel actions, and the notices. Offers are
  * public, so events between two other players arrive here too: an offer between others is
  * one short toast and a mark on the Trades tab until it has been looked at; their answers
@@ -36,7 +30,8 @@ interface Options {
  *
  * Trades are not turn-bound, so nothing here touches the turn's loading state. A proposal
  * keeps the builder open until the server confirms it (`trade_proposed` closes it) or refuses
- * it (`onRefused` shows the server's reason inside the builder).
+ * it (`onRefused` shows the server's reason inside the composer). A counter-offer (started
+ * from an offer made to me) turns that offer down once the server has confirmed mine.
  */
 export function usePlayerTrades({
   sendAction,
@@ -47,8 +42,15 @@ export function usePlayerTrades({
 }: Options) {
   const { toast } = useToast()
   const [builderOpen, setBuilderOpen] = useState(false)
-  // What the builder starts from (someone else's offer), and a key that remounts it.
+  // What the composer starts from (a tap in the holdings table, someone's offer), and a key
+  // that remounts it.
   const [prefill, setPrefill] = useState<TradePrefill | null>(null)
+  // The offer made to me that the proposal in flight answers (a counter-offer).
+  const counterOf = useRef<string | null>(null)
+  const openIds = useRef<string[]>([])
+  useEffect(() => {
+    openIds.current = publicTrades.map((t) => t.trade_id)
+  }, [publicTrades])
   const [builderKey, setBuilderKey] = useState(0)
   const [proposing, setProposing] = useState(false)
   const [error, setError] = useState('')
@@ -96,7 +98,11 @@ export function usePlayerTrades({
     setBuilderOpen(true)
   }, [])
 
-  /** Open the builder on my own offer, started from another player's public offer. */
+  /**
+   * Open the composer on an offer already begun: a player or their shares picked in the
+   * holdings table, another player's public offer (a competing offer), or an offer made to me
+   * (a counter-offer).
+   */
   const openBuilderFrom = useCallback((start: TradePrefill) => {
     setError('')
     setProposing(false)
@@ -105,10 +111,7 @@ export function usePlayerTrades({
     setBuilderOpen(true)
   }, [])
 
-  /** The modal's close button: hides the builder (a proposal in flight still resolves). */
-  const hideBuilder = useCallback(() => setBuilderOpen(false), [])
-
-  /** The builder's CANCEL: hides it and stops waiting for the proposal's answer. */
+  /** The composer's CANCEL: hides it and stops waiting for the proposal's answer. */
   const cancelBuilder = useCallback(() => {
     setBuilderOpen(false)
     setProposing(false)
@@ -129,9 +132,10 @@ export function usePlayerTrades({
         setError(NOT_CONNECTED)
         return
       }
+      counterOf.current = prefill?.counter && prefill.basedOn ? prefill.basedOn.trade_id : null
       setProposing(true)
     },
-    [sendAction]
+    [sendAction, prefill]
   )
 
   const respond = useCallback(
@@ -176,6 +180,11 @@ export function usePlayerTrades({
           // eslint-disable-next-line react-hooks/set-state-in-effect
           setProposing(false)
           setBuilderOpen(false)
+          // My counter-offer is on the table: the offer it answers is turned down.
+          const answered = counterOf.current
+          counterOf.current = null
+          if (answered && openIds.current.includes(answered))
+            sendAction({ action: 'reject_trade', trade_id: answered })
         } else {
           toast(`${nameOf(fromPlayerId)} sent you a trade offer`, 'info', 8000)
         }
@@ -209,7 +218,7 @@ export function usePlayerTrades({
     } else if (betweenOthers.length > 1) {
       toast(`${betweenOthers.length} new trade offers at the table`, 'info')
     }
-  }, [tradeLog, myPlayerId, gameState, toast])
+  }, [tradeLog, myPlayerId, gameState, toast, sendAction])
 
   return {
     builderOpen,
@@ -219,7 +228,6 @@ export function usePlayerTrades({
     openBuilderFrom,
     newAtTable,
     markTableSeen,
-    hideBuilder,
     cancelBuilder,
     proposing,
     error,
