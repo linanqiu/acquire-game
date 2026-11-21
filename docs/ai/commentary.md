@@ -103,6 +103,10 @@ tests. Zero cost; the strip marks them "rules" (a model's line: "model").
 - The model: `GAME_COMMENTARY_MODEL`, a catalog id or model name; `rules` (or `off`) for no
   model at all. **Unset: the catalog's Haiku entry when it has a key, else rules-only.** No other
   catalog model (Kimi K3) ever narrates unless it is named there.
+  **Production (2026-11-21): `GAME_COMMENTARY_MODEL=llm:deepseek-v4.1-flash`** (DeepSeek V4.1
+  Flash through OpenRouter, thinking off). One full show, seed 7: 27 lines, 25 from the model,
+  48,700 input / 1,100 output tokens, **$0.0027 per game** (Haiku: about $0.006), about the
+  same quality: same kind of small wording slips, no wrong dollar amounts.
 - Never in the way of the game: `on_action` only reads and schedules; the call runs in a
   background task that holds no lock. A finished game's transcript is closed once the final line
   is in it (at most `commentary_timeout_s` + 5 s later).

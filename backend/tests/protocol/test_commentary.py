@@ -99,8 +99,19 @@ def wait_debug(client, code, pred, timeout=10.0):
         time.sleep(0.05)
 
 
-def transcript(tdir, game_id: str) -> list[dict]:
-    return [json.loads(x) for x in (tdir / f"{game_id}.jsonl").read_text().splitlines()]
+def transcript(tdir, game_id: str, *, closed: bool = False) -> list[dict]:
+    """The transcript's entries. ``closed``: wait (up to 10 s) for its footer;
+    the file is closed from the game's own task, which can trail the last
+    message the watcher saw when the machine is busy."""
+    path = tdir / f"{game_id}.jsonl"
+    deadline = time.monotonic() + 10
+    while True:
+        entries = [json.loads(x) for x in path.read_text().splitlines()]
+        if not closed or (entries and entries[-1]["type"] == "footer"):
+            return entries
+        if time.monotonic() > deadline:
+            raise AssertionError("the transcript was never closed with a footer")
+        time.sleep(0.05)
 
 
 # ------------------------------------------------------------------ the show
@@ -142,7 +153,7 @@ def test_show_starts_with_its_first_spectator_and_is_narrated(app_client, fast, 
 
     # the transcript holds every line at its step, and a (zero) cost summary
     game_id = next(m["game_id"] for m in log if m["type"] == "game_state")
-    entries = transcript(tdir, game_id)
+    entries = transcript(tdir, game_id, closed=True)
     written = [e for e in entries if e["type"] == "commentary"]
     assert [e["text"] for e in written] == [x["text"] for x in lines]
     assert all(e["llm"] is None and e["outcome"] == "rules" for e in written)
@@ -411,7 +422,7 @@ def test_model_lines_prompt_and_cost(app_client, fast, monkeypatch, tdir):
     assert "# Table now" in calls[0]["user"] and "# The game so far" in calls[0]["user"]
 
     game_id = next(m["game_id"] for m in log if m["type"] == "game_state")
-    entries = transcript(tdir, game_id)
+    entries = transcript(tdir, game_id, closed=True)
     written = [e for e in entries if e["type"] == "commentary"]
     assert len(written) == len(lines)
     assert all(e["outcome"] == "model" for e in written)
