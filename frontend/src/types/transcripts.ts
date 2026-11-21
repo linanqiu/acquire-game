@@ -246,7 +246,33 @@ export interface ChatReplyEntry {
 }
 
 /** An entry of `transcript.entries`, in file order: `decision -> its events -> state`. */
-export type TranscriptEntry = DecisionEntry | StateEntry | EventEntry | ChatEntry | ChatReplyEntry
+/**
+ * A line of the commentator (docs/ai/commentary.md), in order with the events. `text` is null
+ * when a model call produced nothing that was said (`outcome` silent / dropped).
+ */
+export interface CommentaryEntry {
+  type: 'commentary'
+  id: number | null
+  text: string | null
+  source: 'model' | 'rules' | null
+  turn?: number
+  after_seq: number
+  moments: string[]
+  outcome: 'model' | 'rules' | 'silent' | 'dropped'
+  llm?: {
+    model?: string | null
+    cost_usd?: number | null
+    attempts?: LlmAttempt[]
+  } | null
+}
+
+export type TranscriptEntry =
+  | DecisionEntry
+  | StateEntry
+  | EventEntry
+  | ChatEntry
+  | ChatReplyEntry
+  | CommentaryEntry
 
 export interface Transcript {
   header: TranscriptHeader

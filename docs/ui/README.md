@@ -14,6 +14,6 @@ Look (BL-014): neutral ink surfaces that separate by fill before a line, one acc
 |-------|------|-----|
 | `/` | `LobbyPage` | Create or join a game, watch bots play, links to games and bench |
 | `/play/:room` | `PlayerPage` | Private player terminal (phone-first) |
-| `/host/:room` | `HostPage` | Shared board for a TV or laptop |
+| `/host/:room` | `HostPage` | Shared board for a TV or laptop; the watch page of "Watch bots play", with the commentary strip (docs/ai/commentary.md) |
 | `/games`, `/games/:gameId` | `GamesPage`, `TranscriptPage` | Finished-game list and transcript replay |
 | `/bench`, `/bench/series/:seriesId` | `BenchPage`, `BenchSeriesPage` | Buyout Bench leaderboard and series |

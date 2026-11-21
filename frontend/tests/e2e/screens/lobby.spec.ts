@@ -130,8 +130,12 @@ test('host/spectator lobby: add AI and start failures show a toast', async ({
   shots,
 }) => {
   guard.allow(/Failed to load resource/, /Failed to add bot/, /Failed to start game/)
-  await page.goto('/')
-  await page.getByTestId('watch-bots-button').click()
+  // The host lobby of an empty watch room (what "Choose the players of a new game" opens;
+  // "Watch bots play" starts a show since LO-014).
+  const created = await page.request.post('/api/create-spectator')
+  expect(created.ok()).toBeTruthy()
+  const { room_code: watchRoom } = (await created.json()) as { room_code: string }
+  await page.goto(`/host/${watchRoom}`)
   await page.waitForURL(/\/host\/[A-Z0-9]{4}/)
   await expect(page.getByText('WAITING', { exact: false }).first()).toBeVisible()
   await shots.take(page, 'host-lobby')
